@@ -27,3 +27,4 @@ build-backend = "poetry.core.masonry.api"
 [tool.poetry.scripts]
 flint_skymodel = "flint.sky_model:cli"
 flint_aocalibrate = "flint.calibrate.aocalibrate:cli"
+flint_flagger = "flint.flagging:cli"
