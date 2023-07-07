@@ -207,6 +207,9 @@ def calibrate_apply_ms(
         apply_solutions_cmd=apply_solutions_cmd, container=container.absolute()
     )
 
+    # TODO: Ensure correct data_column is attached
+    return ms
+
 
 def get_parser() -> ArgumentParser:
     parser = ArgumentParser(
