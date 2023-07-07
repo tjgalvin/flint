@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 
-import logging
 import yaml
 from typing import NamedTuple, Optional, Tuple, List, Dict
 from pathlib import Path
@@ -15,10 +14,7 @@ from astropy.table.row import Row
 from casacore.tables import table
 from scipy.optimize import curve_fit
 
-logger = logging.getLogger()
-ch = logging.StreamHandler()
-ch.setLevel(logging.DEBUG)
-logger.addHandler(ch)
+from flint.logging import logger
 
 
 class Catalogue(NamedTuple):
@@ -737,6 +733,10 @@ def get_parser():
 
 
 def cli() -> None:
+    import logging
+
+    logger.setLevel(logging.INFO)
+
     parser = get_parser()
 
     args = parser.parse_args()
@@ -756,4 +756,3 @@ def cli() -> None:
 
 if __name__ == "__main__":
     cli()
-
