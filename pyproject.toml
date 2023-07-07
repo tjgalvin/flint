@@ -24,5 +24,5 @@ requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
 
 [tool.poetry.scripts]
-flint_skymodel = "flint/sky_model:cli"
-flint_aocalibrate = "flint/calibrate/calibrate:cli"
+flint_skymodel = "flint.sky_model:cli"
+flint_aocalibrate = "flint.calibrate.calibrate:cli"
