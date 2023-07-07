@@ -37,7 +37,8 @@ def run_singularity_command(
         if isinstance(bind_dirs, Path):
             bind_dirs = [bind_dirs]
 
-        bind_str = ",".join(set([p.absolute() for p in bind_dirs]))
+        # Get only unique paths to avoid duplication in bindstring. 
+        bind_str = ",".join(set([str(p.absolute()) for p in bind_dirs]))
         logger.debug(f"Constructed singularity bindings: {bind_str}")
     
     try:
