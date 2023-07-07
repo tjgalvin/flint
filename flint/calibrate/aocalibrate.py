@@ -191,6 +191,17 @@ def run_apply_solutions(
 def calibrate_apply_ms(
     ms_path: Path, model_path: Path, container: Path, data_column: str = "DATA"
 ) -> MS:
+    """Will create and run a calibration command using AO calibrator, and then appy these solutions.
+
+    Args:
+        ms_path (Path): The measurement set that will be calibrated
+        model_path (Path): The model file containing sources to calibrate against
+        container (Path): Container that has the AO calibtate and applysolutions file.
+        data_column (str, optional): The name of the column containing the data to calibrate. Defaults to "DATA".
+
+    Returns:
+        MS: Measurement set with the calibrated column name nominated
+    """
     ms = MS(path=ms_path, column=data_column)
 
     logger.info(f"Will be attempting to calibrate {ms}")
