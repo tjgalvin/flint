@@ -32,7 +32,7 @@ class ApplySolutionsCommand(NamedTuple):
     ms: MS
     """The measurement set that will have the solutions applied to"""
 
-CALIBRATE_SUFFIX="calibrate.bin"
+CALIBRATE_SUFFIX=".calibrate.bin"
 
 def create_calibrate_cmd(
     ms: MS, 
@@ -144,12 +144,12 @@ def run_calibrate(
         container (Path): Location of the container
     """
     
-    assert container.exists(), f"The calibrate container {calibrate_container} does not exist. "
+    assert container.exists(), f"The calibrate container {container} does not exist. "
     assert calibrate_cmd.ms is not None, f"When calibrating the 'ms' field attribute must be defined. "
     
-    sols_dir_str = str(calibrate_cmd.solution_path.parent)
-    ms_dir_str = str(calibrate_cmd.ms.path.parent)
-    bind_str = ",".join((sols_dir_str, ms_dir_str))
+    sols_dir_str = str(calibrate_cmd.solution_path.parent.absolute())
+    ms_dir_str = str(calibrate_cmd.ms.path.parent.absolute())
+    bind_str = ",".join(set([sols_dir_str, ms_dir_str]))
     logger.debug(f"The bind string is {bind_str=}")
     
     run_singularity_command(
@@ -167,12 +167,12 @@ def run_apply_solutions(
         container (Path): Location of the existing solutions file
     """
     
-    assert container.exists(), f"The applysolutions container {apply_solutions_container} does not exist. "
+    assert container.exists(), f"The applysolutions container {container} does not exist. "
     assert apply_solutions_cmd.ms.path.exists(), f"The measurement set {apply_solutions_cmd.ms} was not found. "
     
-    sols_dir_str = str(apply_solutions_cmd.solution_path.parent)
-    ms_dir_str = str(apply_solutions_cmd.ms.path.parent)
-    bind_str = ",".join((sols_dir_str, ms_dir_str))
+    sols_dir_str = str(apply_solutions_cmd.solution_path.parent.absolute())
+    ms_dir_str = str(apply_solutions_cmd.ms.path.parent.absolute())
+    bind_str = ",".join(set([sols_dir_str, ms_dir_str]))
     logger.debug(f"The bind string is {bind_str=}")
      
     run_singularity_command(
@@ -193,7 +193,15 @@ def calibrate_apply_ms(
     )
 
     run_calibrate(
-        calibrate_cmd=calibrate_cmd, container=container
+        calibrate_cmd=calibrate_cmd, container=container.absolute()
+    )
+    
+    apply_solutions_cmd = create_apply_solutions_cmd(
+        ms=ms, solutions_file=calibrate_cmd.solution_path
+    )
+    
+    run_apply_solutions(
+        apply_solutions_cmd=apply_solutions_cmd, container=container.absolute()
     )
     
 def get_parser() -> ArgumentParser:
@@ -211,9 +219,13 @@ def get_parser() -> ArgumentParser:
     
 def cli() -> None:
     
+    import logging
+    
     parser = get_parser()
     
     args = parser.parse_args()
+    
+    logger.setLevel(logging.DEBUG)
     
     calibrate_apply_ms(
         ms_path = args.ms,
