@@ -2,7 +2,7 @@
 """
 
 from pathlib import Path 
-from typing import Optional
+from typing import Optional, Union, Iterable
 from subprocess import CalledProcessError
 
 from spython.main import Client as sclient
@@ -10,7 +10,7 @@ from spython.main import Client as sclient
 from flint.logging import logger 
 
 def run_singularity_command(
-    image: Path, command: str, bind_str: str = '.'   
+    image: Path, command: str, bind_dirs: Optional[Union[Path,Iterable[Path]]] = None   
 ) -> None:
     """Executes a command within the context of a nominated singularity
     container
@@ -18,7 +18,7 @@ def run_singularity_command(
     Args:
         image (Path): The singularity container image to use
         command (str): The command to execute
-        bind_str (str, optional): Additional bindpaths to include. Defaults to '.'
+        bind_dirs (Optional[Union[Path,Iterable[Path]]], optional): Specifies a Path, or list of Paths, to bind to in the container. Defaults to None. 
 
     Raises:
         FileNotFoundError: Thrown when container image not found
@@ -31,6 +31,14 @@ def run_singularity_command(
         )
     
     logger.debug(f"Running {command} in {image}")
+    
+    bind_str = None
+    if bind_dirs:
+        if isinstance(bind_dirs, Path):
+            bind_dirs = [bind_dirs]
+
+        bind_str = ",".join(set([p.absolute() for p in bind_dirs]))
+        logger.debug(f"Constructed singularity bindings: {bind_str}")
     
     try:
         output = sclient.execute(
