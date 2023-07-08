@@ -21,6 +21,11 @@ class MS(NamedTuple):
     beam: Optional[int] = None
 
     def with_options(self, **kwargs) -> MS:
+        """Create a new MS instance with keywords updated
+
+        Returns:
+            MS: New MS instance with updated attributes
+        """
         as_dict = self._asdict()
         as_dict.update(kwargs)
 
