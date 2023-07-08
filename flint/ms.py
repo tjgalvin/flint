@@ -13,9 +13,12 @@ class MS(NamedTuple):
 
     path: Path
     column: Optional[str] = None
+    beam: Optional[int] = None
 
 
 # TODO: Some common MS validation functions?
+# - list / number of fields
+# - new name function (using names / beams)
 
 
 def check_column_in_ms(ms: MS, column: Optional[str] = None) -> bool:
@@ -35,6 +38,7 @@ def check_column_in_ms(ms: MS, column: Optional[str] = None) -> bool:
     """
     # TODO: Support sub-tables
 
+    logger.debug(f"{ms.column=} {column=}")
     check_col = column if column is not None else ms.column
     if check_col is None:
         raise ValueError(

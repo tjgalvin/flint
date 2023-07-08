@@ -1,0 +1,2 @@
+Format = Name, Type, Ra, Dec, I, SpectralIndex, LogarithmicSI, ReferenceFrequency='888500000.0', MajorAxis, MinorAxis, Orientation
+s0,POINT,19:39:25.0261,-63.42.45.625,14.23058308,[0.42280414,-1.74293221,0.605334],true,888500000.0,,,
