@@ -5,6 +5,9 @@ description = "Pipeline for RACS processing, and profit along the way"
 authors = ["tgalvin <tim.galvin@csiro.au>"]
 license = "MIT"
 readme = "README.md"
+include = [
+    {path = 'flint/data/model/1934-638.calibrate.txt'}
+]
 
 [tool.poetry.dependencies]
 python = "^3.9"
@@ -14,6 +17,7 @@ python-casacore = "^3.5.2"
 scipy = "^1.11.1"
 spython = "^0.3.0"
 fixms = "^0.0.2"
+matplotlib = "*"
 
 [tool.poetry.group.dev.dependencies]
 black = "^23.3.0"
