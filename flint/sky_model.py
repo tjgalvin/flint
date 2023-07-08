@@ -129,7 +129,7 @@ def get_1934_model(mode: str = "calibrate") -> Path:
         )
 
     logger.info(f"Searching for 1934-638 for {mode=}.")
-    model_dir = pkg_resources.resource_filename("flint", "data/model/")
+    model_dir = pkg_resources.resource_filename("flint", "data/models/")
     model_fn = KNOWN_1934_FILES[mode]
 
     model_path = Path(model_dir) / model_fn
