@@ -1,9 +1,11 @@
 """Code to use AO calibrate s
 """
+from __future__ import annotations  # used to keep mypy/pylance happy in AOSolutions
 from pathlib import Path
 from typing import NamedTuple, Optional
 from argparse import ArgumentParser
 
+import numpy as np
 from spython.main import Client as sclient
 
 from flint.logging import logger
@@ -34,7 +36,77 @@ class ApplySolutionsCommand(NamedTuple):
     """The measurement set that will have the solutions applied to"""
 
 
+# TODO: Rename the bandpass attribute?
+class AOSolutions(NamedTuple):
+    """Structure to load an AO-style solutions file"""
+
+    path: Path
+    """Path of the solutions file loaded"""
+    nsol: int
+    """Number of time solutions"""
+    nant: int
+    """Number of antenna in the solution file"""
+    nchan: int
+    """Number of channels in the solution file"""
+    npol: int
+    """Number of polarisations in the file"""
+    bandpass: np.ndarray
+    """Complex data representing the antennea Jones. Shape is (nsol, nant, nchan, npol)"""
+
+    @classmethod
+    def load(cls, path: Path) -> AOSolutions:
+        """Load in an AO-stule solution file. See `load_solutions_file`, which is
+        internally used.
+        """
+        return load_aosolutions_file(solutions_path=path)
+
+
 CALIBRATE_SUFFIX = ".calibrate.bin"
+
+
+def load_aosolutions_file(solutions_path: Path) -> AOSolutions:
+    """Load in an AO-style solutions file
+
+    Args:
+        solutions_path (Path): The path of the solutions file to load
+
+    Returns:
+        AOSolutions: Structure container the deserialized solutions file
+    """
+
+    assert (
+        solutions_path.exists() and solutions_path.is_file()
+    ), f"{str(solutions_path)} either does not exist or is not a file. "
+    logger.info(f"Loading {solutions_path}")
+
+    with open(solutions_path, "r") as in_file:
+        _junk = np.fromfile(in_file, dtype="<i4", count=2)
+
+        header = np.fromfile(in_file, dtype="<i4", count=10)
+        logger.info(f"Header extracted: {header=}")
+        file_type = header[0]
+        assert file_type == 0, f"Expected file_type of 0, found {file_type}"
+
+        structure_type = header[1]
+        assert file_type == 0, f"Expected structure_type of 0, found {structure_type}"
+
+        nsol, nant, nchan, npol = header[2:6]
+        sol_shape = (nsol, nant, nchan, npol)
+
+        # TODO: Ask Emil why there is the sqrt(2) here
+        bandpass = np.sqrt(2) / np.fromfile(
+            in_file, dtype="<c16", count=np.prod(sol_shape)
+        ).reshape(sol_shape)
+        logger.info(f"Loaded solutions of shape {bandpass.shape}")
+
+        return AOSolutions(
+            path=solutions_path,
+            nsol=nsol,
+            nant=nant,
+            nchan=nchan,
+            npol=npol,
+            bandpass=bandpass,
+        )
 
 
 def create_calibrate_cmd(
