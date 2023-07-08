@@ -12,7 +12,15 @@ from flint.sky_model import KNOWN_1934_FILES, get_1934_model
 from flint.calibrate.aocalibrate import calibrate_apply_ms, AOSolutions
 
 
+# TODO: This is very specific to the ao-style solutions file. Consider
+# making this a method of AOSolutions
 def plot_solutions(solutions_path: Path, ref_ant: int = 0) -> None:
+    """Plot solutions for AO-style solutions
+
+    Args:
+        solutions_path (Path): Path to the solutions file
+        ref_ant (int, optional): Reference antenna to use. Defaults to 0.
+    """
     logger.info(f"Plotting {solutions_path}")
 
     ao_sols = AOSolutions.load(path=solutions_path)
