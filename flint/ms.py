@@ -1,5 +1,6 @@
 """Operations related to measurement sets
 """
+from __future__ import annotations
 from pathlib import Path
 from typing import NamedTuple, Optional
 
@@ -15,10 +16,18 @@ class MS(NamedTuple):
     column: Optional[str] = None
     beam: Optional[int] = None
 
+    def with_options(self, **kwargs) -> MS:
+        as_dict = self._asdict()
+        as_dict.update(kwargs)
+
+        return MS(**as_dict)
+
 
 # TODO: Some common MS validation functions?
 # - list / number of fields
 # - new name function (using names / beams)
+# - check to see if fix_ms_dir / fix_ms_corrs
+# - delete column/rename column
 
 
 def check_column_in_ms(ms: MS, column: Optional[str] = None) -> bool:

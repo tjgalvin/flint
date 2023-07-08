@@ -20,9 +20,7 @@ class CalibrateCommand(NamedTuple):
     solution_path: Path
     """The output path of the solutions file
     """
-    ms: Optional[MS] = None
-    """Optionally may attach a measurement set to the solutions. 
-    """
+    ms: MS
 
 
 class ApplySolutionsCommand(NamedTuple):
@@ -137,7 +135,9 @@ def create_apply_solutions_cmd(
 
     logger.info(f"Constructed {cmd=}")
 
-    return ApplySolutionsCommand(cmd=cmd, solution_path=solutions_file, ms=ms)
+    return ApplySolutionsCommand(
+        cmd=cmd, solution_path=solutions_file, ms=ms.with_options(column=output_column)
+    )
 
 
 def run_calibrate(calibrate_cmd: CalibrateCommand, container: Path) -> None:
@@ -200,7 +200,7 @@ def calibrate_apply_ms(
         data_column (str, optional): The name of the column containing the data to calibrate. Defaults to "DATA".
 
     Returns:
-        MS: Measurement set with the calibrated column name nominated
+        MS: Measurement set with the column attribute set to the column with corrected data
     """
     ms = MS(path=ms_path, column=data_column)
 
@@ -218,8 +218,7 @@ def calibrate_apply_ms(
         apply_solutions_cmd=apply_solutions_cmd, container=container.absolute()
     )
 
-    # TODO: Ensure correct data_column is attached
-    return ms
+    return apply_solutions_cmd.ms
 
 
 def get_parser() -> ArgumentParser:

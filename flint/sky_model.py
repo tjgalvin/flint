@@ -1,15 +1,16 @@
 #!/usr/bin/env python
 
-import yaml
-from typing import NamedTuple, Optional, Tuple, List, Dict
-from pathlib import Path
 from argparse import ArgumentParser
 from functools import partial
+from pathlib import Path
+from typing import Dict, List, NamedTuple, Optional, Tuple
 
 import numpy as np
-from astropy.coordinates import Angle, SkyCoord
+import pkg_resources
+import yaml
 from astropy import units as u
-from astropy.table import Table, QTable
+from astropy.coordinates import Angle, SkyCoord
+from astropy.table import QTable, Table
 from astropy.table.row import Row
 from casacore.tables import table
 from scipy.optimize import curve_fit
@@ -103,6 +104,42 @@ KNOWN_CATAS: Dict[str, Catalogue] = {
         pa_col="PA",
     ),
 }
+
+# TODO: Make this a yaml file packaged in data/models
+KNOWN_1934_FILES = {"calibrate": "1934-638.calibrate.txt"}
+
+
+def get_1934_model(mode: str = "calibrate") -> Path:
+    """Construct the path to a 1934-638 model. This is intended to calibrate
+    the bandpass.
+
+    Args:
+        mode (str, optional): Calibration software intended to be used. This will determine model file to load. Supported modes are 'calibrate'. Defaults to 'calibrate'.
+
+    Raises:
+        ValueError: When supplied 'mode' is not known.
+
+    Returns:
+        Path: Path to 1934-638 calibration model.
+    """
+    if mode not in KNOWN_1934_FILES.keys():
+        logger.info(f"No 1934-638 model available for {mode=}.")
+        raise ValueError(
+            f"{mode=} not supported. Supported modes {KNOWN_1934_FILES.keys()}"
+        )
+
+    logger.info(f"Searching for 1934-638 for {mode=}.")
+    model_dir = pkg_resources.resource_filename("flint", "data/model/")
+    model_fn = KNOWN_1934_FILES[mode]
+
+    model_path = Path(model_dir) / model_fn
+
+    assert (
+        model_path.exists()
+    ), f"Constructed {model_path} apparently does not exist. Check packaged models. "
+    logger.info(f"Calibrate 1934-638 model path: {str(model_path)}.")
+
+    return model_path
 
 
 def generate_gaussian_pb(
