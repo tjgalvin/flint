@@ -66,7 +66,7 @@ def run_aoflagger_cmd(aoflagger_cmd: AOFlaggerCommand, container: Path) -> None:
     )
 
 
-def flag_ms_aolagger(ms: MS, container: Path) -> MS:
+def flag_ms_aoflagger(ms: MS, container: Path) -> MS:
     """Create and run an aoflagger command in a container
 
     Args:
@@ -119,7 +119,7 @@ def cli() -> None:
     ms = MS(path=args.ms, column=args.column)
 
     describe_ms(ms)
-    flag_ms_aolagger(ms=ms, container=args.aoflagger_container)
+    flag_ms_aoflagger(ms=ms, container=args.aoflagger_container)
     describe_ms(ms)
 
 

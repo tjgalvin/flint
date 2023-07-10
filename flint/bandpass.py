@@ -2,7 +2,7 @@
 """
 from argparse import ArgumentParser
 from pathlib import Path
-from typing import Union
+from typing import Union, Optional
 
 import numpy as np
 from casacore.tables import table, taql
@@ -11,6 +11,7 @@ from flint.logging import logger
 from flint.ms import MS, describe_ms
 from flint.sky_model import KNOWN_1934_FILES, get_1934_model
 from flint.calibrate.aocalibrate import calibrate_apply_ms, AOSolutions
+from flint.flagging import flag_ms_aoflagger
 
 
 def plot_solutions(solutions_path: Path, ref_ant: int = 0) -> None:
@@ -133,7 +134,7 @@ def extract_correct_bandpass_pointing(
     good_field_name = f"{source_name_prefix}_beam{ms_summary.beam}"
     field_id = ms.get_field_id_for_field(field_name=good_field_name)
 
-    out_path = ms.path.with_suffix(f".{good_field_name}.ms")
+    out_path = ms.path.with_suffix(f".{source_name_prefix}.beam{ms_summary.beam}.ms")
     logger.info(f"Will create a MS, writing to {out_path}")
 
     with table(f"{str(ms.path)}") as tab:
@@ -144,7 +145,12 @@ def extract_correct_bandpass_pointing(
 
 
 def calibrate_bandpass(
-    ms_path: Path, data_column: str, mode: str, container: Path, plot: bool = True
+    ms_path: Path,
+    data_column: str,
+    mode: str,
+    calibrate_container: Path,
+    plot: bool = True,
+    aoflagger_container: Optional[Path] = None,
 ) -> MS:
     """Entry point to extract the appropriate field from a bandpass observation,
     run AO-style calibrate, and plot results. In its current form a new measurement
@@ -154,8 +160,11 @@ def calibrate_bandpass(
         ms_path (Path): Path the the measurement set containing bandpass obervations of B1934-638
         data_column (str): The column that will be calibrated.
         mode (str): The calibration approach to use. Currently only `calibrate` is supported.
-        container (Path): The path to the singularity container that holds the appropriate software.
+        calibrate_container (Path): The path to the singularity container that holds the appropriate software.
         plot (bool, optional): Whether plotting should be performed. Defaults to True.
+        aoflagger_container (Path): The path to the singularity container that holds aoflagger.
+        If this is not `None` that flagging will be performed on the extracted field-specific measurement
+        set.
 
     Returns:
         MS: The calibrated measurement set with nominated column
@@ -168,10 +177,16 @@ def calibrate_bandpass(
     ms = extract_correct_bandpass_pointing(ms=ms_path)
     describe_ms(ms=ms)
 
+    if aoflagger_container is not None:
+        logger.info(f"Will run flagger on extracted measurement set. ")
+        flag_ms_aoflagger(
+            ms=ms.with_options(column="DATA"), container=aoflagger_container
+        )
+
     apply_solutions = calibrate_apply_ms(
         ms_path=ms.path,
         model_path=model_path,
-        container=container,
+        container=calibrate_container,
         data_column=data_column,
     )
 
@@ -210,12 +225,17 @@ def get_parser() -> ArgumentParser:
         help=f"Support 1934-638 calibration models. available models: {supported_models}. ",
     )
     band_parser.add_argument(
-        "--container",
+        "--calibrate-container",
         type=Path,
         default=Path("calibrate.sif"),
         help="Path to container that is capable or running and apply calibration solutions for desired mode. ",
     )
-
+    band_parser.add_argument(
+        "--aoflagger-container",
+        type=Path,
+        default=None,
+        help="Path to container container aoflagger. If provided guided automated flagging with aoflagger will be performed on the extracted measurement set.  ",
+    )
     plot_parser = subparser.add_parser("plot", help="Plot a previous bandpass solution")
 
     plot_parser.add_argument(
@@ -245,7 +265,8 @@ def cli() -> None:
             ms_path=args.ms,
             data_column=args.data_column,
             mode=args.mode,
-            container=args.container,
+            calibrate_container=args.calibrate_container,
+            aoflagger_container=args.aoflagger_container,
         )
     elif args.mode == "plot":
         plot_solutions(solutions_path=args.solutions)
