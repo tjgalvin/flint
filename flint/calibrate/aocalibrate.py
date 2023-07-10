@@ -62,10 +62,9 @@ class AOSolutions(NamedTuple):
         """
         return load_aosolutions_file(solutions_path=path)
 
-    def plot_solutions(self, *args, **kwargs) -> Iterable[Path]:
-        # TODO: Fix this mypy error
-        kwargs.pop("solutions", None)
-        return plot_solutions(solutions=self, *args, **kwargs)
+    def plot_solutions(self, ref_ant: int = 0) -> Iterable[Path]:
+        # TODO: Change call signature to pass straight through
+        return plot_solutions(solutions=self, ref_ant=ref_ant)
 
 
 CALIBRATE_SUFFIX = ".calibrate.bin"

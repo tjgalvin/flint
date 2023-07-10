@@ -2,12 +2,14 @@
 """
 from argparse import ArgumentParser
 from pathlib import Path
+from typing import Union
 
 import matplotlib.pyplot as plt
 import numpy as np
+from casacore.tables import table
 
 from flint.logging import logger
-from flint.ms import MS
+from flint.ms import MS, describe_ms
 from flint.sky_model import KNOWN_1934_FILES, get_1934_model
 from flint.calibrate.aocalibrate import calibrate_apply_ms, AOSolutions
 
@@ -25,6 +27,39 @@ def plot_solutions(solutions_path: Path, ref_ant: int = 0) -> None:
     plot_paths = ao_sols.plot_solutions(ref_ant=ref_ant)
 
 
+def flag_offset_pointings(ms: Union[MS, Path]) -> None:
+    ms = MS(path=ms) if isinstance(ms, Path) else ms
+    ms_summary = describe_ms(ms)
+
+    good_field_name = f"B1934-638_beam{ms_summary.beam}"
+    logger.info(f"The B1934-638 field name is {good_field_name}. ")
+    logger.info(f"Will attempt to flag other fields. ")
+
+    with table(f"{str(ms.path)}/FIELD", readonly=True) as tab:
+        # The ID is _position_ of the matching row in the table.
+        field_names = tab.getcol("NAME")
+        field_idx = np.argwhere([fn == good_field_name for fn in field_names])[0]
+
+        assert (
+            len(field_idx) == 1
+        ), f"More than one matching field name found. This should not happen. {good_field_name=} {field_names=}"
+
+        field_idx = field_idx[0]
+        logger.info(f"{good_field_name} FIELD_ID is {field_idx}")
+
+    with table(f"{str(ms.path)}") as tab:
+        field_idxs = tab.getcol("FIELD_ID")
+        field_mask = field_idxs != field_idx
+        logger.info(
+            f"Found {np.sum(field_mask)} rows not matching FIELD_ID={field_idx}"
+        )
+
+        # This is asserting that the stored polarisations are all XX, XY, YX, YY
+        flag_row = np.array([True, True, True, True])
+        flags = tab.getcol("FLAG")
+        flags[field_mask] = flag_row
+
+
 def calibrate_bandpass(
     ms_path: Path, data_column: str, mode: str, container: Path
 ) -> MS:
@@ -33,14 +68,17 @@ def calibrate_bandpass(
     # TODO: Check to make sure only 1934-638
     model_path: Path = get_1934_model(mode=mode)
 
-    ms = calibrate_apply_ms(
-        ms_path=ms_path,
-        model_path=model_path,
-        container=container,
-        data_column=data_column,
-    )
+    describe_ms(ms=ms_path)
+    flag_offset_pointings(ms=ms_path)
 
-    return ms
+    # ms = calibrate_apply_ms(
+    #     ms_path=ms_path,
+    #     model_path=model_path,
+    #     container=container,
+    #     data_column=data_column,
+    # )
+
+    return
 
 
 def get_parser() -> ArgumentParser:

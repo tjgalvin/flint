@@ -6,8 +6,9 @@ from __future__ import (
 
 from os import PathLike
 from pathlib import Path
-from typing import NamedTuple, Optional, Union
+from typing import NamedTuple, Optional, Union, List
 
+import numpy as np
 from casacore.tables import table
 
 from flint.logging import logger
@@ -32,11 +33,95 @@ class MS(NamedTuple):
         return MS(**as_dict)
 
 
+class MSSummary(NamedTuple):
+    """Small structure to contain overview of a MS"""
+
+    unflagged: int
+    """Number of unflagged records"""
+    flagged: int
+    """Number of flagged records"""
+    fields: List[str]
+    """Collection of unique field names from the FIELDS table"""
+    ants: List[int]
+    """Collection of unique antennas"""
+    beam: int
+    """The ASKAP beam number of the measurement set"""
+
+
 # TODO: Some common MS validation functions?
 # - list / number of fields
 # - new name function (using names / beams)
 # - check to see if fix_ms_dir / fix_ms_corrs
 # - delete column/rename column
+
+
+def get_beam_from_ms(ms: Union[MS, Path]) -> int:
+    """Lookup the ASKAP beam number from a measurement set.
+
+    Args:
+        ms (Union[MS, Path]): The measurement set to inspect. If `MS`, the attached path is used.
+
+    Returns:
+        int: The beam ID number
+    """
+    ms_path = ms if isinstance(ms, Path) else ms.path
+
+    with table(str(ms_path), readonly=True) as tab:
+        uniq_beams = sorted(list(set(tab.getcol("FEED1"))))
+
+    assert (
+        len(uniq_beams) == 1
+    ), f"Expected {str(ms_path)} to contain a single beam, found {len(uniq_beams)}: {uniq_beams=}"
+
+    return uniq_beams[0]
+
+
+def describe_ms(ms: Union[MS, Path], verbose: bool = True) -> MSSummary:
+    """Print some basic information from the inpute measurement set.
+
+    Args:
+        ms (Union[MS,Path]): Measurement set to inspect
+        verbose (bool, optional): Log MS options to the flint logger
+
+    Returns:
+        MSSummary: Brief overview of the MS.
+
+    """
+    ms = MS(path=ms) if isinstance(ms, Path) else ms
+
+    with table(str(ms.path), readonly=True) as tab:
+        colnames = tab.colnames()
+
+        flags = tab.getcol("FLAG")
+        flagged = np.sum(flags == True)
+        unflagged = np.sum(flags == False)
+        total = np.prod(flags.shape)
+
+        uniq_ants = sorted(list(set(tab.getcol("ANTENNA1"))))
+
+    with table(f"{ms.path}/FIELD", readonly=True) as tab:
+        uniq_fields = sorted(list(set(tab.getcol("NAME"))))
+
+    beam_no = get_beam_from_ms(ms=ms)
+
+    if verbose:
+        logger.info(f"Inspecting {ms.path}.")
+        logger.info(f"Contains: ")
+
+        for col in colnames:
+            logger.info(f"\t{col}")
+
+        logger.info(f"{flagged} of {total} flagged ({flagged/total:.4f}%). ")
+        logger.info(f"{len(uniq_ants)} unique antenna: {uniq_ants}")
+        logger.info(f"Unique fields: {uniq_fields}")
+
+    return MSSummary(
+        flagged=flagged,
+        unflagged=unflagged,
+        fields=uniq_fields,
+        ants=uniq_ants,
+        beam=beam_no,
+    )
 
 
 def check_column_in_ms(

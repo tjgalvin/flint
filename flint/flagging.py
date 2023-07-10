@@ -6,7 +6,7 @@ from pathlib import Path
 from argparse import ArgumentParser
 
 from flint.logging import logger
-from flint.ms import MS, check_column_in_ms
+from flint.ms import MS, check_column_in_ms, describe_ms
 from flint.exceptions import MSError
 from flint.sclient import run_singularity_command
 
@@ -118,7 +118,9 @@ def cli() -> None:
 
     ms = MS(path=args.ms, column=args.column)
 
+    describe_ms(ms)
     flag_ms_aolagger(ms=ms, container=args.aoflagger_container)
+    describe_ms(ms)
 
 
 if __name__ == "__main__":
