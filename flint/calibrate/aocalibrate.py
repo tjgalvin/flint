@@ -384,7 +384,7 @@ def apply_solutions_to_ms(
     solutions_path: Path,
     container: Path,
     data_column: str = "DATA",
-) -> AOSolutions:
+) -> ApplySolutions:
     ms = ms if isinstance(ms, MS) else MS(path=ms, column=data_column)
     logger.info(f"Will attempt to apply {str(solutions_path)} to {str(ms.path)}.")
 
@@ -432,7 +432,7 @@ def get_parser() -> ArgumentParser:
         "--data-column", type=str, default="DATA", help="The column to calibrate"
     )
 
-    apply_parser = subparsers(
+    apply_parser = subparsers.add_parser(
         "apply",
         help="Apply an existing AO-style solutions binary to a measurement set. ",
     )
