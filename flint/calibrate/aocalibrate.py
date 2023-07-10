@@ -379,28 +379,77 @@ def calibrate_apply_ms(
     return apply_solutions_cmd
 
 
+def apply_solutions_to_ms(
+    ms: Union[Path, MS],
+    solutions_path: Path,
+    container: Path,
+    data_column: str = "DATA",
+) -> AOSolutions:
+    ms = ms if isinstance(ms, MS) else MS(path=ms, column=data_column)
+    logger.info(f"Will attempt to apply {str(solutions_path)} to {str(ms.path)}.")
+
+    apply_solutions_cmd = create_apply_solutions_cmd(
+        ms=ms, solutions_file=solutions_path
+    )
+
+    run_apply_solutions(
+        apply_solutions_cmd=apply_solutions_cmd, container=container.absolute()
+    )
+
+    return apply_solutions_cmd
+
+
 def get_parser() -> ArgumentParser:
     parser = ArgumentParser(
         description="Run calibrate and apply the solutions given a measurement set and sky-model."
     )
 
-    parser.add_argument(
+    subparsers = parser.add_subparsers(
+        dest="mode", help="AO Calibrate related operations"
+    )
+    calibrate_parser = subparsers.add_parser(
+        "calibrate",
+        help="Calibrate a MS using a text-based sky-model using AO calibrate",
+    )
+
+    calibrate_parser.add_argument(
         "ms",
         type=Path,
         help="The measurement set to calibrate and apply solutions to. ",
     )
-    parser.add_argument(
+    calibrate_parser.add_argument(
         "aoskymodel",
         type=Path,
         help="The AO-style sky-model file to use when calibrating. ",
     )
-    parser.add_argument(
+    calibrate_parser.add_argument(
         "--calibrate-container",
         type=Path,
         default="./calibrate.sif",
         help="The container containing calibrate and applysolutions. ",
     )
-    parser.add_argument(
+    calibrate_parser.add_argument(
+        "--data-column", type=str, default="DATA", help="The column to calibrate"
+    )
+
+    apply_parser = subparsers(
+        "apply",
+        help="Apply an existing AO-style solutions binary to a measurement set. ",
+    )
+
+    apply_parser.add_argument(
+        "ms", type=Path, help="Path to the measurement set to apply the solutions to. "
+    )
+    apply_parser.add_argument(
+        "aosolutions", type=Path, help="Path to the AO-style binary solutions file. "
+    )
+    apply_parser.add_argument(
+        "--calibrate-container",
+        type=Path,
+        default="./calibrate.sif",
+        help="The container containing calibrate and applysolutions. ",
+    )
+    calibrate_parser.add_argument(
         "--data-column", type=str, default="DATA", help="The column to calibrate"
     )
 
@@ -416,12 +465,20 @@ def cli() -> None:
 
     logger.setLevel(logging.DEBUG)
 
-    calibrate_apply_ms(
-        ms_path=args.ms,
-        model_path=args.aoskymodel,
-        container=args.calibrate_container,
-        data_column=args.data_column,
-    )
+    if args.mode == "calibrate":
+        calibrate_apply_ms(
+            ms_path=args.ms,
+            model_path=args.aoskymodel,
+            container=args.calibrate_container,
+            data_column=args.data_column,
+        )
+    elif args.mode == "apply":
+        apply_solutions_to_ms(
+            ms=args.ms,
+            solutions_path=args.aosolution,
+            container=args.calibrate_container,
+            data_column=args.data_column,
+        )
 
 
 if __name__ == "__main__":

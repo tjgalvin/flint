@@ -193,6 +193,8 @@ def calibrate_bandpass(
     if plot:
         plot_solutions(solutions_path=apply_solutions.solution_path)
 
+    describe_ms(ms=apply_solutions.ms)
+
     return ms
 
 
