@@ -20,6 +20,14 @@ class MS(NamedTuple):
     path: Path
     column: Optional[str] = None
     beam: Optional[int] = None
+    field: Optional[str] = None
+
+    def get_field_id_for_field(self, field_name: str) -> Union[int, None]:
+        """Return the FIELD_ID for an elected field in a measurement set. See
+        `flink.ms.get_field_id_for_field` for full details.
+        """
+
+        return get_field_id_for_field(ms=self, field_name=field_name)
 
     def with_options(self, **kwargs) -> MS:
         """Create a new MS instance with keywords updated
@@ -53,6 +61,40 @@ class MSSummary(NamedTuple):
 # - new name function (using names / beams)
 # - check to see if fix_ms_dir / fix_ms_corrs
 # - delete column/rename column
+
+
+def get_field_id_for_field(ms: Union[MS, Path], field_name: str) -> Union[int, None]:
+    """Return the FIELD_ID for an elected field in a measurement set
+
+    Args:
+        ms (Union[MS, Path]): The measurement set to inspect
+        field_name (str): The desired name of the field to find the FIELD_ID for
+
+    Raises:
+        ValueError: Raised when more than one unique FIELD_ID is found for a single field
+
+    Returns:
+        Union[int, None]: The FIELD_ID as an `int` if the field is found. `None` if
+        it is not found.
+    """
+    ms_path = ms if isinstance(ms, Path) else ms.path
+
+    with table(f"{str(ms_path)}/FIELD", readonly=True, ack=False) as tab:
+        # The ID is _position_ of the matching row in the table.
+        field_names = tab.getcol("NAME")
+        field_idx = np.argwhere([fn == field_name for fn in field_names])[0]
+
+        if len(field_idx) == 0:
+            return None
+        elif len(field_idx) > 1:
+            raise ValueError(
+                f"More than one matching field name found. This should not happen. {field_name=} {field_names=}"
+            )
+
+        field_idx = field_idx[0]
+        logger.info(f"{field_name} FIELD_ID is {field_idx}")
+
+    return field_idx
 
 
 def get_beam_from_ms(ms: Union[MS, Path]) -> int:
@@ -89,7 +131,7 @@ def describe_ms(ms: Union[MS, Path], verbose: bool = True) -> MSSummary:
     """
     ms = MS(path=ms) if isinstance(ms, Path) else ms
 
-    with table(str(ms.path), readonly=True) as tab:
+    with table(str(ms.path), readonly=True, ack=False) as tab:
         colnames = tab.colnames()
 
         flags = tab.getcol("FLAG")
@@ -106,12 +148,9 @@ def describe_ms(ms: Union[MS, Path], verbose: bool = True) -> MSSummary:
 
     if verbose:
         logger.info(f"Inspecting {ms.path}.")
-        logger.info(f"Contains: ")
+        logger.info(f"Contains: {colnames}")
 
-        for col in colnames:
-            logger.info(f"\t{col}")
-
-        logger.info(f"{flagged} of {total} flagged ({flagged/total:.4f}%). ")
+        logger.info(f"{flagged} of {total} flagged ({flagged/total*100.:.4f}%). ")
         logger.info(f"{len(uniq_ants)} unique antenna: {uniq_ants}")
         logger.info(f"Unique fields: {uniq_fields}")
 

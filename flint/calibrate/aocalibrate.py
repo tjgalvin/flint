@@ -27,7 +27,7 @@ class CalibrateCommand(NamedTuple):
     ms: MS
 
 
-class ApplySolutionsCommand(NamedTuple):
+class ApplySolutions(NamedTuple):
     """The applysolutions command to execute"""
 
     cmd: str
@@ -251,7 +251,7 @@ def create_calibrate_cmd(
 
 def create_apply_solutions_cmd(
     ms: MS, solutions_file: Path, output_column: Optional[str] = None
-) -> ApplySolutionsCommand:
+) -> ApplySolutions:
     """Construct the command to apply calibration solutions to a MS
     using an AO calibrate style solutions file.
 
@@ -268,7 +268,7 @@ def create_apply_solutions_cmd(
         output_column (Optional[str], optional): The desired output column name. See notes above. Defaults to None.
 
     Returns:
-        ApplySolutionsCommand: _description_
+        ApplySolutions: _description_
     """
 
     assert ms.path.exists(), f"The measurement set {ms} was not found. "
@@ -295,7 +295,7 @@ def create_apply_solutions_cmd(
 
     logger.info(f"Constructed {cmd=}")
 
-    return ApplySolutionsCommand(
+    return ApplySolutions(
         cmd=cmd, solution_path=solutions_file, ms=ms.with_options(column=output_column)
     )
 
@@ -320,14 +320,12 @@ def run_calibrate(calibrate_cmd: CalibrateCommand, container: Path) -> None:
     )
 
 
-def run_apply_solutions(
-    apply_solutions_cmd: ApplySolutionsCommand, container: Path
-) -> None:
+def run_apply_solutions(apply_solutions_cmd: ApplySolutions, container: Path) -> None:
     """Will execute the applysolutions command inside the specified singularity
     container.
 
     Args:
-        apply_solutions_cmd (ApplySolutionsCommand): The constructed applysolutions command
+        apply_solutions_cmd (ApplySolutions): The constructed applysolutions command
         container (Path): Location of the existing solutions file
     """
 
@@ -350,7 +348,7 @@ def run_apply_solutions(
 
 def calibrate_apply_ms(
     ms_path: Path, model_path: Path, container: Path, data_column: str = "DATA"
-) -> MS:
+) -> ApplySolutions:
     """Will create and run a calibration command using AO calibrator, and then appy these solutions.
 
     Args:
@@ -360,7 +358,7 @@ def calibrate_apply_ms(
         data_column (str, optional): The name of the column containing the data to calibrate. Defaults to "DATA".
 
     Returns:
-        MS: Measurement set with the column attribute set to the column with corrected data
+        Applysolutions: The command, solution binary path and new measurement set structure
     """
     ms = MS(path=ms_path, column=data_column)
 
@@ -378,7 +376,7 @@ def calibrate_apply_ms(
         apply_solutions_cmd=apply_solutions_cmd, container=container.absolute()
     )
 
-    return apply_solutions_cmd.ms
+    return apply_solutions_cmd
 
 
 def get_parser() -> ArgumentParser:
