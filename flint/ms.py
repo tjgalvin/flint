@@ -325,7 +325,7 @@ def preprocess_askap_ms(
             if not overwrite:
                 raise ValueError(msg)
 
-        tab.rename(data_column, instrument_column)
+        tab.renamecol(data_column, instrument_column)
 
     fix_ms_dir(ms=str(ms.path))
     fix_ms_corrs(
