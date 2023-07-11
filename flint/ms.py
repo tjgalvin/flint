@@ -4,12 +4,13 @@ from __future__ import (
     annotations,
 )  # Used for mypy/pylance to like the return type of MS.with_options
 
+from argparse import ArgumentParser
 from os import PathLike
 from pathlib import Path
-from typing import NamedTuple, Optional, Union, List
+from typing import List, NamedTuple, Optional, Union
 
 import numpy as np
-from casacore.tables import table
+from casacore.tables import table, taql
 
 from flint.logging import logger
 
@@ -28,6 +29,12 @@ class MS(NamedTuple):
         """
 
         return get_field_id_for_field(ms=self, field_name=field_name)
+
+    @classmethod
+    def cast(cls, ms: Union[MS, Path]) -> MS:
+        ms = ms if isinstance(ms, MS) else MS(path=ms)
+
+        return ms
 
     def with_options(self, **kwargs) -> MS:
         """Create a new MS instance with keywords updated
@@ -141,8 +148,8 @@ def describe_ms(ms: Union[MS, Path], verbose: bool = True) -> MSSummary:
 
         uniq_ants = sorted(list(set(tab.getcol("ANTENNA1"))))
 
-    with table(f"{ms.path}/FIELD", readonly=True) as tab:
-        uniq_fields = sorted(list(set(tab.getcol("NAME"))))
+    with table(f"{ms.path}/FIELD", readonly=True, ack=False) as tab:
+        uniq_fields = list(set(tab.getcol("NAME")))
 
     beam_no = get_beam_from_ms(ms=ms)
 
@@ -161,6 +168,61 @@ def describe_ms(ms: Union[MS, Path], verbose: bool = True) -> MSSummary:
         ants=uniq_ants,
         beam=beam_no,
     )
+
+
+def split_by_field(
+    ms: Union[MS, Path], field: Optional[str] = None, out_dir: Optional[Path] = None
+) -> List[MS]:
+    """Attempt to split an input measurement set up by the unique FIELDs recorded
+
+    Args:
+        ms (Union[MS, Path]): Input measurement sett to split into smaller MSs by field name
+        field (Optional[str], optional): Desired field to extract. If None, all are split. Defaults to None.
+        out_dir (Optional[Path], optional): Output directory to write the fresh MSs to. If None, write to same directory as
+        parent MS. Defaults to None.
+
+    Returns:
+        List[MS]: The output MSs split by their field name.
+    """
+    ms = MS.cast(ms)
+
+    # TODO: Split describe_ms up so can get just fiels
+    ms_summary = describe_ms(ms, verbose=False)
+
+    logger.info(f"Collecting field names and corresponding FIELD_IDs")
+    fields = [field] if field else ms_summary.fields
+    field_idxs = [get_field_id_for_field(ms=ms, field_name=field) for field in fields]
+
+    out_mss: List[MS] = []
+
+    ms_out_dir: Path = Path(out_dir) if out_dir is not None else ms.path.parent
+    logger.info(f"Will write output MSs to {ms_out_dir}.")
+
+    if not ms_out_dir.exists():
+        try:
+            logger.info(f"Creating {ms_out_dir}.")
+            ms_out_dir.mkdir(parents=True)
+        except Exception as e:
+            logger.warn(e)
+            pass  # Incase above fails due to race condition
+
+    logger.info(f"Opening {ms.path}. ")
+    with table(str(ms.path), ack=False) as tab:
+        for split_name, split_idx in zip(fields, field_idxs):
+            logger.info(f"Selecting FIELD={split_name}")
+            sub_ms = taql(f"select * from $tab where FIELD_ID=={split_idx}")
+
+            out_path = (
+                ms_out_dir
+                / ms.path.with_suffix(f".{split_name.replace('_','.')}.ms").name
+            )
+
+            logger.info(f"Writing {str(out_path)} for {split_name}")
+            sub_ms.copy(str(out_path), deep=True)
+
+            out_mss.append(MS(path=out_path))
+
+    return out_mss
 
 
 def check_column_in_ms(
@@ -203,3 +265,40 @@ def check_column_in_ms(
         result = check_col in tab_cols
 
     return result
+
+
+def get_parser() -> ArgumentParser:
+    parser = ArgumentParser(description="Components to interact with MS")
+
+    subparser = parser.add_subparsers(dest="mode")
+
+    split_parser = subparser.add_parser(
+        "split", help="Split an MS based on field name. "
+    )
+
+    split_parser.add_argument("ms", type=Path, help="MS to split based on fields. ")
+    split_parser.add_argument(
+        "--ms-out-dir",
+        type=Path,
+        default=None,
+        help="Location to write the output MSs to. ",
+    )
+
+    return parser
+
+
+def cli() -> None:
+    import logging
+
+    logger.setLevel(logging.INFO)
+
+    parser = get_parser()
+
+    args = parser.parse_args()
+
+    if args.mode == "split":
+        split_by_field(ms=args.ms, out_dir=args.ms_out_dir)
+
+
+if __name__ == "__main__":
+    cli()
