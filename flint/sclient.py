@@ -2,7 +2,7 @@
 """
 
 from pathlib import Path
-from typing import Optional, Union, Iterable
+from typing import Optional, Union, Collection
 from subprocess import CalledProcessError
 
 from spython.main import Client as sclient
@@ -11,7 +11,7 @@ from flint.logging import logger
 
 
 def run_singularity_command(
-    image: Path, command: str, bind_dirs: Optional[Union[Path, Iterable[Path]]] = None
+    image: Path, command: str, bind_dirs: Optional[Union[Path, Collection[Path]]] = None
 ) -> None:
     """Executes a command within the context of a nominated singularity
     container
@@ -19,7 +19,7 @@ def run_singularity_command(
     Args:
         image (Path): The singularity container image to use
         command (str): The command to execute
-        bind_dirs (Optional[Union[Path,Iterable[Path]]], optional): Specifies a Path, or list of Paths, to bind to in the container. Defaults to None.
+        bind_dirs (Optional[Union[Path,Collection[Path]]], optional): Specifies a Path, or list of Paths, to bind to in the container. Defaults to None.
 
     Raises:
         FileNotFoundError: Thrown when container image not found
@@ -37,14 +37,20 @@ def run_singularity_command(
             bind_dirs = [bind_dirs]
 
         # Get only unique paths to avoid duplication in bindstring.
-        bind_str = ",".join(set([str(p.absolute()) for p in bind_dirs]))
+        # bind_str = ",".join(set([str(p.absolute().resolve()) for p in bind_dirs]))
+        bind = (
+            list(set([str(p.absolute().resolve()) for p in bind_dirs]))
+            if len(bind_dirs) > 0
+            else None
+        )
+
         logger.debug(f"Constructed singularity bindings: {bind_str}")
 
     try:
         output = sclient.execute(
             image=image.resolve(strict=True).as_posix(),
             command=command.split(),
-            bind=bind_str,
+            bind=bind,
             return_result=True,
             quiet=False,
             stream=True,
