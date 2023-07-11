@@ -277,6 +277,7 @@ def preprocess_askap_ms(
     ms: Union[MS, Path],
     data_column: str = "DATA",
     instrument_column: str = "INSTRUMENT_DATA",
+    overwrite: bool = True,
 ) -> MS:
     """The ASKAP MS stores its data in a way that is not immediatedly accessible
     to other astronomical software, like wsclean or casa. For each measurement set
@@ -294,6 +295,14 @@ def preprocess_askap_ms(
 
     Args:
         ms (Union[MS, Path]): The measurement set to update
+        data_column (str, optional): The name of the data column to correct. This will first
+        be renamed to the value specified by `instrument_column` before being corrected. Defaults
+        to 'DATA'.
+        instrument_column (str, optional): The name of the column that will hold the original
+        `data_column` data. Defaults to 'INSTRUMENT_DATA'
+        overwrite (bool, optional): If the `instrument_column` and `data_column` both exist and
+        `overwrite=True` the `data_column` will be overwritten. Otherwise, a `ValueError` is raised.
+        Defaults to True.
 
     Returns:
         MS: An updated measurement set with the corrections applied.
@@ -311,18 +320,19 @@ def preprocess_askap_ms(
         colnames = tab.colnames()
         if data_column not in colnames:
             raise ValueError(f"Column {data_column} not found in {str(ms.path)}. ")
-        if instrument_column in colnames:
-            raise ValueError(
-                f"Column {instrument_column} already in {str(ms.path)}. Already corrected?"
-            )
-        tab.rename("DATA", "INSTRUMENT_DATA")
+        if all([col in colnames for col in (data_column, instrument_column)]):
+            msg = f"Column {instrument_column} already in {str(ms.path)}. Already corrected?"
+            if not overwrite:
+                raise ValueError(msg)
+
+        tab.rename(data_column, instrument_column)
 
     fix_ms_dir(ms=str(ms.path))
     fix_ms_corrs(
-        ms=ms.path, data_column="INSTRUMENT_DATA", corrected_data_column="DATA"
+        ms=ms.path, data_column=instrument_column, corrected_data_column=data_column
     )
 
-    return ms.with_options(data_column="DATA")
+    return ms.with_options(data_column=data_column)
 
 
 def get_parser() -> ArgumentParser:
