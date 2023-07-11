@@ -11,6 +11,8 @@ from typing import List, NamedTuple, Optional, Union
 
 import numpy as np
 from casacore.tables import table, taql
+from fixms.fix_ms_dir import fix_ms_dir
+from fixms.fix_ms_corrs import fix_ms_corrs
 
 from flint.logging import logger
 
@@ -19,9 +21,13 @@ class MS(NamedTuple):
     """Helper to keep tracked of measurement set information"""
 
     path: Path
+    """Path to the measurement set that is being represented"""
     column: Optional[str] = None
+    """Column that should be operated against"""
     beam: Optional[int] = None
+    """The beam ID of the MS within an ASKAP field"""
     field: Optional[str] = None
+    """The field name  of the data"""
 
     def get_field_id_for_field(self, field_name: str) -> Union[int, None]:
         """Return the FIELD_ID for an elected field in a measurement set. See
@@ -267,6 +273,58 @@ def check_column_in_ms(
     return result
 
 
+def preprocess_askap_ms(
+    ms: Union[MS, Path],
+    data_column: str = "DATA",
+    instrument_column: str = "INSTRUMENT_DATA",
+) -> MS:
+    """The ASKAP MS stores its data in a way that is not immediatedly accessible
+    to other astronomical software, like wsclean or casa. For each measurement set
+    the centre of the field is stored, and beam offsets are stored in a separate table.
+
+    Additionally, the correlations stored are more akin to (P, Q) -- they are not
+    (X, Y) in the sky reference frame. This function does two things:
+
+    1 - updates the positions stored so when data are imaged/calibrated the correlations
+    are directed to the correct position
+    2 - will apply a rotation to go from (P, Q) -> (X, Y)
+
+    These corrections are applied to the original MS, and should be
+    able to be executed multiple times without accumulating changes.
+
+    Args:
+        ms (Union[MS, Path]): The measurement set to update
+
+    Returns:
+        MS: An updated measurement set with the corrections applied.
+    """
+    ms = MS.cast(ms)
+
+    assert (
+        data_column != instrument_column
+    ), f"Received matching column names: {data_column=} {instrument_column=}"
+
+    logger.info(f"Will be running ASKAP MS conversion operations against {ms}.")
+    logger.info(f"Correcting directions. ")
+
+    with table(str(ms.path), ack=False, readonly=False) as tab:
+        colnames = tab.colnames()
+        if data_column not in colnames:
+            raise ValueError(f"Column {data_column} not found in {str(ms.path)}. ")
+        if instrument_column in colnames:
+            raise ValueError(
+                f"Column {instrument_column} already in {str(ms.path)}. Already corrected?"
+            )
+        tab.rename("DATA", "INSTRUMENT_DATA")
+
+    fix_ms_dir(ms=str(ms.path))
+    fix_ms_corrs(
+        ms=ms.path, data_column="INSTRUMENT_DATA", corrected_data_column="DATA"
+    )
+
+    return ms.with_options(data_column="DATA")
+
+
 def get_parser() -> ArgumentParser:
     parser = ArgumentParser(description="Components to interact with MS")
 
@@ -284,6 +342,13 @@ def get_parser() -> ArgumentParser:
         help="Location to write the output MSs to. ",
     )
 
+    preprocess_parser = subparser.add_parser(
+        "preprocess",
+        help="Apply preprocessing operations to the ASKAP MS so it can be used outside of yandasoft",
+    )
+
+    preprocess_parser.add_argument("ms", type=Path, help="Measurement set to correct. ")
+
     return parser
 
 
@@ -298,6 +363,8 @@ def cli() -> None:
 
     if args.mode == "split":
         split_by_field(ms=args.ms, out_dir=args.ms_out_dir)
+    if args.mode == "preprocess":
+        preprocess_askap_ms(ms=args.ms)
 
 
 if __name__ == "__main__":
