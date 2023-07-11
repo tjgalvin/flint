@@ -16,7 +16,7 @@ numpy = "^1.25.0"
 python-casacore = "^3.5.2"
 scipy = "^1.11.1"
 spython = "^0.3.0"
-fixms = "^0.0.2"
+fixms = "^0.0.3"
 matplotlib = "*"
 
 [tool.poetry.group.dev.dependencies]
