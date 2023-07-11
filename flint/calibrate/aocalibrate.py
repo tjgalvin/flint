@@ -135,8 +135,8 @@ def plot_solutions(
             ax_p.set_title(f"ak{ant:02d}", fontsize=8)
             fill_between_flags(ax_p, ~np.isfinite(phase_yy) | ~np.isfinite(phase_xx))
 
-    fig_amp.suptitle(f"Amplitudes")
-    fig_phase.suptitle(f"Phases")
+    fig_amp.suptitle(f"{ao_sols.path.name} - Amplitudes")
+    fig_phase.suptitle(f"{ao_sols.path.name} - Phases")
 
     fig_amp.tight_layout()
     fig_phase.tight_layout()
@@ -340,8 +340,8 @@ def run_apply_solutions(apply_solutions_cmd: ApplySolutions, container: Path) ->
         image=container,
         command=apply_solutions_cmd.cmd,
         bind_dirs=[
-            apply_solutions_cmd.solution_path.parent,
-            apply_solutions_cmd.ms.path.parent,
+            apply_solutions_cmd.solution_path.parent.absolute(),
+            apply_solutions_cmd.ms.path.parent.absolute(),
         ],
     )
 
@@ -449,7 +449,7 @@ def get_parser() -> ArgumentParser:
         default="./calibrate.sif",
         help="The container containing calibrate and applysolutions. ",
     )
-    calibrate_parser.add_argument(
+    apply_parser.add_argument(
         "--data-column", type=str, default="DATA", help="The column to calibrate"
     )
 
@@ -475,7 +475,7 @@ def cli() -> None:
     elif args.mode == "apply":
         apply_solutions_to_ms(
             ms=args.ms,
-            solutions_path=args.aosolution,
+            solutions_path=args.aosolutions,
             container=args.calibrate_container,
             data_column=args.data_column,
         )

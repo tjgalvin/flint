@@ -8,7 +8,7 @@ import numpy as np
 from casacore.tables import table, taql
 
 from flint.logging import logger
-from flint.ms import MS, describe_ms
+from flint.ms import MS, describe_ms, preprocess_askap_ms
 from flint.sky_model import KNOWN_1934_FILES, get_1934_model
 from flint.calibrate.aocalibrate import calibrate_apply_ms, AOSolutions
 from flint.flagging import flag_ms_aoflagger
@@ -177,11 +177,14 @@ def calibrate_bandpass(
     ms = extract_correct_bandpass_pointing(ms=ms_path)
     describe_ms(ms=ms)
 
+    ms = preprocess_askap_ms(ms)
+
     if aoflagger_container is not None:
-        logger.info(f"Will run flagger on extracted measurement set. ")
-        flag_ms_aoflagger(
-            ms=ms.with_options(column="DATA"), container=aoflagger_container
-        )
+        for i in range(3):
+            logger.info(f"Will run flagger on extracted measurement set. ")
+            flag_ms_aoflagger(
+                ms=ms.with_options(column="DATA"), container=aoflagger_container
+            )
 
     apply_solutions = calibrate_apply_ms(
         ms_path=ms.path,
