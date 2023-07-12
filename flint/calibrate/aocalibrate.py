@@ -25,6 +25,9 @@ class CalibrateCommand(NamedTuple):
     """The output path of the solutions file
     """
     ms: MS
+    """The measurement set to have solutions derived for"""
+    model: Path
+    """Path to the model that would be used to calibrate against"""
 
 
 class ApplySolutions(NamedTuple):
@@ -252,7 +255,9 @@ def create_calibrate_cmd(
 
     logger.debug(f"Constructed calibrate command is {cmd=}")
 
-    calibrate_cmd = CalibrateCommand(cmd=cmd, solution_path=solution_path, ms=ms)
+    calibrate_cmd = CalibrateCommand(
+        cmd=cmd, solution_path=solution_path, ms=ms, model=calibrate_model
+    )
 
     if container is not None:
         run_calibrate(calibrate_cmd=calibrate_cmd, container=container)
@@ -337,7 +342,11 @@ def run_calibrate(calibrate_cmd: CalibrateCommand, container: Path) -> None:
     run_singularity_command(
         image=container,
         command=calibrate_cmd.cmd,
-        bind_dirs=[calibrate_cmd.solution_path.parent, calibrate_cmd.ms.path.parent],
+        bind_dirs=[
+            calibrate_cmd.solution_path.parent,
+            calibrate_cmd.ms.path.parent,
+            calibrate_cmd.model.parent,
+        ],
     )
 
 

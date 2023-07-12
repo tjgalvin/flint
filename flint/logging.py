@@ -1,14 +1,14 @@
-
 import logging
 
 # Create logger
 logging.captureWarnings(True)
-logger = logging.getLogger("arrakis")
+logger = logging.getLogger("flint")
 logger.setLevel(logging.WARNING)
 
 # Create console handler and set level to debug
 ch = logging.StreamHandler()
 ch.setLevel(logging.DEBUG)
+
 
 class CustomFormatter(logging.Formatter):
     grey = "\x1b[38;20m"

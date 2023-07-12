@@ -33,7 +33,7 @@ def process_bandpass_science_fields(
     assert (
         bandpass_path.exists() and bandpass_path.is_dir()
     ), f"{str(bandpass_path)} does not exist or is not a folder. "
-    bandpass_mss = list([MS.cast(ms_path) for ms_path in bandpass_path.glob(f".ms")])
+    bandpass_mss = list([MS.cast(ms_path) for ms_path in bandpass_path.glob(f"*.ms")])
     assert (
         len(bandpass_mss) == expected_ms
     ), f"Expected to find {expected_ms} in {str(bandpass_path)}, found {len(bandpass_mss)}."
@@ -91,7 +91,7 @@ def setup_run_process_science_field(
         flagger_container=flagger_container,
         calibrate_container=calibrate_container,
         expected_ms=expected_ms,
-        sourcce_name_prefix=source_name_prefix,
+        source_name_prefix=source_name_prefix,
     )
 
     pass
@@ -101,9 +101,16 @@ def get_parser() -> ArgumentParser:
     parser = ArgumentParser(description=__doc__)
 
     parser.add_argument(
-        "bandpass_dir",
+        "bandpass_path",
         type=Path,
         help="Path to directory containing the beam-wise measurement sets that contain the bandpass calibration source. ",
+    )
+
+    parser.add_argument(
+        "--split-path",
+        type=Path,
+        default=Path("."),
+        help="Location to write field-split MSs to. Will attempt to use the parent name of a directory when writing out a new MS. ",
     )
 
     parser.add_argument(
@@ -119,7 +126,7 @@ def get_parser() -> ArgumentParser:
         help="Path to container that holds AO calibrate and applysolutions. ",
     )
     parser.add_argument(
-        "--flaffer-container",
+        "--flagger-container",
         type=Path,
         default="flagger.sif",
         help="Path to container with aoflagger software. ",
