@@ -18,6 +18,8 @@ scipy = "^1.11.1"
 spython = "^0.3.0"
 fixms = "^0.1.1"
 matplotlib = "*"
+prefect = "^2.10.0"
+prefect-dask = "^0.2.4"
 
 [tool.poetry.group.dev.dependencies]
 black = "^23.3.0"
