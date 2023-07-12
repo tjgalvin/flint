@@ -48,6 +48,8 @@ class MS(NamedTuple):
         Returns:
             MS: New MS instance with updated attributes
         """
+        # TODO: Update the signature to have the actual attributes to
+        # help keep mypy and other linters happy
         as_dict = self._asdict()
         as_dict.update(kwargs)
 
@@ -313,26 +315,32 @@ def preprocess_askap_ms(
         data_column != instrument_column
     ), f"Received matching column names: {data_column=} {instrument_column=}"
 
-    logger.info(f"Will be running ASKAP MS conversion operations against {ms}.")
+    logger.info(f"Will be running ASKAP MS conversion operations against {str(ms)}.")
     logger.info(f"Correcting directions. ")
 
     with table(str(ms.path), ack=False, readonly=False) as tab:
         colnames = tab.colnames()
         if data_column not in colnames:
-            raise ValueError(f"Column {data_column} not found in {str(ms.path)}. ")
+            raise ValueError(
+                f"Column {data_column} not found in {str(ms.path)}. Columns found: {colnames}"
+            )
         if all([col in colnames for col in (data_column, instrument_column)]):
             msg = f"Column {instrument_column} already in {str(ms.path)}. Already corrected?"
             if not overwrite:
                 raise ValueError(msg)
 
-        tab.renamecol(data_column, instrument_column)
+        if data_column in colnames and instrument_column not in colnames:
+            logger.info(f"Renaming {data_column} to {instrument_column}.")
+            tab.renamecol(data_column, instrument_column)
 
+    logger.info(f"Correcting the field table. ")
     fix_ms_dir(ms=str(ms.path))
+    logger.info(f"Applying roation matrix to correlations. ")
     fix_ms_corrs(
         ms=ms.path, data_column=instrument_column, corrected_data_column=data_column
     )
 
-    return ms.with_options(data_column=data_column)
+    return ms.with_options(column=data_column)
 
 
 def get_parser() -> ArgumentParser:

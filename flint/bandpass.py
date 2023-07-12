@@ -90,7 +90,9 @@ def flag_bandpass_offset_pointings(ms: Union[MS, Path]) -> MS:
 
 
 def extract_correct_bandpass_pointing(
-    ms: Union[MS, Path], source_name_prefix: str = "B1934-638"
+    ms: Union[MS, Path],
+    source_name_prefix: str = "B1934-638",
+    ms_out_dir: Optional[Path] = None,
 ) -> MS:
     """The typical bandpass style observation in ASKAP will shift each beam
     so that it is centred on the bandpass-calibration object (here B1934-638).
@@ -123,20 +125,35 @@ def extract_correct_bandpass_pointing(
         source_name_prefix (str, optional): The beginning of the source name stored in the NAME column of the FIELD table.
         Field names are of the form B1934-638_beam1, where B1934-638 would be the prefix name, and beam is constructed based
         on the beam among the 36 observing the target source (for example).
+        ms_out_dir (Optional[Path], optional): If not None, place the split field measurement sets into this directory. Defaults to None.
 
     Returns:
         MS: A description of the new measurement set created with the file name
         ending .beamN.ms.
     """
-    ms = MS(path=ms) if isinstance(ms, Path) else ms
+    ms = MS.cast(ms)
     ms_summary = describe_ms(ms, verbose=False)
 
     good_field_name = f"{source_name_prefix}_beam{ms_summary.beam}"
     field_id = ms.get_field_id_for_field(field_name=good_field_name)
 
     out_path = ms.path.with_suffix(f".{source_name_prefix}.beam{ms_summary.beam}.ms")
-    logger.info(f"Will create a MS, writing to {out_path}")
 
+    # Handle writing out to elected output directory.
+    # TODO: Move this to a helper utility.
+    if ms_out_dir:
+        if not ms_out_dir.exists():
+            logger.info(f"Will create {ms_out_dir=}")
+            try:
+                ms_out_dir.mkdir(parents=True)
+            except Exception as e:
+                logger.warn(f"Exception caught when making {ms_out_dir=}.")
+                logger.warn(f"{e}")
+                pass
+
+        out_path = ms_out_dir / out_path.name
+
+    logger.info(f"Will create a MS, writing to {out_path}")
     with table(f"{str(ms.path)}") as tab:
         field_ms = taql(f"select * from $tab where FIELD_ID=={field_id}")
         field_ms.copy(str(out_path), deep=True)
@@ -151,6 +168,7 @@ def calibrate_bandpass(
     calibrate_container: Path,
     plot: bool = True,
     aoflagger_container: Optional[Path] = None,
+    ms_out_dir: Optional[Path] = None,
 ) -> MS:
     """Entry point to extract the appropriate field from a bandpass observation,
     run AO-style calibrate, and plot results. In its current form a new measurement
@@ -165,6 +183,7 @@ def calibrate_bandpass(
         aoflagger_container (Path): The path to the singularity container that holds aoflagger.
         If this is not `None` that flagging will be performed on the extracted field-specific measurement
         set.
+        ms_out_dir (Optional[Path], optional): If not None, place the split field measurement sets into this directory. Defaults to None.
 
     Returns:
         MS: The calibrated measurement set with nominated column
@@ -174,7 +193,7 @@ def calibrate_bandpass(
     # TODO: Check to make sure only 1934-638
     model_path: Path = get_1934_model(mode=mode)
 
-    ms = extract_correct_bandpass_pointing(ms=ms_path)
+    ms = extract_correct_bandpass_pointing(ms=ms_path, ms_out_dir=ms_out_dir)
     describe_ms(ms=ms)
 
     ms = preprocess_askap_ms(ms)
@@ -241,6 +260,13 @@ def get_parser() -> ArgumentParser:
         default=None,
         help="Path to container container aoflagger. If provided guided automated flagging with aoflagger will be performed on the extracted measurement set.  ",
     )
+    band_parser.add_argument(
+        "--ms-out-dir",
+        type=Path,
+        default=None,
+        help="Location to write the output MSs to. ",
+    )
+
     plot_parser = subparser.add_parser("plot", help="Plot a previous bandpass solution")
 
     plot_parser.add_argument(
@@ -272,6 +298,7 @@ def cli() -> None:
             mode=args.mode,
             calibrate_container=args.calibrate_container,
             aoflagger_container=args.aoflagger_container,
+            ms_out_dir=args.ms_out_dir,
         )
     elif args.mode == "plot":
         plot_solutions(solutions_path=args.solutions)
