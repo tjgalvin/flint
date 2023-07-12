@@ -141,7 +141,7 @@ def cli() -> None:
 
     parser = get_parser()
 
-    args = parser.parser.parse_args()
+    args = parser.parse_args()
 
     setup_run_process_science_field(
         cluster_config=args.cluster_config,
