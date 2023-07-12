@@ -198,7 +198,11 @@ def load_aosolutions_file(solutions_path: Path) -> AOSolutions:
 
 
 def create_calibrate_cmd(
-    ms: MS, calibrate_model: Path, solution_path: Optional[Path] = None, **kwargs
+    ms: MS,
+    calibrate_model: Path,
+    solution_path: Optional[Path] = None,
+    container: Optional[Path] = None,
+    **kwargs,
 ) -> CalibrateCommand:
     """Generate a typical ao calibrate command. Any extra keyword arguments
     are passed through as additional options to the `calibrate` program.
@@ -208,6 +212,8 @@ def create_calibrate_cmd(
         calibrate_model (Path): Path to a generated calibrate sky-model
         solution_path (Path, optional): The output path of the calibrate solutions file.
         If None, a default suffix of "calibrate.bin" is used. Defaults to None.
+        container (Optional[Path], optional): If a path to a container is supplied the
+        calibrate command is executed immediatedly. Defaults to None.
 
     Raises:
         FileNotFoundError: Raised when calibrate_model can not be found.
@@ -246,11 +252,19 @@ def create_calibrate_cmd(
 
     logger.debug(f"Constructed calibrate command is {cmd=}")
 
-    return CalibrateCommand(cmd=cmd, solution_path=solution_path, ms=ms)
+    calibrate_cmd = CalibrateCommand(cmd=cmd, solution_path=solution_path, ms=ms)
+
+    if container is not None:
+        run_calibrate(calibrate_cmd=calibrate_cmd, container=container)
+
+    return calibrate_cmd
 
 
 def create_apply_solutions_cmd(
-    ms: MS, solutions_file: Path, output_column: Optional[str] = None
+    ms: MS,
+    solutions_file: Path,
+    output_column: Optional[str] = None,
+    container: Optional[Path] = None,
 ) -> ApplySolutions:
     """Construct the command to apply calibration solutions to a MS
     using an AO calibrate style solutions file.
@@ -266,6 +280,8 @@ def create_apply_solutions_cmd(
         ms (MS): Measurement set to have solutions applied to
         solutions_file (Path): Path to the solutions file to apply
         output_column (Optional[str], optional): The desired output column name. See notes above. Defaults to None.
+        container (Optional[Path], optional): If a path to a container is supplied the
+        calibrate command is executed immediatedly. Defaults to None.
 
     Returns:
         ApplySolutions: _description_
@@ -295,9 +311,14 @@ def create_apply_solutions_cmd(
 
     logger.info(f"Constructed {cmd=}")
 
-    return ApplySolutions(
+    apply_solutions = ApplySolutions(
         cmd=cmd, solution_path=solutions_file, ms=ms.with_options(column=output_column)
     )
+
+    if container is not None:
+        run_apply_solutions(apply_solutions_cmd=apply_solutions, container=container)
+
+    return apply_solutions
 
 
 def run_calibrate(calibrate_cmd: CalibrateCommand, container: Path) -> None:

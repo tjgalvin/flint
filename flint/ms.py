@@ -315,7 +315,9 @@ def preprocess_askap_ms(
         data_column != instrument_column
     ), f"Received matching column names: {data_column=} {instrument_column=}"
 
-    logger.info(f"Will be running ASKAP MS conversion operations against {str(ms)}.")
+    logger.info(
+        f"Will be running ASKAP MS conversion operations against {str(ms.path)}."
+    )
     logger.info(f"Correcting directions. ")
 
     with table(str(ms.path), ack=False, readonly=False) as tab:
