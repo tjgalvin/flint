@@ -135,7 +135,22 @@ def get_parser() -> ArgumentParser:
 
 
 def cli() -> None:
+    import logging
+
+    logger.setLevel(logging.INFO)
+
     parser = get_parser()
+
+    args = parser.parser.parse_args()
+
+    setup_run_process_science_field(
+        cluster_config=args.cluster_config,
+        bandpass_path=args.bandpass_path,
+        split_path=args.split_path,
+        flagger_container=args.flagger_container,
+        calibrate_container=args.calibrate_container,
+        expected_ms=args.expected_ms,
+    )
 
 
 if __name__ == "__main__":
