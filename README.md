@@ -21,6 +21,10 @@ The `flint_skymodel` command will attempt to create an in-field sky-model for a 
 
 If calibrating a bandpass (i.e. `1934-638`) `flint` will use the packaged source model. At the moment this is only provided for `calibrate`. 
 
+## About ASKAP Measurement Sets
+
+Some of the innovative components of ASKAP and the `yandasoft` package have resulted in measurement sets that are not immediately inline with external tools. Measurement sets should first be processed with [fixms](https://github.com/AlecThomson/FixMS). Be careful -- most (all) `flint` tasks don't currently do this automatically. Be aware, me hearty. 
+
 ## Containers 
 
 At the moment this toy pipeline uses `singularity` containers to use compiled software that are outside the `python` ecosystem. For the moment there are no 'supported' container packaged with this repository -- sorry! 
