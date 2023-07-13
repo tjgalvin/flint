@@ -1,6 +1,6 @@
 """A prefect based pipeline to bandpass calibrate data and apply it to a science observation
 """
-
+import logging
 from pathlib import Path
 from argparse import ArgumentParser
 from typing import Optional, Union
@@ -9,9 +9,9 @@ from prefect import task, flow, get_run_logger
 
 from flint.logging import logger
 from flint.ms import MS, preprocess_askap_ms
-from flint.bandpass import extract_correct_bandpass_pointing
+from flint.bandpass import extract_correct_bandpass_pointing, plot_solutions
 from flint.flagging import flag_ms_aoflagger
-from flint.calibrate.aocalibrate import create_calibrate_cmd
+from flint.calibrate.aocalibrate import create_calibrate_cmd, CalibrateCommand
 from flint.sky_model import get_1934_model
 from flint.prefect.clusters import get_dask_runner
 
@@ -19,6 +19,11 @@ task_extract_correct_bandpass_pointing = task(extract_correct_bandpass_pointing)
 task_preprocess_askap_ms = task(preprocess_askap_ms)
 task_flag_ms_aoflagger = task(flag_ms_aoflagger)
 task_create_calibrate_cmd = task(create_calibrate_cmd)
+
+
+@task
+def task_plot_solutions(calibrate_cmd: CalibrateCommand) -> None:
+    plot_solutions(solutions_path=calibrate_cmd.solution_path, ref_ant=0)
 
 
 @flow(name="Bandpass")
@@ -70,6 +75,7 @@ def process_bandpass_science_fields(
             calibrate_model=model_path,
             container=calibrate_container,
         )
+        task_plot_solutions.submit(calibrate_cmd=calibrate_cmd)
 
 
 def setup_run_process_science_field(
@@ -84,7 +90,7 @@ def setup_run_process_science_field(
     dask_task_runner = get_dask_runner(cluster=cluster_config)
 
     process_bandpass_science_fields.with_options(
-        name="Test_Bandpass", task_runner=dask_task_runner
+        name="Flint Bandpass", task_runner=dask_task_runner
     )(
         bandpass_path=bandpass_path,
         split_path=split_path,
@@ -93,8 +99,6 @@ def setup_run_process_science_field(
         expected_ms=expected_ms,
         source_name_prefix=source_name_prefix,
     )
-
-    pass
 
 
 def get_parser() -> ArgumentParser:
@@ -144,6 +148,7 @@ def get_parser() -> ArgumentParser:
 def cli() -> None:
     import logging
 
+    # logger = logging.getLogger("flint")
     logger.setLevel(logging.INFO)
 
     parser = get_parser()
