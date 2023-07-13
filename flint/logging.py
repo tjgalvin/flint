@@ -3,7 +3,7 @@ import logging
 # Create logger
 logging.captureWarnings(True)
 logger = logging.getLogger("flint")
-logger.setLevel(logging.WARNING)
+logger.setLevel(logging.INFO)
 
 # Create console handler and set level to debug
 ch = logging.StreamHandler()
