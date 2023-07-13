@@ -159,7 +159,7 @@ def extract_correct_bandpass_pointing(
         field_ms = taql(f"select * from $tab where FIELD_ID=={field_id}")
         field_ms.copy(str(out_path), deep=True)
 
-    return ms.with_options(path=out_path)
+    return ms.with_options(path=out_path, beam=ms_summary.beam)
 
 
 def calibrate_bandpass(

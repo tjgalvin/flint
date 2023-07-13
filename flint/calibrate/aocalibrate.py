@@ -2,7 +2,7 @@
 """
 from __future__ import annotations  # used to keep mypy/pylance happy in AOSolutions
 from pathlib import Path
-from typing import NamedTuple, Optional, Union, Iterable
+from typing import NamedTuple, Optional, Union, Iterable, List
 from argparse import ArgumentParser
 
 import numpy as np
@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 from spython.main import Client as sclient
 
 from flint.logging import logger
-from flint.ms import MS
+from flint.ms import MS, get_beam_from_ms
 from flint.sclient import run_singularity_command
 from flint.plot_utils import fill_between_flags
 
@@ -198,6 +198,51 @@ def load_aosolutions_file(solutions_path: Path) -> AOSolutions:
             npol=npol,
             bandpass=bandpass,
         )
+
+
+def select_aosolution_for_ms(
+    calibrate_cmds: List[CalibrateCommand], ms: Union[MS, Path]
+) -> Path:
+    """Attempt to select an AO-style solution file for a measurement
+    set. This can be expanded to include a number of criteria, but
+    at present it only searches for a matching beam number between
+    the input set of CalibrationCommands and the input MS.
+
+    Args:
+        calibrate_cmds (List[CalibrateCommand]): Set of calibration
+        commands, which includes the solution file path and the corresponding
+        MS, as attributes.
+        ms (Union[MS, Path]): The measurement sett that needs a solutions
+        file.
+
+    Raises:
+        ValueError: Raised when not matching AO-solution file found.
+
+    Returns:
+        Path: Path to solution file to apply.
+    """
+    ms = MS.cast(ms)
+    ms_beam = ms.beam if ms.beam is not None else get_beam_from_ms(ms=ms)
+
+    logger.info(f"Will select a solution for {str(ms.path)}, {ms_beam=}.")
+    logger.info(f"{len(calibrate_cmds)} potential solutions to consider. ")
+
+    for calibrate_cmd in calibrate_cmds:
+        logger.info(f"Considering {str(calibrate_cmd.solution_path)}.")
+        # TODO: This could be abstracted out and be improved to consider
+        # properties in the MS, like frequency/bw.
+        # IMPORTANT: See the above to do. This will not work should the
+        # MS is split in frequency.
+        if ms_beam == calibrate_cmd.ms.beam:
+            sol_file = calibrate_cmd.solution_path
+            break
+    else:
+        raise ValueError(
+            f"No solution file found for {str(ms.path)} from {[c.ms.path for c in calibrate_cmds]} found. "
+        )
+
+    logger.info(f"Have selected {str(sol_file)} for {str(ms.path)}. ")
+    return sol_file
 
 
 def create_calibrate_cmd(

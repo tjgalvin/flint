@@ -11,8 +11,8 @@ from typing import List, NamedTuple, Optional, Union
 
 import numpy as np
 from casacore.tables import table, taql
-from fixms.fix_ms_dir import fix_ms_dir
 from fixms.fix_ms_corrs import fix_ms_corrs
+from fixms.fix_ms_dir import fix_ms_dir
 
 from flint.logging import logger
 
@@ -228,7 +228,7 @@ def split_by_field(
             logger.info(f"Writing {str(out_path)} for {split_name}")
             sub_ms.copy(str(out_path), deep=True)
 
-            out_mss.append(MS(path=out_path))
+            out_mss.append(MS(path=out_path, beam=get_beam_from_ms(out_path)))
 
     return out_mss
 

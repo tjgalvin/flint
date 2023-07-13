@@ -37,7 +37,7 @@ def create_aoflagger_cmd(ms: MS) -> AOFlaggerCommand:
 
     assert (
         ms.column is not None
-    ), f"MS column must be set in order to flag, currently {ms.column=}."
+    ), f"MS column must be set in order to flag, currently {ms.column=}. Full {ms=}"
 
     if not check_column_in_ms(ms):
         raise MSError(f"Column {ms.column} not found in {ms.path}.")
@@ -66,12 +66,13 @@ def run_aoflagger_cmd(aoflagger_cmd: AOFlaggerCommand, container: Path) -> None:
     )
 
 
-def flag_ms_aoflagger(ms: MS, container: Path) -> MS:
+def flag_ms_aoflagger(ms: MS, container: Path, rounds: int = 1) -> MS:
     """Create and run an aoflagger command in a container
 
     Args:
         ms (MS): The measurement set with nominated column to flag
         container (Path): The container with the aoflagger program
+        rounds (int, optional): Number of times to run the flagging. Defaults to 1.
 
     Returns:
         MS: Measurement set flagged with the appropriate column
@@ -79,8 +80,9 @@ def flag_ms_aoflagger(ms: MS, container: Path) -> MS:
     logger.info(f"Will flag column {ms.column} in {str(ms.path)}.")
     aoflagger_cmd = create_aoflagger_cmd(ms=ms)
 
-    logger.info(f"Flagging command constructed. ")
-    run_aoflagger_cmd(aoflagger_cmd=aoflagger_cmd, container=container)
+    for i in range(rounds):
+        logger.info(f"Flagging command constructed. ")
+        run_aoflagger_cmd(aoflagger_cmd=aoflagger_cmd, container=container)
 
     return ms
 
