@@ -1,17 +1,18 @@
 """Procedure to calibrate bandpass observation
 """
+import logging
 from argparse import ArgumentParser
 from pathlib import Path
-from typing import Union, Optional
+from typing import Optional, Union
 
 import numpy as np
 from casacore.tables import table, taql
 
+from flint.calibrate.aocalibrate import AOSolutions, calibrate_apply_ms
+from flint.flagging import flag_ms_aoflagger
 from flint.logging import logger
 from flint.ms import MS, describe_ms, preprocess_askap_ms
 from flint.sky_model import KNOWN_1934_FILES, get_1934_model
-from flint.calibrate.aocalibrate import calibrate_apply_ms, AOSolutions
-from flint.flagging import flag_ms_aoflagger
 
 
 def plot_solutions(solutions_path: Path, ref_ant: int = 0) -> None:
