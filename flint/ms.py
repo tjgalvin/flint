@@ -123,7 +123,7 @@ def get_beam_from_ms(ms: Union[MS, Path]) -> int:
     """
     ms_path = ms if isinstance(ms, Path) else ms.path
 
-    with table(str(ms_path), readonly=True) as tab:
+    with table(str(ms_path), readonly=True, ack=False) as tab:
         uniq_beams = sorted(list(set(tab.getcol("FEED1"))))
 
     assert (
@@ -131,6 +131,29 @@ def get_beam_from_ms(ms: Union[MS, Path]) -> int:
     ), f"Expected {str(ms_path)} to contain a single beam, found {len(uniq_beams)}: {uniq_beams=}"
 
     return uniq_beams[0]
+
+
+def get_freqs_from_ms(ms: Union[MS, Path]) -> np.ndarray:
+    """Return the frequencies observed from an ASKAP Meaurement set. 
+    Some basic checks are performed to ensure they conform to some
+    expectations. 
+
+    Args:
+        ms (Union[MS, Path]): Measurement set to inspect
+
+    Returns:
+        np.ndarray: A squeeze array of frequencies, in Hertz. 
+    """
+    ms = MS.cast(ms)
+
+    with table(f"{str(ms.path)}/SPECTRAL_WINDOW", readonly=True, ack=False) as tab:
+        freqs = tab.getcol("CHAN_FREQ")
+
+    freqs = np.squeeze(freqs)
+    assert len(freqs.shape) == 1, f"Frequency axis has dimensionality greater than one. Not expecting that. {len(freqs.shape)}"
+    
+    
+    return freqs
 
 
 def describe_ms(ms: Union[MS, Path], verbose: bool = True) -> MSSummary:
@@ -275,6 +298,56 @@ def check_column_in_ms(
     return result
 
 
+def consistent_ms(ms1: MS, ms2: MS) -> bool:
+    """Perform some basic consistency checks to ensure MS1 can
+    be combined with MS2. This is important when considering
+    candidate AO-style calibration solution files. 
+
+    Args:
+        ms1 (MS): The first MS to consider
+        ms2 (MS): The second MS to consider
+
+    Returns:
+        bool: Whether MS1 is consistent with MS2
+    """
+    
+    logger.info(f"Comparing ms1={str(ms1.path)} to ms2={(ms2.path)}")
+    beam1 = get_beam_from_ms(ms=ms1)
+    beam2 = get_beam_from_ms(ms=ms2)
+
+    result = True
+    reasons = []
+    if beam1 != beam2:
+        logger.debug(f"Beams are different: {beam1=} {beam2=}")
+        reasons.append(f"{beam1=} != {beam2=}")
+        result = False
+        
+    freqs1 = get_freqs_from_ms(ms=ms1)
+    freqs2 = get_freqs_from_ms(ms=ms2)
+
+    if len(freqs1) != len(freqs2):
+        logger.debug(f"Length of frequencies differ: {len(freqs1)=} {len(freqs2)=}")
+        reasons.append(f"{len(freqs1)=} != {len(freqs2)=}")
+        result = False
+
+    min_freqs1, min_freqs2 = np.min(freqs1), np.min(freqs2)
+    if min_freqs1 != min_freqs2:
+        logger.debug(f"Minimum frequency differ: {min_freqs1=} {min_freqs2=}")
+        reasons.append(f"{min_freqs1=} != {min_freqs2=}")
+        result = False
+
+    max_freqs1, max_freqs2 = np.max(freqs1), np.max(freqs2)
+    if min_freqs1 != min_freqs2:
+        logger.debug(f"Maximum frequency differ: {max_freqs1=} {max_freqs2=}")
+        reasons.append(f"{max_freqs1=} != {max_freqs2=}")
+        result = False
+    
+    if not result:
+        logger.info(f"{str(ms1.path)} not compatibale with {str(ms2.path)}, {reasons=}")
+
+    return result
+
+
 def preprocess_askap_ms(
     ms: Union[MS, Path],
     data_column: str = "DATA",
@@ -369,6 +442,10 @@ def get_parser() -> ArgumentParser:
 
     preprocess_parser.add_argument("ms", type=Path, help="Measurement set to correct. ")
 
+    compatible_parser = subparser.add_parser("compatible", help="Some basic checks to ensure ms1 is consistent with ms2.")
+    compatible_parser.add_argument('ms1', type=Path, help='The first measurement set to consider. ')
+    compatible_parser.add_argument('ms2', type=Path, help='The second measurement set to consider. ')
+
     return parser
 
 
@@ -385,6 +462,16 @@ def cli() -> None:
         split_by_field(ms=args.ms, out_dir=args.ms_out_dir)
     if args.mode == "preprocess":
         preprocess_askap_ms(ms=args.ms)
+    if args.mode == "compatible":
+        res = consistent_ms(
+            ms1=MS(path=args.ms1),
+            ms2=MS(path=args.ms2)
+        )
+        if res:
+            logger.info(f"{args.ms1} is compatible with {args.ms2}")
+        else:
+            logger.info(f"{args.ms1} is not compatible with {args.ms2}")
+            
 
 
 if __name__ == "__main__":

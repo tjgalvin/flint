@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 from spython.main import Client as sclient
 
 from flint.logging import logger
-from flint.ms import MS, get_beam_from_ms
+from flint.ms import MS, get_beam_from_ms, consistent_ms
 from flint.sclient import run_singularity_command
 from flint.plot_utils import fill_between_flags
 
@@ -233,7 +233,7 @@ def select_aosolution_for_ms(
         # properties in the MS, like frequency/bw.
         # IMPORTANT: See the above to do. This will not work should the
         # MS is split in frequency.
-        if ms_beam == calibrate_cmd.ms.beam:
+        if consistent_ms(ms1=ms, ms2=calibrate_cmd.ms):
             sol_file = calibrate_cmd.solution_path
             break
     else:
