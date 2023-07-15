@@ -229,10 +229,6 @@ def select_aosolution_for_ms(
 
     for calibrate_cmd in calibrate_cmds:
         logger.info(f"Considering {str(calibrate_cmd.solution_path)}.")
-        # TODO: This could be abstracted out and be improved to consider
-        # properties in the MS, like frequency/bw.
-        # IMPORTANT: See the above to do. This will not work should the
-        # MS is split in frequency.
         if consistent_ms(ms1=ms, ms2=calibrate_cmd.ms):
             sol_file = calibrate_cmd.solution_path
             break
