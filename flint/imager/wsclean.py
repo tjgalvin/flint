@@ -44,7 +44,9 @@ class WSCleanOptions(NamedTuple):
     """Robustness of the weighting used"""
     data_column: str = 'CORRECTED_DATA'
     """Which column in the MS to image"""
+    
     def with_options(self, **kwargs) -> WSCleanOptions:
+        """Return a new instance of WSCleanOptions with updated components"""
         _dict = self._asdict()
         _dict.update(**kwargs)
         
@@ -55,6 +57,18 @@ class WSCleanCMD(NamedTuple):
     ms: Union[MS,Collection[MS]]
 
 def create_wsclean_cmd(ms: MS, wsclean_options: WSCleanOptions) -> WSCleanCMD:
+    """Create a wsclean command from a WSCleanOptions container
+
+    Args:
+        ms (MS): The measurement set to be imaged
+        wsclean_options (WSCleanOptions): WSClean options to image with
+
+    Raises:
+        ValueError: Raised when a option has not been successfully processed
+
+    Returns:
+        WSCleanCMD: The wsclean command to run
+    """
     
     cmd = 'wsclean '
     unknowns: List[Tuple[Any,Any]] = []
