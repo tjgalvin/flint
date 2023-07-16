@@ -2,7 +2,7 @@
 """
 from __future__ import annotations  # used to keep mypy/pylance happy in AOSolutions
 from pathlib import Path
-from typing import NamedTuple, Optional, Union, Iterable, List
+from typing import NamedTuple, Optional, Union, Iterable, List, Collection
 from argparse import ArgumentParser
 
 import numpy as np
@@ -75,7 +75,7 @@ CALIBRATE_SUFFIX = ".calibrate.bin"
 
 def plot_solutions(
     solutions: Union[Path, AOSolutions], ref_ant: int = 0
-) -> Iterable[Path]:
+) -> Collection[Path]:
     """Plot solutions for AO-style solutions
 
     Args:
@@ -83,7 +83,7 @@ def plot_solutions(
         ref_ant (int, optional): Reference antenna to use. Defaults to 0.
 
     Return:
-        List[Path] -- The paths of the two plots createda
+        Collection[Path] -- The paths of the two plots createda
     """
     ao_sols = (
         AOSolutions.load(path=solutions) if isinstance(solutions, Path) else solutions
@@ -209,11 +209,8 @@ def select_aosolution_for_ms(
     the input set of CalibrationCommands and the input MS.
 
     Args:
-        calibrate_cmds (List[CalibrateCommand]): Set of calibration
-        commands, which includes the solution file path and the corresponding
-        MS, as attributes.
-        ms (Union[MS, Path]): The measurement sett that needs a solutions
-        file.
+        calibrate_cmds (List[CalibrateCommand]): Set of calibration commands, which includes the solution file path and the corresponding MS, as attributes.
+        ms (Union[MS, Path]): The measurement sett that needs a solutions file.
 
     Raises:
         ValueError: Raised when not matching AO-solution file found.
@@ -254,10 +251,8 @@ def create_calibrate_cmd(
     Args:
         ms (MS): The measurement set to calibrate. There needs to be a nominated data_column.
         calibrate_model (Path): Path to a generated calibrate sky-model
-        solution_path (Path, optional): The output path of the calibrate solutions file.
-        If None, a default suffix of "calibrate.bin" is used. Defaults to None.
-        container (Optional[Path], optional): If a path to a container is supplied the
-        calibrate command is executed immediatedly. Defaults to None.
+        solution_path (Path, optional): The output path of the calibrate solutions file. If None, a default suffix of "calibrate.bin" is used. Defaults to None.
+        container (Optional[Path], optional): If a path to a container is supplied the calibrate command is executed immediatedly. Defaults to None.
 
     Raises:
         FileNotFoundError: Raised when calibrate_model can not be found.
@@ -326,11 +321,10 @@ def create_apply_solutions_cmd(
         ms (MS): Measurement set to have solutions applied to
         solutions_file (Path): Path to the solutions file to apply
         output_column (Optional[str], optional): The desired output column name. See notes above. Defaults to None.
-        container (Optional[Path], optional): If a path to a container is supplied the
-        calibrate command is executed immediatedly. Defaults to None.
+        container (Optional[Path], optional): If a path to a container is supplied the calibrate command is executed immediatedly. Defaults to None.
 
     Returns:
-        ApplySolutions: _description_
+        ApplySolutions: Description of applysolutions command, solutions file path and updated MS
     """
 
     assert ms.path.exists(), f"The measurement set {ms} was not found. "

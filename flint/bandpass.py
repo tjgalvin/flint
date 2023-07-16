@@ -32,17 +32,18 @@ def flag_bandpass_offset_pointings(ms: Union[MS, Path]) -> MS:
     """The typical bandpass style observation in ASKAP will shift each beam
     so that it is centred on the bandpass-calibration object (here B1934-638).
     During each offset position all beams are recording data still. The trick
-    here is that all 36 fields are still recorded in the measurement set:
+    here is that all 36 fields are still recorded in the measurement set, and
+    are generally of the form:
 
-    fields: ['B1934-638_beam0', 'B1934-638_beam1', 'B1934-638_beam10', 'B1934-638_beam11',
-    'B1934-638_beam12', 'B1934-638_beam13', 'B1934-638_beam14', 'B1934-638_beam15',
-    'B1934-638_beam16', 'B1934-638_beam17', 'B1934-638_beam18', 'B1934-638_beam19',
-    'B1934-638_beam2', 'B1934-638_beam20', 'B1934-638_beam21', 'B1934-638_beam22',
-    'B1934-638_beam23', 'B1934-638_beam24', 'B1934-638_beam25', 'B1934-638_beam26',
-    'B1934-638_beam27', 'B1934-638_beam28', 'B1934-638_beam29', 'B1934-638_beam3',
-    'B1934-638_beam30', 'B1934-638_beam31', 'B1934-638_beam32', 'B1934-638_beam33',
-    'B1934-638_beam34', 'B1934-638_beam35', 'B1934-638_beam4', 'B1934-638_beam5',
-    'B1934-638_beam6', 'B1934-638_beam7', 'B1934-638_beam8', 'B1934-638_beam9']
+    >>> ['B1934-638_beam0', 'B1934-638_beam1', 'B1934-638_beam10', 'B1934-638_beam11',
+    >>> 'B1934-638_beam12', 'B1934-638_beam13', 'B1934-638_beam14', 'B1934-638_beam15',
+    >>> 'B1934-638_beam16', 'B1934-638_beam17', 'B1934-638_beam18', 'B1934-638_beam19',
+    >>> 'B1934-638_beam2', 'B1934-638_beam20', 'B1934-638_beam21', 'B1934-638_beam22',
+    >>> 'B1934-638_beam23', 'B1934-638_beam24', 'B1934-638_beam25', 'B1934-638_beam26',
+    >>> 'B1934-638_beam27', 'B1934-638_beam28', 'B1934-638_beam29', 'B1934-638_beam3',
+    >>> 'B1934-638_beam30', 'B1934-638_beam31', 'B1934-638_beam32', 'B1934-638_beam33',
+    >>> 'B1934-638_beam34', 'B1934-638_beam35', 'B1934-638_beam4', 'B1934-638_beam5',
+    >>> 'B1934-638_beam6', 'B1934-638_beam7', 'B1934-638_beam8', 'B1934-638_beam9']
 
     This function will attempt to deduce the intended field name for the beam
     in question, and then flag all other fields.
@@ -98,17 +99,18 @@ def extract_correct_bandpass_pointing(
     """The typical bandpass style observation in ASKAP will shift each beam
     so that it is centred on the bandpass-calibration object (here B1934-638).
     During each offset position all beams are recording data still. The trick
-    here is that all 36 fields are still recorded in the measurement set:
+    here is that all 36 fields are still recorded in the measurement set, and are
+    generally of the form:
 
-    fields: ['B1934-638_beam0', 'B1934-638_beam1', 'B1934-638_beam10', 'B1934-638_beam11',
-    'B1934-638_beam12', 'B1934-638_beam13', 'B1934-638_beam14', 'B1934-638_beam15',
-    'B1934-638_beam16', 'B1934-638_beam17', 'B1934-638_beam18', 'B1934-638_beam19',
-    'B1934-638_beam2', 'B1934-638_beam20', 'B1934-638_beam21', 'B1934-638_beam22',
-    'B1934-638_beam23', 'B1934-638_beam24', 'B1934-638_beam25', 'B1934-638_beam26',
-    'B1934-638_beam27', 'B1934-638_beam28', 'B1934-638_beam29', 'B1934-638_beam3',
-    'B1934-638_beam30', 'B1934-638_beam31', 'B1934-638_beam32', 'B1934-638_beam33',
-    'B1934-638_beam34', 'B1934-638_beam35', 'B1934-638_beam4', 'B1934-638_beam5',
-    'B1934-638_beam6', 'B1934-638_beam7', 'B1934-638_beam8', 'B1934-638_beam9']
+    >>> ['B1934-638_beam0', 'B1934-638_beam1', 'B1934-638_beam10', 'B1934-638_beam11',
+    >>> 'B1934-638_beam12', 'B1934-638_beam13', 'B1934-638_beam14', 'B1934-638_beam15',
+    >>> 'B1934-638_beam16', 'B1934-638_beam17', 'B1934-638_beam18', 'B1934-638_beam19',
+    >>> 'B1934-638_beam2', 'B1934-638_beam20', 'B1934-638_beam21', 'B1934-638_beam22',
+    >>> 'B1934-638_beam23', 'B1934-638_beam24', 'B1934-638_beam25', 'B1934-638_beam26',
+    >>> 'B1934-638_beam27', 'B1934-638_beam28', 'B1934-638_beam29', 'B1934-638_beam3',
+    >>> 'B1934-638_beam30', 'B1934-638_beam31', 'B1934-638_beam32', 'B1934-638_beam33',
+    >>> 'B1934-638_beam34', 'B1934-638_beam35', 'B1934-638_beam4', 'B1934-638_beam5',
+    >>> 'B1934-638_beam6', 'B1934-638_beam7', 'B1934-638_beam8', 'B1934-638_beam9']
 
     This function will attempt to deduce the intended field name for the beam
     in question, and then create a new measurement set with just these data. It
@@ -123,14 +125,11 @@ def extract_correct_bandpass_pointing(
 
     Args:
         ms (Union[MS, Path]): Path or instance of MS describing the measurement set to flag all other bandpass field.
-        source_name_prefix (str, optional): The beginning of the source name stored in the NAME column of the FIELD table.
-        Field names are of the form B1934-638_beam1, where B1934-638 would be the prefix name, and beam is constructed based
-        on the beam among the 36 observing the target source (for example).
+        source_name_prefix (str, optional): The beginning of the source name stored in the NAME column of the FIELD table. Field names are of the form B1934-638_beam1, where B1934-638 would be the prefix name, and beam is constructed based on the beam among the 36 observing the target source (for example).
         ms_out_dir (Optional[Path], optional): If not None, place the split field measurement sets into this directory. Defaults to None.
 
     Returns:
-        MS: A description of the new measurement set created with the file name
-        ending .beamN.ms.
+        MS: A description of the new measurement set created with the file name ending .beamN.ms.
     """
     ms = MS.cast(ms)
     ms_summary = describe_ms(ms, verbose=False)
@@ -181,9 +180,7 @@ def calibrate_bandpass(
         mode (str): The calibration approach to use. Currently only `calibrate` is supported.
         calibrate_container (Path): The path to the singularity container that holds the appropriate software.
         plot (bool, optional): Whether plotting should be performed. Defaults to True.
-        aoflagger_container (Path): The path to the singularity container that holds aoflagger.
-        If this is not `None` that flagging will be performed on the extracted field-specific measurement
-        set.
+        aoflagger_container (Path): The path to the singularity container that holds aoflagger. If this is not `None` that flagging will be performed on the extracted field-specific measurement set.
         ms_out_dir (Optional[Path], optional): If not None, place the split field measurement sets into this directory. Defaults to None.
 
     Returns:

@@ -11,6 +11,8 @@ ch.setLevel(logging.DEBUG)
 
 
 class CustomFormatter(logging.Formatter):
+    """A custom logger formatter"""
+
     grey = "\x1b[38;20m"
     blue = "\x1b[34;20m"
     green = "\x1b[32;20m"

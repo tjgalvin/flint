@@ -22,16 +22,27 @@ class Catalogue(NamedTuple):
     """A basic structure used to describe a known catalogue."""
 
     file_name: str
+    """The file name of the known catalogue"""
     freq: float  # Hertz
+    """Reference frequency of the catalogue, in Hertz"""
     ra_col: str
+    """Column name containing the right-ascension"""
     dec_col: str
+    """Column name containing the declination"""
     name_col: str
+    """Column name containing the source/component name"""
     flux_col: str
+    """Column name containing the flux density"""
     maj_col: str
+    """Column name containing the major-axis of the source gaussian component"""
     min_col: str
+    """Column name containing the min-axis of the source gaussian component"""
     pa_col: str
+    """Column name containing the pa of the source gaussian component"""
     alpha_col: Optional[str] = None  # Used to scale the SED
+    """Column name containing the spectral index, used to calculate the source SED. If None a default is used. """
     q_col: Optional[str] = None  # Used to scale the SED
+    """Column name containing the curvature of the spectral index, used to calculate the source SED. If None a default is used. """
 
 
 class CurvedPL(NamedTuple):
@@ -45,29 +56,48 @@ class CurvedPL(NamedTuple):
 
     # TODO: Should these be quantities?
     norm: float
+    """The fitted normalisation of the fitted model"""
     alpha: float
+    """The fitted spectral index"""
     q: float
+    """The fitted curvature of the spectral index"""
     ref_nu: float
+    """The nominated reference frequency"""
 
 
 class GaussianTaper(NamedTuple):
-    freqs: np.ndarray  # The frequencies the beam is evaluated at
-    atten: np.ndarray  # The attenuation of the response
-    fwhms: np.ndarray  # The full-width at half-maximum corresponding to freqs
-    offset: float  # Angular offset of the source
+    """Container describing a simple Gaussian taper"""
+
+    freqs: np.ndarray
+    """The frequencies the beam is evaluated at"""
+    atten: np.ndarray
+    """The attenuation of the response"""
+    fwhms: np.ndarray
+    """The full-width at half-maximum corresponding to freqs"""
+    offset: float
+    """Angular offset of the source"""
 
 
 class SkyModel(NamedTuple):
+    """Description of the derived sky-model"""
+
     flux_jy: float
+    """Total flux in Jansky"""
     no_sources: int
+    """Number of source that are included in the sky-model"""
     apparent: bool = True
+    """Whether the sources and model are absolute of apparent fluxes"""
     hyperdrive_model: Optional[Path] = None
+    """Path to the sky-model file created to use with hyperdrive"""
     calibrate_model: Optional[Path] = None
+    """Path to the sky-model file created to use with calibrate"""
     ds9_region: Optional[Path] = None
+    """Path to the DS9 region file representing the sky-model"""
 
 
 # These columns are what we will normalise the all columns and units to
 NORM_COLS = {"flux": "Jy", "maj": "arcsecond", "min": "arcsecond", "pa": "deg"}
+"""Normalised column names and their corresponding astropy units. """
 
 KNOWN_CATAS: Dict[str, Catalogue] = {
     "SUMSS": Catalogue(
@@ -104,9 +134,11 @@ KNOWN_CATAS: Dict[str, Catalogue] = {
         pa_col="PA",
     ),
 }
+"""Known sky-model catalogues that have had some pre-processing operations applied. Discuss with maintainers for access, """
 
 # TODO: Make this a yaml file packaged in data/models
 KNOWN_1934_FILES = {"calibrate": "1934-638.calibrate.txt"}
+"""Known models of PKS B1934-638 in different formats"""
 
 
 def get_1934_model(mode: str = "calibrate") -> Path:
@@ -616,8 +648,8 @@ def create_sky_model(
         flux_cutoff (float, optional): Sources whose *apparent* brightness (at the lowest channel of the MS) as excluded from sky-model. Defaults to 0.02.
         fwhm_scale_cutoff (float, optional): Scaling factor to stretch the analytical FWHM by when searching for sources. Defaults to 1.
         hyperdrive_model (bool, optional): Create a hyperdrive model using the suffix 'hyp.yaml'. Defaults to True.
-        hyperdrive_model (bool, optional): Create a calibrate model using the suffix 'calibrate.txt'. Defaults to True.
-        hyperdrive_model (bool, optional): Create a DS9 region file highlight the sources in the model using the suffix 'model.reg'. Defaults to True.
+        calibrate_model (bool, optional): Create a calibrate model using the suffix 'calibrate.txt'. Defaults to True.
+        ds9_region (bool, optional): Create a DS9 region file highlight the sources in the model using the suffix 'model.reg'. Defaults to True.
 
     Returns:
         SkyModel -- Basic informattion concerning the sky-model derived and the output files

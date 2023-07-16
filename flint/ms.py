@@ -38,6 +38,14 @@ class MS(NamedTuple):
 
     @classmethod
     def cast(cls, ms: Union[MS, Path]) -> MS:
+        """Create a MS instance, if necessary, given eith a Path or MS.
+
+        Args:
+            ms (Union[MS, Path]): The input type to consider
+
+        Returns:
+            MS: A normalised MS
+        """
         ms = ms if isinstance(ms, MS) else MS(path=ms)
 
         return ms
@@ -134,15 +142,15 @@ def get_beam_from_ms(ms: Union[MS, Path]) -> int:
 
 
 def get_freqs_from_ms(ms: Union[MS, Path]) -> np.ndarray:
-    """Return the frequencies observed from an ASKAP Meaurement set. 
+    """Return the frequencies observed from an ASKAP Meaurement set.
     Some basic checks are performed to ensure they conform to some
-    expectations. 
+    expectations.
 
     Args:
         ms (Union[MS, Path]): Measurement set to inspect
 
     Returns:
-        np.ndarray: A squeeze array of frequencies, in Hertz. 
+        np.ndarray: A squeeze array of frequencies, in Hertz.
     """
     ms = MS.cast(ms)
 
@@ -150,9 +158,10 @@ def get_freqs_from_ms(ms: Union[MS, Path]) -> np.ndarray:
         freqs = tab.getcol("CHAN_FREQ")
 
     freqs = np.squeeze(freqs)
-    assert len(freqs.shape) == 1, f"Frequency axis has dimensionality greater than one. Not expecting that. {len(freqs.shape)}"
-    
-    
+    assert (
+        len(freqs.shape) == 1
+    ), f"Frequency axis has dimensionality greater than one. Not expecting that. {len(freqs.shape)}"
+
     return freqs
 
 
@@ -267,9 +276,7 @@ def check_column_in_ms(
 
     Args:
         ms (Union[MS, str, PathLike]): The measurement set to check. Will attempt to cast to Path.
-        column (Optional[str], optional): The column to check for. Defaults to None.
-        sub_table (Optional[str], optional): A sub-table of the measurement set to inspect. If `None`
-        the main table is examined. Defaults to None.
+        column (Optional[str], optional): The column to check for. Defaults to None. sub_table (Optional[str], optional): A sub-table of the measurement set to inspect. If `None` the main table is examined. Defaults to None.
 
     Raises:
         ValueError: Raised when both `column` and `ms.column` are None.
@@ -301,7 +308,7 @@ def check_column_in_ms(
 def consistent_ms(ms1: MS, ms2: MS) -> bool:
     """Perform some basic consistency checks to ensure MS1 can
     be combined with MS2. This is important when considering
-    candidate AO-style calibration solution files. 
+    candidate AO-style calibration solution files.
 
     Args:
         ms1 (MS): The first MS to consider
@@ -310,7 +317,7 @@ def consistent_ms(ms1: MS, ms2: MS) -> bool:
     Returns:
         bool: Whether MS1 is consistent with MS2
     """
-    
+
     logger.info(f"Comparing ms1={str(ms1.path)} to ms2={(ms2.path)}")
     beam1 = get_beam_from_ms(ms=ms1)
     beam2 = get_beam_from_ms(ms=ms2)
@@ -321,7 +328,7 @@ def consistent_ms(ms1: MS, ms2: MS) -> bool:
         logger.debug(f"Beams are different: {beam1=} {beam2=}")
         reasons.append(f"{beam1=} != {beam2=}")
         result = False
-        
+
     freqs1 = get_freqs_from_ms(ms=ms1)
     freqs2 = get_freqs_from_ms(ms=ms2)
 
@@ -341,7 +348,7 @@ def consistent_ms(ms1: MS, ms2: MS) -> bool:
         logger.debug(f"Maximum frequency differ: {max_freqs1=} {max_freqs2=}")
         reasons.append(f"{max_freqs1=} != {max_freqs2=}")
         result = False
-    
+
     if not result:
         logger.info(f"{str(ms1.path)} not compatibale with {str(ms2.path)}, {reasons=}")
 
@@ -361,23 +368,17 @@ def preprocess_askap_ms(
     Additionally, the correlations stored are more akin to (P, Q) -- they are not
     (X, Y) in the sky reference frame. This function does two things:
 
-    1 - updates the positions stored so when data are imaged/calibrated the correlations
-    are directed to the correct position
-    2 - will apply a rotation to go from (P, Q) -> (X, Y)
+    * updates the positions stored so when data are imaged/calibrated the correlations are directed to the correct position
+    * will apply a rotation to go from (P, Q) -> (X, Y)
 
     These corrections are applied to the original MS, and should be
     able to be executed multiple times without accumulating changes.
 
     Args:
         ms (Union[MS, Path]): The measurement set to update
-        data_column (str, optional): The name of the data column to correct. This will first
-        be renamed to the value specified by `instrument_column` before being corrected. Defaults
-        to 'DATA'.
-        instrument_column (str, optional): The name of the column that will hold the original
-        `data_column` data. Defaults to 'INSTRUMENT_DATA'
-        overwrite (bool, optional): If the `instrument_column` and `data_column` both exist and
-        `overwrite=True` the `data_column` will be overwritten. Otherwise, a `ValueError` is raised.
-        Defaults to True.
+        data_column (str, optional): The name of the data column to correct. This will first be renamed to the value specified by `instrument_column` before being corrected. Defaults to 'DATA'.
+        instrument_column (str, optional): The name of the column that will hold the original `data_column` data. Defaults to 'INSTRUMENT_DATA'
+        overwrite (bool, optional): If the `instrument_column` and `data_column` both exist and `overwrite=True` the `data_column` will be overwritten. Otherwise, a `ValueError` is raised. Defaults to True.
 
     Returns:
         MS: An updated measurement set with the corrections applied.
@@ -442,9 +443,15 @@ def get_parser() -> ArgumentParser:
 
     preprocess_parser.add_argument("ms", type=Path, help="Measurement set to correct. ")
 
-    compatible_parser = subparser.add_parser("compatible", help="Some basic checks to ensure ms1 is consistent with ms2.")
-    compatible_parser.add_argument('ms1', type=Path, help='The first measurement set to consider. ')
-    compatible_parser.add_argument('ms2', type=Path, help='The second measurement set to consider. ')
+    compatible_parser = subparser.add_parser(
+        "compatible", help="Some basic checks to ensure ms1 is consistent with ms2."
+    )
+    compatible_parser.add_argument(
+        "ms1", type=Path, help="The first measurement set to consider. "
+    )
+    compatible_parser.add_argument(
+        "ms2", type=Path, help="The second measurement set to consider. "
+    )
 
     return parser
 
@@ -463,15 +470,11 @@ def cli() -> None:
     if args.mode == "preprocess":
         preprocess_askap_ms(ms=args.ms)
     if args.mode == "compatible":
-        res = consistent_ms(
-            ms1=MS(path=args.ms1),
-            ms2=MS(path=args.ms2)
-        )
+        res = consistent_ms(ms1=MS(path=args.ms1), ms2=MS(path=args.ms2))
         if res:
             logger.info(f"{args.ms1} is compatible with {args.ms2}")
         else:
             logger.info(f"{args.ms1} is not compatible with {args.ms2}")
-            
 
 
 if __name__ == "__main__":

@@ -21,7 +21,7 @@ def fill_between_flags(
     Args:
         ax (plt.Axes): Axes object to plot lines on
         flags (np.ndarray): Flags to consider. If `True`, plot.
-        values (Optional[np.ndarray], optional): The values to plot at. Useful if the position does not map to location.. Defaults to None.
+        values (Optional[np.ndarray], optional): The values to plot at. Useful if the position does not map to location. Defaults to None.
         direction (str, optional): If `x` use axvline, if `y` use axhline. Defaults to "x".
     """
     values = values if values else np.arange(len(flags))
