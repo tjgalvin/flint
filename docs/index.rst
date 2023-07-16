@@ -6,6 +6,10 @@
 Welcome to flint's documentation!
 =================================
 
+A pirate themed toy ASKAP-RACS pipeline. 
+
+Yarrrr-Harrrr fiddley-dee!
+
 .. toctree::
    :maxdepth: 2
    :caption: Contents:
