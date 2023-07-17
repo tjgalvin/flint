@@ -2,7 +2,7 @@
 """
 from __future__ import annotations
 from pathlib import Path
-from typing import NamedTuple, Collection, Union, List, Tuple, Any
+from typing import NamedTuple, Collection, Union, List, Tuple, Any, Optional, Dict
 from numbers import Number
 from argparse import ArgumentParser
 
@@ -53,15 +53,19 @@ class WSCleanOptions(NamedTuple):
         return WSCleanOptions(**_dict)
     
 class WSCleanCMD(NamedTuple):
+    """Simple container for a wsclean command."""
     cmd: str 
+    """The constructede wsclean command that would be executed."""
     ms: Union[MS,Collection[MS]]
+    """The measurement sets that have been included in the wsclean command. """
 
-def create_wsclean_cmd(ms: MS, wsclean_options: WSCleanOptions) -> WSCleanCMD:
+def create_wsclean_cmd(ms: MS, wsclean_options: WSCleanOptions, container: Optional[Path]=None) -> WSCleanCMD:
     """Create a wsclean command from a WSCleanOptions container
 
     Args:
         ms (MS): The measurement set to be imaged
         wsclean_options (WSCleanOptions): WSClean options to image with
+        container (Optional[Path], optional): If a path to a container is provided the command is executed immediatedly. Defaults to None. 
 
     Raises:
         ValueError: Raised when a option has not been successfully processed
@@ -91,8 +95,42 @@ def create_wsclean_cmd(ms: MS, wsclean_options: WSCleanOptions) -> WSCleanCMD:
     
     logger.info(f"Constructed wsclean command: {cmd=}")
     
-    return WSCleanCMD(cmd=cmd, ms=ms)
+    wsclean_cmd = WSCleanCMD(cmd=cmd, ms=ms)
 
+    if container:
+        bind_dirs = [ms.path.parent.absolute()]
+        run_singularity_command(image=container, command=wsclean_cmd.cmd, bind_dirs=bind_dirs)
+
+    return wsclean_cmd
+
+
+def wsclean_imager(ms: Union[Path,MS], wsclean_container: Path, wsclean_options_path: Optional[Path]=None, update_wsclean_options: Optional[Dict[str, Any]]=None) -> WSCleanCMD:
+    """Create and run a wsclean imager command against a measurement set. 
+
+    Args:
+        ms (Union[Path,MS]): Path to the measurement set that will be imaged
+        wsclean_container (Path): Path to the container with wsclean installed
+        wsclean_options_path (Optional[Path], optional): Location of a wsclean set of options. Defaults to None.
+
+    Returns:
+        WSCleanCMD: _description_
+    """
+    
+    # TODO: This should be expanded to support multiple measurement sets
+    ms = MS.cast(ms)
+    
+    if wsclean_options_path:
+        logger.warn(f"This is a place holder for loading a wsclean imager parameter file. It is being ignored. ")
+        
+    wsclean_options = WSCleanOptions()
+    if update_wsclean_options is not None:
+        logger.info(f"Updatting wsclean options with user-provided items. ")
+        wsclean_options = wsclean_options.with_options(**update_wsclean_options)
+    
+    wsclean_cmd = create_wsclean_cmd(ms=ms, wsclean_options=wsclean_options, container=wsclean_container)
+    
+    return wsclean_cmd
+    
 
 def get_parser() -> ArgumentParser:
     parser = ArgumentParser(description="Routines related to wsclean")
@@ -102,10 +140,10 @@ def get_parser() -> ArgumentParser:
     wsclean_parser = subparser.add_parser('image', help='Attempt to run a wsclean commmand. ')
     wsclean_parser.add_argument('ms', type=Path, help='Path to a measurement set to image')
     wsclean_parser.add_argument('-v','--verbose', action='store_true', help='Extra output logging.')
+    wsclean_parser.add_argument('--wsclean-container', type=Path, default=None, help='Path to a singularity container with wsclean installed. ')
     
     return parser 
     
-
 def cli() -> None:
     parser = get_parser()
     
@@ -116,10 +154,7 @@ def cli() -> None:
             import logging 
             logger.setLevel(logging.DEBUG)
             
-        ms = MS(path=args.ms)
-        wsclean_options = WSCleanOptions()
-        
-        create_wsclean_cmd(ms=ms, wsclean_options=wsclean_options)
+        wsclean_imager(ms=args.ms, wsclean_container=args.container)
 
 if __name__ == '__main__':
     cli()
