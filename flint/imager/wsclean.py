@@ -22,7 +22,7 @@ class WSCleanOptions(NamedTuple):
     """Image size"""
     local_rms: bool = True
     """Whether a local rms map is computed"""
-    force_mask_rounds: int = 10
+    force_mask_rounds: int = 6
     """Round of force masked derivation"""
     auto_mask: float = 5
     """How deep the construct clean mask is during each cycle"""
@@ -46,9 +46,9 @@ class WSCleanOptions(NamedTuple):
     """Robustness of the weighting used"""
     data_column: str = 'CORRECTED_DATA'
     """Which column in the MS to image"""
-    scale: str = '0.3asec'
+    scale: str = '2.5asec'
     """Pixel scale size"""
-    use_wgridder: bool = True 
+    gridder: str = 'wgridder'
     """Use the wgridder kernel in wsclean (instead of the w-stacking method)"""
     join_channels: bool = True
     """Collapse the sub-band images down to an MFS image when peak-finding"""
@@ -91,7 +91,7 @@ def create_wsclean_cmd(ms: MS, wsclean_options: WSCleanOptions, container: Optio
         logger.debug(f"{key=} {value=} {type(value)=}")
         if key == 'size':
             cmd += f'-size {value} {value} '
-        elif isinstance(value, bool):
+        elif isinstance(value, bool) and value:
             cmd += f'-{key} '
         elif isinstance(value, (str, Number)):
             cmd += f'-{key} {value} '

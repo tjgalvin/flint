@@ -28,6 +28,8 @@ class MS(NamedTuple):
     """The beam ID of the MS within an ASKAP field"""
     field: Optional[str] = None
     """The field name  of the data"""
+    model_column: Optional[str] = None
+    """The column name of the most recently MODEL data"""
 
     def get_field_id_for_field(self, field_name: str) -> Union[int, None]:
         """Return the FIELD_ID for an elected field in a measurement set. See
