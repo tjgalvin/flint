@@ -339,7 +339,7 @@ def create_apply_solutions_cmd(
     logger.info(f"Setting {copy_mode=}.")
 
     if copy_mode == "-copy":
-        output_column = "CORRECT_DATA"
+        output_column = "CORRECTED_DATA"
 
     cmd = (
         f"applysolutions "

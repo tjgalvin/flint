@@ -14,19 +14,21 @@ class WSCleanOptions(NamedTuple):
     """A basic container to handle WSClean options. These attributes should
     conform to the same option name in the calling signature of wsclean 
     """
-    absmem: int = 100
+    abs_mem: int = 100
     """Memory wsclean should try to limit itself to"""
-    psfwindow: int = 65
+    local_rms_window: int = 65
     """Size of the window used to estimate rms noise"""
-    size: int = 7000
+    size: int = 6000
     """Image size"""
-    forcemask: float = 10
+    local_rms: bool = True
+    """Whether a local rms map is computed"""
+    force_mask_rounds: int = 10
     """Round of force masked derivation"""
-    maskthresh: float = 5
+    auto_mask: float = 5
     """How deep the construct clean mask is during each cycle"""
-    autothresh: float = 0.5
+    auto_threshold: float = 0.5
     """How deep to clean once initial clean threshold reached"""
-    channels_out: int = 8
+    channels_out: int = 4
     """Number of output channels"""
     mgain: float = 0.7
     """Major cycle gain"""
@@ -40,10 +42,17 @@ class WSCleanOptions(NamedTuple):
     """Multiscale bias term"""
     fit_spectral_pol: int = 4
     """Number of spectral terms to include during sub-band subtractin"""
-    robust: float = 0.5
+    weight: str = 'briggs 0.5'
     """Robustness of the weighting used"""
     data_column: str = 'CORRECTED_DATA'
     """Which column in the MS to image"""
+    scale: str = '0.3asec'
+    """Pixel scale size"""
+    use_wgridder: bool = True 
+    """Use the wgridder kernel in wsclean (instead of the w-stacking method)"""
+    join_channels: bool = True
+    """Collapse the sub-band images down to an MFS image when peak-finding"""
+    name: Optional[str] = None
     
     def with_options(self, **kwargs) -> WSCleanOptions:
         """Return a new instance of WSCleanOptions with updated components"""
@@ -80,9 +89,11 @@ def create_wsclean_cmd(ms: MS, wsclean_options: WSCleanOptions, container: Optio
     for key, value in wsclean_options._asdict().items():
         key = key.replace('_', '-')
         logger.debug(f"{key=} {value=} {type(value)=}")
-        if isinstance(value, bool):
+        if key == 'size':
+            cmd += f'-size {value} {value} '
+        elif isinstance(value, bool):
             cmd += f'-{key} '
-        if isinstance(value, (str, Number)):
+        elif isinstance(value, (str, Number)):
             cmd += f'-{key} {value} '
         else:
             unknowns.append((key, value))
@@ -131,6 +142,11 @@ def wsclean_imager(
     if update_wsclean_options is not None:
         logger.info(f"Updatting wsclean options with user-provided items. ")
         wsclean_options = wsclean_options.with_options(**update_wsclean_options)
+    
+    if wsclean_options.name is None:
+        # TODO: Come up with a consistent naming scheme. Add in a naming submodule
+        # to consolidate this functionality
+        wsclean_options = wsclean_options.with_options(name=ms.path.name)
     
     assert ms.column is not None, f"A MS column needs to be elected for imaging. "
     wsclean_options = wsclean_options.with_options(data_column=ms.column)
