@@ -104,7 +104,12 @@ def create_wsclean_cmd(ms: MS, wsclean_options: WSCleanOptions, container: Optio
     return wsclean_cmd
 
 
-def wsclean_imager(ms: Union[Path,MS], wsclean_container: Path, wsclean_options_path: Optional[Path]=None, update_wsclean_options: Optional[Dict[str, Any]]=None) -> WSCleanCMD:
+def wsclean_imager(
+    ms: Union[Path,MS], 
+    wsclean_container: Path, 
+    wsclean_options_path: Optional[Path]=None, 
+    update_wsclean_options: Optional[Dict[str, Any]]=None
+) -> WSCleanCMD:
     """Create and run a wsclean imager command against a measurement set. 
 
     Args:
@@ -127,6 +132,8 @@ def wsclean_imager(ms: Union[Path,MS], wsclean_container: Path, wsclean_options_
         logger.info(f"Updatting wsclean options with user-provided items. ")
         wsclean_options = wsclean_options.with_options(**update_wsclean_options)
     
+    assert ms.column is not None, f"A MS column needs to be elected for imaging. "
+    wsclean_options = wsclean_options.with_options(data_column=ms.column)
     wsclean_cmd = create_wsclean_cmd(ms=ms, wsclean_options=wsclean_options, container=wsclean_container)
     
     return wsclean_cmd

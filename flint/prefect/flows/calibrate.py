@@ -3,7 +3,7 @@
 import logging
 from pathlib import Path
 from argparse import ArgumentParser
-from typing import Union, Any, List
+from typing import Union, Any, List, Optional
 
 from prefect import task, flow
 
@@ -16,9 +16,11 @@ from flint.calibrate.aocalibrate import (
     CalibrateCommand,
     select_aosolution_for_ms,
     create_apply_solutions_cmd,
+    ApplySolutions,
 )
 from flint.sky_model import get_1934_model
 from flint.prefect.clusters import get_dask_runner
+from flint.imager.wsclean import wsclean_imager, WSCleanCMD
 
 task_extract_correct_bandpass_pointing = task(extract_correct_bandpass_pointing)
 task_preprocess_askap_ms = task(preprocess_askap_ms)
@@ -53,6 +55,13 @@ def task_plot_solutions(calibrate_cmd: CalibrateCommand) -> None:
     plot_solutions(solutions_path=calibrate_cmd.solution_path, ref_ant=0)
 
 
+@task
+def task_wsclean_imager(
+    apply_solutions: ApplySolutions, wsclean_container: Path
+) -> WSCleanCMD:
+    return wsclean_imager(ms=apply_solutions.ms, wsclean_container=wsclean_container)
+
+
 @flow(name="Bandpass")
 def process_bandpass_science_fields(
     bandpass_path: Path,
@@ -62,6 +71,7 @@ def process_bandpass_science_fields(
     calibrate_container: Path,
     expected_ms: int = 36,
     source_name_prefix: str = "B1934-638",
+    wsclean_container: Optional[Path] = None,
 ) -> None:
     assert (
         bandpass_path.exists() and bandpass_path.is_dir()
@@ -155,6 +165,10 @@ def process_bandpass_science_fields(
             solutions_file=solutions_path,
             container=calibrate_container,
         )
+        if wsclean_container is not None:
+            task_wsclean_imager.submit(
+                apply_solutions=apply_solutions_cmd, wsclean_container=wsclean_container
+            )
 
 
 def setup_run_process_science_field(
@@ -166,11 +180,12 @@ def setup_run_process_science_field(
     calibrate_container: Path,
     expected_ms: int = 36,
     source_name_prefix: str = "B1934-638",
+    wsclean_container: Optional[Path] = None,
 ) -> None:
     dask_task_runner = get_dask_runner(cluster=cluster_config)
 
     process_bandpass_science_fields.with_options(
-        name="Flint Bandpass", task_runner=dask_task_runner
+        name="Flint Bandpass Imager", task_runner=dask_task_runner
     )(
         bandpass_path=bandpass_path,
         science_path=science_path,
@@ -179,6 +194,7 @@ def setup_run_process_science_field(
         calibrate_container=calibrate_container,
         expected_ms=expected_ms,
         source_name_prefix=source_name_prefix,
+        wsclean_container=wsclean_container,
     )
 
 
@@ -222,6 +238,12 @@ def get_parser() -> ArgumentParser:
         help="Path to container with aoflagger software. ",
     )
     parser.add_argument(
+        "--wsclean-container",
+        type=Path,
+        default=None,
+        help="Path to the wsclean singularity container",
+    )
+    parser.add_argument(
         "--cluster-config",
         type=str,
         default="petrichor",
@@ -249,6 +271,7 @@ def cli() -> None:
         flagger_container=args.flagger_container,
         calibrate_container=args.calibrate_container,
         expected_ms=args.expected_ms,
+        wsclean_container=args.wsclean_container,
     )
 
 
