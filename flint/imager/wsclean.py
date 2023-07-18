@@ -91,8 +91,9 @@ def create_wsclean_cmd(ms: MS, wsclean_options: WSCleanOptions, container: Optio
         logger.debug(f"{key=} {value=} {type(value)=}")
         if key == 'size':
             cmd += f'-size {value} {value} '
-        elif isinstance(value, bool) and value:
-            cmd += f'-{key} '
+        elif isinstance(value, bool):
+            if value:
+                cmd += f'-{key} '
         elif isinstance(value, (str, Number)):
             cmd += f'-{key} {value} '
         else:
@@ -105,8 +106,8 @@ def create_wsclean_cmd(ms: MS, wsclean_options: WSCleanOptions, container: Optio
     cmd += f"{str(ms.path)} "
     
     logger.info(f"Constructed wsclean command: {cmd=}")
-    
-    wsclean_cmd = WSCleanCMD(cmd=cmd, ms=ms)
+    logger.info(f"Setting default model data column to 'MODEL_DATA'")
+    wsclean_cmd = WSCleanCMD(cmd=cmd, ms=ms.with_options(model_colum='MODEL_DATA'))
 
     if container:
         bind_dirs = [ms.path.parent.absolute()]
