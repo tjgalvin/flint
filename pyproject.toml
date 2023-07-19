@@ -10,11 +10,11 @@ include = [
 ]
 
 [tool.poetry.dependencies]
-python = "^3.8"
-astropy = "^5.0.0"
-numpy = "^1.20.0"
-python-casacore = "^3.5.2"
-scipy = "^1.10.0"
+python = "3.8"
+astropy = "*"
+numpy = "*"
+python-casacore = "*"
+scipy = "*"
 spython = "^0.3.0"
 fixms = "^0.1.1"
 matplotlib = "*"
@@ -22,8 +22,8 @@ prefect = "^2.10.0"
 prefect-dask = "^0.2.4"
 dask-jobqueue = "*"
 sphinx = "*"
-casatools = "^6.5.3.28"
-casatasks = "^6.5.3.28"
+#casatools = "^6.5.2.26"
+casatasks = "6.5.2.26"
 
 [tool.poetry.group.dev.dependencies]
 black = "^23.3.0"
@@ -41,4 +41,6 @@ flint_flagger = "flint.flagging:cli"
 flint_bandpass = "flint.bandpass:cli"
 flint_ms = "flint.ms:cli"
 flint_wsclean = "flint.imager.wsclean:cli"
+flint_gaincal = "flint.selfcal.casa:cli"
+
 flint_flow_bandpass = "flint.prefect.flows.calibrate:cli"
