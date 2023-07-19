@@ -1,26 +1,24 @@
 """A prefect based pipeline to bandpass calibrate data and apply it to a science observation
 """
-import logging
-from pathlib import Path
+from time import time
 from argparse import ArgumentParser
-from typing import Union, Any, List, Optional
+from pathlib import Path
+from typing import Any, List, Optional, Union
 
-from prefect import task, flow
+from prefect import flow, task
+from prefect_dask import get_dask_client
 
+from flint.bandpass import extract_correct_bandpass_pointing, plot_solutions
+from flint.calibrate.aocalibrate import (ApplySolutions, CalibrateCommand,
+                                         create_apply_solutions_cmd,
+                                         create_calibrate_cmd,
+                                         select_aosolution_for_ms)
+from flint.flagging import flag_ms_aoflagger
+from flint.imager.wsclean import WSCleanCMD, wsclean_imager
 from flint.logging import logger
 from flint.ms import MS, preprocess_askap_ms, split_by_field
-from flint.bandpass import extract_correct_bandpass_pointing, plot_solutions
-from flint.flagging import flag_ms_aoflagger
-from flint.calibrate.aocalibrate import (
-    create_calibrate_cmd,
-    CalibrateCommand,
-    select_aosolution_for_ms,
-    create_apply_solutions_cmd,
-    ApplySolutions,
-)
-from flint.sky_model import get_1934_model
 from flint.prefect.clusters import get_dask_runner
-from flint.imager.wsclean import wsclean_imager, WSCleanCMD
+from flint.sky_model import get_1934_model
 
 task_extract_correct_bandpass_pointing = task(extract_correct_bandpass_pointing)
 task_preprocess_askap_ms = task(preprocess_askap_ms)
@@ -114,7 +112,7 @@ def process_bandpass_science_fields(
 
     model_path: Path = get_1934_model(mode="calibrate")
     calibrate_cmds: List[CalibrateCommand] = []
-
+    
     for bandpass_ms in bandpass_mss:
         extract_bandpass_ms = task_extract_correct_bandpass_pointing.submit(
             ms=bandpass_ms,
@@ -123,7 +121,7 @@ def process_bandpass_science_fields(
         )
         preprocess_bandpass_ms = task_preprocess_askap_ms.submit(ms=extract_bandpass_ms)
         flag_bandpass_ms = task_flag_ms_aoflagger.submit(
-            ms=preprocess_bandpass_ms, container=flagger_container, rounds=3
+            ms=preprocess_bandpass_ms, container=flagger_container, rounds=1
         )
         calibrate_cmd = task_create_calibrate_cmd.submit(
             ms=flag_bandpass_ms,
@@ -154,7 +152,7 @@ def process_bandpass_science_fields(
             overwrite=True,
         )
         flag_field_ms = task_flag_ms_aoflagger.submit(
-            ms=preprocess_science_ms, container=flagger_container, rounds=3
+            ms=preprocess_science_ms, container=flagger_container, rounds=1
         )
 
         solutions_path = task_select_solution_for_ms.submit(
