@@ -107,7 +107,9 @@ def create_wsclean_cmd(ms: MS, wsclean_options: WSCleanOptions, container: Optio
     
     logger.info(f"Constructed wsclean command: {cmd=}")
     logger.info(f"Setting default model data column to 'MODEL_DATA'")
-    wsclean_cmd = WSCleanCMD(cmd=cmd, ms=ms.with_options(model_column='MODEL_DATA'))
+    wsclean_cmd = WSCleanCMD(
+        cmd=cmd, ms=ms.with_options(model_column='MODEL_DATA')
+    )
 
     if container:
         bind_dirs = [ms.path.parent.absolute()]

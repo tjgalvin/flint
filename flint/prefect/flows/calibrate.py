@@ -19,6 +19,7 @@ from flint.logging import logger
 from flint.ms import MS, preprocess_askap_ms, split_by_field
 from flint.prefect.clusters import get_dask_runner
 from flint.sky_model import get_1934_model
+from flint.selfcal.casa import gaincal_applycal_ms
 
 task_extract_correct_bandpass_pointing = task(extract_correct_bandpass_pointing)
 task_preprocess_askap_ms = task(preprocess_askap_ms)
@@ -27,6 +28,16 @@ task_create_calibrate_cmd = task(create_calibrate_cmd)
 task_split_by_field = task(split_by_field)
 task_select_solution_for_ms = task(select_aosolution_for_ms)
 task_create_apply_solutions_cmd = task(create_apply_solutions_cmd)
+
+@task
+def task_gaincal_applycal_ms(wsclean_cmd: WSCleanCMD, round: int) -> MS:
+    # TODO: This needs to be expanded to handle multiple MS
+    ms = wsclean_cmd.ms
+
+    if not isinstance(ms, MS):
+        raise ValueError(f"Unsupported {type(ms)=} {ms=}. Likely multiple MS instances? This is not yet supported. ")
+
+    return gaincal_applycal_ms(ms=ms, round=round)
 
 
 @task
@@ -55,9 +66,12 @@ def task_plot_solutions(calibrate_cmd: CalibrateCommand) -> None:
 
 @task
 def task_wsclean_imager(
-    apply_solutions: ApplySolutions, wsclean_container: Path
+    in_ms: Union[ApplySolutions,MS], wsclean_container: Path
 ) -> WSCleanCMD:
-    return wsclean_imager(ms=apply_solutions.ms, wsclean_container=wsclean_container)
+    ms = in_ms if isinstance(in_ms, MS) else in_ms.ms
+
+    logger.info(f"wsclean inager {ms=}")
+    return wsclean_imager(ms=ms, wsclean_container=wsclean_container)
 
 
 @flow(name="Bandpass")
@@ -70,6 +84,7 @@ def process_bandpass_science_fields(
     expected_ms: int = 36,
     source_name_prefix: str = "B1934-638",
     wsclean_container: Optional[Path] = None,
+    rounds: Optional[int] = 3
 ) -> None:
     assert (
         bandpass_path.exists() and bandpass_path.is_dir()
@@ -164,9 +179,21 @@ def process_bandpass_science_fields(
             container=calibrate_container,
         )
         if wsclean_container is not None:
-            task_wsclean_imager.submit(
-                apply_solutions=apply_solutions_cmd, wsclean_container=wsclean_container
+            wsclean_cmd = task_wsclean_imager.submit(
+                in_ms=apply_solutions_cmd, wsclean_container=wsclean_container
             )
+            
+            if rounds is None:
+                continue 
+            
+            for round in range(1, rounds+1):
+                cal_ms = task_gaincal_applycal_ms.submit(
+                    wsclean_cmd=wsclean_cmd, round=round
+                )
+                wsclean_cmd = task_wsclean_imager.submit(
+                    in_ms=cal_ms, wsclean_container=wsclean_container
+                )
+                
 
 
 def setup_run_process_science_field(

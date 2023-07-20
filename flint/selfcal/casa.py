@@ -3,6 +3,7 @@
 This tooling is mostly centred on using gaincal from casatasks.
 """
 
+import regex
 from typing import Optional, NamedTuple
 from shutil import copytree, rmtree
 from argparse import ArgumentParser
@@ -31,6 +32,33 @@ class GainCalOptions(NamedTuple):
     """Whether data selection actions will be applied in gaincal. """
 
 
+def get_selfcal_ms_name(in_ms_path: Path, round: int=1) -> Path:
+    """Create the new output MS path that will be used for self-calibration. The
+    output measurement set path will include a roundN.ms suffix, where N is the 
+    round. If such a suffic already exists from an earlier self-calibration round,
+    it will be removed and replaced. 
+
+    Args:
+        in_ms_path (Path): The measurement set that will go through self-calibration
+        round (int, optional): The self-calibration round number that is currently being used. Defaults to 1.
+
+    Returns:
+        Path: Output measurement set path to use
+    """
+    res = regex.search("\\.round[0-9]+.ms", str(in_ms_path.name))
+    if res:
+        logger.info(f"Detected a previous round of self-calibration. ")
+        span = res.span()
+        name_str = str(in_ms_path.name)
+        name = f"{name_str[:span[0]]}.round{round}.ms"
+    else:
+        name = f"{str(in_ms_path.stem)}.round{round}.ms"
+    out_ms_path = in_ms_path.parent / name 
+    
+    assert in_ms_path != out_ms_path, f"{in_ms_path=} and {out_ms_path=} match. Something went wrong when creating new self-cal name. "
+    
+    return out_ms_path
+
 def copy_and_clean_ms_casagain(ms: MS, round: int=1) -> MS:
     """Create a copy of a measurement set in preparation for selfcalibration
     using casa's gaincal and applycal. Applycal only works when calibrating
@@ -44,10 +72,9 @@ def copy_and_clean_ms_casagain(ms: MS, round: int=1) -> MS:
     Returns:
         MS: Copy of input measurement set with columns removed as required. 
     """
-    
+    # TODO: Excellent function tto start to get the test framework working from!
     # TODO: Update this name creating to a single location
-    name = f"{str(ms.path.stem)}.round{round}.ms"
-    out_ms_path = ms.path.parent / name 
+    out_ms_path = get_selfcal_ms_name(in_ms_path=ms.path, round=round)
     
     logger.info(f"Output MS name will be {str(out_ms_path)}.")
     logger.info(f"Copying {ms.path} to {out_ms_path}.")
@@ -101,6 +128,7 @@ def gaincal_applycal_ms(ms: MS, round: int=1, gain_cal_options: Optional[GainCal
     Returns:
         MS: _description_
     """
+    logger.info(f"Inputer ms={ms}")
     
     if gain_cal_options is None:
         gain_cal_options = GainCalOptions()

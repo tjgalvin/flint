@@ -6,14 +6,14 @@ operations.
 
 from glob import glob
 from pathlib import Path
-from typing import Any, Union, Dict, Optional
+from typing import Any, Union, Dict, Optional, List, Dict
 
 import pkg_resources
 import yaml
 from prefect_dask import DaskTaskRunner
 
 
-def list_packaged_clusters() -> list[str]:
+def list_packaged_clusters() -> List[str]:
     """Return a list of cluster names that are available in the packaged set of
     dask_jobqueue specification YAML files.
 
@@ -28,7 +28,7 @@ def list_packaged_clusters() -> list[str]:
     return clusters
 
 
-def get_cluster_spec(cluster: Union[str, Path]) -> dict[Any, Any]:
+def get_cluster_spec(cluster: Union[str, Path]) -> Dict[Any, Any]:
     """
     Given a cluster name, obtain the appropriate SLURM configuration
     file appropriate for use with SLURMCluster.
