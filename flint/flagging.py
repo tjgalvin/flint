@@ -1,9 +1,12 @@
 """Utility functions to carry out flagging against ASKAP measurement sets
 """
 
-from typing import NamedTuple
+from typing import NamedTuple, Union, Optional
 from pathlib import Path
 from argparse import ArgumentParser
+
+import numpy as np
+from casacore.tables import table
 
 from flint.logging import logger
 from flint.ms import MS, check_column_in_ms, describe_ms
@@ -19,6 +22,71 @@ class AOFlaggerCommand(NamedTuple):
     ms_path: Path
     """The path to the MS that will be flagged. """
 
+def nan_zero_extreme_flag_ms(
+    ms: Union[Path,MS], data_column: Optional[str]=None, flag_extreme_dxy: bool=True, dxy_thresh: float=4.
+) -> MS:
+    """Will flag a MS based on NaNs or zeros in the nominated data column of a measurement set. 
+    These NaNs might be introduced into a column via the application of a applysolutions task. 
+    Zeros might be introduced by the correlator dropping cycles and not appropriately settting the
+    corresponding FLAG column (although this might have been fixed). 
+    
+    There is also an optional component to flag based on extreme Stokes-V values. 
+    
+    Visibilities that are marked as bad will have the FLAG column updatede appropriately. 
+
+    Args:
+        ms (Union[Path,MS]): The measurement set that will be processed and have visibilities flagged. 
+        data_column (Optional[str], optional): The column to inspect. This will override the value in the nominated column of the MS. Defaults to None.
+        flag_extreme_dxy (bool, optional): Whether Stokes-V will be inspected and flagged. Defaults to True.
+        dxy_thresh (float, optional): Threshold used in the Stokes-V case. Defaults to 4..
+
+    Returns:
+        MS: The container of the processed MS
+    """
+    ms = MS.cast(ms)
+
+    if data_column is None and ms.column is None:
+        logger.warn(f"No valid data column selected, using default of DATA")
+        data_column = 'DATA'
+    elif data_column is None and ms.column is not None:
+        logger.info(f"Using nominated {ms.column} column for {str(ms.path)}")
+        data_column = ms.column 
+        
+    logger.info(f"Flagging NaNs and zeros in {data_column}.")
+    
+    with table(str(ms.path), readonly=False, ack=False) as tab:
+        
+        data = tab.getcol(data_column)
+        flags = tab.getcol('FLAG')
+        
+        nan_mask = np.where(~np.isfinite(data))
+        zero_mask = np.where(data == 0+0j)
+        logger.info(f"Will flag {np.sum(nan_mask)} NaNs and {np.sum(zero_mask)} zeros. ")
+
+        no_flags_before = np.sum(flags)
+        # TODO: Consider batching this to allow larger MS being used
+        flags[nan_mask] = True
+        flags[zero_mask] = True
+
+        if flag_extreme_dxy:
+            logger.info(f"Flagging based on extreme Stokes-V, threshold {dxy_thresh=}")
+            dxy = np.abs(data[:,:,1] - data[:,:,2])
+            dxy_mask = np.where(dxy > dxy_thresh)
+            logger.info(f"Will flag {np.sum(dxy_mask)} extreme Stokes-V.")
+            
+            # TODO: This can be compressed to a one-liner
+            flags[:,:,0][dxy_mask] = True
+            flags[:,:,1][dxy_mask] = True
+            flags[:,:,2][dxy_mask] = True
+            flags[:,:,3][dxy_mask] = True
+
+        no_flags_after = np.sum(flags)
+        logger.info(f"Flags before: {no_flags_before}, Flags after: {no_flags_after}, Difference {no_flags_after - no_flags_before}")
+        
+        logger.info(f"Adding updated flags column")
+        tab.putcol("FLAG", flags)
+    
+    return ms
 
 def create_aoflagger_cmd(ms: MS) -> AOFlaggerCommand:
     """Create a command to run aoflagger against a measurement set

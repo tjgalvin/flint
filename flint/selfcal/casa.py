@@ -8,12 +8,13 @@ from shutil import copytree, rmtree
 from argparse import ArgumentParser
 from pathlib import Path
 
+import numpy as np
 from casatasks import gaincal, applycal
 from casacore.tables import table
 
 from flint.logging import logger 
 from flint.ms import MS 
-
+from flint.flagging import nan_zero_extreme_flag_ms
 
 class GainCalOptions(NamedTuple):
     """Options provided to the casatasks gaincal function. Most options correspond to those in gaincal. """
@@ -25,7 +26,7 @@ class GainCalOptions(NamedTuple):
     """Self-calibration round. Not a gaincal option. """
     minsnr: float = 0.
     """Minimum signal-to-noise of the solutions. Below this the solutions and data are flagged. """
-    uvrange: str = '>200lambda'
+    uvrange: str = '>500m'
     """Data selected to go through calibration procedure"""
     selectdata: bool = True
     """Whether data selection actions will be applied in gaincal. """
@@ -83,8 +84,11 @@ def copy_and_clean_ms_casagain(ms: MS, round: int=1) -> MS:
         logger.info(f"Renaming CORRECTED_DATA to DATA. ")
         tab.renamecol('CORRECTED_DATA', 'DATA')
     
-    return ms.with_options(path=out_ms_path, column='DATA')
+    ms = ms.with_options(path=out_ms_path, column='DATA')
     
+    ms = nan_zero_extreme_flag_ms(ms=ms)
+    
+    return ms 
 
 def gaincal_applycal_ms(ms: MS, round: int=1, gain_cal_options: Optional[GainCalOptions] = None) -> MS:
     """Perform self-calibration using casa's gaincal and applycal tasks against
@@ -104,7 +108,7 @@ def gaincal_applycal_ms(ms: MS, round: int=1, gain_cal_options: Optional[GainCal
     
     cal_ms = copy_and_clean_ms_casagain(ms=ms, round=round)
     
-    cal_table = cal_ms.path.absolute().parent / cal_ms.path.with_suffix(f".selfcal{round}.caltable")
+    cal_table = cal_ms.path.absolute().parent / cal_ms.path.with_suffix(f".caltable")
     logger.info(f"Will create calibration table {cal_table}.")
 
     if cal_table.exists():
@@ -115,9 +119,16 @@ def gaincal_applycal_ms(ms: MS, round: int=1, gain_cal_options: Optional[GainCal
        vis=str(cal_ms.path),
        caltable=str(cal_table),
        solint=gain_cal_options.solint,
+       gaintype='G',
        minsnr=gain_cal_options.minsnr,
-       calmode=gain_cal_options.calmode
+       calmode=gain_cal_options.calmode,
+       selectdata=gain_cal_options.selectdata,
+       uvrange=gain_cal_options.uvrange,
     )
+    
+    if not cal_table.exists():
+        logger.critical(f"The calibration table was not created. Likely gaincal failed. ")
+        return ms
     
     logger.info("Solutions have been solved. Applying them. ")
     
