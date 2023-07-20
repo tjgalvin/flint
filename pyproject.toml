@@ -22,8 +22,8 @@ prefect = "^2.10.0"
 prefect-dask = "^0.2.4"
 dask-jobqueue = "*"
 sphinx = "*"
-#casatools = "^6.5.2.26"
-casatasks = "6.5.2.26"
+#casatools = "6.5.3.28"
+casatasks = "6.5.3.28"
 
 [tool.poetry.group.dev.dependencies]
 black = "^23.3.0"
