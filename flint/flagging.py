@@ -163,17 +163,31 @@ def get_parser() -> ArgumentParser:
     """
     parser = ArgumentParser(description="Run aoflagger against a measurement set")
 
-    parser.add_argument("ms", type=Path, help="The measurement set to flag")
-    parser.add_argument(
+    subparser = parser.add_subparsers(dest='mode')
+
+    aoflagger_parser = subparser.add_parser('aoflagger', description="Run AOFlagger against an measurement set. ")
+    aoflagger_parser.add_argument("ms", type=Path, help="The measurement set to flag")
+    aoflagger_parser.add_argument(
         "--aoflagger-container",
         type=Path,
         default=Path("aoflagger.sif"),
         help="The container that holds the aoflagger application",
     )
-    parser.add_argument(
+    aoflagger_parser.add_argument(
         "--column", type=str, default="DATA", help="The column of data in MS to flag"
     )
 
+    nan_zero_parser = subparser.add_parser('nanflag', help='Flag visibilities tthat are either NaN or zeros. ')
+    nan_zero_parser.add_argument("ms", type=Path, help='The measurement set that will be flagged. ')
+    nan_zero_parser.add_argument(
+        "--column", type=str, default="DATA", help="The column of data in MS to flag"
+    )
+    nan_zero_parser.add_argument(
+        "--flag-extreme-dxy", action='store_true', help="Flag visibilities whose ABS(XY - YX) change significantly"
+    )
+    nan_zero_parser.add_argument(
+        "--dxy-thresh", type=float, default=4.0, help="If extreme dxy flagging, ABS(XY - YX) above this value will be flagged. "
+    )
     return parser
 
 
@@ -186,11 +200,20 @@ def cli() -> None:
 
     args = parser.parse_args()
 
-    ms = MS(path=args.ms, column=args.column)
+    if args.mode == 'aoflagger':
+        ms = MS(path=args.ms, column=args.column)
 
-    describe_ms(ms)
-    flag_ms_aoflagger(ms=ms, container=args.aoflagger_container)
-    describe_ms(ms)
+        describe_ms(ms)
+        flag_ms_aoflagger(ms=ms, container=args.aoflagger_container)
+        describe_ms(ms)
+    elif args.mode == 'nanflag':
+        nan_zero_extreme_flag_ms(
+            ms=args.ms,
+            data_column=args.column,
+            flag_extreme_dxy=args.flag_extreme_dxy,
+            dxy_thresh=args.dxy_thresh
+        )
+
 
 
 if __name__ == "__main__":
