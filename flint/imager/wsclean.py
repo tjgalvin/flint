@@ -167,6 +167,7 @@ def get_parser() -> ArgumentParser:
     wsclean_parser.add_argument('ms', type=Path, help='Path to a measurement set to image')
     wsclean_parser.add_argument('-v','--verbose', action='store_true', help='Extra output logging.')
     wsclean_parser.add_argument('--wsclean-container', type=Path, default=None, help='Path to a singularity container with wsclean installed. ')
+    wsclean_parser.add_argument('--data-column', type=str, default='CORRECTED_DATA', help='The column name to image. ')
     
     return parser 
     
@@ -179,8 +180,10 @@ def cli() -> None:
         if args.verbose:
             import logging 
             logger.setLevel(logging.DEBUG)
+        
+        ms = MS(path=args.ms, column=args.data_column)
             
-        wsclean_imager(ms=args.ms, wsclean_container=args.container)
+        wsclean_imager(ms=ms, wsclean_container=args.wsclean_container)
 
 if __name__ == '__main__':
     cli()
