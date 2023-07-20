@@ -18,7 +18,7 @@ from flint.flagging import nan_zero_extreme_flag_ms
 
 class GainCalOptions(NamedTuple):
     """Options provided to the casatasks gaincal function. Most options correspond to those in gaincal. """
-    solint: str = "30s"
+    solint: str = "60s"
     """Solution length interval"""
     calmode: str = "p"
     """Calibration mode. """

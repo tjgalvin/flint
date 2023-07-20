@@ -24,7 +24,7 @@ class WSCleanOptions(NamedTuple):
     """Whether a local rms map is computed"""
     force_mask_rounds: int = 6
     """Round of force masked derivation"""
-    auto_mask: float = 5
+    auto_mask: float = 4
     """How deep the construct clean mask is during each cycle"""
     auto_threshold: float = 0.5
     """How deep to clean once initial clean threshold reached"""
@@ -36,9 +36,9 @@ class WSCleanOptions(NamedTuple):
     """Maximum number of major cycles to perform"""
     niter: int = 50000
     """Maximum numer of minor cycles"""
-    multiscale: bool = False
+    multiscale: bool = True
     """Enable multiscale deconvolution"""
-    multiscale_scale_bias: float = 0.9
+    multiscale_scale_bias: float = 0.75
     """Multiscale bias term"""
     fit_spectral_pol: int = 4
     """Number of spectral terms to include during sub-band subtractin"""
