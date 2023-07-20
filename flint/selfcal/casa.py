@@ -8,7 +8,6 @@ from shutil import copytree, rmtree
 from argparse import ArgumentParser
 from pathlib import Path
 
-import numpy as np
 from casatasks import gaincal, applycal
 from casacore.tables import table
 
@@ -18,7 +17,7 @@ from flint.flagging import nan_zero_extreme_flag_ms
 
 class GainCalOptions(NamedTuple):
     """Options provided to the casatasks gaincal function. Most options correspond to those in gaincal. """
-    solint: str = "60s"
+    solint: str = "30s"
     """Solution length interval"""
     calmode: str = "p"
     """Calibration mode. """
@@ -26,7 +25,7 @@ class GainCalOptions(NamedTuple):
     """Self-calibration round. Not a gaincal option. """
     minsnr: float = 0.
     """Minimum signal-to-noise of the solutions. Below this the solutions and data are flagged. """
-    uvrange: str = '>500m'
+    uvrange: str = '>200m'
     """Data selected to go through calibration procedure"""
     selectdata: bool = True
     """Whether data selection actions will be applied in gaincal. """

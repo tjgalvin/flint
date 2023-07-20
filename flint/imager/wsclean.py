@@ -42,7 +42,7 @@ class WSCleanOptions(NamedTuple):
     """Multiscale bias term"""
     fit_spectral_pol: int = 4
     """Number of spectral terms to include during sub-band subtractin"""
-    weight: str = 'briggs 0.5'
+    weight: str = 'briggs -1.5'
     """Robustness of the weighting used"""
     data_column: str = 'CORRECTED_DATA'
     """Which column in the MS to image"""
