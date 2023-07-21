@@ -38,7 +38,7 @@ class WSCleanOptions(NamedTuple):
     """Maximum number of major cycles to perform"""
     niter: int = 100000
     """Maximum numer of minor cycles"""
-    multiscale: bool = True
+    multiscale: bool = False
     """Enable multiscale deconvolution"""
     multiscale_scale_bias: float = 0.7
     """Multiscale bias term"""

@@ -153,7 +153,7 @@ def gaincal_applycal_ms(
     if gain_cal_options is None:
         gain_cal_options = GainCalOptions()
     if update_gain_cal_options:
-        logger.debug(f"Updating gaincal options with: {update_gain_cal_options}")
+        logger.info(f"Updating gaincal options with: {update_gain_cal_options}")
         gain_cal_options = gain_cal_options.with_options(**update_gain_cal_options)
 
     cal_ms = copy_and_clean_ms_casagain(ms=ms, round=round)
