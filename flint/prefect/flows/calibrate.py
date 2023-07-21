@@ -5,7 +5,7 @@ from argparse import ArgumentParser
 from pathlib import Path
 from typing import Any, List, Dict, Optional, Union
 
-from prefect import flow, task
+from prefect import flow, task, unmapped
 from prefect_dask import get_dask_client
 
 from flint.bandpass import extract_correct_bandpass_pointing, plot_solutions
@@ -176,6 +176,8 @@ def process_bandpass_science_fields(
     # than a single field in an SBID, we should do this
     field_science_mss = task_flatten_prefect_futures(science_fields)
 
+    apply_solutions_cmd_list = []
+
     for field_science_ms in field_science_mss:
         logger.info(f"Processing {field_science_ms}.")
         preprocess_science_ms = task_preprocess_askap_ms.submit(
@@ -196,29 +198,34 @@ def process_bandpass_science_fields(
             solutions_file=solutions_path,
             container=calibrate_container,
         )
-        if wsclean_container is not None:
-            wsclean_cmd = task_wsclean_imager.submit(
-                in_ms=apply_solutions_cmd, wsclean_container=wsclean_container
-            )
+        apply_solutions_cmd_list.append(apply_solutions_cmd)
 
-            if rounds is None:
-                continue
+    if wsclean_container is None:
+        logger.info(f"No wsclean container provided. Rerutning. ")
+        return
 
-            last_gain_cal_options = {"calmode": "ap", "solint": "30s"}
-            last_wsclean_round = {"weight": "briggs 0"}
-            for round in range(1, rounds + 1):
-                cal_ms = task_gaincal_applycal_ms.submit(
-                    wsclean_cmd=wsclean_cmd,
-                    round=round,
-                    update_gain_cal_options=last_gain_cal_options
-                    if round >= 2
-                    else None,
-                )
-                wsclean_cmd = task_wsclean_imager.submit(
-                    in_ms=cal_ms,
-                    wsclean_container=wsclean_container,
-                    update_wsclean_options=last_wsclean_round if round >= 2 else None,
-                )
+    wsclean_cmds = task_wsclean_imager.map(
+        in_ms=apply_solutions_cmd_list, wsclean_container=wsclean_container
+    )
+
+    if rounds is None:
+        logger.info(f"No self-calibration will be performed. Returning")
+        return
+
+    for round in range(1, rounds + 1):
+        last_gain_cal_options = {"calmode": "ap", "solint": "30s"}
+        last_wsclean_round = {"weight": "briggs 0"}
+
+        cal_mss = task_gaincal_applycal_ms.map(
+            wsclean_cmd=wsclean_cmds,
+            round=round,
+            update_gain_cal_options=unmapped(last_gain_cal_options) if round >= 2 else None,
+        )
+        wsclean_cmds = task_wsclean_imager.map(
+            in_ms=cal_mss,
+            wsclean_container=wsclean_container,
+            update_wsclean_options=unmapped(last_wsclean_round) if round >= 2 else None,
+        )
 
 
 def setup_run_process_science_field(
