@@ -2,7 +2,7 @@
 
 This tooling is mostly centred on using gaincal from casatasks.
 """
-
+from __future__ import annotations
 import regex
 from typing import Optional, NamedTuple, Dict
 from shutil import copytree, rmtree
