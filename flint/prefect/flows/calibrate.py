@@ -3,16 +3,19 @@
 from time import time
 from argparse import ArgumentParser
 from pathlib import Path
-from typing import Any, List, Optional, Union
+from typing import Any, List, Dict, Optional, Union
 
 from prefect import flow, task
 from prefect_dask import get_dask_client
 
 from flint.bandpass import extract_correct_bandpass_pointing, plot_solutions
-from flint.calibrate.aocalibrate import (ApplySolutions, CalibrateCommand,
-                                         create_apply_solutions_cmd,
-                                         create_calibrate_cmd,
-                                         select_aosolution_for_ms)
+from flint.calibrate.aocalibrate import (
+    ApplySolutions,
+    CalibrateCommand,
+    create_apply_solutions_cmd,
+    create_calibrate_cmd,
+    select_aosolution_for_ms,
+)
 from flint.flagging import flag_ms_aoflagger
 from flint.imager.wsclean import WSCleanCMD, wsclean_imager
 from flint.logging import logger
@@ -29,13 +32,16 @@ task_split_by_field = task(split_by_field)
 task_select_solution_for_ms = task(select_aosolution_for_ms)
 task_create_apply_solutions_cmd = task(create_apply_solutions_cmd)
 
+
 @task
 def task_gaincal_applycal_ms(wsclean_cmd: WSCleanCMD, round: int) -> MS:
     # TODO: This needs to be expanded to handle multiple MS
     ms = wsclean_cmd.ms
 
     if not isinstance(ms, MS):
-        raise ValueError(f"Unsupported {type(ms)=} {ms=}. Likely multiple MS instances? This is not yet supported. ")
+        raise ValueError(
+            f"Unsupported {type(ms)=} {ms=}. Likely multiple MS instances? This is not yet supported. "
+        )
 
     return gaincal_applycal_ms(ms=ms, round=round)
 
@@ -66,12 +72,18 @@ def task_plot_solutions(calibrate_cmd: CalibrateCommand) -> None:
 
 @task
 def task_wsclean_imager(
-    in_ms: Union[ApplySolutions,MS], wsclean_container: Path
+    in_ms: Union[ApplySolutions, MS],
+    wsclean_container: Path,
+    update_wsclean_options: Optional[Dict[str, Any]] = None,
 ) -> WSCleanCMD:
     ms = in_ms if isinstance(in_ms, MS) else in_ms.ms
 
     logger.info(f"wsclean inager {ms=}")
-    return wsclean_imager(ms=ms, wsclean_container=wsclean_container)
+    return wsclean_imager(
+        ms=ms,
+        wsclean_container=wsclean_container,
+        update_wsclean_options=update_wsclean_options,
+    )
 
 
 @flow(name="Bandpass")
@@ -84,7 +96,7 @@ def process_bandpass_science_fields(
     expected_ms: int = 36,
     source_name_prefix: str = "B1934-638",
     wsclean_container: Optional[Path] = None,
-    rounds: Optional[int] = 3
+    rounds: Optional[int] = 3,
 ) -> None:
     assert (
         bandpass_path.exists() and bandpass_path.is_dir()
@@ -127,7 +139,7 @@ def process_bandpass_science_fields(
 
     model_path: Path = get_1934_model(mode="calibrate")
     calibrate_cmds: List[CalibrateCommand] = []
-    
+
     for bandpass_ms in bandpass_mss:
         extract_bandpass_ms = task_extract_correct_bandpass_pointing.submit(
             ms=bandpass_ms,
@@ -182,18 +194,20 @@ def process_bandpass_science_fields(
             wsclean_cmd = task_wsclean_imager.submit(
                 in_ms=apply_solutions_cmd, wsclean_container=wsclean_container
             )
-            
+
             if rounds is None:
-                continue 
-            
-            for round in range(1, rounds+1):
+                continue
+
+            last_wsclean_round = {"weight": "briggs 0"}
+            for round in range(1, rounds + 1):
                 cal_ms = task_gaincal_applycal_ms.submit(
                     wsclean_cmd=wsclean_cmd, round=round
                 )
                 wsclean_cmd = task_wsclean_imager.submit(
-                    in_ms=cal_ms, wsclean_container=wsclean_container
+                    in_ms=cal_ms,
+                    wsclean_container=wsclean_container,
+                    update_wsclean_options=last_wsclean_round if round >= 3 else None,
                 )
-                
 
 
 def setup_run_process_science_field(
