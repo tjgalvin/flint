@@ -22,20 +22,24 @@ class AOFlaggerCommand(NamedTuple):
     ms_path: Path
     """The path to the MS that will be flagged. """
 
+
 def nan_zero_extreme_flag_ms(
-    ms: Union[Path,MS], data_column: Optional[str]=None, flag_extreme_dxy: bool=True, dxy_thresh: float=4.
+    ms: Union[Path, MS],
+    data_column: Optional[str] = None,
+    flag_extreme_dxy: bool = True,
+    dxy_thresh: float = 4.0,
 ) -> MS:
-    """Will flag a MS based on NaNs or zeros in the nominated data column of a measurement set. 
-    These NaNs might be introduced into a column via the application of a applysolutions task. 
+    """Will flag a MS based on NaNs or zeros in the nominated data column of a measurement set.
+    These NaNs might be introduced into a column via the application of a applysolutions task.
     Zeros might be introduced by the correlator dropping cycles and not appropriately settting the
-    corresponding FLAG column (although this might have been fixed). 
-    
-    There is also an optional component to flag based on extreme Stokes-V values. 
-    
-    Visibilities that are marked as bad will have the FLAG column updatede appropriately. 
+    corresponding FLAG column (although this might have been fixed).
+
+    There is also an optional component to flag based on extreme Stokes-V values.
+
+    Visibilities that are marked as bad will have the FLAG column updatede appropriately.
 
     Args:
-        ms (Union[Path,MS]): The measurement set that will be processed and have visibilities flagged. 
+        ms (Union[Path,MS]): The measurement set that will be processed and have visibilities flagged.
         data_column (Optional[str], optional): The column to inspect. This will override the value in the nominated column of the MS. Defaults to None.
         flag_extreme_dxy (bool, optional): Whether Stokes-V will be inspected and flagged. Defaults to True.
         dxy_thresh (float, optional): Threshold used in the Stokes-V case. Defaults to 4..
@@ -47,21 +51,22 @@ def nan_zero_extreme_flag_ms(
 
     if data_column is None and ms.column is None:
         logger.warn(f"No valid data column selected, using default of DATA")
-        data_column = 'DATA'
+        data_column = "DATA"
     elif data_column is None and ms.column is not None:
         logger.info(f"Using nominated {ms.column} column for {str(ms.path)}")
-        data_column = ms.column 
-        
+        data_column = ms.column
+
     logger.info(f"Flagging NaNs and zeros in {data_column}.")
-    
+
     with table(str(ms.path), readonly=False, ack=False) as tab:
-        
         data = tab.getcol(data_column)
-        flags = tab.getcol('FLAG')
-        
+        flags = tab.getcol("FLAG")
+
         nan_mask = np.where(~np.isfinite(data))
-        zero_mask = np.where(data == 0+0j)
-        logger.info(f"Will flag {np.sum(nan_mask)} NaNs and {np.sum(zero_mask)} zeros. ")
+        zero_mask = np.where(data == 0 + 0j)
+        logger.info(
+            f"Will flag {np.sum(nan_mask)} NaNs and {np.sum(zero_mask)} zeros. "
+        )
 
         no_flags_before = np.sum(flags)
         # TODO: Consider batching this to allow larger MS being used
@@ -70,23 +75,26 @@ def nan_zero_extreme_flag_ms(
 
         if flag_extreme_dxy:
             logger.info(f"Flagging based on extreme Stokes-V, threshold {dxy_thresh=}")
-            dxy = np.abs(data[:,:,1] - data[:,:,2])
+            dxy = np.abs(data[:, :, 1] - data[:, :, 2])
             dxy_mask = np.where(dxy > dxy_thresh)
             logger.info(f"Will flag {np.sum(dxy_mask)} extreme Stokes-V.")
-            
+
             # TODO: This can be compressed to a one-liner
-            flags[:,:,0][dxy_mask] = True
-            flags[:,:,1][dxy_mask] = True
-            flags[:,:,2][dxy_mask] = True
-            flags[:,:,3][dxy_mask] = True
+            flags[:, :, 0][dxy_mask] = True
+            flags[:, :, 1][dxy_mask] = True
+            flags[:, :, 2][dxy_mask] = True
+            flags[:, :, 3][dxy_mask] = True
 
         no_flags_after = np.sum(flags)
-        logger.info(f"Flags before: {no_flags_before}, Flags after: {no_flags_after}, Difference {no_flags_after - no_flags_before}")
-        
+        logger.info(
+            f"Flags before: {no_flags_before}, Flags after: {no_flags_after}, Difference {no_flags_after - no_flags_before}"
+        )
+
         logger.info(f"Adding updated flags column")
         tab.putcol("FLAG", flags)
-    
+
     return ms
+
 
 def create_aoflagger_cmd(ms: MS) -> AOFlaggerCommand:
     """Create a command to run aoflagger against a measurement set
@@ -163,9 +171,11 @@ def get_parser() -> ArgumentParser:
     """
     parser = ArgumentParser(description="Run aoflagger against a measurement set")
 
-    subparser = parser.add_subparsers(dest='mode')
+    subparser = parser.add_subparsers(dest="mode")
 
-    aoflagger_parser = subparser.add_parser('aoflagger', description="Run AOFlagger against an measurement set. ")
+    aoflagger_parser = subparser.add_parser(
+        "aoflagger", description="Run AOFlagger against an measurement set. "
+    )
     aoflagger_parser.add_argument("ms", type=Path, help="The measurement set to flag")
     aoflagger_parser.add_argument(
         "--aoflagger-container",
@@ -177,16 +187,25 @@ def get_parser() -> ArgumentParser:
         "--column", type=str, default="DATA", help="The column of data in MS to flag"
     )
 
-    nan_zero_parser = subparser.add_parser('nanflag', help='Flag visibilities tthat are either NaN or zeros. ')
-    nan_zero_parser.add_argument("ms", type=Path, help='The measurement set that will be flagged. ')
+    nan_zero_parser = subparser.add_parser(
+        "nanflag", help="Flag visibilities tthat are either NaN or zeros. "
+    )
+    nan_zero_parser.add_argument(
+        "ms", type=Path, help="The measurement set that will be flagged. "
+    )
     nan_zero_parser.add_argument(
         "--column", type=str, default="DATA", help="The column of data in MS to flag"
     )
     nan_zero_parser.add_argument(
-        "--flag-extreme-dxy", action='store_true', help="Flag visibilities whose ABS(XY - YX) change significantly"
+        "--flag-extreme-dxy",
+        action="store_true",
+        help="Flag visibilities whose ABS(XY - YX) change significantly",
     )
     nan_zero_parser.add_argument(
-        "--dxy-thresh", type=float, default=4.0, help="If extreme dxy flagging, ABS(XY - YX) above this value will be flagged. "
+        "--dxy-thresh",
+        type=float,
+        default=4.0,
+        help="If extreme dxy flagging, ABS(XY - YX) above this value will be flagged. ",
     )
     return parser
 
@@ -200,20 +219,19 @@ def cli() -> None:
 
     args = parser.parse_args()
 
-    if args.mode == 'aoflagger':
+    if args.mode == "aoflagger":
         ms = MS(path=args.ms, column=args.column)
 
         describe_ms(ms)
         flag_ms_aoflagger(ms=ms, container=args.aoflagger_container)
         describe_ms(ms)
-    elif args.mode == 'nanflag':
+    elif args.mode == "nanflag":
         nan_zero_extreme_flag_ms(
             ms=args.ms,
             data_column=args.column,
             flag_extreme_dxy=args.flag_extreme_dxy,
-            dxy_thresh=args.dxy_thresh
+            dxy_thresh=args.dxy_thresh,
         )
-
 
 
 if __name__ == "__main__":

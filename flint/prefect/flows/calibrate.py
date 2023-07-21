@@ -34,7 +34,11 @@ task_create_apply_solutions_cmd = task(create_apply_solutions_cmd)
 
 
 @task
-def task_gaincal_applycal_ms(wsclean_cmd: WSCleanCMD, round: int) -> MS:
+def task_gaincal_applycal_ms(
+    wsclean_cmd: WSCleanCMD,
+    round: int,
+    update_gain_cal_options: Optional[Dict[str, Any]] = None,
+) -> MS:
     # TODO: This needs to be expanded to handle multiple MS
     ms = wsclean_cmd.ms
 
@@ -43,7 +47,9 @@ def task_gaincal_applycal_ms(wsclean_cmd: WSCleanCMD, round: int) -> MS:
             f"Unsupported {type(ms)=} {ms=}. Likely multiple MS instances? This is not yet supported. "
         )
 
-    return gaincal_applycal_ms(ms=ms, round=round)
+    return gaincal_applycal_ms(
+        ms=ms, round=round, update_gain_cal_options=update_gain_cal_options
+    )
 
 
 @task
@@ -198,15 +204,20 @@ def process_bandpass_science_fields(
             if rounds is None:
                 continue
 
+            last_gain_cal_options = {"calmode": "ap", "solint": "30s"}
             last_wsclean_round = {"weight": "briggs 0"}
             for round in range(1, rounds + 1):
                 cal_ms = task_gaincal_applycal_ms.submit(
-                    wsclean_cmd=wsclean_cmd, round=round
+                    wsclean_cmd=wsclean_cmd,
+                    round=round,
+                    update_gain_cal_options=last_gain_cal_options
+                    if round >= 2
+                    else None,
                 )
                 wsclean_cmd = task_wsclean_imager.submit(
                     in_ms=cal_ms,
                     wsclean_container=wsclean_container,
-                    update_wsclean_options=last_wsclean_round if round >= 3 else None,
+                    update_wsclean_options=last_wsclean_round if round >= 2 else None,
                 )
 
 
