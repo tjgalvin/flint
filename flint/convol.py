@@ -80,10 +80,25 @@ def get_common_beam(image_paths: Collection[Path], cutoff: Optional[float]=None)
 def convolve_images(
     image_paths: Collection[Path], beam_shape: BeamShape, cutoff: Optional[float]=None, convol_suffix: str='conv'
 ) -> Collection[Path]:
+    """Convolve a set of input images to a common resolution as specified
+    by the beam_shape. If the major-axis of the native resolution is larger 
+    than cutoff (in arcseconds) then the racs_tools beamconv_2D task will 
+    nan it. 
+
+    Args:
+        image_paths (Collection[Path]): Set of image paths to FITS images to convol
+        beam_shape (BeamShape): The specification of the desired final resolution
+        cutoff (Optional[float], optional): Images whose major-axis is larger than this will be blank. Expected in arcseconds. Defaults to None.
+        convol_suffix (str, optional): The suffix added to .fits to indicate smoothed image. Defaults to 'conv'.
+
+    Returns:
+        Collection[Path]: Set of paths to the smoothed images
+    """
 
     logger.info(f"Will attempt to convolve {len(image_paths)} images.")
     if cutoff:
         logger.info(f"Supplied cutoff of {cutoff} arcsecond")
+        
     radio_beam = Beam(
         major=beam_shape.bmaj_arcsec*u.arcsecond,
         minor=beam_shape.bmin_arcsec*u.arcsecond,
