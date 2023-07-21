@@ -4,7 +4,7 @@ This tooling is mostly centred on using gaincal from casatasks.
 """
 from __future__ import annotations
 import regex
-from typing import Optional, NamedTuple, Dict
+from typing import Optional, NamedTuple, Dict, Any
 from shutil import copytree, rmtree
 from argparse import ArgumentParser
 from pathlib import Path
