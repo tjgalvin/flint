@@ -219,7 +219,9 @@ def process_bandpass_science_fields(
         cal_mss = task_gaincal_applycal_ms.map(
             wsclean_cmd=wsclean_cmds,
             round=round,
-            update_gain_cal_options=unmapped(last_gain_cal_options) if round >= 2 else None,
+            update_gain_cal_options=unmapped(last_gain_cal_options)
+            if round >= 2
+            else None,
         )
         wsclean_cmds = task_wsclean_imager.map(
             in_ms=cal_mss,
