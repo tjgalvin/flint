@@ -146,6 +146,9 @@ def process_bandpass_science_fields(
     model_path: Path = get_1934_model(mode="calibrate")
     calibrate_cmds: List[CalibrateCommand] = []
 
+    # TODO: Check to see if the bandpass solutoins have already
+    # been solved for. If so, skip. 
+
     for bandpass_ms in bandpass_mss:
         extract_bandpass_ms = task_extract_correct_bandpass_pointing.submit(
             ms=bandpass_ms,
