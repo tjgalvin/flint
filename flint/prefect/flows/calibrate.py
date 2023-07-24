@@ -264,7 +264,7 @@ def process_bandpass_science_fields(
             wsclean_cmds=wsclean_cmds, cutoff=25.
         )
         conv_images = task_convolve_image.map(
-            wsclean_cmd=wsclean_cmds, beam_shape=beam_shape, cutoff=25.
+            wsclean_cmd=wsclean_cmds, beam_shape=unmapped(beam_shape), cutoff=25.
         )
         
 
