@@ -1,6 +1,7 @@
 """Simple interface into wsclean
 """
 from __future__ import annotations
+from glob import glob
 from pathlib import Path
 from typing import NamedTuple, Collection, Union, List, Tuple, Any, Optional, Dict
 from numbers import Number
@@ -9,6 +10,24 @@ from argparse import ArgumentParser
 from flint.logging import logger
 from flint.ms import MS
 from flint.sclient import run_singularity_command
+
+
+class ImageSet(NamedTuple):
+    """A structure to represent the images and auxillary products produced by
+    wsclean"""
+
+    prefix: str
+    """Prefix of the images and other output products. This should correspond to the -name argument from wsclean"""
+    images: Dict[str, Collection[Path]]
+    """Images produced. The Stokes (e.g. I/Q/U/V) act as the key to the corresponding set of images. """
+    psfs: Optional[Collection[Path]] = None
+    """References to the PSFs produced by wsclean. """
+    dirty_images: Optional[Dict[str, Collection[Path]]] = None
+    """Dirty images. The Stokes (e.g. I/Q/U/V) are the key to the corresponding set of images. """
+    model_images: Optional[Dict[str, Collection[Path]]] = None
+    """Model images. The Stokes (e.g. I/Q/U/V) are the key to the corresponding set of images. """
+    residual_images: Optional[Dict[str, Collection[Path]]] = None
+    """Residual images. The Stokes (e.g. I/Q/U/V) are the key to the corresponding set of images. """
 
 
 class WSCleanOptions(NamedTuple):
@@ -69,9 +88,125 @@ class WSCleanCMD(NamedTuple):
 
     cmd: str
     """The constructede wsclean command that would be executed."""
+    options: WSCleanOptions
+    """The set of wslean options used for imaging"""
     ms: Union[MS, Collection[MS]]
     """The measurement sets that have been included in the wsclean command. """
+    imageset: Optional[ImageSet] = None
+    """Collection of images produced by wsclean"""
+    cleanup: bool = True
+    """Will clean up the dirty images/psfs/residuals/models when the imaging has completed"""
 
+
+def find_wsclean_images(
+    prefix: str, search_dir: Path = Path("."), stokes: str = "I"
+) -> ImageSet:
+    modes = ("image", "psf", "model", "dirty")
+
+    # In the current form Stokes-I imaging is the only image performed
+    i_images = search_dir.glob(f"{prefix}*{{MFS,[0-9][0-9][0-9][0-9]}}-image.fits")
+
+    wsclean_imageset = ImageSet(prefix=prefix, images={"I": i_images})
+
+
+def get_wsclean_output_names(
+    prefix: str,
+    subbands: int,
+    pols: Optional[Union[str,Collection[str]]] = None,
+    verify_exists: bool = False,
+    include_mfs: bool = True,
+    output_types: Union[str,Collection[str]] = ('image','dirty','residual','model', 'psf')
+) -> Dict[str,Collection[Path]]:
+    """Attempt to generate the file names and paths that would be
+    created by an imaging run of wsclean.
+
+    Args:
+        prefix (str): The prefix of the imaging run (the -name option in wsclean call)
+        subbands (int): Number of subbands that were imaged
+        pol (Optional[Union[str,Collection[str]]], optional): The polarisation of the image. If None are provided then this is not used. Multiple polarisation may be supplied. If multiple pols are given in an iterable, each will be produced. Defaults to None.
+        verify_exists (bool, optional): Ensures that each generated path corresponds to an actual file. Defaults to False.
+        include_mfs (bool, optional): Include the MFS images produced by wsclean. Defaults to True.
+        output_types (Union[str,Collection[str]]): Include files of this type, including image, dirty, residual, model, psf. Defaults to  ('image','dirty','residual','model', 'psf').
+
+    Raises:
+        FileExistsError: Raised when a file does not exist and verify_exists is True.
+
+    Returns:
+        Dict[str,Collection[Path]]: The file paths that wsclean should create/has created.
+    """
+    # TODO: NEED TESTS!
+    subband_strs = [f"{subband:04}" for subband in range(subbands)]
+    if include_mfs:
+        subband_strs.append("MFS")
+
+    if pols is None:
+        pols = (None, )
+    elif isinstance(pols, str):
+        pols = (pols, )
+    
+    if isinstance(output_types, str):
+        output_types = (output_types,)
+    
+    images: Dict[str,Collection[Path]] = {}
+    for image_type in ("image", "dirty", "model", "residual"):
+        if not image_type in output_types:
+            continue
+        
+        paths: List[Path] = []
+        for pol in pols:
+            for subband_str in subband_strs:
+                if pol:
+                    path_str = f"{prefix}-{subband_str}-{pol}-{image_type}.fits"
+                else:
+                    path_str = f"{prefix}-{subband_str}-{image_type}.fits"
+
+                paths.append(Path(path_str))
+
+        images[image_type] = paths
+ 
+    # The PSF is the same for all stokes
+    if 'psf' in output_types:
+        images["psf"] = [Path(f"{prefix}-{subband_str}-psf.fits") for subband_str in subband_strs]
+    
+    if verify_exists:
+        paths_no_exists: List[Path] = []
+        for _, paths in images.items():
+            paths_no_exists += [path for path in paths if not path.exists()]
+        if len(paths_no_exists) > 0:
+            raise FileExistsError(f"The following {len(paths_no_exists)} files do not exist: {paths_no_exists}")
+        
+    return images
+
+
+def delete_wsclean_outputs(prefix: str, output_type: str='image', ignore_mfs: bool=True) -> Collection[Path]:
+    """Attempt to remove elected wsclean output files
+
+    Args:
+        prefix (str): The prefix of the files to remove. This would correspond to the -name of wsclean. 
+        output_type (str, optional): What type of wsclean output to try to remove. Defaults to 'image'.
+        ignore_mfs (bool, optional): If True, do not remove MFS outputs (attempt to, atleast). Defaults to True. 
+
+    Returns:
+        Collection[Path]: The paths that were removed (or at least attempted to be removed)/
+    """
+    
+    paths = [Path(p) for p in glob(f"{prefix}*{output_type}.fits")]
+    logger.info(f"Found {len(paths)} matching {prefix=} and {output_type=}.")
+    rm_paths: List[Path] = []
+
+    for path in path:
+        if ignore_mfs and '-MFS-' in str(path.name):
+            logger.info(f"{path} appears to be an MFS product, not removing. ")
+            continue
+        if path.exists():
+            logger.warn(f"Removing {path}.")
+            try:
+                rm_paths.append(path)
+                path.unlink()
+            except Exception as e:
+                logger.criticial(f"Removing {path} failed: {e}")
+
+    return rm_paths
 
 def create_wsclean_cmd(
     ms: MS, wsclean_options: WSCleanOptions, container: Optional[Path] = None
@@ -114,14 +249,49 @@ def create_wsclean_cmd(
 
     logger.info(f"Constructed wsclean command: {cmd=}")
     logger.info(f"Setting default model data column to 'MODEL_DATA'")
-    wsclean_cmd = WSCleanCMD(cmd=cmd, ms=ms.with_options(model_column="MODEL_DATA"))
+    wsclean_cmd = WSCleanCMD(
+        cmd=cmd, options=wsclean_options, ms=ms.with_options(model_column="MODEL_DATA")
+    )
 
     if container:
-        bind_dirs = [ms.path.parent.absolute()]
-        run_singularity_command(
-            image=container, command=wsclean_cmd.cmd, bind_dirs=bind_dirs
+        wsclean_cmd = run_wsclean_imager(wsclean_cmd=wsclean_cmd, container=container)
+
+    return wsclean_cmd
+
+
+def run_wsclean_imager(wsclean_cmd: WSCleanCMD, container: Path) -> WSCleanCMD:
+    """Run a provided wsclean command. Optionally will clean up files,
+    including the dirty beams, psfs and other assorted things.
+
+    Args:
+        wsclean_cmd (WSCleanCMD): The command to run, and other properties (cleanup.)
+        container (Path): Path to the container with wsclean available in it
+
+    Returns:
+        WSCleanCMD: The executed wsclean command with a populated imageset properter.
+    """
+
+    ms = wsclean_cmd.ms
+    bind_dirs = [ms.path.parent.absolute()]
+    run_singularity_command(
+        image=container, command=wsclean_cmd.cmd, bind_dirs=bind_dirs
+    )
+
+    prefix = wsclean_cmd.options.name
+    if wsclean_cmd.cleanup:
+        logger.info(
+            f"Will clean up files created by wsclean. "
         )
 
+        for output_type in ("dirty", "psf", "model", "residual"):
+            delete_wsclean_outputs(prefix=prefix, output_type=output_type)
+    
+    images = get_wsclean_output_names(
+        prefix=prefix, subbands=wsclean_cmd.options.channels_out, verify_exists=True, output_types='image'
+    )
+    
+    logger.info(f"Found {images=}")
+           
     return wsclean_cmd
 
 

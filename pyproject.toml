@@ -23,8 +23,8 @@ prefect-dask = "^0.2.4"
 dask-jobqueue = "*"
 sphinx = "*"
 casadata = "^2023.7.3"
-casatools = "6.5.3.28"
-casatasks = "6.5.3.28"
+#casatools = "6.5.3.28"
+casatasks = "6.5.1.23"
 RACS-tools = "^2.2.4"
 
 [tool.poetry.group.dev.dependencies]
