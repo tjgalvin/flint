@@ -57,7 +57,7 @@ class WSCleanOptions(NamedTuple):
     """Maximum number of major cycles to perform"""
     niter: int = 100000
     """Maximum numer of minor cycles"""
-    multiscale: bool = False
+    multiscale: bool = True
     """Enable multiscale deconvolution"""
     multiscale_scale_bias: float = 0.7
     """Multiscale bias term"""
@@ -281,6 +281,9 @@ def run_wsclean_imager(wsclean_cmd: WSCleanCMD, container: Path) -> WSCleanCMD:
 
         for output_type in ("dirty", "psf", "model", "residual"):
             delete_wsclean_outputs(prefix=prefix, output_type=output_type)
+        for output_type in ("model", "residual"):
+            delete_wsclean_outputs(prefix=prefix, output_type=output_type, ignore_mfs=False)
+    
     
     images = get_wsclean_output_names(
         prefix=prefix, subbands=wsclean_cmd.options.channels_out, verify_exists=True, output_types='image'
