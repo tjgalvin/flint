@@ -194,7 +194,7 @@ def delete_wsclean_outputs(prefix: str, output_type: str='image', ignore_mfs: bo
     logger.info(f"Found {len(paths)} matching {prefix=} and {output_type=}.")
     rm_paths: List[Path] = []
 
-    for path in path:
+    for path in paths:
         if ignore_mfs and '-MFS-' in str(path.name):
             logger.info(f"{path} appears to be an MFS product, not removing. ")
             continue
