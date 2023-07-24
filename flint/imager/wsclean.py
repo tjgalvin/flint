@@ -104,17 +104,6 @@ class WSCleanCMD(NamedTuple):
         return WSCleanCMD(**_dict)
 
 
-def find_wsclean_images(
-    prefix: str, search_dir: Path = Path("."), stokes: str = "I"
-) -> ImageSet:
-    modes = ("image", "psf", "model", "dirty")
-
-    # In the current form Stokes-I imaging is the only image performed
-    i_images = search_dir.glob(f"{prefix}*{{MFS,[0-9][0-9][0-9][0-9]}}-image.fits")
-
-    wsclean_imageset = ImageSet(prefix=prefix, images={"I": i_images})
-
-
 def get_wsclean_output_names(
     prefix: str,
     subbands: int,
@@ -141,6 +130,7 @@ def get_wsclean_output_names(
         Dict[str,Collection[Path]]: The file paths that wsclean should create/has created.
     """
     # TODO: NEED TESTS!
+    # TODO: Need to return an ImageSet
     subband_strs = [f"{subband:04}" for subband in range(subbands)]
     if include_mfs:
         subband_strs.append("MFS")
@@ -298,7 +288,8 @@ def run_wsclean_imager(wsclean_cmd: WSCleanCMD, container: Path) -> WSCleanCMD:
     
     logger.info(f"Found {images=}")
     
-    imageset = ImageSet(prefix=prefix, images=images['images'])
+    # TODO: Return the ImageSet from the get_wsclean_output_names
+    imageset = ImageSet(prefix=prefix, images=images['image'])
       
     return wsclean_cmd.with_options(imageset=imageset)
 
