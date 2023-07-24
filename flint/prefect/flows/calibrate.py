@@ -100,7 +100,7 @@ def task_get_common_beam(wsclean_cmds: Collection[WSCleanCMD], cutoff: float=25)
     for wsclean_cmd in wsclean_cmds:
         images_to_consider.extend(wsclean_cmd.imageset.images)
     
-    logger.info(f"Considering {len(images_to_consider)} across {len(wsclean_cmds)} outputs. ")
+    logger.info(f"Considering {len(images_to_consider)} images across {len(wsclean_cmds)} outputs. ")
     
     beam_shape = get_common_beam(
         image_paths=images_to_consider, cutoff=cutoff
