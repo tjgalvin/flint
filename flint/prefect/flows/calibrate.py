@@ -3,7 +3,7 @@
 from time import time
 from argparse import ArgumentParser
 from pathlib import Path
-from typing import Any, List, Dict, Optional, Union
+from typing import Any, List, Dict, Optional, Union, Collection
 
 from prefect import flow, task, unmapped
 from prefect_dask import get_dask_client
@@ -23,6 +23,7 @@ from flint.ms import MS, preprocess_askap_ms, split_by_field
 from flint.prefect.clusters import get_dask_runner
 from flint.sky_model import get_1934_model
 from flint.selfcal.casa import gaincal_applycal_ms
+from flint.convol import get_common_beam, convolve_images, BeamShape
 
 task_extract_correct_bandpass_pointing = task(extract_correct_bandpass_pointing)
 task_preprocess_askap_ms = task(preprocess_askap_ms)
@@ -91,6 +92,36 @@ def task_wsclean_imager(
         update_wsclean_options=update_wsclean_options,
     )
 
+@task
+def task_get_common_beam(wsclean_cmds: Collection[WSCleanCMD], cutoff: float=25) -> BeamShape:
+
+    images_to_consider: List[Path] = []
+    
+    for wsclean_cmd in wsclean_cmds:
+        images_to_consider.extend(wsclean_cmd.imageset.images)
+    
+    logger.info(f"Considering {len(images_to_consider)} across {len(wsclean_cmds)} outputs. ")
+    
+    beam_shape = get_common_beam(
+        image_paths=images_to_consider, cutoff=cutoff
+    )
+    
+    return beam_shape
+
+@task 
+def task_convolve_image(wsclean_cmds: Collection[WSCleanCMD], beam_shape: BeamShape, cutoff: float=25) -> Collection[Path]:
+    
+    image_paths: List[Path] = []
+    for wsclean_cmd in wsclean_cmds:
+        image_paths.extend(wsclean_cmd.imageset.images)
+
+    logger.info(f"Will convolve {image_paths}")
+
+    return convolve_images(
+        image_paths=image_paths,
+        beam_shape=beam_shape,
+        cutoff=cutoff
+    )
 
 @flow(name="Bandpass")
 def process_bandpass_science_fields(
@@ -231,6 +262,13 @@ def process_bandpass_science_fields(
             wsclean_container=wsclean_container,
             update_wsclean_options=unmapped(last_wsclean_round) if round >= 2 else None,
         )
+        beam_shape = task_get_common_beam.submit(
+            wsclean_cmds=wsclean_cmds, cutoff=25.
+        )
+        conv_images = task_convolve_image.submit(
+            wsclean_cmds=wsclean_cmds, beam_shape=beam_shape, cutoff=25.
+        )
+        
 
 
 def setup_run_process_science_field(

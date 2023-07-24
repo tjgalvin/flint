@@ -18,16 +18,16 @@ class ImageSet(NamedTuple):
 
     prefix: str
     """Prefix of the images and other output products. This should correspond to the -name argument from wsclean"""
-    images: Dict[str, Collection[Path]]
-    """Images produced. The Stokes (e.g. I/Q/U/V) act as the key to the corresponding set of images. """
+    images: Collection[Path]
+    """Images produced. """
     psfs: Optional[Collection[Path]] = None
     """References to the PSFs produced by wsclean. """
-    dirty_images: Optional[Dict[str, Collection[Path]]] = None
-    """Dirty images. The Stokes (e.g. I/Q/U/V) are the key to the corresponding set of images. """
-    model_images: Optional[Dict[str, Collection[Path]]] = None
-    """Model images. The Stokes (e.g. I/Q/U/V) are the key to the corresponding set of images. """
-    residual_images: Optional[Dict[str, Collection[Path]]] = None
-    """Residual images. The Stokes (e.g. I/Q/U/V) are the key to the corresponding set of images. """
+    dirty_images: Optional[Collection[Path]] = None
+    """Dirty images. """
+    model_images: Optional[Collection[Path]] = None
+    """Model images.  """
+    residual_images: Optional[Collection[Path]] = None
+    """Residual images."""
 
 
 class WSCleanOptions(NamedTuple):
@@ -96,6 +96,12 @@ class WSCleanCMD(NamedTuple):
     """Collection of images produced by wsclean"""
     cleanup: bool = True
     """Will clean up the dirty images/psfs/residuals/models when the imaging has completed"""
+
+    def with_options(self, **kwargs) -> WSCleanCMD:
+        _dict = self._asdict()
+        _dict.update(**kwargs)
+        
+        return WSCleanCMD(**_dict)
 
 
 def find_wsclean_images(
@@ -291,8 +297,10 @@ def run_wsclean_imager(wsclean_cmd: WSCleanCMD, container: Path) -> WSCleanCMD:
     )
     
     logger.info(f"Found {images=}")
-           
-    return wsclean_cmd
+    
+    imageset = ImageSet(prefix=prefix, images=images['images'])
+      
+    return wsclean_cmd.with_options(imageset=imageset)
 
 
 def wsclean_imager(
