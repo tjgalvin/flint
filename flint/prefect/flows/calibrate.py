@@ -109,12 +109,10 @@ def task_get_common_beam(wsclean_cmds: Collection[WSCleanCMD], cutoff: float=25)
     return beam_shape
 
 @task 
-def task_convolve_image(wsclean_cmds: Collection[WSCleanCMD], beam_shape: BeamShape, cutoff: float=25) -> Collection[Path]:
+def task_convolve_image(wsclean_cmd: WSCleanCMD, beam_shape: BeamShape, cutoff: float=25) -> Collection[Path]:
     
-    image_paths: List[Path] = []
-    for wsclean_cmd in wsclean_cmds:
-        image_paths.extend(wsclean_cmd.imageset.images)
-
+    image_paths: List[Path] = wsclean_cmd.imageset.images
+    
     logger.info(f"Will convolve {image_paths}")
 
     return convolve_images(
@@ -265,8 +263,8 @@ def process_bandpass_science_fields(
         beam_shape = task_get_common_beam.submit(
             wsclean_cmds=wsclean_cmds, cutoff=25.
         )
-        conv_images = task_convolve_image.submit(
-            wsclean_cmds=wsclean_cmds, beam_shape=beam_shape, cutoff=25.
+        conv_images = task_convolve_image.map(
+            wsclean_cmd=wsclean_cmds, beam_shape=beam_shape, cutoff=25.
         )
         
 
