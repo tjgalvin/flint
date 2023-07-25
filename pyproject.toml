@@ -45,5 +45,6 @@ flint_ms = "flint.ms:cli"
 flint_wsclean = "flint.imager.wsclean:cli"
 flint_gaincal = "flint.selfcal.casa:cli"
 flint_convol = "flint.convol:cli"
+flint_yandalinmos = "flint.coadd.linmos:cli"
 
 flint_flow_bandpass = "flint.prefect.flows.calibrate:cli"

@@ -98,7 +98,10 @@ def task_get_common_beam(wsclean_cmds: Collection[WSCleanCMD], cutoff: float=25)
     images_to_consider: List[Path] = []
     
     for wsclean_cmd in wsclean_cmds:
-        images_to_consider.extend(wsclean_cmd.imageset.images)
+        if wsclean_cmd.imageset is None:
+            logger.warn(f"No imageset fo {wsclean_cmd.ms} found. Has imager finished?")
+            continue
+        images_to_consider.extend(wsclean_cmd.imageset.image)
     
     logger.info(f"Considering {len(images_to_consider)} images across {len(wsclean_cmds)} outputs. ")
     
@@ -111,7 +114,8 @@ def task_get_common_beam(wsclean_cmds: Collection[WSCleanCMD], cutoff: float=25)
 @task 
 def task_convolve_image(wsclean_cmd: WSCleanCMD, beam_shape: BeamShape, cutoff: float=25) -> Collection[Path]:
     
-    image_paths: List[Path] = wsclean_cmd.imageset.images
+    assert wsclean_cmd.imageset is not None, f"{wsclean_cmd.ms} has no attached imageset."
+    image_paths: Collection[Path] = wsclean_cmd.imageset.image
     
     logger.info(f"Will convolve {image_paths}")
 
@@ -245,7 +249,7 @@ def process_bandpass_science_fields(
         return
 
     for round in range(1, rounds + 1):
-        last_gain_cal_options = {"calmode": "ap", "solint": "30s"}
+        last_gain_cal_options = {"calmode": "p", "solint": "30s"}
         last_wsclean_round = {"weight": "briggs 0"}
 
         cal_mss = task_gaincal_applycal_ms.map(
