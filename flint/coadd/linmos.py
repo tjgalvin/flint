@@ -83,6 +83,7 @@ def generate_linmos_parameter_set(
 
     # Now write the file, me hearty
     logger.info(f"Writing parset to {str(parset_output_name)}.")
+    logger.info(f"{parset}")
     with open(parset_output_name, 'w') as parset_file:
         parset_file.write(parset)
 

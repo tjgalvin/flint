@@ -7,7 +7,7 @@ from pathlib import Path
 
 from flint.logging import logger 
 
-def rsync_copy_measurement_set(
+def rsync_copy_directory(
     target_path: Path, out_path: Path 
 ) -> Path:
     """A small attempt to rsync a directtory from one location to another.
@@ -32,7 +32,8 @@ def rsync_copy_measurement_set(
         rsync_cmd.split(), stdout=subprocess.PIPE
     )
     
-    for line in rsync_run.stdout:
-        logger.info(line.decode().rstrip())
+    if rsync_run.stdout is not None:
+        for line in rsync_run.stdout:
+            logger.info(line.decode().rstrip())
     
     return out_path
