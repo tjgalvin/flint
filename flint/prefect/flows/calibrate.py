@@ -143,10 +143,14 @@ def task_linmos_images(
     filter_images = [img for img in all_images if filter in str(img)]
     logger.info(f"Number of filtered images to linmos: {len(filter_images)}")    
     
+    out_dir = Path(filter_images[0].parent)
+    out_name = out_dir / field_name
+    logger.info(f"Base output image name will be: {out_name}")
+    
     linmos_cmd = linmos_images(
         images=filter_images,
         parset_output_name=Path(parset_output_name),
-        image_output_name=field_name,
+        image_output_name=str(out_name),
         container=container
     )
 
