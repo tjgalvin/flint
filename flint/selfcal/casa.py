@@ -15,7 +15,7 @@ from casacore.tables import table
 from flint.logging import logger
 from flint.ms import MS
 from flint.flagging import nan_zero_extreme_flag_ms
-
+from flint.utils import rsync_copy_directory
 
 class GainCalOptions(NamedTuple):
     """Options provided to the casatasks gaincal function. Most options correspond to those in gaincal."""
@@ -72,7 +72,7 @@ def get_selfcal_ms_name(in_ms_path: Path, round: int = 1) -> Path:
     return out_ms_path
 
 
-def copy_and_clean_ms_casagain(ms: MS, round: int = 1) -> MS:
+def copy_and_clean_ms_casagain(ms: MS, round: int = 1, verify: bool=True) -> MS:
     """Create a copy of a measurement set in preparation for selfcalibration
     using casa's gaincal and applycal. Applycal only works when calibrating
     DATA and creating a CORRECTED_DATA column. Columns are removed in the
@@ -81,6 +81,7 @@ def copy_and_clean_ms_casagain(ms: MS, round: int = 1) -> MS:
     Args:
         ms (MS): Measurement set that would go through self-calibration.
         round (int, optional): The self-calibration round. Defaults to 1.
+        verify (bool, optional): Verify that copying the measurementt set (done in preparation for gaincal) was successful. Uses a call to rsync. Defaults to True.
 
     Returns:
         MS: Copy of input measurement set with columns removed as required.
@@ -97,6 +98,12 @@ def copy_and_clean_ms_casagain(ms: MS, round: int = 1) -> MS:
         rmtree(out_ms_path)
 
     copytree(ms.path, out_ms_path)
+    # Because we can trust nothing, verify the
+    # copy with rsync. On some lustre file systems (mostly seen on stonix)
+    # components of the measurement sett are not always successfully
+    # copied with a simple copytree. 
+    if verify:
+        rsync_copy_directory(ms.path, out_ms_path)
 
     logger.info(f"Copying finished. ")
 
