@@ -1,10 +1,15 @@
 """This is an interface into the yandasoft linmos task. 
 """
 from pathlib import Path
-from typing import Optional, Collection, List
+from typing import Optional, Collection, List, NamedTuple
 from argparse import ArgumentParser
 
 from flint.logging import logger 
+from flint.sclient import run_singularity_command
+
+class LinmosCMD(NamedTuple):
+    cmd: str 
+    parset: Path
 
 
 def generate_linmos_parameter_set(
@@ -40,6 +45,8 @@ def generate_linmos_parameter_set(
     # estimate per-pixel of each image. 
     # TODO: build out functionality to create RMS images, and use those
     # here
+    # TODO: these weight files need toe be per image, and the new-line
+    # numbers are per-channel weights. 
     if weight_list is None:
         weight_list = Path(f"{image_output_name}.weight_list")
         logger.warn(f"No weight list has been provided. Assuming equal weights, and writing to {weight_list}.")
@@ -81,6 +88,52 @@ def generate_linmos_parameter_set(
 
     return parset_output_name
 
+
+def linmos_images(
+    images: Collection[Path], 
+    parset_output_name: Path,
+    image_output_name: str = "linmos_field",
+    weight_list: Optional[Path]=None,
+    holofile: Optional[Path]=None,
+    container: Path=Path('yandasoft.sif')    
+) -> LinmosCMD:
+    """Create a linmos parset file and execute it. 
+
+    Args:
+        images (Collection[Path]): The images that will be coadded into a single field image. 
+        parset_output_name (Path): Path of the output linmos parset file. 
+        image_output_name (str, optional): Name of the output image linmos produces. The weight image will have a similar name. Defaults to "linmos_field".
+        weight_list (Optional[Path], optional): If not None, this should be a new-line delimited text file used to weight the input images. Defaults to None.
+        holofile (Optional[Path], optional): Path to a FITS cube produced by the holography processing pipeline. Used by linmos to appropriate primary-beam correct the images. Defaults to None.
+        container (Path, optional): Path to the singularity container that has the yandasoft tools. Defaults to Path('yandasoft.sif').
+
+    Returns:
+        LinmosCMD: The linmos command executed and the associated parset file
+    """
+
+    assert container.exists(), f"The yandasoft container {str(container)} was not found. "
+
+    linmos_parset = generate_linmos_parameter_set(
+        images=images,
+        parset_output_name=parset_output_name,
+        image_output_name=image_output_name,
+        weight_list=weight_list,
+        holofile=holofile
+    )
+
+    linmos_cmd_str = f"linmos -c {str(linmos_parset)}"
+    bind_dirs = [image.absolute() for image in images] + [linmos_parset.absolute()]
+
+    run_singularity_command(
+        image=container, 
+        command=linmos_cmd_str, 
+        bind_dirs=bind_dirs
+    )
+
+    linmos_cmd = LinmosCMD(cmd=linmos_cmd_str, parset=linmos_parset)
+
+    return linmos_cmd
+
 def get_parser() -> ArgumentParser:
     parser = ArgumentParser(description=__doc__)
     
@@ -93,6 +146,8 @@ def get_parser() -> ArgumentParser:
     parset_parser.add_argument('--image-output-name', type=str, default='linmos_field', help='The base name used to create the output linmos images and weight maps')
     parset_parser.add_argument('--weight-list', type=Path, default=None, help='Path a new-line delimited text-file containing the relative weights corresponding to the input images')
     parset_parser.add_argument('--holofile', type=Path, default=None, help='Path to the holography FITS cube used for primary beam corrections')
+    parset_parser.add_argument('--yandasoft-container', type=Path, default=None, help="Path to the container with yandasoft tools")
+
 
     return parser
 
@@ -102,13 +157,23 @@ def cli() -> None:
     args = parser.parse_args()
     
     if args.mode == 'parset':
-        generate_linmos_parameter_set(
-            images=args.images,
-            parset_output_name=args.parset_output_name,
-            image_output_name=args.image_output_name,
-            weight_list=args.weight_list,
-            holofile=args.holofile
-        )
+        if args.yandasoft_container is None:
+            generate_linmos_parameter_set(
+                images=args.images,
+                parset_output_name=args.parset_output_name,
+                image_output_name=args.image_output_name,
+                weight_list=args.weight_list,
+                holofile=args.holofile
+            )
+        else:
+            linmos_images(
+                images=args.images,
+                parset_output_name=args.parset_output_name,
+                image_output_name=args.image_output_name,
+                weight_list=args.weight_list,
+                holofile=args.holofile,
+                container=args.yandasoft_container
+            )
 
 
 if __name__ == '__main__':

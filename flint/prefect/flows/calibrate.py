@@ -24,6 +24,7 @@ from flint.prefect.clusters import get_dask_runner
 from flint.sky_model import get_1934_model
 from flint.selfcal.casa import gaincal_applycal_ms
 from flint.convol import get_common_beam, convolve_images, BeamShape
+from flint.coadd.linmos import linmos_images
 
 task_extract_correct_bandpass_pointing = task(extract_correct_bandpass_pointing)
 task_preprocess_askap_ms = task(preprocess_askap_ms)
@@ -125,6 +126,33 @@ def task_convolve_image(wsclean_cmd: WSCleanCMD, beam_shape: BeamShape, cutoff: 
         cutoff=cutoff
     )
 
+@task
+def task_linmos_images(
+    images: Collection[Collection[Path]], 
+    parset_output_name: str,
+    container: Path,
+    filter: str='-MFS-',
+    field_name: str='unnamed_field'
+) -> Path:
+    # TODO: Need to flatten images
+    # TODO: Need a better way of getting field names
+
+    all_images = [img for beam_images in images for img in beam_images]
+    logger.info(f"Number of images to examine {len(all_images)}")
+
+    filter_images = [img for img in all_images if filter in str(img)]
+    logger.info(f"Number of filtered images to linmos: {len(filter_images)}")    
+    
+    linmos_cmd = linmos_images(
+        images=filter_images,
+        parset_output_name=Path(parset_output_name),
+        image_output_name=field_name,
+        container=container
+    )
+
+    return linmos_cmd.parset
+
+
 @flow(name="Bandpass")
 def process_bandpass_science_fields(
     bandpass_path: Path,
@@ -136,6 +164,7 @@ def process_bandpass_science_fields(
     source_name_prefix: str = "B1934-638",
     wsclean_container: Optional[Path] = None,
     rounds: Optional[int] = 3,
+    yandasoft_container: Optional[Path] = None,
 ) -> None:
     assert (
         bandpass_path.exists() and bandpass_path.is_dir()
@@ -249,7 +278,7 @@ def process_bandpass_science_fields(
         return
 
     for round in range(1, rounds + 1):
-        last_gain_cal_options = {"calmode": "p", "solint": "30s"}
+        last_gain_cal_options = {"calmode": "p", "solint": "60s"}
         last_wsclean_round = {"weight": "briggs 0"}
 
         cal_mss = task_gaincal_applycal_ms.map(
@@ -270,6 +299,16 @@ def process_bandpass_science_fields(
         conv_images = task_convolve_image.map(
             wsclean_cmd=wsclean_cmds, beam_shape=unmapped(beam_shape), cutoff=25.
         )
+        if yandasoft_container is None:
+            logger.info(f"No yandasoft container supplied, not linmosing. ")
+            continue
+        
+        parset = task_linmos_images.submit(
+            images=conv_images,
+            parset_output_name=f"linmos_round{round}_parset.txt",
+            container=yandasoft_container,
+            field_name=f"example_field_round{round}"
+        )
         
 
 
@@ -283,6 +322,7 @@ def setup_run_process_science_field(
     expected_ms: int = 36,
     source_name_prefix: str = "B1934-638",
     wsclean_container: Optional[Path] = None,
+    yandasoft_container: Optional[Path] = None,
 ) -> None:
     dask_task_runner = get_dask_runner(cluster=cluster_config)
 
@@ -297,6 +337,7 @@ def setup_run_process_science_field(
         expected_ms=expected_ms,
         source_name_prefix=source_name_prefix,
         wsclean_container=wsclean_container,
+        yandasoft_container=yandasoft_container
     )
 
 
@@ -346,6 +387,12 @@ def get_parser() -> ArgumentParser:
         help="Path to the wsclean singularity container",
     )
     parser.add_argument(
+        "--yandasoft-container",
+        type=Path,
+        default=None,
+        help="Path to the singularity container with yandasoft",
+    )
+    parser.add_argument(
         "--cluster-config",
         type=str,
         default="petrichor",
@@ -374,6 +421,7 @@ def cli() -> None:
         calibrate_container=args.calibrate_container,
         expected_ms=args.expected_ms,
         wsclean_container=args.wsclean_container,
+        yandasoft_container=args.yandasoft_container
     )
 
 

@@ -49,19 +49,19 @@ class WSCleanOptions(NamedTuple):
     """How deep the construct clean mask is during each cycle"""
     auto_threshold: float = 0.5
     """How deep to clean once initial clean threshold reached"""
-    channels_out: int = 4
+    channels_out: int = 8
     """Number of output channels"""
     mgain: float = 0.7
     """Major cycle gain"""
     nmiter: int = 15
     """Maximum number of major cycles to perform"""
-    niter: int = 100000
+    niter: int = 750000
     """Maximum numer of minor cycles"""
-    multiscale: bool = True
+    multiscale: bool = False
     """Enable multiscale deconvolution"""
     multiscale_scale_bias: float = 0.7
     """Multiscale bias term"""
-    fit_spectral_pol: int = 4
+    fit_spectral_pol: int = 3
     """Number of spectral terms to include during sub-band subtractin"""
     weight: str = "briggs -1.5"
     """Robustness of the weighting used"""
