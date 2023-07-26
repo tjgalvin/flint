@@ -167,7 +167,7 @@ def process_bandpass_science_fields(
     expected_ms: int = 36,
     source_name_prefix: str = "B1934-638",
     wsclean_container: Optional[Path] = None,
-    rounds: Optional[int] = 3,
+    rounds: Optional[int] = 2,
     yandasoft_container: Optional[Path] = None,
 ) -> None:
     assert (
@@ -283,7 +283,7 @@ def process_bandpass_science_fields(
 
     for round in range(1, rounds + 1):
         last_gain_cal_options = {"calmode": "p", "solint": "60s"}
-        last_wsclean_round = {"weight": "briggs 0"}
+        last_wsclean_round = {"weight": "briggs -1.0"}
 
         cal_mss = task_gaincal_applycal_ms.map(
             wsclean_cmd=wsclean_cmds,

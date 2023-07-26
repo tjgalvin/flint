@@ -1,6 +1,7 @@
 """Utilities related to running commands in a singularity container
 """
 import time
+from socket import gethostname
 from pathlib import Path
 from typing import Optional, Union, Collection
 from subprocess import CalledProcessError
@@ -30,6 +31,7 @@ def run_singularity_command(
         raise FileNotFoundError(f"The singularity container {image} was not found. ")
 
     logger.debug(f"Running {command} in {image}")
+    logger.info(f"Attempting to run singularity command on {gethostname()}")
 
     bind_str = None
     if bind_dirs:
