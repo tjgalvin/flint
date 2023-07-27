@@ -226,7 +226,7 @@ def create_wsclean_cmd(
     # Some wsclean options, if multiple values are provided, might need
     # to be join as a csv list. Others might want to be dumped in. Just
     # attempting to future proof (arguably needlessly).
-    options_to_comma_join = ('multiscale_scales')
+    options_to_comma_join = ('multiscale-scales')
 
     cmd = "wsclean "
     unknowns: List[Tuple[Any, Any]] = []
