@@ -242,6 +242,7 @@ def create_wsclean_cmd(
         elif isinstance(value, (str, Number)):
             cmd += f"-{key} {value} "
         elif isinstance(value, (list,tuple)):
+            value = list(map(str, value))
             value_str = ','.join(value) if key in options_to_comma_join else ' '.join(value)
             cmd += f"-{key} {','.join(value_str)}"
         elif value is None:
