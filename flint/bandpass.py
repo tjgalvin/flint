@@ -134,6 +134,14 @@ def extract_correct_bandpass_pointing(
     ms = MS.cast(ms)
     ms_summary = describe_ms(ms, verbose=False)
 
+    logger.info(f"Checking for unique fields in {str(ms.path)} data table.")
+    with table(str(ms.path)) as tab:
+        fields = np.unique(tab.getcol('FIELD_ID'))
+        if len(fields) == 1:
+            logger.info(f"Only a single field {fields} found. MS likely already split. ")
+            
+            return ms.with_options(beam=ms_summary.beam)
+        
     good_field_name = f"{source_name_prefix}_beam{ms_summary.beam}"
     field_id = ms.get_field_id_for_field(field_name=good_field_name)
 
@@ -244,7 +252,7 @@ def get_parser() -> ArgumentParser:
         type=str,
         default="calibrate",
         choices=supported_models,
-        help=f"Support 1934-638 calibration models. available models: {supported_models}. ",
+        help=f"Set the style of the  1934-638 calibration model to use, which depends on the calibration software. available models: {supported_models}. ",
     )
     band_parser.add_argument(
         "--calibrate-container",
