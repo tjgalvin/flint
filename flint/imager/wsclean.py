@@ -61,7 +61,7 @@ class WSCleanOptions(NamedTuple):
     """Enable multiscale deconvolution"""
     multiscale_scale_bias: float = 0.7
     """Multiscale bias term"""
-    multiscale_scales: Optional[Collection[float]] = (0, 15, 30, 60, 90)
+    multiscale_scales: Optional[Collection[int]] = None
     """Scales used for multi-scale deconvolution"""
     fit_spectral_pol: int = 2
     """Number of spectral terms to include during sub-band subtractin"""
