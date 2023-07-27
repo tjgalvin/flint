@@ -66,7 +66,7 @@ def nan_zero_extreme_flag_ms(
         
         nan_mask = np.where(~np.isfinite(data))
         zero_mask = np.where(data == 0 + 0j)
-        uvw_mask = np.any(tab.getcol("UVW"), axis=1)
+        uvw_mask = np.any(tab.getcol("UVW") == 0, axis=1)
         logger.info(
             f"Will flag {np.sum(nan_mask)} NaNs, zero'd data {np.sum(zero_mask)}, zero'd UVW {np.sum(uvw_mask)}. "
         )
