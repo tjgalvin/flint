@@ -244,9 +244,9 @@ def create_wsclean_cmd(
         elif isinstance(value, (list,tuple)):
             value = list(map(str, value))
             value_str = ','.join(value) if key in options_to_comma_join else ' '.join(value)
-            cmd += f"-{key} {','.join(value_str)}"
+            cmd += f"-{key} {value_str} "
         elif value is None:
-            logger.warn(f"{key} option set ot {value}. Not sure what this means. Ignoring. ")
+            logger.warn(f"{key} option set to {value}. Not sure what this means. Ignoring. ")
         else:
             unknowns.append((key, value))
 
