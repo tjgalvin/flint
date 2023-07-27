@@ -75,7 +75,7 @@ def nan_zero_extreme_flag_ms(
         # TODO: Consider batching this to allow larger MS being used
         flags[nan_mask] = True
         flags[zero_mask] = True
-        flags[uvw_mask] = True
+        flags[..., uvw_mask] = True
 
         if flag_extreme_dxy:
             logger.info(f"Flagging based on extreme Stokes-V, threshold {dxy_thresh=}")
