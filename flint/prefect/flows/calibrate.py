@@ -149,7 +149,7 @@ def task_linmos_images(
     
     linmos_cmd = linmos_images(
         images=filter_images,
-        parset_output_name=Path(parset_output_name),
+        parset_output_name=out_dir / Path(parset_output_name),
         image_output_name=str(out_name),
         container=container
     )
@@ -277,6 +277,20 @@ def process_bandpass_science_fields(
         in_ms=apply_solutions_cmd_list, wsclean_container=wsclean_container
     )
 
+    beam_shape = task_get_common_beam.submit(
+            wsclean_cmds=wsclean_cmds, cutoff=25.
+        )
+    conv_images = task_convolve_image.map(
+        wsclean_cmd=wsclean_cmds, beam_shape=unmapped(beam_shape), cutoff=25.
+    )
+    if yandasoft_container is not None:            
+        parset = task_linmos_images.submit(
+            images=conv_images,
+            parset_output_name=f"linmos_noselfcal_parset.txt",
+            container=yandasoft_container,
+            field_name=f"example_field_noselfcal"
+        )
+
     if rounds is None:
         logger.info(f"No self-calibration will be performed. Returning")
         return
@@ -289,13 +303,13 @@ def process_bandpass_science_fields(
             wsclean_cmd=wsclean_cmds,
             round=round,
             update_gain_cal_options=unmapped(last_gain_cal_options)
-            if round >= 2
+            if round >= rounds
             else None,
         )
         wsclean_cmds = task_wsclean_imager.map(
             in_ms=cal_mss,
             wsclean_container=wsclean_container,
-            update_wsclean_options=unmapped(last_wsclean_round) if round >= 2 else None,
+            update_wsclean_options=unmapped(last_wsclean_round) if round >= rounds else None,
         )
         beam_shape = task_get_common_beam.submit(
             wsclean_cmds=wsclean_cmds, cutoff=25.

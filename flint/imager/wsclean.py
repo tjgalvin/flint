@@ -39,17 +39,17 @@ class WSCleanOptions(NamedTuple):
     """Memory wsclean should try to limit itself to"""
     local_rms_window: int = 65
     """Size of the window used to estimate rms noise"""
-    size: int = 6000
+    size: int = 6144
     """Image size"""
     local_rms: bool = True
     """Whether a local rms map is computed"""
     force_mask_rounds: int = 6
     """Round of force masked derivation"""
-    auto_mask: float = 3.5
+    auto_mask: float = 3.75
     """How deep the construct clean mask is during each cycle"""
     auto_threshold: float = 0.5
     """How deep to clean once initial clean threshold reached"""
-    channels_out: int = 8
+    channels_out: int = 4
     """Number of output channels"""
     mgain: float = 0.7
     """Major cycle gain"""
@@ -57,11 +57,12 @@ class WSCleanOptions(NamedTuple):
     """Maximum number of major cycles to perform"""
     niter: int = 750000
     """Maximum numer of minor cycles"""
-    multiscale: bool = False
+    multiscale: bool = True
     """Enable multiscale deconvolution"""
     multiscale_scale_bias: float = 0.7
     """Multiscale bias term"""
-    fit_spectral_pol: int = 3
+    multiscale_scales: Optional[Collection[float]] = (15, 30, 60, 90)
+    fit_spectral_pol: int = 2
     """Number of spectral terms to include during sub-band subtractin"""
     weight: str = "briggs -1.5"
     """Robustness of the weighting used"""
@@ -221,6 +222,10 @@ def create_wsclean_cmd(
     Returns:
         WSCleanCMD: The wsclean command to run
     """
+    # Some wsclean options, if multiple values are provided, might need
+    # to be join as a csv list. Others might want to be dumped in. Just
+    # attempting to future proof (arguably needlessly).
+    options_to_comma_join = ('multiscale_scales')
 
     cmd = "wsclean "
     unknowns: List[Tuple[Any, Any]] = []
@@ -235,6 +240,11 @@ def create_wsclean_cmd(
                 cmd += f"-{key} "
         elif isinstance(value, (str, Number)):
             cmd += f"-{key} {value} "
+        elif isinstance(value, (list,tuple)):
+            value_str = ','.join(value) if key in options_to_comma_join else ' '.join(value)
+            cmd += f"-{key} {','.join(value_str)}"
+        elif value is None:
+            logger.warn(f"{key} option set ot {value}. Not sure what this means. Ignoring. ")
         else:
             unknowns.append((key, value))
 
