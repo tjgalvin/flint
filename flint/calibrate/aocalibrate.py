@@ -118,18 +118,21 @@ def plot_solutions(
             phase_xx = phases[ant, :, 0]
             phase_yy = phases[ant, :, 3]
 
-            if np.sum(~np.isfinite([amps_xx, amps_yy])) == 0:
+            if any([np.sum(~np.isfinite(amps)) == 0 for amps in (amps_xx, amps_yy)]):
                 logger.warn(f"No valid data for {ant=}")
                 continue
 
-            max_amp_xx = np.nanmax(amps_xx[np.isfinite(amps_xx)])
-            max_amp_yy = np.nanmax(amps_yy[np.isfinite(amps_yy)])
-            max_amp = np.max([max_amp_xx, max_amp_yy])
+            if any(np.isfinite(amps_xx)):
+                max_amp_xx = np.nanmax(amps_xx[np.isfinite(amps_xx)])
+            if any(np.isfinite(amps_yy)):
+                max_amp_yy = np.nanmax(amps_yy[np.isfinite(amps_yy)])
+            
+            max_amp = np.nanmax([max_amp_xx, max_amp_yy])
             ax_a, ax_p = axes_amp[y, x], axes_phase[y, x]
             ax_a.plot(channels, amps_xx, marker=None, color="blue")
             ax_a.plot(channels, amps_yy, marker=None, color="red")
             ax_a.set(ylim=(0, 1.2 * max_amp))
-            ax_a.set_title(f"ak{ant:02d}", fontsize=8)
+            ax_a.set_title(f"ant{ant:02d}", fontsize=8)
             fill_between_flags(ax_a, ~np.isfinite(amps_yy) | ~np.isfinite(amps_xx))
 
             ax_p.plot(channels, phase_xx, marker=None, color="blue")
@@ -283,6 +286,7 @@ def create_calibrate_cmd(
     cmd = (
         f"calibrate "
         f"-datacolumn {ms.column} "
+        f"-minuv 200 " 
         f"-m {str(calibrate_model)} "
         f"{calibrate_kwargs} "
         f"{str(ms.path)} "

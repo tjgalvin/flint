@@ -28,6 +28,7 @@ def nan_zero_extreme_flag_ms(
     data_column: Optional[str] = None,
     flag_extreme_dxy: bool = True,
     dxy_thresh: float = 4.0,
+    nan_data_on_flag: bool = False
 ) -> MS:
     """Will flag a MS based on NaNs or zeros in the nominated data column of a measurement set.
     These NaNs might be introduced into a column via the application of a applysolutions task.
@@ -43,6 +44,7 @@ def nan_zero_extreme_flag_ms(
         data_column (Optional[str], optional): The column to inspect. This will override the value in the nominated column of the MS. Defaults to None.
         flag_extreme_dxy (bool, optional): Whether Stokes-V will be inspected and flagged. Defaults to True.
         dxy_thresh (float, optional): Threshold used in the Stokes-V case. Defaults to 4..
+        nan_data_on_flag (bool, optional): If True, data whose FLAG is set to True will become NaNs. Defaults to False. 
 
     Returns:
         MS: The container of the processed MS
@@ -61,17 +63,19 @@ def nan_zero_extreme_flag_ms(
     with table(str(ms.path), readonly=False, ack=False) as tab:
         data = tab.getcol(data_column)
         flags = tab.getcol("FLAG")
-
+        
         nan_mask = np.where(~np.isfinite(data))
         zero_mask = np.where(data == 0 + 0j)
+        uvw_mask = np.any(tab.getcol("UVW"), axis=1)
         logger.info(
-            f"Will flag {np.sum(nan_mask)} NaNs and {np.sum(zero_mask)} zeros. "
+            f"Will flag {np.sum(nan_mask)} NaNs, zero'd data {np.sum(zero_mask)}, zero'd UVW {np.sum(uvw_mask)}. "
         )
 
         no_flags_before = np.sum(flags)
         # TODO: Consider batching this to allow larger MS being used
         flags[nan_mask] = True
         flags[zero_mask] = True
+        flags[uvw_mask] = True
 
         if flag_extreme_dxy:
             logger.info(f"Flagging based on extreme Stokes-V, threshold {dxy_thresh=}")
@@ -92,6 +96,11 @@ def nan_zero_extreme_flag_ms(
 
         logger.info(f"Adding updated flags column")
         tab.putcol("FLAG", flags)
+
+        if nan_data_on_flag:
+            data[flags==True] = np.nan 
+            logger.info(f"Setting {np.sum(flags)} DATA items to NaN.")
+            tab.putcol(data_column, data)
 
     return ms
 
@@ -207,6 +216,11 @@ def get_parser() -> ArgumentParser:
         default=4.0,
         help="If extreme dxy flagging, ABS(XY - YX) above this value will be flagged. ",
     )
+    nan_zero_parser.add_argument(
+        '--nan-data-on-flag',
+        action='store_true',
+        help='NaN the data if their FLAG attribute is True. '
+    )
     return parser
 
 
@@ -231,6 +245,7 @@ def cli() -> None:
             data_column=args.column,
             flag_extreme_dxy=args.flag_extreme_dxy,
             dxy_thresh=args.dxy_thresh,
+            nan_data_on_flag=args.nan_data_on_flag
         )
 
 

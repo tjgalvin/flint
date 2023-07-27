@@ -63,7 +63,7 @@ def run_singularity_command(
             # TODO: I have noticed that sometimes the prefect logger API
             # can be overwhelmed and emmit internal server error. This sleep
             # aims to help, but perhaps a more robust way should be used.
-            time.sleep(0.15)
+            # time.sleep(0.15)
     except CalledProcessError as e:
         logger.error(f"Failed to run command: {command}")
         logger.error(f"Stdout: {e.stdout}")
