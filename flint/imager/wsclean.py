@@ -102,17 +102,23 @@ class WSCleanCMD(NamedTuple):
     def with_options(self, **kwargs) -> WSCleanCMD:
         _dict = self._asdict()
         _dict.update(**kwargs)
-        
+
         return WSCleanCMD(**_dict)
 
 
 def get_wsclean_output_names(
     prefix: str,
     subbands: int,
-    pols: Optional[Union[str,Collection[str]]] = None,
+    pols: Optional[Union[str, Collection[str]]] = None,
     verify_exists: bool = False,
     include_mfs: bool = True,
-    output_types: Union[str,Collection[str]] = ('image','dirty','residual','model', 'psf')
+    output_types: Union[str, Collection[str]] = (
+        "image",
+        "dirty",
+        "residual",
+        "model",
+        "psf",
+    ),
 ) -> ImageSet:
     """Attempt to generate the file names and paths that would be
     created by an imaging run of wsclean.
@@ -137,20 +143,20 @@ def get_wsclean_output_names(
     if include_mfs:
         subband_strs.append("MFS")
 
-    in_pols: Tuple[Union[None,str]]
+    in_pols: Tuple[Union[None, str]]
     if pols is None:
-        in_pols = (None, )
+        in_pols = (None,)
     elif isinstance(pols, str):
-        in_pols = (pols, )
-    
+        in_pols = (pols,)
+
     if isinstance(output_types, str):
         output_types = (output_types,)
-    
-    images: Dict[str,Collection[Path]] = {}
+
+    images: Dict[str, Collection[Path]] = {}
     for image_type in ("image", "dirty", "model", "residual"):
         if not image_type in output_types:
             continue
-        
+
         paths: List[Path] = []
         for pol in in_pols:
             for subband_str in subband_strs:
@@ -162,39 +168,45 @@ def get_wsclean_output_names(
                 paths.append(Path(path_str))
 
         images[image_type] = paths
- 
+
     # The PSF is the same for all stokes
-    if 'psf' in output_types:
-        images["psf"] = [Path(f"{prefix}-{subband_str}-psf.fits") for subband_str in subband_strs]
-    
+    if "psf" in output_types:
+        images["psf"] = [
+            Path(f"{prefix}-{subband_str}-psf.fits") for subband_str in subband_strs
+        ]
+
     if verify_exists:
         paths_no_exists: List[Path] = []
         for _, check_paths in images.items():
             paths_no_exists += [path for path in check_paths if not path.exists()]
         if len(paths_no_exists) > 0:
-            raise FileExistsError(f"The following {len(paths_no_exists)} files do not exist: {paths_no_exists}")
-        
+            raise FileExistsError(
+                f"The following {len(paths_no_exists)} files do not exist: {paths_no_exists}"
+            )
+
     return ImageSet(prefix=prefix, **images)
 
 
-def delete_wsclean_outputs(prefix: str, output_type: str='image', ignore_mfs: bool=True) -> Collection[Path]:
+def delete_wsclean_outputs(
+    prefix: str, output_type: str = "image", ignore_mfs: bool = True
+) -> Collection[Path]:
     """Attempt to remove elected wsclean output files
 
     Args:
-        prefix (str): The prefix of the files to remove. This would correspond to the -name of wsclean. 
+        prefix (str): The prefix of the files to remove. This would correspond to the -name of wsclean.
         output_type (str, optional): What type of wsclean output to try to remove. Defaults to 'image'.
-        ignore_mfs (bool, optional): If True, do not remove MFS outputs (attempt to, atleast). Defaults to True. 
+        ignore_mfs (bool, optional): If True, do not remove MFS outputs (attempt to, atleast). Defaults to True.
 
     Returns:
         Collection[Path]: The paths that were removed (or at least attempted to be removed)/
     """
-    
+
     paths = [Path(p) for p in glob(f"{prefix}*{output_type}.fits")]
     logger.info(f"Found {len(paths)} matching {prefix=} and {output_type=}.")
     rm_paths: List[Path] = []
 
     for path in paths:
-        if ignore_mfs and '-MFS-' in str(path.name):
+        if ignore_mfs and "-MFS-" in str(path.name):
             logger.info(f"{path} appears to be an MFS product, not removing. ")
             continue
         if path.exists():
@@ -206,6 +218,7 @@ def delete_wsclean_outputs(prefix: str, output_type: str='image', ignore_mfs: bo
                 logger.critical(f"Removing {path} failed: {e}")
 
     return rm_paths
+
 
 def create_wsclean_cmd(
     ms: MS, wsclean_options: WSCleanOptions, container: Optional[Path] = None
@@ -226,7 +239,7 @@ def create_wsclean_cmd(
     # Some wsclean options, if multiple values are provided, might need
     # to be join as a csv list. Others might want to be dumped in. Just
     # attempting to future proof (arguably needlessly).
-    options_to_comma_join = ('multiscale-scales')
+    options_to_comma_join = "multiscale-scales"
 
     cmd = "wsclean "
     unknowns: List[Tuple[Any, Any]] = []
@@ -241,12 +254,16 @@ def create_wsclean_cmd(
                 cmd += f"-{key} "
         elif isinstance(value, (str, Number)):
             cmd += f"-{key} {value} "
-        elif isinstance(value, (list,tuple)):
+        elif isinstance(value, (list, tuple)):
             value = list(map(str, value))
-            value_str = ','.join(value) if key in options_to_comma_join else ' '.join(value)
+            value_str = (
+                ",".join(value) if key in options_to_comma_join else " ".join(value)
+            )
             cmd += f"-{key} {value_str} "
         elif value is None:
-            logger.warn(f"{key} option set to {value}. Not sure what this means. Ignoring. ")
+            logger.warn(
+                f"{key} option set to {value}. Not sure what this means. Ignoring. "
+            )
         else:
             unknowns.append((key, value))
 
@@ -282,8 +299,8 @@ def run_wsclean_imager(wsclean_cmd: WSCleanCMD, container: Path) -> WSCleanCMD:
 
     ms = wsclean_cmd.ms
     if isinstance(ms, MS):
-        ms = (ms, )
-  
+        ms = (ms,)
+
     bind_dirs = [Path(m.path).parent.absolute() for m in ms]
     run_singularity_command(
         image=container, command=wsclean_cmd.cmd, bind_dirs=bind_dirs
@@ -293,24 +310,26 @@ def run_wsclean_imager(wsclean_cmd: WSCleanCMD, container: Path) -> WSCleanCMD:
     if prefix is None:
         prefix = ms[0].path.name
         logger.warn(f"Setting prefix to {prefix}. Likely this is not correct. ")
-        
+
     if wsclean_cmd.cleanup:
-        logger.info(
-            f"Will clean up files created by wsclean. "
-        )
+        logger.info(f"Will clean up files created by wsclean. ")
 
         for output_type in ("dirty", "psf", "model", "residual"):
             delete_wsclean_outputs(prefix=prefix, output_type=output_type)
         for output_type in ("model", "residual"):
-            delete_wsclean_outputs(prefix=prefix, output_type=output_type, ignore_mfs=False)
-    
-    
+            delete_wsclean_outputs(
+                prefix=prefix, output_type=output_type, ignore_mfs=False
+            )
+
     imageset = get_wsclean_output_names(
-        prefix=prefix, subbands=wsclean_cmd.options.channels_out, verify_exists=True, output_types='image'
+        prefix=prefix,
+        subbands=wsclean_cmd.options.channels_out,
+        verify_exists=True,
+        output_types="image",
     )
-    
+
     logger.info(f"Found {imageset.image=}")
-     
+
     return wsclean_cmd.with_options(imageset=imageset)
 
 

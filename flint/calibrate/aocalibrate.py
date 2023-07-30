@@ -126,7 +126,7 @@ def plot_solutions(
                 max_amp_xx = np.nanmax(amps_xx[np.isfinite(amps_xx)])
             if any(np.isfinite(amps_yy)):
                 max_amp_yy = np.nanmax(amps_yy[np.isfinite(amps_yy)])
-            
+
             max_amp = np.nanmax([max_amp_xx, max_amp_yy])
             ax_a, ax_p = axes_amp[y, x], axes_phase[y, x]
             ax_a.plot(channels, amps_xx, marker=None, color="blue")
@@ -286,7 +286,7 @@ def create_calibrate_cmd(
     cmd = (
         f"calibrate "
         f"-datacolumn {ms.column} "
-        f"-minuv 200 " 
+        f"-minuv 200 "
         f"-m {str(calibrate_model)} "
         f"{calibrate_kwargs} "
         f"{str(ms.path)} "

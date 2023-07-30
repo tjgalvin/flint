@@ -93,46 +93,51 @@ def task_wsclean_imager(
         update_wsclean_options=update_wsclean_options,
     )
 
-@task
-def task_get_common_beam(wsclean_cmds: Collection[WSCleanCMD], cutoff: float=25) -> BeamShape:
 
+@task
+def task_get_common_beam(
+    wsclean_cmds: Collection[WSCleanCMD], cutoff: float = 25
+) -> BeamShape:
     images_to_consider: List[Path] = []
-    
+
     for wsclean_cmd in wsclean_cmds:
         if wsclean_cmd.imageset is None:
             logger.warn(f"No imageset fo {wsclean_cmd.ms} found. Has imager finished?")
             continue
         images_to_consider.extend(wsclean_cmd.imageset.image)
-    
-    logger.info(f"Considering {len(images_to_consider)} images across {len(wsclean_cmds)} outputs. ")
-    
-    beam_shape = get_common_beam(
-        image_paths=images_to_consider, cutoff=cutoff
+
+    logger.info(
+        f"Considering {len(images_to_consider)} images across {len(wsclean_cmds)} outputs. "
     )
-    
+
+    beam_shape = get_common_beam(image_paths=images_to_consider, cutoff=cutoff)
+
     return beam_shape
 
-@task 
-def task_convolve_image(wsclean_cmd: WSCleanCMD, beam_shape: BeamShape, cutoff: float=25) -> Collection[Path]:
-    
-    assert wsclean_cmd.imageset is not None, f"{wsclean_cmd.ms} has no attached imageset."
+
+@task
+def task_convolve_image(
+    wsclean_cmd: WSCleanCMD, beam_shape: BeamShape, cutoff: float = 25
+) -> Collection[Path]:
+    assert (
+        wsclean_cmd.imageset is not None
+    ), f"{wsclean_cmd.ms} has no attached imageset."
     image_paths: Collection[Path] = wsclean_cmd.imageset.image
-    
+
     logger.info(f"Will convolve {image_paths}")
 
     return convolve_images(
-        image_paths=image_paths,
-        beam_shape=beam_shape,
-        cutoff=cutoff
+        image_paths=image_paths, beam_shape=beam_shape, cutoff=cutoff
     )
+
 
 @task
 def task_linmos_images(
-    images: Collection[Collection[Path]], 
+    images: Collection[Collection[Path]],
     parset_output_name: str,
     container: Path,
-    filter: str='-MFS-',
-    field_name: str='unnamed_field'
+    filter: str = "-MFS-",
+    field_name: str = "unnamed_field",
 ) -> Path:
     # TODO: Need to flatten images
     # TODO: Need a better way of getting field names
@@ -141,17 +146,17 @@ def task_linmos_images(
     logger.info(f"Number of images to examine {len(all_images)}")
 
     filter_images = [img for img in all_images if filter in str(img)]
-    logger.info(f"Number of filtered images to linmos: {len(filter_images)}")    
-    
+    logger.info(f"Number of filtered images to linmos: {len(filter_images)}")
+
     out_dir = Path(filter_images[0].parent)
     out_name = out_dir / field_name
     logger.info(f"Base output image name will be: {out_name}")
-    
+
     linmos_cmd = linmos_images(
         images=filter_images,
         parset_output_name=out_dir / Path(parset_output_name),
         image_output_name=str(out_name),
-        container=container
+        container=container,
     )
 
     return linmos_cmd.parset
@@ -213,7 +218,7 @@ def process_bandpass_science_fields(
     calibrate_cmds: List[CalibrateCommand] = []
 
     # TODO: Check to see if the bandpass solutoins have already
-    # been solved for. If so, skip. 
+    # been solved for. If so, skip.
 
     for bandpass_ms in bandpass_mss:
         extract_bandpass_ms = task_extract_correct_bandpass_pointing.submit(
@@ -277,18 +282,16 @@ def process_bandpass_science_fields(
         in_ms=apply_solutions_cmd_list, wsclean_container=wsclean_container
     )
 
-    beam_shape = task_get_common_beam.submit(
-            wsclean_cmds=wsclean_cmds, cutoff=25.
-        )
+    beam_shape = task_get_common_beam.submit(wsclean_cmds=wsclean_cmds, cutoff=25.0)
     conv_images = task_convolve_image.map(
-        wsclean_cmd=wsclean_cmds, beam_shape=unmapped(beam_shape), cutoff=25.
+        wsclean_cmd=wsclean_cmds, beam_shape=unmapped(beam_shape), cutoff=25.0
     )
-    if yandasoft_container is not None:            
+    if yandasoft_container is not None:
         parset = task_linmos_images.submit(
             images=conv_images,
             parset_output_name=f"linmos_noselfcal_parset.txt",
             container=yandasoft_container,
-            field_name=f"example_field_noselfcal"
+            field_name=f"example_field_noselfcal",
         )
 
     if rounds is None:
@@ -309,25 +312,24 @@ def process_bandpass_science_fields(
         wsclean_cmds = task_wsclean_imager.map(
             in_ms=cal_mss,
             wsclean_container=wsclean_container,
-            update_wsclean_options=unmapped(last_wsclean_round) if round >= rounds else None,
+            update_wsclean_options=unmapped(last_wsclean_round)
+            if round >= rounds
+            else None,
         )
-        beam_shape = task_get_common_beam.submit(
-            wsclean_cmds=wsclean_cmds, cutoff=25.
-        )
+        beam_shape = task_get_common_beam.submit(wsclean_cmds=wsclean_cmds, cutoff=25.0)
         conv_images = task_convolve_image.map(
-            wsclean_cmd=wsclean_cmds, beam_shape=unmapped(beam_shape), cutoff=25.
+            wsclean_cmd=wsclean_cmds, beam_shape=unmapped(beam_shape), cutoff=25.0
         )
         if yandasoft_container is None:
             logger.info(f"No yandasoft container supplied, not linmosing. ")
             continue
-        
+
         parset = task_linmos_images.submit(
             images=conv_images,
             parset_output_name=f"linmos_round{round}_parset.txt",
             container=yandasoft_container,
-            field_name=f"example_field_round{round}"
+            field_name=f"example_field_round{round}",
         )
-        
 
 
 def setup_run_process_science_field(
@@ -355,7 +357,7 @@ def setup_run_process_science_field(
         expected_ms=expected_ms,
         source_name_prefix=source_name_prefix,
         wsclean_container=wsclean_container,
-        yandasoft_container=yandasoft_container
+        yandasoft_container=yandasoft_container,
     )
 
 
@@ -439,7 +441,7 @@ def cli() -> None:
         calibrate_container=args.calibrate_container,
         expected_ms=args.expected_ms,
         wsclean_container=args.wsclean_container,
-        yandasoft_container=args.yandasoft_container
+        yandasoft_container=args.yandasoft_container,
     )
 
 
