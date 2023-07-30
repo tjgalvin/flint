@@ -72,7 +72,7 @@ def flag_outlier_phase(complex_gains: np.ndarray, flag_cut: float) -> np.ndarray
     # These calibration solutions typically have a unknown delay and phase
     # offset. For the least-squares fitter to fit the data robustly, decent
     # initial guesses are needed.
-    complex_mask = np.isfinit(complex_gains)
+    complex_mask = np.isfinite(complex_gains)
     gain_angles = np.angle(complex_gains)
     init_phase_offset = gain_angles[complex_mask][0]
 
