@@ -1,6 +1,7 @@
 """Code to use AO calibrate s
 """
 from __future__ import annotations  # used to keep mypy/pylance happy in AOSolutions
+import struct
 from pathlib import Path
 from typing import NamedTuple, Optional, Union, Iterable, List, Collection
 from argparse import ArgumentParser
@@ -65,7 +66,27 @@ class AOSolutions(NamedTuple):
         """
         return load_aosolutions_file(solutions_path=path)
 
+    def save(self, output_path: Path) -> Path:
+        """Save the instance of AOSolution to a standard aosolution binary file
+
+        Args:
+            output_path (Path): Location to write the file to
+
+        Returns:
+            Path: Location the file was written to
+        """
+        return save_aosolutions_file(aosolutions=self, output_path=output_path)
+
     def plot_solutions(self, ref_ant: int = 0) -> Iterable[Path]:
+        """Plot the solutions of all antenna for the first time-inteval
+        in the aosolutions file. The XX and the YY will be plotted. 
+
+        Args:
+            ref_ant (int, optional): Reference antenna to divide the solutions by. Defaults to 0.
+
+        Returns:
+            Iterable[Path]: Path to the phase and amplited plots created.
+        """
         # TODO: Change call signature to pass straight through
         return plot_solutions(solutions=self, ref_ant=ref_ant)
 
@@ -157,6 +178,44 @@ def plot_solutions(
 
     return [Path(out_amp), Path(out_phase)]
 
+def save_aosolutions_file(aosolutions: AOSolutions, output_path: Path) -> Path:
+    """Save a AOSolutions file to the ao-standard binary format. 
+
+    Args:
+        aosolutions (ApplySolutions): Instance of the solutions to save
+        output_path (Path): Output path to write the files to
+
+    Returns:
+        Path: Path the file was written to
+    """
+
+    header_format = "8s6I2d"
+    header_intro = b"MWAOCAL\0"
+    
+    output_dir = output_path.parent 
+    if not output_dir.exists():
+        logger.info(f"Creating {output_dir}.")
+        output_dir.mkdir(parents=True)
+    
+    logger.info(f"Writing aosolutions to {str(output_path)}.")
+    with open(str(output_path), "wb") as out_file:
+        out_file.write(
+            struct.pack(
+                header_format, 
+                header_intro,
+                0, # File type, only 0 mode available
+                0, # Structure type, 0 model available only
+                aosolutions.nsol,
+                aosolutions.nant,
+                aosolutions.nchan,
+                aosolutions.npol,
+                0.0, # time start, I don't believe these are used
+                0.0 # time end, I don't believe these are used
+            )
+        )
+        aosolutions.bandpass.tofile(out_file)
+    
+    return output_path
 
 def load_aosolutions_file(solutions_path: Path) -> AOSolutions:
     """Load in an AO-style solutions file
@@ -512,9 +571,9 @@ def flag_solutions(
                     plot_title=plot_title,
                     plot_path=ouput_path
                 )
-                bandpass[time, ant, :, pol] = phase_outlier_result.outlier_mask
+                bandpass[time, ant, phase_outlier_result.outlier_mask, pol] = np.nan
                 logger.info(f"{ant=:02d}, pol={pols[pol]}, flagged {np.sum(phase_outlier_result.outlier_mask)} / {ant_gains.shape[0]}")
-            
+    
     return solutions_path
 
 
