@@ -181,6 +181,7 @@ def fit_complex_gain_model(*args):
 def flag_outlier_phase(
     complex_gains: np.ndarray, 
     flag_cut: float,
+    use_mad: bool=True,
     plot_title: Optional[str] = None,
     plot_path: Optional[Path] = None
 ) -> PhaseOutlierResults:
@@ -208,6 +209,7 @@ def flag_outlier_phase(
     Args:
         complex_gains (np.ndarray): The comples-gains as a function of frequency.
         flag_cut (float): The significance a point should be before flagged as outlier
+        use_mad (bool, optional): Use the median and MAD when selecting outlier. if False, use mean and std. Defaults to True. 
         plot_title (str, optional): Title to add to the plot. Defaults to None. 
         plot_path (Path, optional): If not None, a simple diagnostic plot will be created and written to this path. Defaults to None. 
 
@@ -258,16 +260,29 @@ def flag_outlier_phase(
     unwrapped_residuals = np.angle(
         unwrapped_complex_gains / fit_model_gains
     )
+    unwrapped_residuals_mask = np.isfinite(unwrapped_residuals)
 
     # Apply the final cuts to identify channels of excess phase offset, indicating
     # RFI.
     # TODO: Use more robust statistics, like MAD
+    valid_residuals = unwrapped_residuals[unwrapped_residuals_mask]
+    
+    unwrapped_residual_median = np.median(valid_residuals)
+    unwrapped_residual_mad = np.median(
+        np.abs(valid_residuals - unwrapped_residual_median)
+    )
+    
     unwrapped_residual_mean = np.nanmean(unwrapped_residuals)
     unwrapped_residual_std = np.nanstd(unwrapped_residuals)
 
+    if use_mad:
+        m, s = unwrapped_residual_median, unwrapped_residual_mad
+    else:
+        m, s = unwrapped_residual_mean, unwrapped_residual_std
+
     final_mask = np.isfinite(unwrapped_residuals) & (
         np.abs(unwrapped_residuals)
-        < (unwrapped_residual_mean + flag_cut * unwrapped_residual_std)
+        < (m + flag_cut * s)
     )
 
     phase_outlier_results = PhaseOutlierResults(
@@ -277,8 +292,8 @@ def flag_outlier_phase(
         init_model_params=init_p0,
         fit_model_params=results[0],
         outlier_mask=~final_mask,
-        unwrapped_residual_mean=unwrapped_residual_mean,
-        unwrapped_residual_std=unwrapped_residual_std,
+        unwrapped_residual_mean=m,
+        unwrapped_residual_std=s,
         flag_cut=flag_cut
     )
 
