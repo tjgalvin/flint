@@ -5,7 +5,7 @@ be removed.
 At this point there are no attempts to smooth or interpolate these flagged
 components of the bandpass. 
 """
-from typing import NamedTuple, Tuple
+from typing import NamedTuple, Tuple, Optional
 from pathlib import Path
 
 import numpy as np
@@ -43,7 +43,7 @@ class PhaseOutlierResults(NamedTuple):
 def plot_phase_outlier(
     phase_outlier_results: PhaseOutlierResults,
     output_path: Path,
-    title: str=None
+    title: Optional[str]=None
 ) -> Path:
     """Create a simple diagnostic plot highlighting how the outlier
     channels and their phases were selected.
@@ -56,6 +56,7 @@ def plot_phase_outlier(
     Returns:
         Path: Path of the output image file
     """
+    logger.info(f"Creating phase outlier plot, writting {str(output_path)}.")
 
     complex_gains = phase_outlier_results.complex_gains
     init_model_gains = phase_outlier_results.init_model_gains 
@@ -168,7 +169,12 @@ def fit_complex_gain_model(*args):
     return np.angle(complex_gain_model(*args))
 
 
-def flag_outlier_phase(complex_gains: np.ndarray, flag_cut: float) -> PhaseOutlierResults:
+def flag_outlier_phase(
+    complex_gains: np.ndarray, 
+    flag_cut: float,
+    plot_title: Optional[str] = None,
+    plot_path: Optional[Path] = None
+) -> PhaseOutlierResults:
     """This procedure attempts to identify channels in the bandpass solutions to
     flag but searching for gains with outlier phases. Typically, ASKAP solutions
     have a phase-slope across the band (i.e. a delay). This phase-slope first
@@ -193,6 +199,8 @@ def flag_outlier_phase(complex_gains: np.ndarray, flag_cut: float) -> PhaseOutli
     Args:
         complex_gains (np.ndarray): The comples-gains as a function of frequency.
         flag_cut (float): The significance a point should be before flagged as outlier
+        plot_title (str, optional): Title to add to the plot. Defaults to None. 
+        plot_path (Path, optional): If not None, a simple diagnostic plot will be created and written to this path. Defaults to None. 
 
     Returns:
         PhaseOUtlierResults: Collection of results from this phase outlier flagging routine
@@ -261,7 +269,15 @@ def flag_outlier_phase(complex_gains: np.ndarray, flag_cut: float) -> PhaseOutli
         fit_model_params=results[0],
         outlier_mask=~final_mask,
         unwrapped_residual_mean=unwrapped_residual_mean,
-        unwrapped_residual_std=unwrapped_residual_std
+        unwrapped_residual_std=unwrapped_residual_std,
+        flag_cut=flag_cut
     )
+
+    if plot_path:
+        plot_phase_outlier(
+            phase_outlier_results=phase_outlier_results,
+            output_path=plot_path,
+            title=plot_title
+        )
 
     return phase_outlier_results
