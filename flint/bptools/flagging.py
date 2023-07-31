@@ -14,36 +14,39 @@ from scipy.optimize import curve_fit
 
 from flint.logging import logger
 
+
 class PhaseOutlierResults(NamedTuple):
-    """Results from the attempt to identify outlier complex gains in 
+    """Results from the attempt to identify outlier complex gains in
     the bandpass solutions. This procedure is concerned with identifying
     channel-wise outliers by first unwrapping any uncorrected delay term
     in the complex_gains, fitting to the unwrapped phase components, and
-    then fitting. 
+    then fitting.
     """
-    complex_gains: np.ndarray 
+
+    complex_gains: np.ndarray
     """The input gains to plot"""
     init_model_gains: np.ndarray
     """The initial model of the complex_gains"""
     fit_model_gains: np.ndarray
     """The complex gain model fit made against the unwrapped gains (i.e. complex_gains / init_model_gains)"""
-    init_model_params: Tuple[float,float]
+    init_model_params: Tuple[float, float]
     """The initial guess (gradient, offset) model parameters to represent the phase component of the complex_gains"""
-    fit_model_params: Tuple[float,float]
+    fit_model_params: Tuple[float, float]
     """The fitted model parameters constrained against the unwrapped gains"""
-    outlier_mask: np.ndarray 
+    outlier_mask: np.ndarray
     """Boolean mask of equal length to complex_gain, where True represents outliers that should be flagged"""
     unwrapped_residual_mean: float
     """The mean of the residual unwrapped phases in radians"""
-    unwrapped_residual_std: float 
+    unwrapped_residual_std: float
     """The std. of the residual unwrapped phases in radians"""
-    flag_cut: float 
+    flag_cut: float
     """The adopted signifance level that a outlier should be before outlier_mask is set to True"""
+
 
 def plot_phase_outlier(
     phase_outlier_results: PhaseOutlierResults,
     output_path: Path,
-    title: Optional[str]=None
+    title: Optional[str] = None,
 ) -> Path:
     """Create a simple diagnostic plot highlighting how the outlier
     channels and their phases were selected.
@@ -59,91 +62,69 @@ def plot_phase_outlier(
     logger.info(f"Creating phase outlier plot, writting {str(output_path)}.")
 
     complex_gains = phase_outlier_results.complex_gains
-    init_model_gains = phase_outlier_results.init_model_gains 
+    init_model_gains = phase_outlier_results.init_model_gains
     fit_model_gains = phase_outlier_results.fit_model_gains
     unwrapped_mean = phase_outlier_results.unwrapped_residual_mean
     unwrapped_std = phase_outlier_results.unwrapped_residual_std
     flag_cut = phase_outlier_results.flag_cut
     outlier_mask = phase_outlier_results.outlier_mask
-    
+
     xs = np.arange(complex_gains.shape[0])
 
     residual_fit_gains = complex_gains / init_model_gains / fit_model_gains
 
-    fig, (ax1, ax2) = plt.subplots(1,2, figsize=(8, 4))
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(8, 4))
 
+    ax1.plot(xs, np.angle(complex_gains))
     ax1.plot(
-        xs,
-        np.angle(complex_gains)
+        xs[outlier_mask], np.angle(complex_gains[outlier_mask]), "bo", label="Flagged"
     )
     ax1.plot(
-        xs[outlier_mask],
-        np.angle(complex_gains[outlier_mask]),
-        'bo',
-        label='Flagged'
-    )
-    ax1.plot(
-        xs,
-        np.angle(init_model_gains),
-        color='red',
-        label='Initial Model',
-        alpha=0.4
+        xs, np.angle(init_model_gains), color="red", label="Initial Model", alpha=0.4
     )
     ax1.plot(
         xs,
         np.angle(init_model_gains * fit_model_gains),
-        color='black',
-        label='Fitted Model',
-        alpha=0.4
+        color="black",
+        label="Fitted Model",
+        alpha=0.4,
     )
     ax1.legend()
-    ax1.set(
-        xlabel='Channels',
-        ylabel='Phase (rad)',
-        title="Raw Data"
-    )
+    ax1.set(xlabel="Channels", ylabel="Phase (rad)", title="Raw Data")
     ax1.grid()
-    
-    ax2.plot(
-        xs,
-        np.angle(residual_fit_gains),
-        label='Residual'
-    )
+
+    ax2.plot(xs, np.angle(residual_fit_gains), label="Residual")
     ax2.plot(
         xs,
         np.angle(complex_gains / init_model_gains),
-        label='Init. Model Unwrapped',
-        alpha=0.4
+        label="Init. Model Unwrapped",
+        alpha=0.4,
     )
     ax2.plot(
         xs[outlier_mask],
         np.angle(residual_fit_gains[outlier_mask]),
-        'bo',
-        label='Flagged',
+        "bo",
+        label="Flagged",
     )
     ax2.axhline(
         unwrapped_mean,
-        color='red',
-        ls='-',
+        color="red",
+        ls="-",
     )
     ax2.axhline(
         unwrapped_mean - flag_cut * unwrapped_std,
-        color='red',
-        ls='--',
+        color="red",
+        ls="--",
     )
     ax2.axhline(
         unwrapped_mean + flag_cut * unwrapped_std,
-        color='red',
-        ls='--',
+        color="red",
+        ls="--",
     )
 
     ax2.grid()
     ax2.legend()
-    ax2.set(
-        xlabel='Channels',
-        ylabel='Phase (rad)',
-        title="Initial Unwrapped"
-    )
+    ax2.set(xlabel="Channels", ylabel="Phase (rad)", title="Initial Unwrapped")
 
     if title:
         fig.suptitle(title)
@@ -153,6 +134,7 @@ def plot_phase_outlier(
     fig.savefig(str(output_path))
 
     return output_path
+
 
 def complex_gain_model(
     xs: np.ndarray, gradient: float, phase_offset: float
@@ -179,11 +161,11 @@ def fit_complex_gain_model(*args):
 
 
 def flag_outlier_phase(
-    complex_gains: np.ndarray, 
+    complex_gains: np.ndarray,
     flag_cut: float,
-    use_mad: bool=True,
+    use_mad: bool = False,
     plot_title: Optional[str] = None,
-    plot_path: Optional[Path] = None
+    plot_path: Optional[Path] = None,
 ) -> PhaseOutlierResults:
     """This procedure attempts to identify channels in the bandpass solutions to
     flag but searching for gains with outlier phases. Typically, ASKAP solutions
@@ -209,9 +191,9 @@ def flag_outlier_phase(
     Args:
         complex_gains (np.ndarray): The comples-gains as a function of frequency.
         flag_cut (float): The significance a point should be before flagged as outlier
-        use_mad (bool, optional): Use the median and MAD when selecting outlier. if False, use mean and std. Defaults to True. 
-        plot_title (str, optional): Title to add to the plot. Defaults to None. 
-        plot_path (Path, optional): If not None, a simple diagnostic plot will be created and written to this path. Defaults to None. 
+        use_mad (bool, optional): Use the median and MAD when selecting outlier. if False, use mean and std. Defaults to False.
+        plot_title (str, optional): Title to add to the plot. Defaults to None.
+        plot_path (Path, optional): If not None, a simple diagnostic plot will be created and written to this path. Defaults to None.
 
     Returns:
         PhaseOUtlierResults: Collection of results from this phase outlier flagging routine
@@ -257,21 +239,19 @@ def flag_outlier_phase(
     fit_model_gains = complex_gain_model(idxs, *results[0])
 
     # Make the residuals
-    unwrapped_residuals = np.angle(
-        unwrapped_complex_gains / fit_model_gains
-    )
+    unwrapped_residuals = np.angle(unwrapped_complex_gains / fit_model_gains)
     unwrapped_residuals_mask = np.isfinite(unwrapped_residuals)
 
     # Apply the final cuts to identify channels of excess phase offset, indicating
     # RFI.
     # TODO: Use more robust statistics, like MAD
     valid_residuals = unwrapped_residuals[unwrapped_residuals_mask]
-    
+
     unwrapped_residual_median = np.median(valid_residuals)
     unwrapped_residual_mad = np.median(
         np.abs(valid_residuals - unwrapped_residual_median)
     )
-    
+
     unwrapped_residual_mean = np.nanmean(unwrapped_residuals)
     unwrapped_residual_std = np.nanstd(unwrapped_residuals)
 
@@ -281,8 +261,7 @@ def flag_outlier_phase(
         m, s = unwrapped_residual_mean, unwrapped_residual_std
 
     final_mask = np.isfinite(unwrapped_residuals) & (
-        np.abs(unwrapped_residuals)
-        < (m + flag_cut * s)
+        np.abs(unwrapped_residuals) < (m + flag_cut * s)
     )
 
     phase_outlier_results = PhaseOutlierResults(
@@ -294,14 +273,14 @@ def flag_outlier_phase(
         outlier_mask=~final_mask,
         unwrapped_residual_mean=m,
         unwrapped_residual_std=s,
-        flag_cut=flag_cut
+        flag_cut=flag_cut,
     )
 
     if plot_path:
         plot_phase_outlier(
             phase_outlier_results=phase_outlier_results,
             output_path=plot_path,
-            title=plot_title
+            title=plot_title,
         )
 
     return phase_outlier_results

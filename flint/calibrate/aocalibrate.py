@@ -16,6 +16,7 @@ from flint.sclient import run_singularity_command
 from flint.plot_utils import fill_between_flags
 from flint.bptools.flagging import flag_outlier_phase
 
+
 class CalibrateCommand(NamedTuple):
     """The AO Calibrate command and output path of the corresponding solutions file"""
 
@@ -79,7 +80,7 @@ class AOSolutions(NamedTuple):
 
     def plot_solutions(self, ref_ant: int = 0) -> Iterable[Path]:
         """Plot the solutions of all antenna for the first time-inteval
-        in the aosolutions file. The XX and the YY will be plotted. 
+        in the aosolutions file. The XX and the YY will be plotted.
 
         Args:
             ref_ant (int, optional): Reference antenna to divide the solutions by. Defaults to 0.
@@ -178,8 +179,9 @@ def plot_solutions(
 
     return [Path(out_amp), Path(out_phase)]
 
+
 def save_aosolutions_file(aosolutions: AOSolutions, output_path: Path) -> Path:
-    """Save a AOSolutions file to the ao-standard binary format. 
+    """Save a AOSolutions file to the ao-standard binary format.
 
     Args:
         aosolutions (ApplySolutions): Instance of the solutions to save
@@ -191,31 +193,32 @@ def save_aosolutions_file(aosolutions: AOSolutions, output_path: Path) -> Path:
 
     header_format = "8s6I2d"
     header_intro = b"MWAOCAL\0"
-    
-    output_dir = output_path.parent 
+
+    output_dir = output_path.parent
     if not output_dir.exists():
         logger.info(f"Creating {output_dir}.")
         output_dir.mkdir(parents=True)
-    
+
     logger.info(f"Writing aosolutions to {str(output_path)}.")
     with open(str(output_path), "wb") as out_file:
         out_file.write(
             struct.pack(
-                header_format, 
+                header_format,
                 header_intro,
-                0, # File type, only 0 mode available
-                0, # Structure type, 0 model available only
+                0,  # File type, only 0 mode available
+                0,  # Structure type, 0 model available only
                 aosolutions.nsol,
                 aosolutions.nant,
                 aosolutions.nchan,
                 aosolutions.npol,
-                0.0, # time start, I don't believe these are used
-                0.0 # time end, I don't believe these are used
+                0.0,  # time start, I don't believe these are used
+                0.0,  # time end, I don't believe these are used
             )
         )
         aosolutions.bandpass.tofile(out_file)
-    
+
     return output_path
+
 
 def load_aosolutions_file(solutions_path: Path) -> AOSolutions:
     """Load in an AO-style solutions file
@@ -526,28 +529,28 @@ def apply_solutions_to_ms(
 
     return apply_solutions_cmd
 
-def flag_solutions(
-    solutions_path: Path, 
-    ref_ant: int=0,
-    flag_cut: float=3,
-    plot_dir: Optional[Path] = None
-) -> Path:
 
+def flag_solutions(
+    solutions_path: Path,
+    ref_ant: int = 0,
+    flag_cut: float = 3,
+    plot_dir: Optional[Path] = None,
+) -> Path:
     solutions = AOSolutions.load(path=solutions_path)
     title = solutions_path.name
-    
-    pols = {0: 'XX', 1: 'XY', 2: 'YX', 3: 'YY'}
-    
+
+    pols = {0: "XX", 1: "XY", 2: "YX", 3: "YY"}
+
     if plot_dir is not None and not plot_dir.exists():
         logger.info(f"Creating {str(plot_dir)}")
         try:
             plot_dir.mkdir(parents=True)
         except:
             logger.warn(f"Failed to create {str(plot_dir)}.")
-    
+
     bandpass = solutions.bandpass
     logger.info(f"Loaded bandpass, shape is {bandpass.shape}")
-    
+
     for time in range(solutions.nsol):
         for pol in (0, 3):
             logger.info(f"Processing {pols[pol]} polarisation")
@@ -555,25 +558,31 @@ def flag_solutions(
             for ant in range(solutions.nant):
                 if ant == ref_ant:
                     logger.info(f"Skipping reference antenna = ant{ref_ant:02}")
-                    continue 
-                                
+                    continue
+
                 ant_gains = bandpass[time, ant, :, pol] / ref_ant_gains
                 plot_title = f"{title} - ant{ant:02d} - {pols[pol]}"
-                ouput_path = plot_dir / f"{title}.ant{ant:02d}.{pols[pol]}.png" if plot_dir is not None else None
-                
+                ouput_path = (
+                    plot_dir / f"{title}.ant{ant:02d}.{pols[pol]}.png"
+                    if plot_dir is not None
+                    else None
+                )
+
                 if np.sum(np.isfinite(ant_gains)) == 0:
                     logger.info(f"Not valid data found for ant{ant:0d} {pols[pol]}")
                     continue
-                
+
                 phase_outlier_result = flag_outlier_phase(
                     complex_gains=ant_gains,
                     flag_cut=flag_cut,
                     plot_title=plot_title,
-                    plot_path=ouput_path
+                    plot_path=ouput_path,
                 )
                 bandpass[time, ant, phase_outlier_result.outlier_mask, pol] = np.nan
-                logger.info(f"{ant=:02d}, pol={pols[pol]}, flagged {np.sum(phase_outlier_result.outlier_mask)} / {ant_gains.shape[0]}")
-    
+                logger.info(
+                    f"{ant=:02d}, pol={pols[pol]}, flagged {np.sum(phase_outlier_result.outlier_mask)} / {ant_gains.shape[0]}"
+                )
+
     return solutions_path
 
 
@@ -633,13 +642,25 @@ def get_parser() -> ArgumentParser:
 
     flag_sols_parser = subparsers.add_parser(
         "flag",
-        help="Attempt to flag the bandpass solutions in an ao-style binary solutions file"
+        help="Attempt to flag the bandpass solutions in an ao-style binary solutions file",
     )
-    
-    flag_sols_parser.add_argument("aosolutions", type=Path, help="Path to the solution file to inspect and flag")
-    flag_sols_parser.add_argument("--flag-cut", type=float, default=3., help="The significance level thaat an outlier phase has to be before being flagged")
-    flag_sols_parser.add_argument("--plot-dir", type=Path, default=None, help="Directory to write diagnostic plots to. If unset no plots will be created. ")
-    
+
+    flag_sols_parser.add_argument(
+        "aosolutions", type=Path, help="Path to the solution file to inspect and flag"
+    )
+    flag_sols_parser.add_argument(
+        "--flag-cut",
+        type=float,
+        default=3.0,
+        help="The significance level thaat an outlier phase has to be before being flagged",
+    )
+    flag_sols_parser.add_argument(
+        "--plot-dir",
+        type=Path,
+        default=None,
+        help="Directory to write diagnostic plots to. If unset no plots will be created. ",
+    )
+
     return parser
 
 
@@ -670,9 +691,8 @@ def cli() -> None:
         flag_solutions(
             solutions_path=args.aosolutions,
             flag_cut=args.flag_cut,
-            plot_dir=args.plot_dir            
+            plot_dir=args.plot_dir,
         )
-    
 
 
 if __name__ == "__main__":
