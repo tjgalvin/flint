@@ -68,7 +68,7 @@ def plot_phase_outlier(
     
     xs = np.arange(complex_gains.shape[0])
 
-    residual_fit_gains = complex_gains / fit_model_gains
+    residual_fit_gains = complex_gains / init_model_gains / fit_model_gains
 
     fig, (ax1, ax2) = plt.subplots(1,2, figsize=(8, 4))
 
@@ -86,31 +86,40 @@ def plot_phase_outlier(
         xs,
         np.angle(init_model_gains),
         color='red',
-        label='Initial Model'
+        label='Initial Model',
+        alpha=0.4
     )
     ax1.plot(
         xs,
-        np.angle(fit_model_gains),
+        np.angle(init_model_gains * fit_model_gains),
         color='black',
-        label='Fitted Model'
+        label='Fitted Model',
+        alpha=0.4
     )
     ax1.legend()
     ax1.set(
         xlabel='Channels',
         ylabel='Phase (rad)',
-        ylim=[-np.pi, np.pi],
         title="Raw Data"
     )
-
+    ax1.grid()
+    
     ax2.plot(
         xs,
         np.angle(residual_fit_gains),
         label='Residual'
     )
     ax2.plot(
+        xs,
+        np.angle(complex_gains / init_model_gains),
+        label='Init. Model Unwrapped',
+        alpha=0.4
+    )
+    ax2.plot(
         xs[outlier_mask],
         np.angle(residual_fit_gains[outlier_mask]),
-        label='Flagged'
+        'bo',
+        label='Flagged',
     )
     ax2.axhline(
         unwrapped_mean,
@@ -128,11 +137,11 @@ def plot_phase_outlier(
         ls='--',
     )
 
+    ax2.grid()
     ax2.legend()
     ax2.set(
         xlabel='Channels',
         ylabel='Phase (rad)',
-        ylim=[-np.pi, np.pi],
         title="Initial Unwrapped"
     )
 
@@ -160,7 +169,7 @@ def complex_gain_model(
         np.ndarray: Equal length to input xs of complex numbers representing phase-ramp
     """
 
-    gains = np.exp(-1j * 2.0 * np.pi * gradient * xs + phase_offset * 1j)
+    gains = np.exp(1j * 2.0 * np.pi * gradient * xs + phase_offset * 1j)
     return gains
 
 

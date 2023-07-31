@@ -13,7 +13,7 @@ from flint.logging import logger
 from flint.ms import MS, get_beam_from_ms, consistent_ms
 from flint.sclient import run_singularity_command
 from flint.plot_utils import fill_between_flags
-
+from flint.bptools.flagging import flag_outlier_phase
 
 class CalibrateCommand(NamedTuple):
     """The AO Calibrate command and output path of the corresponding solutions file"""
@@ -467,6 +467,56 @@ def apply_solutions_to_ms(
 
     return apply_solutions_cmd
 
+def flag_solutions(
+    solutions_path: Path, 
+    ref_ant: int=0,
+    flag_cut: float=3,
+    plot_dir: Optional[Path] = None
+) -> Path:
+
+    solutions = AOSolutions.load(path=solutions_path)
+    title = solutions_path.name
+    
+    pols = {0: 'XX', 1: 'XY', 2: 'YX', 3: 'YY'}
+    
+    if plot_dir is not None and not plot_dir.exists():
+        logger.info(f"Creating {str(plot_dir)}")
+        try:
+            plot_dir.mkdir(parents=True)
+        except:
+            logger.warn(f"Failed to create {str(plot_dir)}.")
+    
+    bandpass = solutions.bandpass
+    logger.info(f"Loaded bandpass, shape is {bandpass.shape}")
+    
+    for time in range(solutions.nsol):
+        for pol in (0, 3):
+            logger.info(f"Processing {pols[pol]} polarisation")
+            ref_ant_gains = bandpass[time, ref_ant, :, pol]
+            for ant in range(solutions.nant):
+                if ant == ref_ant:
+                    logger.info(f"Skipping reference antenna = ant{ref_ant:02}")
+                    continue 
+                                
+                ant_gains = bandpass[time, ant, :, pol] / ref_ant_gains
+                plot_title = f"{title} - ant{ant:02d} - {pols[pol]}"
+                ouput_path = plot_dir / f"{title}.ant{ant:02d}.{pols[pol]}.png" if plot_dir is not None else None
+                
+                if np.sum(np.isfinite(ant_gains)) == 0:
+                    logger.info(f"Not valid data found for ant{ant:0d} {pols[pol]}")
+                    continue
+                
+                phase_outlier_result = flag_outlier_phase(
+                    complex_gains=ant_gains,
+                    flag_cut=flag_cut,
+                    plot_title=plot_title,
+                    plot_path=ouput_path
+                )
+                bandpass[time, ant, :, pol] = phase_outlier_result.outlier_mask
+                logger.info(f"{ant=:02d}, pol={pols[pol]}, flagged {np.sum(phase_outlier_result.outlier_mask)} / {ant_gains.shape[0]}")
+            
+    return solutions_path
+
 
 def get_parser() -> ArgumentParser:
     parser = ArgumentParser(
@@ -522,6 +572,15 @@ def get_parser() -> ArgumentParser:
         "--data-column", type=str, default="DATA", help="The column to calibrate"
     )
 
+    flag_sols_parser = subparsers.add_parser(
+        "flag",
+        help="Attempt to flag the bandpass solutions in an ao-style binary solutions file"
+    )
+    
+    flag_sols_parser.add_argument("aosolutions", type=Path, help="Path to the solution file to inspect and flag")
+    flag_sols_parser.add_argument("--flag-cut", type=float, default=3., help="The significance level thaat an outlier phase has to be before being flagged")
+    flag_sols_parser.add_argument("--plot-dir", type=Path, default=None, help="Directory to write diagnostic plots to. If unset no plots will be created. ")
+    
     return parser
 
 
@@ -548,6 +607,13 @@ def cli() -> None:
             container=args.calibrate_container,
             data_column=args.data_column,
         )
+    elif args.mode == "flag":
+        flag_solutions(
+            solutions_path=args.aosolutions,
+            flag_cut=args.flag_cut,
+            plot_dir=args.plot_dir            
+        )
+    
 
 
 if __name__ == "__main__":
