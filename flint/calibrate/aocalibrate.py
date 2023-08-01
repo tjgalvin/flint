@@ -30,6 +30,14 @@ class CalibrateCommand(NamedTuple):
     """The measurement set to have solutions derived for"""
     model: Path
     """Path to the model that would be used to calibrate against"""
+    preflagged: bool=False
+    """Indicates whether the solution file has gone through preflagging routines. """
+
+    def with_options(self, **kwargs) -> CalibrateCommand:
+        _dict = self._asdict()
+        _dict.update(**kwargs)
+        
+        return CalibrateCommand(**_dict)
 
 
 class ApplySolutions(NamedTuple):
@@ -59,6 +67,8 @@ class AOSolutions(NamedTuple):
     """Number of polarisations in the file"""
     bandpass: np.ndarray
     """Complex data representing the antennea Jones. Shape is (nsol, nant, nchan, npol)"""
+
+    # TODO: Need tocorporate the start and end times into this header
 
     @classmethod
     def load(cls, path: Path) -> AOSolutions:
@@ -211,8 +221,8 @@ def save_aosolutions_file(aosolutions: AOSolutions, output_path: Path) -> Path:
                 aosolutions.nant,
                 aosolutions.nchan,
                 aosolutions.npol,
-                0.0,  # time start, I don't believe these are used
-                0.0,  # time end, I don't believe these are used
+                0.0,  # time start, I don't believe these are used in most use cases
+                0.0,  # time end, I don't believe these are used in most use cases
             )
         )
         aosolutions.bandpass.tofile(out_file)
@@ -249,8 +259,7 @@ def load_aosolutions_file(solutions_path: Path) -> AOSolutions:
         nsol, nant, nchan, npol = header[2:6]
         sol_shape = (nsol, nant, nchan, npol)
 
-        # TODO: Ask Emil why there is the sqrt(2) here
-        bandpass = np.sqrt(2) / np.fromfile(
+        bandpass = np.fromfile(
             in_file, dtype="<c16", count=np.prod(sol_shape)
         ).reshape(sol_shape)
         logger.info(f"Loaded solutions of shape {bandpass.shape}")
@@ -499,8 +508,10 @@ def calibrate_apply_ms(
 
     run_calibrate(calibrate_cmd=calibrate_cmd, container=container.absolute())
 
+    flagged_solutions_path = flag_solutions(solutions_path=calibrate_cmd.solution_path, ref_ant=0, plot_dir=Path(ms_path.parent) / Path("preflagger"))
+
     apply_solutions_cmd = create_apply_solutions_cmd(
-        ms=ms, solutions_file=calibrate_cmd.solution_path
+        ms=ms, solutions_file=flagged_solutions_path
     )
 
     run_apply_solutions(
@@ -582,8 +593,11 @@ def flag_solutions(
                 logger.info(
                     f"{ant=:02d}, pol={pols[pol]}, flagged {np.sum(phase_outlier_result.outlier_mask)} / {ant_gains.shape[0]}"
                 )
+    
+    out_solutions_path = solutions_path.with_suffix(".preflagged")
+    solutions.save(output_path=out_solutions_path)
 
-    return solutions_path
+    return out_solutions_path
 
 
 def get_parser() -> ArgumentParser:
