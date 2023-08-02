@@ -550,6 +550,7 @@ def flag_aosolutions(
     ref_ant: int = 0,
     flag_cut: float = 3,
     plot_dir: Optional[Path] = None,
+    out_solutions_path: Optional[Path] = None,
 ) -> Path:
     """Will open a previously solved ao-calibrate solutions file and flag additional channels and antennae.
 
@@ -564,9 +565,10 @@ def flag_aosolutions(
         ref_ant (int, optional): Reference antenna to use, which is important when searching for phase-outliers. Defaults to 0.
         flag_cut (float, optional): Significance of a phase-outlier from the mean (or median) before it should be flagged. Defaults to 3.
         plot_dir (Optional[Path], optional): Where diagnostic flagging plots should be written. If None, no plots will be produced. Defaults to None.
+        out_solutions_path (Optional[Path], optional): The output path of the flagged solutions file. If None, the solutions_path provided is used. Defaults to None.
 
     Returns:
-        Path: Path to the updated solutions file (this is the same as the input path)
+        Path: Path to the updated solutions file. This is out_solutions_path if provided, otherwise solutions_path
     """
     solutions = AOSolutions.load(path=solutions_path)
     title = solutions_path.name
@@ -623,11 +625,16 @@ def flag_aosolutions(
                     )
                     bandpass[time, ant, :, pol] = np.nan
 
+                flagged = ~np.isfinite(bandpass[time, ant, :, pol])
                 logger.info(
-                    f"{ant=:02d}, pol={pols[pol]}, flagged {np.sum(phase_outlier_result.outlier_mask)} / {ant_gains.shape[0]}"
+                    f"{ant=:02d}, pol={pols[pol]}, flagged {np.sum(flagged)} / {ant_gains.shape[0]}"
                 )
 
-    out_solutions_path = solutions_path.with_suffix(".preflagged")
+    out_solutions_path = (
+        solutions_path.with_suffix(".preflagged")
+        if out_solutions_path is None
+        else out_solutions_path
+    )
     solutions.save(output_path=out_solutions_path)
 
     return out_solutions_path

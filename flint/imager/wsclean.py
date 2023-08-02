@@ -43,7 +43,7 @@ class WSCleanOptions(NamedTuple):
     """Image size"""
     local_rms: bool = True
     """Whether a local rms map is computed"""
-    force_mask_rounds: int = 7
+    force_mask_rounds: int = 8
     """Round of force masked derivation"""
     auto_mask: float = 3.75
     """How deep the construct clean mask is during each cycle"""
@@ -61,11 +61,11 @@ class WSCleanOptions(NamedTuple):
     """Enable multiscale deconvolution"""
     multiscale_scale_bias: float = 0.7
     """Multiscale bias term"""
-    multiscale_scales: Optional[Collection[int]] = (0, 5, 10, 15, 20, 25, 30, 60, 120)
+    multiscale_scales: Optional[Collection[int]] = (0, 5, 10, 15, 20, 25, 30, 60)
     """Scales used for multi-scale deconvolution"""
     fit_spectral_pol: int = 3
     """Number of spectral terms to include during sub-band subtractin"""
-    weight: str = "briggs -1.0"
+    weight: str = "briggs -2.0"
     """Robustness of the weighting used"""
     data_column: str = "CORRECTED_DATA"
     """Which column in the MS to image"""
