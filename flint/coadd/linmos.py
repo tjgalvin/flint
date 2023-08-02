@@ -99,8 +99,6 @@ def generate_linmos_parameter_set(
     with open(parset_output_name, "w") as parset_file:
         parset_file.write(parset)
 
-    logger.info(f"{parset}")
-
     return parset_output_name
 
 
