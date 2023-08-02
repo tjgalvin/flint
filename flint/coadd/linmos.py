@@ -73,7 +73,7 @@ def generate_linmos_parameter_set(
         f"linmos.useweightslog    = true\n"
         f"linmos.weighttype       = FromPrimaryBeamModel\n"
         f"linmos.weightstate      = Inherent\n"
-        f"linmos.cutoff = 0.1\n"
+        f"linmos.cutoff           = 0.1\n"
     )
 
     # This requires an appropriate holography fits cube to
