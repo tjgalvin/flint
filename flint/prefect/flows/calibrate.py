@@ -89,7 +89,7 @@ def task_flag_solutions(calibrate_cmd: CalibrateCommand) -> CalibrateCommand:
                 f"Creating the directory failed. Likely already exists. Race conditions, me-hearty."
             )
 
-    flagged_solutions_path = flag_solutions(
+    flagged_solutions_path = flag_aosolutions(
         solutions_path=solution_path, ref_ant=0, flag_cut=2, plot_dir=plot_dir
     )
 
