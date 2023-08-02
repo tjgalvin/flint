@@ -43,6 +43,7 @@ class PhaseOutlierResults(NamedTuple):
     """The adopted signifance level that a outlier should be before outlier_mask is set to True"""
 
 
+# TODO: Pass in parameters directly so we don't have to have an instance of PhaseOutlierResults
 def plot_phase_outlier(
     phase_outlier_results: PhaseOutlierResults,
     output_path: Path,
@@ -244,7 +245,6 @@ def flag_outlier_phase(
 
     # Apply the final cuts to identify channels of excess phase offset, indicating
     # RFI.
-    # TODO: Use more robust statistics, like MAD
     valid_residuals = unwrapped_residuals[unwrapped_residuals_mask]
 
     unwrapped_residual_median = np.median(valid_residuals)
@@ -284,3 +284,36 @@ def flag_outlier_phase(
         )
 
     return phase_outlier_results
+
+
+def flags_over_threshold(
+    flags: np.ndarray, thresh: float = 0.8, ant_idx: Optional[int] = None
+) -> bool:
+    """Given a set of flags for an antenna across frequency, consider how much is flagged, indicated
+    by a value of True, and return whether it was over a threshold. The intent is to return whether
+    an entire antenna should be flagged.
+
+    Args:
+        flags (np.ndarray): Array of flags to consider
+        thresh (float, optional): Threshold as a fraction that has to be meet before considered bad. Defaults to 0.8.
+        ant_idx (Optional[int], optional): Number of the antenna being considered. Defaults to None.
+
+    Returns:
+        bool: Whether the number of flags has reached a threshold
+    """
+
+    if thresh > 1.0:
+        logger.warn(f"{thresh=} provided over 1 - converting to a fraction. ")
+        thresh /= 100.0
+
+    number_flagged = np.sum(flags)
+    # Use the shape incase multi-dimensional array passed in
+    total_flagged = np.prod(flags.shape)
+
+    frac_flagged = number_flagged / total_flagged
+    thresh_str = f"Total flagged: {frac_flagged:2.2f}"
+    thresh_str = f"Antenna {ant_idx:02d} - {thresh_str}"
+
+    logger.info(thresh_str)
+
+    return frac_flagged > thresh

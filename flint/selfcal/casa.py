@@ -123,8 +123,9 @@ def copy_and_clean_ms_casagain(ms: MS, round: int = 1, verify: bool = True) -> M
                 logger.info(f"Removing {col=} from {str(out_ms_path)}.")
                 try:
                     tab.removecols(col)
-                except:
-                    logger.critical(f"Failed to remove {col=}!")
+                    tab.flush()
+                except Exception as e:
+                    logger.critical(f"Failed to remove {col=}! \nCaptured error: {e}")
             else:
                 logger.warn(f"Column {col} not found in {str(out_ms_path)}.")
 

@@ -14,7 +14,7 @@ from flint.logging import logger
 from flint.ms import MS, get_beam_from_ms, consistent_ms
 from flint.sclient import run_singularity_command
 from flint.plot_utils import fill_between_flags
-from flint.bptools.flagging import flag_outlier_phase
+from flint.bptools.flagging import flag_outlier_phase, flags_over_threshold
 
 
 class CalibrateCommand(NamedTuple):
@@ -30,13 +30,13 @@ class CalibrateCommand(NamedTuple):
     """The measurement set to have solutions derived for"""
     model: Path
     """Path to the model that would be used to calibrate against"""
-    preflagged: bool=False
+    preflagged: bool = False
     """Indicates whether the solution file has gone through preflagging routines. """
 
     def with_options(self, **kwargs) -> CalibrateCommand:
         _dict = self._asdict()
         _dict.update(**kwargs)
-        
+
         return CalibrateCommand(**_dict)
 
 
@@ -259,9 +259,9 @@ def load_aosolutions_file(solutions_path: Path) -> AOSolutions:
         nsol, nant, nchan, npol = header[2:6]
         sol_shape = (nsol, nant, nchan, npol)
 
-        bandpass = np.fromfile(
-            in_file, dtype="<c16", count=np.prod(sol_shape)
-        ).reshape(sol_shape)
+        bandpass = np.fromfile(in_file, dtype="<c16", count=np.prod(sol_shape)).reshape(
+            sol_shape
+        )
         logger.info(f"Loaded solutions of shape {bandpass.shape}")
 
         return AOSolutions(
@@ -508,7 +508,11 @@ def calibrate_apply_ms(
 
     run_calibrate(calibrate_cmd=calibrate_cmd, container=container.absolute())
 
-    flagged_solutions_path = flag_solutions(solutions_path=calibrate_cmd.solution_path, ref_ant=0, plot_dir=Path(ms_path.parent) / Path("preflagger"))
+    flagged_solutions_path = flag_aosolutions(
+        solutions_path=calibrate_cmd.solution_path,
+        ref_ant=0,
+        plot_dir=Path(ms_path.parent) / Path("preflagger"),
+    )
 
     apply_solutions_cmd = create_apply_solutions_cmd(
         ms=ms, solutions_file=flagged_solutions_path
@@ -541,12 +545,29 @@ def apply_solutions_to_ms(
     return apply_solutions_cmd
 
 
-def flag_solutions(
+def flag_aosolutions(
     solutions_path: Path,
     ref_ant: int = 0,
     flag_cut: float = 3,
     plot_dir: Optional[Path] = None,
 ) -> Path:
+    """Will open a previously solved ao-calibrate solutions file and flag additional channels and antennae.
+
+    There are currently two main stages. The first will attempt to search for channels where the the phase of the
+    gain solution are outliers. The phase over frequency is first unwrapped (delay solved for) before the flagging
+    statistics are computed.
+
+    The second stage will flag an entire antenna if more then 80 percent of the flags for a polarisation are flagged.
+
+    Args:
+        solutions_path (Path): Location of the solutions file to examine and flag.
+        ref_ant (int, optional): Reference antenna to use, which is important when searching for phase-outliers. Defaults to 0.
+        flag_cut (float, optional): Significance of a phase-outlier from the mean (or median) before it should be flagged. Defaults to 3.
+        plot_dir (Optional[Path], optional): Where diagnostic flagging plots should be written. If None, no plots will be produced. Defaults to None.
+
+    Returns:
+        Path: Path to the updated solutions file (this is the same as the input path)
+    """
     solutions = AOSolutions.load(path=solutions_path)
     title = solutions_path.name
 
@@ -590,10 +611,22 @@ def flag_solutions(
                     plot_path=ouput_path,
                 )
                 bandpass[time, ant, phase_outlier_result.outlier_mask, pol] = np.nan
+
+                # Flag all solutions for this (ant,pol) if more than 80% are flagged
+                if flags_over_threshold(
+                    flags=~np.isfinite(bandpass[time, ant, :, pol]),
+                    thresh=0.8,
+                    ant_idx=ant,
+                ):
+                    logger.info(
+                        f"Flagging all solutions across {pols[pol]} for ant{ant:02d}."
+                    )
+                    bandpass[time, ant, :, pol] = np.nan
+
                 logger.info(
                     f"{ant=:02d}, pol={pols[pol]}, flagged {np.sum(phase_outlier_result.outlier_mask)} / {ant_gains.shape[0]}"
                 )
-    
+
     out_solutions_path = solutions_path.with_suffix(".preflagged")
     solutions.save(output_path=out_solutions_path)
 
@@ -702,7 +735,7 @@ def cli() -> None:
             data_column=args.data_column,
         )
     elif args.mode == "flag":
-        flag_solutions(
+        flag_aosolutions(
             solutions_path=args.aosolutions,
             flag_cut=args.flag_cut,
             plot_dir=args.plot_dir,

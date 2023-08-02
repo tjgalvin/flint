@@ -10,7 +10,9 @@ from flint.sclient import run_singularity_command
 
 class LinmosCMD(NamedTuple):
     cmd: str
+    """The yandasoft linmos task that will be executed"""
     parset: Path
+    """The output location that the generated linmos parset has been writen to"""
 
 
 def generate_linmos_parameter_set(
@@ -65,12 +67,13 @@ def generate_linmos_parameter_set(
     parset = (
         f"linmos.names            = {img_list}\n"
         f"linmos.imagetype        = fits\n"
-        f"linmos.outname          = {image_output_name}linmos\n"
-        f"linmos.outweight        = {image_output_name}weight\n"
+        f"linmos.outname          = {image_output_name}_linmos\n"
+        f"linmos.outweight        = {image_output_name}_weight\n"
         f"# For ASKAPsoft>1.3.0\n"
         f"linmos.useweightslog    = true\n"
         f"linmos.weighttype       = FromPrimaryBeamModel\n"
         f"linmos.weightstate      = Inherent\n"
+        f"linmos.cutoff = 0.1\n"
     )
 
     # This requires an appropriate holography fits cube to
@@ -90,6 +93,9 @@ def generate_linmos_parameter_set(
     # Now write the file, me hearty
     logger.info(f"Writing parset to {str(parset_output_name)}.")
     logger.info(f"{parset}")
+    assert not Path(
+        parset_output_name
+    ).exists(), f"The parset {parset_output_name} already exists!"
     with open(parset_output_name, "w") as parset_file:
         parset_file.write(parset)
 

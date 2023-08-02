@@ -15,6 +15,7 @@ from flint.calibrate.aocalibrate import (
     create_apply_solutions_cmd,
     create_calibrate_cmd,
     select_aosolution_for_ms,
+    flag_aosolutions,
 )
 from flint.flagging import flag_ms_aoflagger
 from flint.imager.wsclean import WSCleanCMD, wsclean_imager
@@ -71,6 +72,30 @@ def task_flatten_prefect_futures(in_futures: List[List[Any]]) -> List[Any]:
     logger.info(f"Flattened list {len(flatten_list)}")
 
     return flatten_list
+
+
+@task
+def task_flag_solutions(calibrate_cmd: CalibrateCommand) -> CalibrateCommand:
+    solution_path = calibrate_cmd.solution_path
+    ms_path = calibrate_cmd.ms.path
+
+    plot_dir = ms_path.parent / Path("preflagger")
+    if not plot_dir.exists():
+        try:
+            logger.info(f"Attempting to create {plot_dir}")
+            plot_dir.mkdir(parents=True)
+        except:
+            logger.warn(
+                f"Creating the directory failed. Likely already exists. Race conditions, me-hearty."
+            )
+
+    flagged_solutions_path = flag_solutions(
+        solutions_path=solution_path, ref_ant=0, flag_cut=2, plot_dir=plot_dir
+    )
+
+    return calibrate_cmd.with_options(
+        solution_path=flagged_solutions_path, preflagged=True
+    )
 
 
 @task
@@ -235,6 +260,7 @@ def process_bandpass_science_fields(
             calibrate_model=model_path,
             container=calibrate_container,
         )
+        calibrate_cmd = task_flag_solutions.submit(calibrate_cmd=calibrate_cmd)
         task_plot_solutions.submit(calibrate_cmd=calibrate_cmd)
         calibrate_cmds.append(calibrate_cmd)
 
@@ -300,7 +326,7 @@ def process_bandpass_science_fields(
 
     for round in range(1, rounds + 1):
         last_gain_cal_options = {"calmode": "p", "solint": "60s"}
-        last_wsclean_round = {"weight": "briggs -1.0"}
+        last_wsclean_round = {"weight": "briggs 0.0"}
 
         cal_mss = task_gaincal_applycal_ms.map(
             wsclean_cmd=wsclean_cmds,
