@@ -341,7 +341,7 @@ def flag_mean_residual_amplitude(
     idxs = np.arange(amplitudes.shape[0])
     mask = np.isfinite(amplitudes)
 
-    poly_coeffs = np.polyfit(idxs[mask], amplitudes[mask], order=polynomial_order)
+    poly_coeffs = np.polyfit(idxs[mask], amplitudes[mask], deg=polynomial_order)
     poly_vals = np.polyval(poly_coeffs, idxs)
 
     residual = amplitudes - poly_vals
