@@ -285,13 +285,10 @@ def flag_outlier_phase(
 
     return phase_outlier_results
 
-
-def flags_over_threshold(
-    flags: np.ndarray, thresh: float = 0.8, ant_idx: Optional[int] = None
-) -> bool:
+def flags_over_threshold(flags: np.ndarray, thresh: float = 0.8, ant_idx: Optional[int] = None) -> bool:
     """Given a set of flags for an antenna across frequency, consider how much is flagged, indicated
-    by a value of True, and return whether it was over a threshold. The intent is to return whether
-    an entire antenna should be flagged.
+    by a value of True, and return whether it was over a threshold. The intent is to return whether 
+    an entire antenna should be flagged. 
 
     Args:
         flags (np.ndarray): Array of flags to consider
@@ -302,18 +299,16 @@ def flags_over_threshold(
         bool: Whether the number of flags has reached a threshold
     """
 
-    if thresh > 1.0:
-        logger.warn(f"{thresh=} provided over 1 - converting to a fraction. ")
-        thresh /= 100.0
+    assert 0.0 <= thresh <= 1.0, f"The provided {thresh=} should be a fraction between 0 to 1. "
 
     number_flagged = np.sum(flags)
     # Use the shape incase multi-dimensional array passed in
     total_flagged = np.prod(flags.shape)
-
+    
     frac_flagged = number_flagged / total_flagged
     thresh_str = f"Total flagged: {frac_flagged:2.2f}"
     thresh_str = f"Antenna {ant_idx:02d} - {thresh_str}"
 
     logger.info(thresh_str)
-
+    
     return frac_flagged > thresh
