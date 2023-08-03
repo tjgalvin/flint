@@ -14,7 +14,11 @@ from flint.logging import logger
 from flint.ms import MS, get_beam_from_ms, consistent_ms
 from flint.sclient import run_singularity_command
 from flint.plot_utils import fill_between_flags
-from flint.bptools.preflagger import flag_outlier_phase, flags_over_threshold
+from flint.bptools.preflagger import (
+    flag_outlier_phase,
+    flags_over_threshold,
+    flag_mean_residual_amplitude,
+)
 
 
 class CalibrateCommand(NamedTuple):
@@ -621,7 +625,16 @@ def flag_aosolutions(
                     ant_idx=ant,
                 ):
                     logger.info(
-                        f"Flagging all solutions across {pols[pol]} for ant{ant:02d}."
+                        f"Flagging all solutions across {pols[pol]} for ant{ant:02d}, too many flagged channels."
+                    )
+                    bandpass[time, ant, :, pol] = np.nan
+
+                complex_gains = bandpass[time, ant, :, pol]
+                if any(np.isfinite(complex_gains)) and flag_mean_residual_amplitude(
+                    complex_gains=complex_gains
+                ):
+                    logger.info(
+                        f"Flagging all solutions across {pols[pol]} for ant{ant:02d}, mean residual amplitudes high"
                     )
                     bandpass[time, ant, :, pol] = np.nan
 

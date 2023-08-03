@@ -285,10 +285,13 @@ def flag_outlier_phase(
 
     return phase_outlier_results
 
-def flags_over_threshold(flags: np.ndarray, thresh: float = 0.8, ant_idx: Optional[int] = None) -> bool:
+
+def flags_over_threshold(
+    flags: np.ndarray, thresh: float = 0.8, ant_idx: Optional[int] = None
+) -> bool:
     """Given a set of flags for an antenna across frequency, consider how much is flagged, indicated
-    by a value of True, and return whether it was over a threshold. The intent is to return whether 
-    an entire antenna should be flagged. 
+    by a value of True, and return whether it was over a threshold. The intent is to return whether
+    an entire antenna should be flagged.
 
     Args:
         flags (np.ndarray): Array of flags to consider
@@ -299,16 +302,61 @@ def flags_over_threshold(flags: np.ndarray, thresh: float = 0.8, ant_idx: Option
         bool: Whether the number of flags has reached a threshold
     """
 
-    assert 0.0 <= thresh <= 1.0, f"The provided {thresh=} should be a fraction between 0 to 1. "
+    assert (
+        0.0 <= thresh <= 1.0
+    ), f"The provided {thresh=} should be a fraction between 0 to 1. "
 
     number_flagged = np.sum(flags)
     # Use the shape incase multi-dimensional array passed in
     total_flagged = np.prod(flags.shape)
-    
+
     frac_flagged = number_flagged / total_flagged
     thresh_str = f"Total flagged: {frac_flagged:2.2f}"
     thresh_str = f"Antenna {ant_idx:02d} - {thresh_str}"
 
     logger.info(thresh_str)
-    
+
     return frac_flagged > thresh
+
+
+def flag_mean_residual_amplitude(
+    complex_gains: np.ndarray, use_robust: bool = True, polynomial_order: int = 5
+) -> bool:
+    """Calculate the median or mean of the residual amplitudes of the complex gains
+    after fitting a polynomial of order polynomial_order.
+
+    If this median/mean is above 0.1 a value of True is returned, indicating
+    that the antenna should be flagged.
+
+    Args:
+        complex_gains (np.ndarray): The set of complex gains to be considered
+        use_robust (bool, optional): Whether to use robust statistics (median, MAD)  or mean/std to calculate the statistic against. Defaults to True.
+        polynomical_order (int, optional): The order of the polynomical (numpy.polyfit) to use to compute the baseline. Defaults to 5.
+
+    Returns:
+        bool: Whether the data should be considered bad. True if it is bad, False if otherwise.
+    """
+
+    amplitudes = np.abs(complex_gains)
+    idxs = np.arange(amplitudes.shape[0])
+    mask = np.isfinite(amplitudes)
+
+    poly_coeffs = np.polyfit(idxs[mask], amplitudes[mask], order=polynomial_order)
+    poly_vals = np.polyval(poly_coeffs, idxs)
+
+    residual = amplitudes - poly_vals
+    # Although the mask above should be sufficent, trust nothing
+    mask = np.isfinite(residual)
+
+    # TODO: Consider use of an iterative clipping method
+    if use_robust:
+        mean = np.median(residual[mask])
+        deviation = np.abs(residual) - mean
+        deviation = np.median(deviation[np.isfinite(deviation)])
+    else:
+        mean = np.mean(residual[mask])
+        deviation = np.std(residual[mask])
+
+    bad = np.abs(mean) > 0.1 or deviation > 0.5
+
+    return bad
