@@ -14,7 +14,7 @@ from flint.logging import logger
 from flint.ms import MS, get_beam_from_ms, consistent_ms
 from flint.sclient import run_singularity_command
 from flint.plot_utils import fill_between_flags
-from flint.bptools.flagging import flag_outlier_phase, flags_over_threshold
+from flint.bptools.preflagger import flag_outlier_phase, flags_over_threshold
 
 
 class CalibrateCommand(NamedTuple):
