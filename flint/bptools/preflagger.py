@@ -319,8 +319,59 @@ def flags_over_threshold(
     return frac_flagged > thresh
 
 
+def plot_mean_amplitudes(
+    amplitudes: np.ndarray,
+    model: np.ndarray,
+    mean: float,
+    std: float,
+    output_path: Path,
+    plot_title: Optional[str] = None,
+) -> Path:
+    """A simply plot to examine the polynomial fit to the residual amplitude data.
+
+    Args:
+        amplitudes (np.ndarray): The amplitudes being fit to
+        model (np.ndarray): The evaluated polynomial that was fit to the data
+        mean (float): The mean that was evaluated, which is used to plot onto the residual
+        std (float): The deviation that was evaluated, which is used to highlight the dispersion on the residual
+        output_path (Path): The location to save the output file to
+        plot_title (Optional[str], optional): Title to add to the figure. Defaults to None.
+
+    Returns:
+        Path: Location the figure was saved to
+    """
+
+    fig, (ax1, ax2) = plt.subplots(1, 1)
+
+    ax1.plot(amplitudes, color="blue", label="Data")
+    ax1.plot(model, color="red", label="Model")
+    ax1.legend()
+    ax1.grid()
+    ax1.set(xlabel="Channels", ylabel="Power")
+    ax1.grid()
+
+    ax2.plot(amplitudes - model, color="blue", label="Residual")
+    ax2.axhline(mean, color="red", label=f"Mean - {mean:2.2f}")
+    ax2.axhline(mean + std, color="red", ls="--", label=f"+/- 1sig: {std:2.2f}")
+    ax2.grid()
+    ax2.legend()
+    ax2.set(xlabel="Channels", ylabel="Power")
+
+    if plot_title:
+        fig.suptitle(plot_title)
+
+    fig.tight_layout()
+    fig.savefig(str(output_path))
+
+    return output_path
+
+
 def flag_mean_residual_amplitude(
-    complex_gains: np.ndarray, use_robust: bool = True, polynomial_order: int = 5
+    complex_gains: np.ndarray,
+    use_robust: bool = True,
+    polynomial_order: int = 5,
+    plot_path: Optional[Path] = None,
+    plot_title: Optional[str] = None,
 ) -> bool:
     """Calculate the median or mean of the residual amplitudes of the complex gains
     after fitting a polynomial of order polynomial_order.
@@ -332,6 +383,8 @@ def flag_mean_residual_amplitude(
         complex_gains (np.ndarray): The set of complex gains to be considered
         use_robust (bool, optional): Whether to use robust statistics (median, MAD)  or mean/std to calculate the statistic against. Defaults to True.
         polynomical_order (int, optional): The order of the polynomical (numpy.polyfit) to use to compute the baseline. Defaults to 5.
+        plot_path (Path): The location to save the output file to
+        plot_title (Optional[str], optional): Title to add to the figure. Defaults to None.
 
     Returns:
         bool: Whether the data should be considered bad. True if it is bad, False if otherwise.
@@ -358,5 +411,17 @@ def flag_mean_residual_amplitude(
         deviation = np.std(residual[mask])
 
     bad = np.abs(mean) > 0.1 or deviation > 0.5
+
+    if plot_path:
+        # TODO: Do this really belong here? It would perhaps be better to return a struct
+        # so that all telescope polarisations could be plotted together.
+        plot_mean_amplitudes(
+            amplitudes=amplitudes,
+            model=poly_vals,
+            mean=mean,
+            std=deviation,
+            plot_title=plot_title,
+            output_path=plot_path,
+        )
 
     return bad

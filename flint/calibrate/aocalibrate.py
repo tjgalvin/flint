@@ -640,7 +640,7 @@ def flag_aosolutions(
 
                 flagged = ~np.isfinite(bandpass[time, ant, :, pol])
                 logger.info(
-                    f"{ant=:02d}, pol={pols[pol]}, flagged {np.sum(flagged)} / {ant_gains.shape[0]}"
+                    f"{ant=:02d}, pol={pols[pol]}, flagged {np.sum(flagged)} / {ant_gains.shape[0] * 100.}%"
                 )
 
     out_solutions_path = (
