@@ -159,11 +159,9 @@ def plot_solutions(
                 logger.warn(f"No valid data for {ant=}")
                 continue
 
-            if any(np.isfinite(amps_xx)):
-                max_amp_xx = np.nanmax(amps_xx[np.isfinite(amps_xx)])
-            if any(np.isfinite(amps_yy)):
-                max_amp_yy = np.nanmax(amps_yy[np.isfinite(amps_yy)])
-
+            max_amp_xx = np.nanmax(amps_xx[np.isfinite(amps_xx)]) if any(np.isfinite(amps_xx)) else -1
+            max_amp_yy = np.nanmax(amps_yy[np.isfinite(amps_yy)]) if any(np.isfinite(amps_yy)) else -1
+            
             max_amp = np.nanmax([max_amp_xx, max_amp_yy])
             ax_a, ax_p = axes_amp[y, x], axes_phase[y, x]
             ax_a.plot(channels, amps_xx, marker=None, color="blue")
@@ -648,7 +646,7 @@ def flag_aosolutions(
 
                 flagged = ~np.isfinite(bandpass[time, ant, :, pol])
                 logger.info(
-                    f"{ant=:02d}, pol={pols[pol]}, flagged {np.sum(flagged) / ant_gains.shape[0] * 100.}%"
+                    f"{ant=:02d}, pol={pols[pol]}, flagged {np.sum(flagged) / ant_gains.shape[0] * 100.:.2f}%"
                 )
 
     # This loop will flag based on stats across different polarisations
@@ -659,11 +657,11 @@ def flag_aosolutions(
             if ref_ant == ant:
                 continue
 
-            ant_gains = bandpass[time, ant] / ref_ant
+            ant_gains = bandpass[time, ant] / ref_ant_gains
             if flag_mean_xxyy_amplitude_ratio(
                 xx_complex_gains=ant_gains[:, 0], yy_complex_gains=ant_gains[:, 3]
             ):
-                logger.info(f"{ant} failed mean amplitude gain test. Flagging {ant=}.")
+                logger.info(f"{ant=} failed mean amplitude gain test. Flagging {ant=}.")
                 bandpass[time, ant, :, :] = np.nan
 
     out_solutions_path = (
@@ -672,6 +670,16 @@ def flag_aosolutions(
         else out_solutions_path
     )
     solutions.save(output_path=out_solutions_path)
+
+    total_flagged = np.sum(~np.isfinite(bandpass)) / np.prod(bandpass.shape) 
+    if total_flagged > 0.8:
+        msg = (
+            f"{total_flagged*100.:.2f}% of {str((solutions_path))} is flagged after running the preflagger. " 
+            "That is over 90%. "
+            f"This surely can not be correct. Likely something has gone very wrong. "
+        )
+        logger.critical(msg)
+        raise ValueError(msg)
 
     return out_solutions_path
 

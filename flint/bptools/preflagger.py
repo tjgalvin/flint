@@ -471,13 +471,13 @@ def flag_mean_xxyy_amplitude_ratio(
     mean_gain_ratio = xx_mean / yy_mean
 
     result = (
-        ~np.isfinite(mean_gain_ratio)
+        not np.isfinite(mean_gain_ratio)
         or mean_gain_ratio < (1.0 / fraction)
         or mean_gain_ratio > fraction
     )
 
     if result:
-        logger.debug(
+        logger.warn(
             f"Failed the mean gain ratio test: {xx_mean=} {yy_mean=} {mean_gain_ratio=} "
         )
 
