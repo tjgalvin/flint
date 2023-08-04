@@ -90,7 +90,7 @@ def task_flag_solutions(calibrate_cmd: CalibrateCommand) -> CalibrateCommand:
             )
 
     flagged_solutions_path = flag_aosolutions(
-        solutions_path=solution_path, ref_ant=0, flag_cut=2, plot_dir=plot_dir
+        solutions_path=solution_path, ref_ant=0, flag_cut=3, plot_dir=plot_dir
     )
 
     return calibrate_cmd.with_options(
@@ -304,8 +304,11 @@ def process_bandpass_science_fields(
         logger.info(f"No wsclean container provided. Rerutning. ")
         return
 
+    wsclean_init = {"weight": "briggs -2.0", "multiscale": False}
     wsclean_cmds = task_wsclean_imager.map(
-        in_ms=apply_solutions_cmd_list, wsclean_container=wsclean_container
+        in_ms=apply_solutions_cmd_list,
+        wsclean_container=wsclean_container,
+        update_wsclean_options=unmapped(wsclean_init),
     )
 
     beam_shape = task_get_common_beam.submit(wsclean_cmds=wsclean_cmds, cutoff=25.0)
@@ -325,8 +328,8 @@ def process_bandpass_science_fields(
         return
 
     for round in range(1, rounds + 1):
-        last_gain_cal_options = {"calmode": "p", "solint": "60s"}
-        last_wsclean_round = {"weight": "briggs 0.0"}
+        last_gain_cal_options = {"calmode": "ap", "solint": "60s"}
+        last_wsclean_round = {"weight": "briggs -0.5"}
 
         cal_mss = task_gaincal_applycal_ms.map(
             wsclean_cmd=wsclean_cmds,

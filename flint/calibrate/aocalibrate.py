@@ -18,6 +18,7 @@ from flint.bptools.preflagger import (
     flag_outlier_phase,
     flags_over_threshold,
     flag_mean_residual_amplitude,
+    flag_mean_xxyy_amplitude_ratio,
 )
 
 
@@ -586,8 +587,15 @@ def flag_aosolutions(
         except:
             logger.warn(f"Failed to create {str(plot_dir)}.")
 
+    # Note that although the solutions variable (an instance of AOSolutions) is immutable,
+    # which includes the reference to the numpy array, the _actual_ numpy array is! So,
+    # copying the bandpass below is as we are updating the actual array, which will be
+    # written back as a new file later.
     bandpass = solutions.bandpass
     logger.info(f"Loaded bandpass, shape is {bandpass.shape}")
+
+    # TODO: Need a procedure to select an optimal reference antenna. What would
+    # happen if the ref_ant was not available when the bandpass was being taken.
 
     for time in range(solutions.nsol):
         for pol in (0, 3):
@@ -640,8 +648,23 @@ def flag_aosolutions(
 
                 flagged = ~np.isfinite(bandpass[time, ant, :, pol])
                 logger.info(
-                    f"{ant=:02d}, pol={pols[pol]}, flagged {np.sum(flagged)} / {ant_gains.shape[0] * 100.}%"
+                    f"{ant=:02d}, pol={pols[pol]}, flagged {np.sum(flagged) / ant_gains.shape[0] * 100.}%"
                 )
+
+    # This loop will flag based on stats across different polarisations
+    for time in range(solutions.nsol):
+        ref_ant_gains = bandpass[time, ref_ant]
+        for ant in range(solutions.nant):
+            # We need to skip the case of flagging on the reference antenna, I think.
+            if ref_ant == ant:
+                continue
+
+            ant_gains = bandpass[time, ant] / ref_ant
+            if flag_mean_xxyy_amplitude_ratio(
+                xx_complex_gains=ant_gains[:, 0], yy_complex_gains=ant_gains[:, 3]
+            ):
+                logger.info(f"{ant} failed mean amplitude gain test. Flagging {ant=}.")
+                bandpass[time, ant, :, :] = np.nan
 
     out_solutions_path = (
         solutions_path.with_suffix(".preflagged")

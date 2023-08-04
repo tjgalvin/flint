@@ -11,6 +11,7 @@ from pathlib import Path
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.optimize import curve_fit
+from astropy.stats import sigma_clipped_stats
 
 from flint.logging import logger
 
@@ -60,7 +61,7 @@ def plot_phase_outlier(
     Returns:
         Path: Path of the output image file
     """
-    logger.info(f"Creating phase outlier plot, writting {str(output_path)}.")
+    logger.debug(f"Creating phase outlier plot, writting {str(output_path)}.")
 
     complex_gains = phase_outlier_results.complex_gains
     init_model_gains = phase_outlier_results.init_model_gains
@@ -107,15 +108,12 @@ def plot_phase_outlier(
         "bo",
         label="Flagged",
     )
-    ax2.axhline(
-        unwrapped_mean,
-        color="red",
-        ls="-",
-    )
+    ax2.axhline(unwrapped_mean, color="red", ls="-", label="Mean")
     ax2.axhline(
         unwrapped_mean - flag_cut * unwrapped_std,
         color="red",
         ls="--",
+        label=f"+/- {flag_cut:.2f}sigma",
     )
     ax2.axhline(
         unwrapped_mean + flag_cut * unwrapped_std,
@@ -124,7 +122,7 @@ def plot_phase_outlier(
     )
 
     ax2.grid()
-    ax2.legend()
+    ax2.legend(ncol=2)
     ax2.set(xlabel="Channels", ylabel="Phase (rad)", title="Initial Unwrapped")
 
     if title:
@@ -379,6 +377,13 @@ def flag_mean_residual_amplitude(
     If this median/mean is above 0.1 a value of True is returned, indicating
     that the antenna should be flagged.
 
+    Internally this is fitting a simple polynomial to the amplitude spectrum. This method
+    is not as robust as the moving polynomial harmonic fit as implemented in the bptools
+    package. The method current;y implemented might not be robust to sudden changes in the
+    solutions that might be present on the boundaries of beam forming intervals. In some
+    instances this might be avoided or minimised if the input complex gains have been divided
+    by a reference antenna.
+
     Args:
         complex_gains (np.ndarray): The set of complex gains to be considered
         use_robust (bool, optional): Whether to use robust statistics (median, MAD)  or mean/std to calculate the statistic against. Defaults to True.
@@ -425,3 +430,55 @@ def flag_mean_residual_amplitude(
         )
 
     return bad
+
+
+def flag_mean_xxyy_amplitude_ratio(
+    xx_complex_gains: np.ndarray, yy_complex_gains, fraction: float = 2.0
+) -> bool:
+    """Will robust compute through an iterative sigma-clipping procedure the
+    mean XX and YY gain amplitudes. The ratio of these  means are computed,
+    and if the are:
+
+    >>> ratio < (1. / fraction) or ratio > fraction
+
+    the data are considered bad and a `True` is returned (indicating that they
+    should be flagged).
+
+    Args:
+        xx_complex_gains (np.ndarray): The XX complex gains to be considered
+        yy_complex_gains (_type_): The YY complex gains to be considered
+        fraction (float, optional): The fraction used to distinguish a critical mean ratio threshold. Defaults to 2..
+
+    Returns:
+        bool: Whether data should be flagged (True) or not (False)
+    """
+
+    assert (
+        xx_complex_gains.shape == yy_complex_gains.shape
+    ), f"Input xx and yy shapes do not match. {xx_complex_gains.shape=} {yy_complex_gains.shape=}"
+    logger.info(f"Calculating mean ratios. ")
+
+    xx_amplitudes = np.abs(xx_complex_gains)
+    yy_amplitudes = np.abs(yy_complex_gains)
+
+    xx_mean, xx_median, xx_std = sigma_clipped_stats(
+        data=xx_amplitudes, mask=~np.isfinite(xx_amplitudes)
+    )
+    yy_mean, yy_median, yy_std = sigma_clipped_stats(
+        data=yy_amplitudes, mask=~np.isfinite(yy_amplitudes)
+    )
+
+    mean_gain_ratio = xx_mean / yy_mean
+
+    result = (
+        ~np.isfinite(mean_gain_ratio)
+        or mean_gain_ratio < (1.0 / fraction)
+        or mean_gain_ratio > fraction
+    )
+
+    if result:
+        logger.debug(
+            f"Failed the mean gain ratio test: {xx_mean=} {yy_mean=} {mean_gain_ratio=} "
+        )
+
+    return result

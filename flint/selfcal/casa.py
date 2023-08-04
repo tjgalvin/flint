@@ -157,7 +157,7 @@ def gaincal_applycal_ms(
     Returns:
         MS: _description_
     """
-    logger.info(f"Inputer ms={ms}")
+    logger.info(f"Measurement set to be self-calibrated: ms={ms}")
 
     if gain_cal_options is None:
         gain_cal_options = GainCalOptions()

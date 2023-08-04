@@ -45,7 +45,7 @@ class WSCleanOptions(NamedTuple):
     """Whether a local rms map is computed"""
     force_mask_rounds: int = 8
     """Round of force masked derivation"""
-    auto_mask: float = 3.75
+    auto_mask: float = 4.0
     """How deep the construct clean mask is during each cycle"""
     auto_threshold: float = 0.5
     """How deep to clean once initial clean threshold reached"""
@@ -75,6 +75,8 @@ class WSCleanOptions(NamedTuple):
     """Use the wgridder kernel in wsclean (instead of the w-stacking method)"""
     join_channels: bool = True
     """Collapse the sub-band images down to an MFS image when peak-finding"""
+    minuvw_m: Optional[float] = None
+    """A (u,v) selection command, where any baselines shorter than this will be ignored during imaging"""
     name: Optional[str] = None
     """Name of the output files passed through to wsclean"""
 
@@ -262,7 +264,7 @@ def create_wsclean_cmd(
             )
             cmd += f"-{key} {value_str} "
         elif value is None:
-            logger.warn(
+            logger.debug(
                 f"{key} option set to {value}. Not sure what this means. Ignoring. "
             )
         else:
