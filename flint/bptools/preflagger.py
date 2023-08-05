@@ -14,7 +14,7 @@ from scipy.optimize import curve_fit
 from astropy.stats import sigma_clipped_stats
 
 from flint.logging import logger
-
+from flint.exceptions import PhaseOutlierFitError
 
 class PhaseOutlierResults(NamedTuple):
     """Results from the attempt to identify outlier complex gains in
@@ -223,17 +223,25 @@ def flag_outlier_phase(
 
     # Now construct the initial guess model, used to unwrap the data
     unwrapped_complex_gains = complex_gains / init_model_gains
+    unwrapped_complex_mask = np.isfinite(unwrapped_complex_gains)
+    if np.sum(unwrapped_complex_mask) == 0:
+        # No good measurements. 
+        raise PhaseOutlierFitError
 
     # Since there should be a fairly decent initial unwrapped with
     # an additional additive offset to set the bulk of the phases
     # to near zero, we can pass the fitter a fairly simple guesses
     p0 = [0, 0]
-    results = curve_fit(
-        fit_complex_gain_model,
-        idxs[complex_mask],
-        np.angle(unwrapped_complex_gains)[complex_mask],
-        p0,
-    )
+    try:
+        results = curve_fit(
+            fit_complex_gain_model,
+            idxs[unwrapped_complex_mask],
+            np.angle(unwrapped_complex_gains)[unwrapped_complex_mask],
+            p0,
+        )
+    except ValueError:
+        logger.critical(f"The phase outlier fit method failed. Flagging antenna. ")
+        raise PhaseOutlierFitError
 
     fit_model_gains = complex_gain_model(idxs, *results[0])
 

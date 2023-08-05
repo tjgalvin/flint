@@ -20,7 +20,7 @@ from flint.bptools.preflagger import (
     flag_mean_residual_amplitude,
     flag_mean_xxyy_amplitude_ratio,
 )
-
+from flint.exceptions import PhaseOutlierFitError
 
 class CalibrateCommand(NamedTuple):
     """The AO Calibrate command and output path of the corresponding solutions file"""
@@ -599,6 +599,10 @@ def flag_aosolutions(
         for pol in (0, 3):
             logger.info(f"Processing {pols[pol]} polarisation")
             ref_ant_gains = bandpass[time, ref_ant, :, pol]
+            # TODO: A better way of selecting the most appropriate reference antenna is needed. 
+            if np.sum(np.isfinite(ref_ant_gains)) == 0:
+                raise ValueError(f"The ref_ant={ref_ant} is completely bad. ")
+            
             for ant in range(solutions.nant):
                 if ant == ref_ant:
                     logger.info(f"Skipping reference antenna = ant{ref_ant:02}")
@@ -616,13 +620,17 @@ def flag_aosolutions(
                     logger.info(f"Not valid data found for ant{ant:0d} {pols[pol]}")
                     continue
 
-                phase_outlier_result = flag_outlier_phase(
-                    complex_gains=ant_gains,
-                    flag_cut=flag_cut,
-                    plot_title=plot_title,
-                    plot_path=ouput_path,
-                )
-                bandpass[time, ant, phase_outlier_result.outlier_mask, pol] = np.nan
+                try:         
+                    phase_outlier_result = flag_outlier_phase(
+                        complex_gains=ant_gains,
+                        flag_cut=flag_cut,
+                        plot_title=plot_title,
+                        plot_path=ouput_path,
+                    )
+                    bandpass[time, ant, phase_outlier_result.outlier_mask, pol] = np.nan
+                except PhaseOutlierFitError:
+                    # This is raised if the fit failed to converge, or some other nasty. 
+                    bandpass[time, ant, :, pol] = np.nan
 
                 # Flag all solutions for this (ant,pol) if more than 80% are flagged
                 if flags_over_threshold(
