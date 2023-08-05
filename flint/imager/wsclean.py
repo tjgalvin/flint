@@ -65,14 +65,16 @@ class WSCleanOptions(NamedTuple):
     """Scales used for multi-scale deconvolution"""
     fit_spectral_pol: int = 3
     """Number of spectral terms to include during sub-band subtractin"""
-    weight: str = "briggs -2.0"
+    weight: str = "briggs -1.0"
     """Robustness of the weighting used"""
     data_column: str = "CORRECTED_DATA"
-    """Which column in the MS to image"""
+    """Which column in the MS to image""" 
     scale: str = "2.5asec"
     """Pixel scale size"""
     gridder: str = "wgridder"
     """Use the wgridder kernel in wsclean (instead of the w-stacking method)"""
+    wgridder_accuracy: float = 1e-8
+    """The accuracy requested of the wgridder (should it be used), compared as the RMS error when compred to a DFT"""
     join_channels: bool = True
     """Collapse the sub-band images down to an MFS image when peak-finding"""
     minuvw_m: Optional[float] = None
