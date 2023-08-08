@@ -6,7 +6,6 @@ from pathlib import Path
 from typing import Any, List, Dict, Optional, Union, Collection
 
 from prefect import flow, task, unmapped
-from prefect_dask import get_dask_client
 
 from flint.bandpass import extract_correct_bandpass_pointing, plot_solutions
 from flint.calibrate.aocalibrate import (
@@ -163,6 +162,7 @@ def task_linmos_images(
     container: Path,
     filter: str = "-MFS-",
     field_name: str = "unnamed_field",
+    holofile: Optional[Path] = None
 ) -> Path:
     # TODO: Need to flatten images
     # TODO: Need a better way of getting field names
@@ -182,6 +182,7 @@ def task_linmos_images(
         parset_output_name=out_dir / Path(parset_output_name),
         image_output_name=str(out_name),
         container=container,
+        holofile=holofile
     )
 
     return linmos_cmd.parset
@@ -194,6 +195,7 @@ def process_bandpass_science_fields(
     split_path: Path,
     flagger_container: Path,
     calibrate_container: Path,
+    holofile: Optional[Path] = None,
     expected_ms: int = 36,
     source_name_prefix: str = "B1934-638",
     wsclean_container: Optional[Path] = None,
@@ -321,6 +323,7 @@ def process_bandpass_science_fields(
             parset_output_name=f"linmos_noselfcal_parset.txt",
             container=yandasoft_container,
             field_name=f"example_field_noselfcal",
+            holofile=holofile
         )
 
     if rounds is None:
@@ -328,7 +331,7 @@ def process_bandpass_science_fields(
         return
 
     for round in range(1, rounds + 1):
-        last_gain_cal_options = {"calmode": "ap", "solint": "60s"}
+        last_gain_cal_options = {"calmode": "p", "solint": "60s"}
         last_wsclean_round = {"weight": "briggs -0.5"}
 
         cal_mss = task_gaincal_applycal_ms.map(
@@ -338,8 +341,11 @@ def process_bandpass_science_fields(
             if round >= rounds
             else None,
         )
+        flag_mss = task_flag_ms_aoflagger.map(
+            ms=cal_mss, container=flagger_container, rounds=1
+        )
         wsclean_cmds = task_wsclean_imager.map(
-            in_ms=cal_mss,
+            in_ms=flag_mss,
             wsclean_container=wsclean_container,
             update_wsclean_options=unmapped(last_wsclean_round)
             if round >= rounds
@@ -358,6 +364,7 @@ def process_bandpass_science_fields(
             parset_output_name=f"linmos_round{round}_parset.txt",
             container=yandasoft_container,
             field_name=f"example_field_round{round}",
+            holofile=holofile
         )
 
 
@@ -368,10 +375,12 @@ def setup_run_process_science_field(
     split_path: Path,
     flagger_container: Path,
     calibrate_container: Path,
+    holofile: Optional[Path] = None,
     expected_ms: int = 36,
     source_name_prefix: str = "B1934-638",
     wsclean_container: Optional[Path] = None,
     yandasoft_container: Optional[Path] = None,
+    rounds: int = 2
 ) -> None:
     dask_task_runner = get_dask_runner(cluster=cluster_config)
 
@@ -383,10 +392,12 @@ def setup_run_process_science_field(
         split_path=split_path,
         flagger_container=flagger_container,
         calibrate_container=calibrate_container,
+        holofile=holofile,
         expected_ms=expected_ms,
         source_name_prefix=source_name_prefix,
         wsclean_container=wsclean_container,
         yandasoft_container=yandasoft_container,
+        rounds=rounds
     )
 
 
@@ -411,6 +422,13 @@ def get_parser() -> ArgumentParser:
         help="Location to write field-split MSs to. Will attempt to use the parent name of a directory when writing out a new MS. ",
     )
 
+    parser.add_argument(
+        "--holofile",
+        type=Path,
+        default=None,
+        help="Path to the holography FITS cube used for primary beam corrections",
+    )
+    
     parser.add_argument(
         "--expected-ms",
         type=int,
@@ -447,6 +465,12 @@ def get_parser() -> ArgumentParser:
         default="petrichor",
         help="Path to a cluster configuration file, or a known cluster name. ",
     )
+    parser.add_argument(
+        '--selfcal-rounds',
+        type=int,
+        default=2,
+        help='The number of selfcalibration rounds to perfrom. '
+    )
 
     return parser
 
@@ -468,9 +492,11 @@ def cli() -> None:
         split_path=args.split_path,
         flagger_container=args.flagger_container,
         calibrate_container=args.calibrate_container,
+        holofile=args.holofile,
         expected_ms=args.expected_ms,
         wsclean_container=args.wsclean_container,
         yandasoft_container=args.yandasoft_container,
+        rounds=args.selfcal_rounds
     )
 
 
