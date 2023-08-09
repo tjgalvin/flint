@@ -306,7 +306,7 @@ def process_bandpass_science_fields(
         logger.info(f"No wsclean container provided. Rerutning. ")
         return
 
-    wsclean_init = {"weight": "briggs -2.0", "multiscale": False}
+    wsclean_init = {"minuvw_l": 200, "weight": "briggs -2.0", "auto_mask": 4.5 , "multiscale": False}
     wsclean_cmds = task_wsclean_imager.map(
         in_ms=apply_solutions_cmd_list,
         wsclean_container=wsclean_container,
@@ -330,16 +330,25 @@ def process_bandpass_science_fields(
         logger.info(f"No self-calibration will be performed. Returning")
         return
 
+    gain_cal_rounds = {
+        1: {"solint": "600s", "uvrange":">200lambda"},
+        2: {"solint": "200s", "uvrange":">200lambda"},
+        3: {"solint": "60s", "uvrange":">200lambda"},
+    }
+    wsclean_rounds = {
+        1: {"minuvw_l": 200, "auto_mask": 4},
+        2: {"minuvw_l": 200, "auto_mask": 3.5},
+        3: {"minuvw_l": 200, "auto_mask": 3.5},
+    }
+
     for round in range(1, rounds + 1):
-        last_gain_cal_options = {"calmode": "p", "solint": "60s"}
-        last_wsclean_round = {"weight": "briggs -0.5"}
+        gain_cal_options = gain_cal_rounds.get(round, None)
+        wsclean_options = {"weight": "briggs -0.5"}
 
         cal_mss = task_gaincal_applycal_ms.map(
             wsclean_cmd=wsclean_cmds,
             round=round,
-            update_gain_cal_options=unmapped(last_gain_cal_options)
-            if round >= rounds
-            else None,
+            update_gain_cal_options=unmapped(gain_cal_options)
         )
         flag_mss = task_flag_ms_aoflagger.map(
             ms=cal_mss, container=flagger_container, rounds=1
@@ -347,9 +356,7 @@ def process_bandpass_science_fields(
         wsclean_cmds = task_wsclean_imager.map(
             in_ms=flag_mss,
             wsclean_container=wsclean_container,
-            update_wsclean_options=unmapped(last_wsclean_round)
-            if round >= rounds
-            else None,
+            update_wsclean_options=unmapped(wsclean_options)
         )
         beam_shape = task_get_common_beam.submit(wsclean_cmds=wsclean_cmds, cutoff=25.0)
         conv_images = task_convolve_image.map(
