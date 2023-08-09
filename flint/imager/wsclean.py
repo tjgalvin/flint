@@ -37,19 +37,19 @@ class WSCleanOptions(NamedTuple):
 
     abs_mem: int = 100
     """Memory wsclean should try to limit itself to"""
-    local_rms_window: int = 65
+    local_rms_window: int = 95
     """Size of the window used to estimate rms noise"""
-    size: int = 6144
-    """Image size"""
+    size: int = 8144
+    """Image size, only a single dimension is required. Note that this means images will be squares. """
     local_rms: bool = True
     """Whether a local rms map is computed"""
-    force_mask_rounds: int = 8
+    force_mask_rounds: int = 10
     """Round of force masked derivation"""
-    auto_mask: float = 4.0
+    auto_mask: float = 3.5
     """How deep the construct clean mask is during each cycle"""
     auto_threshold: float = 0.5
     """How deep to clean once initial clean threshold reached"""
-    channels_out: int = 8
+    channels_out: int = 4
     """Number of output channels"""
     mgain: float = 0.7
     """Major cycle gain"""
@@ -61,24 +61,34 @@ class WSCleanOptions(NamedTuple):
     """Enable multiscale deconvolution"""
     multiscale_scale_bias: float = 0.7
     """Multiscale bias term"""
-    multiscale_scales: Optional[Collection[int]] = (0, 5, 10, 15, 20, 25, 30, 60)
+    multiscale_scales: Optional[Collection[int]] = (0, 5, 15, 25, 50, 75, 100, 150, 250, 400)
     """Scales used for multi-scale deconvolution"""
     fit_spectral_pol: int = 3
     """Number of spectral terms to include during sub-band subtractin"""
-    weight: str = "briggs -1.0"
+    weight: str = "briggs -0.5"
     """Robustness of the weighting used"""
     data_column: str = "CORRECTED_DATA"
     """Which column in the MS to image""" 
-    scale: str = "2.5asec"
+    scale: str = "1.5asec"
     """Pixel scale size"""
-    gridder: str = "wgridder"
-    """Use the wgridder kernel in wsclean (instead of the w-stacking method)"""
-    wgridder_accuracy: float = 1e-8
+    gridder: Optional[str] = "wgridder"
+    """Use the wgridder kernel in wsclean (instead of the default w-stacking method)"""
+    nwlayers: Optional[int] = None
+    """Number of w-layers to use if the gridder mode is w-stacking"""
+    wgridder_accuracy: float = 1e-10
     """The accuracy requested of the wgridder (should it be used), compared as the RMS error when compred to a DFT"""
     join_channels: bool = True
     """Collapse the sub-band images down to an MFS image when peak-finding"""
+    minuvw_l: Optional[float] = None
+    """The minimum lambda length that the visibility data needs to meet for it to be selected for imaging"""
     minuvw_m: Optional[float] = None
     """A (u,v) selection command, where any baselines shorter than this will be ignored during imaging"""
+    maxw: Optional[float] = None
+    """A percentage specifying the maximum w-term to be gridded, relative to the max w-term being considered"""
+    no_update_model_required: bool = False 
+    """Will instruct wsclean not to create the MODEL_DATA column"""
+    no_small_inversion: bool = True
+    """Disables an optimisation of wsclean's w-gridder mode. This might improve accuracy of the w-gridder. """
     name: Optional[str] = None
     """Name of the output files passed through to wsclean"""
 
@@ -254,6 +264,9 @@ def create_wsclean_cmd(
         logger.debug(f"{key=} {value=} {type(value)=}")
         if key == "size":
             cmd += f"-size {value} {value} "
+        elif key == "wgridder-accuracy":
+            if wsclean_options.gridder == 'wgridder':
+                cmd += f"-{key} {value} "
         elif isinstance(value, bool):
             if value:
                 cmd += f"-{key} "
@@ -321,10 +334,10 @@ def run_wsclean_imager(wsclean_cmd: WSCleanCMD, container: Path) -> WSCleanCMD:
 
         for output_type in ("dirty", "psf", "model", "residual"):
             delete_wsclean_outputs(prefix=prefix, output_type=output_type)
-        for output_type in ("model", "residual"):
-            delete_wsclean_outputs(
-                prefix=prefix, output_type=output_type, ignore_mfs=False
-            )
+        # for output_type in ("model", "residual"):
+        #     delete_wsclean_outputs(
+        #         prefix=prefix, output_type=output_type, ignore_mfs=False
+        #     )
 
     imageset = get_wsclean_output_names(
         prefix=prefix,
