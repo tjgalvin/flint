@@ -306,7 +306,7 @@ def process_bandpass_science_fields(
         logger.info(f"No wsclean container provided. Rerutning. ")
         return
 
-    wsclean_init = {"minuvw_l": 200, "weight": "briggs -2.0", "auto_mask": 4.5 , "multiscale": False}
+    wsclean_init = {"minuv_l": 200, "weight": "briggs -2.0", "auto_mask": 4.5 , "multiscale": False}
     wsclean_cmds = task_wsclean_imager.map(
         in_ms=apply_solutions_cmd_list,
         wsclean_container=wsclean_container,
@@ -336,9 +336,9 @@ def process_bandpass_science_fields(
         3: {"solint": "60s", "uvrange":">200lambda"},
     }
     wsclean_rounds = {
-        1: {"minuvw_l": 200, "auto_mask": 4},
-        2: {"minuvw_l": 200, "auto_mask": 3.5},
-        3: {"minuvw_l": 200, "auto_mask": 3.5},
+        1: {"minuv_l": 200, "auto_mask": 4},
+        2: {"minuv_l": 200, "auto_mask": 3.5},
+        3: {"minuv_l": 200, "auto_mask": 3.5},
     }
 
     for round in range(1, rounds + 1):

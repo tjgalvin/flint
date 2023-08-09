@@ -35,7 +35,7 @@ class WSCleanOptions(NamedTuple):
     conform to the same option name in the calling signature of wsclean
     """
 
-    abs_mem: int = 100
+    abs_mem: int = 500
     """Memory wsclean should try to limit itself to"""
     local_rms_window: int = 95
     """Size of the window used to estimate rms noise"""
@@ -79,7 +79,7 @@ class WSCleanOptions(NamedTuple):
     """The accuracy requested of the wgridder (should it be used), compared as the RMS error when compred to a DFT"""
     join_channels: bool = True
     """Collapse the sub-band images down to an MFS image when peak-finding"""
-    minuvw_l: Optional[float] = None
+    minuv_l: Optional[float] = None
     """The minimum lambda length that the visibility data needs to meet for it to be selected for imaging"""
     minuvw_m: Optional[float] = None
     """A (u,v) selection command, where any baselines shorter than this will be ignored during imaging"""
