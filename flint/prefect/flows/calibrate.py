@@ -253,7 +253,7 @@ def process_bandpass_science_fields(
     science_mss = list([MS.cast(ms_path) for ms_path in science_path.glob(f"*.ms")])
     assert (
         len(science_mss) == expected_ms
-    ), f"Expected to find {expected_ms} in {str(science_path)}, found {len(bandpass_mss)}."
+    ), f"Expected to find {expected_ms} in {str(science_path)}, found {len(science_mss)}."
 
     logger.info(
         f"Found the following bandpass measurement set: {[bp.path for bp in bandpass_mss]}."
