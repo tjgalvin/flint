@@ -13,6 +13,20 @@ from flint.selfcal.casa import GainCalOptions
 from flint.logging import logger 
 
 def load_yaml(input_yaml: Path) -> Any:
+    """Load in a flint based configuration file, which
+    will be used to form the strategy for imaging of
+    a field. 
+    
+    The format of the return is likely to change. This
+    is not to be relied on for the moment, and should 
+    be considered a toy. There will be a mutiny. 
+
+    Args:
+        input_yaml (Path): The imaging strategy to use
+
+    Returns:
+        Any: The parameters of the imaging and self-calibration to use. 
+    """
 
     logger.info(f"Loading {input_yaml} file. ")
     
