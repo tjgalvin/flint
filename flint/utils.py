@@ -23,12 +23,12 @@ def rsync_copy_directory(target_path: Path, out_path: Path) -> Path:
     rsync_cmd = (
         f"rsync -avh --progress --stats " f"{str(target_path)}/ " f"{str(out_path)}/ "
     )
-
-    logger.info(f"Will run {rsync_cmd}")
+    logger.info(f"Rsync copying {target_path} to {out_path}.")
+    logger.debug(f"Will run {rsync_cmd}")
     rsync_run = subprocess.Popen(rsync_cmd.split(), stdout=subprocess.PIPE)
 
     if rsync_run.stdout is not None:
         for line in rsync_run.stdout:
-            logger.info(line.decode().rstrip())
+            logger.debug(line.decode().rstrip())
 
     return out_path
