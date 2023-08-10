@@ -15,7 +15,7 @@ from flint.calibrate.aocalibrate import (
     create_calibrate_cmd,
     select_aosolution_for_ms,
     flag_aosolutions,
-    find_existing_solutions
+    find_existing_solutions,
 )
 from flint.flagging import flag_ms_aoflagger
 from flint.imager.wsclean import WSCleanCMD, wsclean_imager
@@ -163,7 +163,7 @@ def task_linmos_images(
     container: Path,
     filter: str = "-MFS-",
     field_name: str = "unnamed_field",
-    holofile: Optional[Path] = None
+    holofile: Optional[Path] = None,
 ) -> Path:
     # TODO: Need to flatten images
     # TODO: Need a better way of getting field names
@@ -183,10 +183,11 @@ def task_linmos_images(
         parset_output_name=out_dir / Path(parset_output_name),
         image_output_name=str(out_name),
         container=container,
-        holofile=holofile
+        holofile=holofile,
     )
 
     return linmos_cmd.parset
+
 
 def run_bandpass_stage(
     bandpass_mss: Collection[MS],
@@ -196,13 +197,12 @@ def run_bandpass_stage(
     model_path: Path,
     source_name_prefix: str = "B1934-638",
 ) -> List[CalibrateCommand]:
-    
     if not output_split_bandpass_path.exists():
         logger.info(f"Creating {str(output_split_bandpass_path)}")
         output_split_bandpass_path.mkdir(parents=True)
-    
+
     calibrate_cmds: List[CalibrateCommand] = []
-    
+
     for bandpass_ms in bandpass_mss:
         extract_bandpass_ms = task_extract_correct_bandpass_pointing.submit(
             ms=bandpass_ms,
@@ -270,20 +270,20 @@ def process_bandpass_science_fields(
     logger.info(
         f"Will write extracted bandpass MSs to: {str(output_split_bandpass_path)}."
     )
-    
+
     if not output_split_science_path.exists():
         logger.info(f"Creating {str(output_split_science_path)}")
         output_split_science_path.mkdir(parents=True)
 
-    # This is the model that we will calibrate the bandpass against. 
+    # This is the model that we will calibrate the bandpass against.
     # At the time fo writing 1934-638 is the only model that is supported,
-    # not only by this pirate ship, but also the ASKAP telescope itself. 
+    # not only by this pirate ship, but also the ASKAP telescope itself.
     model_path: Path = get_1934_model(mode="calibrate")
-    
-    # TODO: This check currently expects the input bandpass_path to reffer 
+
+    # TODO: This check currently expects the input bandpass_path to reffer
     # to the raw MS data. The output_split_bandpass_path is built up from
     # that. This behaviour should (or could?) be dependent on a different
-    # option to explictly set the location of precomputed solutions. 
+    # option to explictly set the location of precomputed solutions.
     if output_split_bandpass_path.exists():
         logger.info(
             (
@@ -291,15 +291,17 @@ def process_bandpass_science_fields(
                 "Will construct commands from pre-computed solutions. "
             )
         )
-        # TODO: This will likely need to be expanded should any 
+        # TODO: This will likely need to be expanded should any
         # other calibration strategies get added
         calibrate_cmds = find_existing_solutions(
             bandpass_directory=output_split_bandpass_path,
             model_path=model_path,
-            use_preflagged=True
+            use_preflagged=True,
         )
     else:
-        logger.info(f"Output bandpass directory {output_split_bandpass_path} not found. Will process the bandpass data. ")
+        logger.info(
+            f"Output bandpass directory {output_split_bandpass_path} not found. Will process the bandpass data. "
+        )
         calibrate_cmds = run_bandpass_stage(
             bandpass_mss=bandpass_mss,
             output_split_bandpass_path=output_split_bandpass_path,
@@ -308,7 +310,7 @@ def process_bandpass_science_fields(
             model_path=model_path,
             source_name_prefix=source_name_prefix,
         )
-         
+
     science_fields = []
     for science_ms in science_mss:
         split_science_ms = task_split_by_field.submit(
@@ -349,7 +351,12 @@ def process_bandpass_science_fields(
         logger.info(f"No wsclean container provided. Rerutning. ")
         return
 
-    wsclean_init = {"minuv_l": 200, "weight": "briggs -2.0", "auto_mask": 4.5 , "multiscale": False}
+    wsclean_init = {
+        "minuv_l": 200,
+        "weight": "briggs -2.0",
+        "auto_mask": 4.5,
+        "multiscale": False,
+    }
     wsclean_cmds = task_wsclean_imager.map(
         in_ms=apply_solutions_cmd_list,
         wsclean_container=wsclean_container,
@@ -366,7 +373,7 @@ def process_bandpass_science_fields(
             parset_output_name=f"linmos_noselfcal_parset.txt",
             container=yandasoft_container,
             field_name=f"example_field_noselfcal",
-            holofile=holofile
+            holofile=holofile,
         )
 
     if rounds is None:
@@ -374,10 +381,10 @@ def process_bandpass_science_fields(
         return
 
     gain_cal_rounds = {
-        1: {"solint": "600s", "uvrange":">200lambda"},
-        2: {"solint": "200s", "uvrange":">200lambda"},
-        3: {"solint": "60s", "uvrange":">200lambda"},
-        4: {"calmode":"ap", "solint": "360s", "uvrange":">200lambda"},
+        1: {"solint": "600s", "uvrange": ">200lambda"},
+        2: {"solint": "200s", "uvrange": ">200lambda"},
+        3: {"solint": "60s", "uvrange": ">200lambda"},
+        4: {"calmode": "ap", "solint": "360s", "uvrange": ">200lambda"},
     }
     wsclean_rounds = {
         1: {"minuv_l": 200, "auto_mask": 4},
@@ -393,7 +400,7 @@ def process_bandpass_science_fields(
         cal_mss = task_gaincal_applycal_ms.map(
             wsclean_cmd=wsclean_cmds,
             round=round,
-            update_gain_cal_options=unmapped(gain_cal_options)
+            update_gain_cal_options=unmapped(gain_cal_options),
         )
         flag_mss = task_flag_ms_aoflagger.map(
             ms=cal_mss, container=flagger_container, rounds=1
@@ -401,7 +408,7 @@ def process_bandpass_science_fields(
         wsclean_cmds = task_wsclean_imager.map(
             in_ms=flag_mss,
             wsclean_container=wsclean_container,
-            update_wsclean_options=unmapped(wsclean_options)
+            update_wsclean_options=unmapped(wsclean_options),
         )
         beam_shape = task_get_common_beam.submit(wsclean_cmds=wsclean_cmds, cutoff=25.0)
         conv_images = task_convolve_image.map(
@@ -416,7 +423,7 @@ def process_bandpass_science_fields(
             parset_output_name=f"linmos_round{round}_parset.txt",
             container=yandasoft_container,
             field_name=f"example_field_round{round}",
-            holofile=holofile
+            holofile=holofile,
         )
 
 
@@ -432,7 +439,7 @@ def setup_run_process_science_field(
     source_name_prefix: str = "B1934-638",
     wsclean_container: Optional[Path] = None,
     yandasoft_container: Optional[Path] = None,
-    rounds: int = 2
+    rounds: int = 2,
 ) -> None:
     dask_task_runner = get_dask_runner(cluster=cluster_config)
 
@@ -449,7 +456,7 @@ def setup_run_process_science_field(
         source_name_prefix=source_name_prefix,
         wsclean_container=wsclean_container,
         yandasoft_container=yandasoft_container,
-        rounds=rounds
+        rounds=rounds,
     )
 
 
@@ -480,7 +487,7 @@ def get_parser() -> ArgumentParser:
         default=None,
         help="Path to the holography FITS cube used for primary beam corrections",
     )
-    
+
     parser.add_argument(
         "--expected-ms",
         type=int,
@@ -518,10 +525,10 @@ def get_parser() -> ArgumentParser:
         help="Path to a cluster configuration file, or a known cluster name. ",
     )
     parser.add_argument(
-        '--selfcal-rounds',
+        "--selfcal-rounds",
         type=int,
         default=2,
-        help='The number of selfcalibration rounds to perfrom. '
+        help="The number of selfcalibration rounds to perfrom. ",
     )
 
     return parser
@@ -548,7 +555,7 @@ def cli() -> None:
         expected_ms=args.expected_ms,
         wsclean_container=args.wsclean_container,
         yandasoft_container=args.yandasoft_container,
-        rounds=args.selfcal_rounds
+        rounds=args.selfcal_rounds,
     )
 
 

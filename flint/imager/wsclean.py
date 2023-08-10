@@ -61,14 +61,25 @@ class WSCleanOptions(NamedTuple):
     """Enable multiscale deconvolution"""
     multiscale_scale_bias: float = 0.7
     """Multiscale bias term"""
-    multiscale_scales: Optional[Collection[int]] = (0, 5, 15, 25, 50, 75, 100, 150, 250, 400)
+    multiscale_scales: Optional[Collection[int]] = (
+        0,
+        5,
+        15,
+        25,
+        50,
+        75,
+        100,
+        150,
+        250,
+        400,
+    )
     """Scales used for multi-scale deconvolution"""
     fit_spectral_pol: int = 3
     """Number of spectral terms to include during sub-band subtractin"""
     weight: str = "briggs -0.5"
     """Robustness of the weighting used"""
     data_column: str = "CORRECTED_DATA"
-    """Which column in the MS to image""" 
+    """Which column in the MS to image"""
     scale: str = "2.0asec"
     """Pixel scale size"""
     gridder: Optional[str] = "wgridder"
@@ -85,7 +96,7 @@ class WSCleanOptions(NamedTuple):
     """A (u,v) selection command, where any baselines shorter than this will be ignored during imaging"""
     maxw: Optional[float] = None
     """A percentage specifying the maximum w-term to be gridded, relative to the max w-term being considered"""
-    no_update_model_required: bool = False 
+    no_update_model_required: bool = False
     """Will instruct wsclean not to create the MODEL_DATA column"""
     no_small_inversion: bool = True
     """Disables an optimisation of wsclean's w-gridder mode. This might improve accuracy of the w-gridder. """
@@ -265,7 +276,7 @@ def create_wsclean_cmd(
         if key == "size":
             cmd += f"-size {value} {value} "
         elif key == "wgridder-accuracy":
-            if wsclean_options.gridder == 'wgridder':
+            if wsclean_options.gridder == "wgridder":
                 cmd += f"-{key} {value} "
         elif isinstance(value, bool):
             if value:

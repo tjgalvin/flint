@@ -18,6 +18,7 @@ from fixms.fix_ms_dir import fix_ms_dir
 from flint.logging import logger
 from flint.utils import rsync_copy_directory
 
+
 class MS(NamedTuple):
     """Helper to keep tracked of measurement set information"""
 
@@ -88,21 +89,22 @@ class MSSummary(NamedTuple):
 # - check to see if fix_ms_dir / fix_ms_corrs
 # - delete column/rename column
 
+
 @contextmanager
 def critical_ms_interaction(
-    input_ms: Path, copy: bool = False, suffix: str='.critical'
+    input_ms: Path, copy: bool = False, suffix: str = ".critical"
 ):
-    """A context manager that can be used to register a measurement set as 
+    """A context manager that can be used to register a measurement set as
     entering a critical segment, i.e. phase rotation. If this stage were to
-    fail, then future operations against said measurement set might be 
+    fail, then future operations against said measurement set might be
     nonsense. This mechanism is intended to make it clear that the measurement
-    set is in a dangerous part of code. 
-    
+    set is in a dangerous part of code.
+
     Failure to return the MS to its orignal name (or rename the copy) highlights
-    this failed stage. 
+    this failed stage.
 
     Args:
-        input_ms (Path): The measurement set to monitor. 
+        input_ms (Path): The measurement set to monitor.
         copy (bool, optional): If True, a copy of the MS is made with the suffix supplied. Otherwise, the MS is siomply renamed. Defaults to False.
         suffix (str, optional): Suffix indicating the MS is in the dangerous stage. Defaults to '.critical'.
 
@@ -116,28 +118,31 @@ def critical_ms_interaction(
     # a target output measurement set already on disk. This second check would be
     # useful in copy==True mode, ya seadog
     assert input_ms.exists(), f"The input measurement set {input_ms} does not exist. "
-    assert not output_ms.exists(), f"The output measurement set {output_ms} already exists. "
+    assert (
+        not output_ms.exists()
+    ), f"The output measurement set {output_ms} already exists. "
 
     if copy:
         rsync_copy_directory(target_path=input_ms, out_path=output_ms)
     else:
         input_ms.rename(target=output_ms)
-    
+
     try:
         yield output_ms
     except Exception as e:
-        logger.error(f"An error occured when interacting with {input_ms} during a critical stage. ")
+        logger.error(
+            f"An error occured when interacting with {input_ms} during a critical stage. "
+        )
         raise e
 
     # If we get to here, things worked successfully, and we
-    # should return things back to normal. 
+    # should return things back to normal.
     if copy:
         rmtree(input_ms)
         output_ms.rename(input_ms)
     else:
         output_ms.rename(target=input_ms)
 
-    
 
 def get_field_id_for_field(ms: Union[MS, Path], field_name: str) -> Union[int, None]:
     """Return the FIELD_ID for an elected field in a measurement set

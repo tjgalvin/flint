@@ -3,6 +3,8 @@ class MSError(Exception):
 
     pass
 
+
 class PhaseOutlierFitError(Exception):
-    """Raised when the phase outlier fit routine fails. """
+    """Raised when the phase outlier fit routine fails."""
+
     pass

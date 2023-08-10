@@ -25,6 +25,7 @@ from flint.exceptions import PhaseOutlierFitError
 CALIBRATE_SUFFIX = ".calibrate.bin"
 PREFLAGGED_SUFFIX = ".preflagged"
 
+
 class CalibrateCommand(NamedTuple):
     """The AO Calibrate command and output path of the corresponding solutions file"""
 
@@ -159,9 +160,17 @@ def plot_solutions(
                 logger.warn(f"No valid data for {ant=}")
                 continue
 
-            max_amp_xx = np.nanmax(amps_xx[np.isfinite(amps_xx)]) if any(np.isfinite(amps_xx)) else -1
-            max_amp_yy = np.nanmax(amps_yy[np.isfinite(amps_yy)]) if any(np.isfinite(amps_yy)) else -1
-            
+            max_amp_xx = (
+                np.nanmax(amps_xx[np.isfinite(amps_xx)])
+                if any(np.isfinite(amps_xx))
+                else -1
+            )
+            max_amp_yy = (
+                np.nanmax(amps_yy[np.isfinite(amps_yy)])
+                if any(np.isfinite(amps_yy))
+                else -1
+            )
+
             max_amp = np.nanmax([max_amp_xx, max_amp_yy])
             ax_a, ax_p = axes_amp[y, x], axes_phase[y, x]
             ax_a.plot(channels, amps_xx, marker=None, color="blue")
@@ -276,23 +285,24 @@ def load_aosolutions_file(solutions_path: Path) -> AOSolutions:
             bandpass=bandpass,
         )
 
+
 def find_existing_solutions(
     bandpass_directory: Path,
     expected_suffix: Optional[str] = None,
     use_preflagged: bool = True,
-    model_path: Path = Path('.')
+    model_path: Path = Path("."),
 ) -> List[CalibrateCommand]:
     """Given a directory that contains a collection of bandpass measurement
     sets, attempt to identify a corresponding set of calibrate binary solution
-    file. 
-    
-    This search only supports the use of the default or known preflagger suffix. 
-    Limited support is provided to specify the expected calibrate suffix. 
-    
+    file.
+
+    This search only supports the use of the default or known preflagger suffix.
+    Limited support is provided to specify the expected calibrate suffix.
+
     These bandpass measurement sets should be processed already - which means just
-    the B1936-638 field has been split out of the larger raw MS, flagged and 
+    the B1936-638 field has been split out of the larger raw MS, flagged and
     calibrated. These steps are expected in order to get to the calibrate
-    stage. 
+    stage.
 
     Args:
         bandpass_directory (Path): Directory to search for split bandpass measurement sets
@@ -304,46 +314,53 @@ def find_existing_solutions(
         List[CalibrateCommand]: Collection of the calibrate command strcutures that are intended to be used to map the bandpass measurement sets to solution files.
     """
 
-    logger.info(f"Searching {bandpass_directory} for existing measurement sets and solutions. ")
+    logger.info(
+        f"Searching {bandpass_directory} for existing measurement sets and solutions. "
+    )
     expected_suffix = expected_suffix if expected_suffix else CALIBRATE_SUFFIX
 
     if use_preflagged:
         logger.info(f"Will search for preflagged solutions. ")
-        expected_suffix += '.preflagged'
+        expected_suffix += ".preflagged"
 
     bandpass_mss = bandpass_directory.glob("*ms")
-    
+
     # This is a placeholder command. It will not be executed,
     # but is used to link the measurement set with the appropriate
     # solutions file. At least with ao-calibrate, there is not
     # enough information to specify frequency of channels, time
     # etc. Matching the solutions to the original MS is the
     # safest thing to do, particularly with the step of matching
-    # the solutions to the beam images. The DATA column is 
+    # the solutions to the beam images. The DATA column is
     # only relevant for the calibration command, and not used
     # in any other capacity, ya rotten scallywag
     calibrate_cmds = [
-        create_calibrate_cmd(
-            ms=MS(path=ms, column='DATA'), 
-            calibrate_model=model_path
-        ) for ms in bandpass_mss
+        create_calibrate_cmd(ms=MS(path=ms, column="DATA"), calibrate_model=model_path)
+        for ms in bandpass_mss
     ]
-    
+
     if use_preflagged:
-        logger.info(f"Updating solution files with preflagger suffix {PREFLAGGED_SUFFIX}.")
+        logger.info(
+            f"Updating solution files with preflagger suffix {PREFLAGGED_SUFFIX}."
+        )
         calibrate_cmds = [
             calibrate_cmd.with_options(
                 preflagged=True,
-                solution_path=calibrate_cmd.solution_path.with_suffix(PREFLAGGED_SUFFIX)
-            ) for calibrate_cmd in calibrate_cmds
+                solution_path=calibrate_cmd.solution_path.with_suffix(
+                    PREFLAGGED_SUFFIX
+                ),
+            )
+            for calibrate_cmd in calibrate_cmds
         ]
-    
+
     logger.info(f"Constructed Calibrate command list of length {len(calibrate_cmds)}")
 
     # If not all the treasure could be found. At the moment this function will only
-    # work if the bandpass solutions were made using the default values. 
-    assert all([calibrate_cmd.solution_path.exists() for calibrate_cmd in calibrate_cmds]), f"Missing solution file constructed from scanning {bandpass_directory}. Check the directory. "
-    
+    # work if the bandpass solutions were made using the default values.
+    assert all(
+        [calibrate_cmd.solution_path.exists() for calibrate_cmd in calibrate_cmds]
+    ), f"Missing solution file constructed from scanning {bandpass_directory}. Check the directory. "
+
     return calibrate_cmds
 
 
@@ -386,7 +403,7 @@ def select_aosolution_for_ms(
 
 
 def create_calibrate_cmd(
-    ms: Union[Path,MS],
+    ms: Union[Path, MS],
     calibrate_model: Path,
     solution_path: Optional[Path] = None,
     container: Optional[Path] = None,
@@ -670,10 +687,10 @@ def flag_aosolutions(
         for pol in (0, 3):
             logger.info(f"Processing {pols[pol]} polarisation")
             ref_ant_gains = bandpass[time, ref_ant, :, pol]
-            # TODO: A better way of selecting the most appropriate reference antenna is needed. 
+            # TODO: A better way of selecting the most appropriate reference antenna is needed.
             if np.sum(np.isfinite(ref_ant_gains)) == 0:
                 raise ValueError(f"The ref_ant={ref_ant} is completely bad. ")
-            
+
             for ant in range(solutions.nant):
                 if ant == ref_ant:
                     logger.info(f"Skipping reference antenna = ant{ref_ant:02}")
@@ -691,7 +708,7 @@ def flag_aosolutions(
                     logger.info(f"Not valid data found for ant{ant:0d} {pols[pol]}")
                     continue
 
-                try:         
+                try:
                     phase_outlier_result = flag_outlier_phase(
                         complex_gains=ant_gains,
                         flag_cut=flag_cut,
@@ -700,7 +717,7 @@ def flag_aosolutions(
                     )
                     bandpass[time, ant, phase_outlier_result.outlier_mask, pol] = np.nan
                 except PhaseOutlierFitError:
-                    # This is raised if the fit failed to converge, or some other nasty. 
+                    # This is raised if the fit failed to converge, or some other nasty.
                     bandpass[time, ant, :, pol] = np.nan
 
                 # Flag all solutions for this (ant,pol) if more than 80% are flagged
@@ -751,10 +768,10 @@ def flag_aosolutions(
     )
     solutions.save(output_path=out_solutions_path)
 
-    total_flagged = np.sum(~np.isfinite(bandpass)) / np.prod(bandpass.shape) 
+    total_flagged = np.sum(~np.isfinite(bandpass)) / np.prod(bandpass.shape)
     if total_flagged > 0.8:
         msg = (
-            f"{total_flagged*100.:.2f}% of {str((solutions_path))} is flagged after running the preflagger. " 
+            f"{total_flagged*100.:.2f}% of {str((solutions_path))} is flagged after running the preflagger. "
             "That is over 90%. "
             f"This surely can not be correct. Likely something has gone very wrong. "
         )

@@ -16,6 +16,7 @@ from astropy.stats import sigma_clipped_stats
 from flint.logging import logger
 from flint.exceptions import PhaseOutlierFitError
 
+
 class PhaseOutlierResults(NamedTuple):
     """Results from the attempt to identify outlier complex gains in
     the bandpass solutions. This procedure is concerned with identifying
@@ -225,7 +226,7 @@ def flag_outlier_phase(
     unwrapped_complex_gains = complex_gains / init_model_gains
     unwrapped_complex_mask = np.isfinite(unwrapped_complex_gains)
     if np.sum(unwrapped_complex_mask) == 0:
-        # No good measurements. 
+        # No good measurements.
         raise PhaseOutlierFitError
 
     # Since there should be a fairly decent initial unwrapped with

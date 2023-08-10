@@ -171,55 +171,61 @@ def flag_ms_aoflagger(ms: MS, container: Path, rounds: int = 1) -> MS:
 
     return ms
 
-def flag_ms_by_antenna_ids(ms: Union[Path, MS], ant_ids: Union[int,Collection[int]]) -> MS:
-    """Set the FLAG to True for a collection of rows where ANTENNA1 or ANTENNA2 is in a set of 
-    antenna IDs to flag. The flagging is performed via the antenna ID as it is in the measurement 
-    set - it is not by the antenna name. 
+
+def flag_ms_by_antenna_ids(
+    ms: Union[Path, MS], ant_ids: Union[int, Collection[int]]
+) -> MS:
+    """Set the FLAG to True for a collection of rows where ANTENNA1 or ANTENNA2 is in a set of
+    antenna IDs to flag. The flagging is performed via the antenna ID as it is in the measurement
+    set - it is not by the antenna name.
 
     Args:
         ms (Union[Path, MS]): The measurement set that has antennas to flag
-        ant_ids (Union[int,Collection[int]]): The set of antenna IDs to flag. 
+        ant_ids (Union[int,Collection[int]]): The set of antenna IDs to flag.
 
     Returns:
-        MS: The measurement set with flagged antennas. 
+        MS: The measurement set with flagged antennas.
     """
     ms = MS.cast(ms)
-    
-    ant_ids = (ant_ids, ) if isinstance(ant_ids, int) else ant_ids
-    
+
+    ant_ids = (ant_ids,) if isinstance(ant_ids, int) else ant_ids
+
     if len(ant_ids) == 0:
         logger.info(f"Antenna list to flag is empty. Exiting. ")
         return ms
-    
+
     logger.info(f"Will flag {str(ms.path)}.")
     logger.info(f"Antennas to flag: {ant_ids}")
-    
+
     # TODO: Potentially this should be batched into chunks to operate over
     with table(str(ms.path), readonly=False, ack=False) as tab:
         logger.info(f"Opened {str(ms.path)}, loading metadata.")
-        ant1 = tab.getcol('ANTENNA1')
-        ant2 = tab.getcol('ANTENNA2')
-        flags = tab.getcol('FLAG')
+        ant1 = tab.getcol("ANTENNA1")
+        ant2 = tab.getcol("ANTENNA2")
+        flags = tab.getcol("FLAG")
 
         init_flags = np.sum(flags)
-    
+
         for ant_id in ant_ids:
             ant_mask = (ant_id == ant1) | (ant_id == ant2)
-            
+
             if not np.any(ant_mask):
                 logger.info(f"No data for {ant_id=} found. Continuing. ")
                 continue
-            
+
             logger.info(f"Flagging {ant_id=}.")
-            flags[ant_mask] = True 
-        
-        tab.putcol('FLAG', flags)            
+            flags[ant_mask] = True
+
+        tab.putcol("FLAG", flags)
         end_flags = np.sum(flags)
-    
+
     diff_flags = end_flags - init_flags
-    logger.info(f"Loaded flags: {init_flags}, Final flags: {end_flags}, Difference: {diff_flags} ({diff_flags/np.prod(flags.shape)*100.:.2f}%)")
-    
+    logger.info(
+        f"Loaded flags: {init_flags}, Final flags: {end_flags}, Difference: {diff_flags} ({diff_flags/np.prod(flags.shape)*100.:.2f}%)"
+    )
+
     return ms
+
 
 def get_parser() -> ArgumentParser:
     """Create the argument parser for the flagging
@@ -270,10 +276,17 @@ def get_parser() -> ArgumentParser:
         action="store_true",
         help="NaN the data if their FLAG attribute is True. ",
     )
-    
-    antenna_parser = subparser.add_parser('antenna', help='Flag data by the antenna ID')
-    antenna_parser.add_argument('ms', type=Path, help='Path to the measurement set that will be flagged. ')
-    antenna_parser.add_argument('antenna_ids', type=int, nargs='+', help='The antenna IDs of the rows that should be flagged. ')
+
+    antenna_parser = subparser.add_parser("antenna", help="Flag data by the antenna ID")
+    antenna_parser.add_argument(
+        "ms", type=Path, help="Path to the measurement set that will be flagged. "
+    )
+    antenna_parser.add_argument(
+        "antenna_ids",
+        type=int,
+        nargs="+",
+        help="The antenna IDs of the rows that should be flagged. ",
+    )
     return parser
 
 
@@ -300,11 +313,8 @@ def cli() -> None:
             dxy_thresh=args.dxy_thresh,
             nan_data_on_flag=args.nan_data_on_flag,
         )
-    elif args.mode == 'antenna':
-        flag_ms_by_antenna_ids(
-            ms=args.ms,
-            ant_ids=args.antenna_ids
-        )
+    elif args.mode == "antenna":
+        flag_ms_by_antenna_ids(ms=args.ms, ant_ids=args.antenna_ids)
 
 
 if __name__ == "__main__":
