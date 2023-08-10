@@ -4,7 +4,7 @@ be used to specify the options for imaging and self-calibration
 throughout the pipeline. 
 """
 import yaml
-from typing import Optional, Any
+from typing import Optional, Any, Dict
 from argparse import ArgumentParser
 from pathlib import Path 
 
@@ -63,7 +63,7 @@ def create_default_yaml(output_yaml: Path, selfcal_rounds: Optional[int] = None)
         Path: Path to the written yaml output file. 
     """
     logger.info(f"Generating a default stategy. ")
-    strategy = {}
+    strategy: Dict[Any, Any] = {}
 
     initial_wsclean = WSCleanOptions()
     strategy['initial'] = initial_wsclean._asdict()

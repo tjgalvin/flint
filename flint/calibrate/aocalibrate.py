@@ -3,7 +3,7 @@
 from __future__ import annotations  # used to keep mypy/pylance happy in AOSolutions
 import struct
 from pathlib import Path
-from typing import NamedTuple, Optional, Union, Iterable, List, Collection
+from typing import NamedTuple, Optional, Union, Iterable, List, Collection, List
 from argparse import ArgumentParser
 
 import numpy as np
@@ -21,6 +21,9 @@ from flint.bptools.preflagger import (
     flag_mean_xxyy_amplitude_ratio,
 )
 from flint.exceptions import PhaseOutlierFitError
+
+CALIBRATE_SUFFIX = ".calibrate.bin"
+PREFLAGGED_SUFFIX = ".preflagged"
 
 class CalibrateCommand(NamedTuple):
     """The AO Calibrate command and output path of the corresponding solutions file"""
@@ -105,9 +108,6 @@ class AOSolutions(NamedTuple):
         """
         # TODO: Change call signature to pass straight through
         return plot_solutions(solutions=self, ref_ant=ref_ant)
-
-
-CALIBRATE_SUFFIX = ".calibrate.bin"
 
 
 def plot_solutions(
@@ -276,6 +276,46 @@ def load_aosolutions_file(solutions_path: Path) -> AOSolutions:
             bandpass=bandpass,
         )
 
+def find_existing_solutions(
+    bandpass_directory: Path,
+    expected_suffix: Optional[str] = None,
+    use_preflagged: bool = True,
+    model_path: Path = Path('.')
+) -> List[CalibrateCommand]:
+
+    logger.info(f"Searching {bandpass_directory} for existing measurement sets and solutions. ")
+    expected_suffix = expected_suffix if expected_suffix else CALIBRATE_SUFFIX
+
+    if use_preflagged:
+        logger.info(f"Will search for preflagged solutions. ")
+        expected_suffix += '.preflagged'
+
+    bandpass_mss = bandpass_directory.glob("*ms")
+    
+    calibrate_cmds = [
+        create_calibrate_cmd(
+            ms=ms, 
+            calibrate_model=model_path
+        ) for ms in bandpass_mss
+    ]
+    
+    if use_preflagged:
+        logger.info(f"Updating solution files with preflagger suffix {PREFLAGGED_SUFFIX}.")
+        calibrate_cmds = [
+            calibrate_cmd.with_options(
+                preflagged=True,
+                solution_path=calibrate_cmd.solution_path.with_suffix(PREFLAGGED_SUFFIX)
+            ) for calibrate_cmd in calibrate_cmds
+        ]
+    
+    logger.info(f"Constructed Calibrate command list of length {len(calibrate_cmds)}")
+
+    # If not all the treasure could be found. At the moment this function will only
+    # work if the bandpass solutions were made using the default values. 
+    assert all([calibrate_cmd.solution_path.exists() for calibrate_cmd in calibrate_cmds]), f"Missing solution file constructed from scanning {bandpass_directory}. Check the directory. "
+    
+    return calibrate_cmds
+
 
 def select_aosolution_for_ms(
     calibrate_cmds: List[CalibrateCommand], ms: Union[MS, Path]
@@ -316,7 +356,7 @@ def select_aosolution_for_ms(
 
 
 def create_calibrate_cmd(
-    ms: MS,
+    ms: Union[Path,MS],
     calibrate_model: Path,
     solution_path: Optional[Path] = None,
     container: Optional[Path] = None,
@@ -326,7 +366,7 @@ def create_calibrate_cmd(
     are passed through as additional options to the `calibrate` program.
 
     Args:
-        ms (MS): The measurement set to calibrate. There needs to be a nominated data_column.
+        ms (Union[Path,MS]): The measurement set to calibrate. There needs to be a nominated data_column.
         calibrate_model (Path): Path to a generated calibrate sky-model
         solution_path (Path, optional): The output path of the calibrate solutions file. If None, a default suffix of "calibrate.bin" is used. Defaults to None.
         container (Optional[Path], optional): If a path to a container is supplied the calibrate command is executed immediatedly. Defaults to None.
@@ -337,6 +377,7 @@ def create_calibrate_cmd(
     Returns:
         CalibrateCommand: The calibrate command to execute and output solution file
     """
+    ms = MS.cast(ms)
     logger.info(f"Creating calibrate command for {ms.path}")
 
     # This is a typical calibrate command.
@@ -672,8 +713,9 @@ def flag_aosolutions(
                 logger.info(f"{ant=} failed mean amplitude gain test. Flagging {ant=}.")
                 bandpass[time, ant, :, :] = np.nan
 
+    # TODO: This needs to be moved to a common naming module
     out_solutions_path = (
-        solutions_path.with_suffix(".preflagged")
+        solutions_path.with_suffix(PREFLAGGED_SUFFIX)
         if out_solutions_path is None
         else out_solutions_path
     )

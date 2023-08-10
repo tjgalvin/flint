@@ -15,6 +15,7 @@ from flint.calibrate.aocalibrate import (
     create_calibrate_cmd,
     select_aosolution_for_ms,
     flag_aosolutions,
+    find_existing_solutions
 )
 from flint.flagging import flag_ms_aoflagger
 from flint.imager.wsclean import WSCleanCMD, wsclean_imager
@@ -187,6 +188,42 @@ def task_linmos_images(
 
     return linmos_cmd.parset
 
+def run_bandpass_stage(
+    bandpass_mss: Collection[MS],
+    output_split_bandpass_path: Path,
+    calibrate_container: Path,
+    flagger_container: Path,
+    model_path: Path,
+    source_name_prefix: str = "B1934-638",
+) -> List[CalibrateCommand]:
+    
+    if not output_split_bandpass_path.exists():
+        logger.info(f"Creating {str(output_split_bandpass_path)}")
+        output_split_bandpass_path.mkdir(parents=True)
+    
+    calibrate_cmds: List[CalibrateCommand] = []
+    
+    for bandpass_ms in bandpass_mss:
+        extract_bandpass_ms = task_extract_correct_bandpass_pointing.submit(
+            ms=bandpass_ms,
+            source_name_prefix=source_name_prefix,
+            ms_out_dir=output_split_bandpass_path,
+        )
+        preprocess_bandpass_ms = task_preprocess_askap_ms.submit(ms=extract_bandpass_ms)
+        flag_bandpass_ms = task_flag_ms_aoflagger.submit(
+            ms=preprocess_bandpass_ms, container=flagger_container, rounds=1
+        )
+        calibrate_cmd = task_create_calibrate_cmd.submit(
+            ms=flag_bandpass_ms,
+            calibrate_model=model_path,
+            container=calibrate_container,
+        )
+        calibrate_cmd = task_flag_solutions.submit(calibrate_cmd=calibrate_cmd)
+        task_plot_solutions.submit(calibrate_cmd=calibrate_cmd)
+        calibrate_cmds.append(calibrate_cmd)
+
+    return calibrate_cmds
+
 
 @flow(name="Bandpass")
 def process_bandpass_science_fields(
@@ -233,39 +270,43 @@ def process_bandpass_science_fields(
     logger.info(
         f"Will write extracted bandpass MSs to: {str(output_split_bandpass_path)}."
     )
-    if not output_split_bandpass_path.exists():
-        logger.info(f"Creating {str(output_split_bandpass_path)}")
-        output_split_bandpass_path.mkdir(parents=True)
-
+    
     if not output_split_science_path.exists():
         logger.info(f"Creating {str(output_split_science_path)}")
         output_split_science_path.mkdir(parents=True)
 
+    # This is the model that we will calibrate the bandpass against. 
+    # At the time fo writing 1934-638 is the only model that is supported,
+    # not only by this pirate ship, but also the ASKAP telescope itself. 
     model_path: Path = get_1934_model(mode="calibrate")
-    calibrate_cmds: List[CalibrateCommand] = []
-
-    # TODO: Check to see if the bandpass solutoins have already
-    # been solved for. If so, skip.
-
-    for bandpass_ms in bandpass_mss:
-        extract_bandpass_ms = task_extract_correct_bandpass_pointing.submit(
-            ms=bandpass_ms,
+    
+    # TODO: This check currently expects the input bandpass_path to reffer 
+    # to the raw MS data. The output_split_bandpass_path is built up from
+    # that. This behaviour should (or could?) be dependent on a different
+    # option to explictly set the location of precomputed solutions. 
+    if output_split_bandpass_path.exists():
+        logger.info(
+            (
+                f"The output bandpass folder {output_split_bandpass_path} appears to exist. "
+                "Will construct commands from pre-computed solutions. "
+            )
+        )
+        calibrate_cmds = find_existing_solutions(
+            bandpass_directory=output_split_bandpass_path,
+            model_path=model_path,
+            use_preflagged=True
+        )
+    else:
+        logger.info(f"Output bandpass directory {output_split_bandpass_path} not found. Will process the bandpass data. ")
+        calibrate_cmds = run_bandpass_stage(
+            bandpass_mss=bandpass_mss,
+            output_split_bandpass_path=output_split_bandpass_path,
+            calibrate_container=calibrate_container,
+            flagger_container=flagger_container,
+            model_path=model_path,
             source_name_prefix=source_name_prefix,
-            ms_out_dir=output_split_bandpass_path,
         )
-        preprocess_bandpass_ms = task_preprocess_askap_ms.submit(ms=extract_bandpass_ms)
-        flag_bandpass_ms = task_flag_ms_aoflagger.submit(
-            ms=preprocess_bandpass_ms, container=flagger_container, rounds=1
-        )
-        calibrate_cmd = task_create_calibrate_cmd.submit(
-            ms=flag_bandpass_ms,
-            calibrate_model=model_path,
-            container=calibrate_container,
-        )
-        calibrate_cmd = task_flag_solutions.submit(calibrate_cmd=calibrate_cmd)
-        task_plot_solutions.submit(calibrate_cmd=calibrate_cmd)
-        calibrate_cmds.append(calibrate_cmd)
-
+         
     science_fields = []
     for science_ms in science_mss:
         split_science_ms = task_split_by_field.submit(
