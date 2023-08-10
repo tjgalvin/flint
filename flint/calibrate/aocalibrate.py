@@ -292,9 +292,18 @@ def find_existing_solutions(
 
     bandpass_mss = bandpass_directory.glob("*ms")
     
+    # This is a placeholder command. It will not be executed,
+    # but is used to link the measurement set with the appropriate
+    # solutions file. At least with ao-calibrate, there is not
+    # enough information to specify frequency of channels, time
+    # etc. Matching the solutions to the original MS is the
+    # safest thing to do, particularly with the step of matching
+    # the solutions to the beam images. The DATA column is 
+    # only relevant for the calibration command, and not used
+    # in any other capacity, ya rotten scallywag
     calibrate_cmds = [
         create_calibrate_cmd(
-            ms=ms, 
+            ms=MS(path=ms, column='DATA'), 
             calibrate_model=model_path
         ) for ms in bandpass_mss
     ]
