@@ -334,16 +334,18 @@ def process_bandpass_science_fields(
         1: {"solint": "600s", "uvrange":">200lambda"},
         2: {"solint": "200s", "uvrange":">200lambda"},
         3: {"solint": "60s", "uvrange":">200lambda"},
+        4: {"calmode":"ap", "solint": "360s", "uvrange":">200lambda"},
     }
     wsclean_rounds = {
         1: {"minuv_l": 200, "auto_mask": 4},
         2: {"minuv_l": 200, "auto_mask": 3.5},
         3: {"minuv_l": 200, "auto_mask": 3.5},
+        4: {"local_rms_window": 125, "minuv_l": 200, "auto_mask": 3.5},
     }
 
     for round in range(1, rounds + 1):
         gain_cal_options = gain_cal_rounds.get(round, None)
-        wsclean_options = {"weight": "briggs -0.5"}
+        wsclean_options = wsclean_rounds.get(round, None)
 
         cal_mss = task_gaincal_applycal_ms.map(
             wsclean_cmd=wsclean_cmds,

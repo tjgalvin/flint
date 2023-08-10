@@ -69,7 +69,7 @@ class WSCleanOptions(NamedTuple):
     """Robustness of the weighting used"""
     data_column: str = "CORRECTED_DATA"
     """Which column in the MS to image""" 
-    scale: str = "1.5asec"
+    scale: str = "2.0asec"
     """Pixel scale size"""
     gridder: Optional[str] = "wgridder"
     """Use the wgridder kernel in wsclean (instead of the default w-stacking method)"""
