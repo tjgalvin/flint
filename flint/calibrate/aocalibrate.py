@@ -282,6 +282,27 @@ def find_existing_solutions(
     use_preflagged: bool = True,
     model_path: Path = Path('.')
 ) -> List[CalibrateCommand]:
+    """Given a directory that contains a collection of bandpass measurement
+    sets, attempt to identify a corresponding set of calibrate binary solution
+    file. 
+    
+    This search only supports the use of the default or known preflagger suffix. 
+    Limited support is provided to specify the expected calibrate suffix. 
+    
+    These bandpass measurement sets should be processed already - which means just
+    the B1936-638 field has been split out of the larger raw MS, flagged and 
+    calibrated. These steps are expected in order to get to the calibrate
+    stage. 
+
+    Args:
+        bandpass_directory (Path): Directory to search for split bandpass measurement sets
+        expected_suffix (Optional[str], optional): The suffix to use to find the calibration binary files. If None, a known format is used. Defaults to None.
+        use_preflagged (bool, optional): Add the pre-flag suffix when searching for solution files. This uses the expected suffix for preflagged solutions. Defaults to True.
+        model_path (Path, optional): Path to the model file to use. This is passed through to create the CalibrateCommand, and is not strictly required. Defaults to Path('.').
+
+    Returns:
+        List[CalibrateCommand]: Collection of the calibrate command strcutures that are intended to be used to map the bandpass measurement sets to solution files.
+    """
 
     logger.info(f"Searching {bandpass_directory} for existing measurement sets and solutions. ")
     expected_suffix = expected_suffix if expected_suffix else CALIBRATE_SUFFIX
