@@ -291,6 +291,8 @@ def process_bandpass_science_fields(
                 "Will construct commands from pre-computed solutions. "
             )
         )
+        # TODO: This will likely need to be expanded should any 
+        # other calibration strategies get added
         calibrate_cmds = find_existing_solutions(
             bandpass_directory=output_split_bandpass_path,
             model_path=model_path,
