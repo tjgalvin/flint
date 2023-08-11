@@ -249,7 +249,13 @@ def gaincal_applycal_ms(
         logger.warn(f"Removing {str(cal_table)}")
         rmtree(cal_table)
 
-    # This is used for when a frequency dependent self-calibration solution is requested
+    # This is used for when a frequency dependent self-calibration solution is requested. 
+    # Apparently in the casa way of life the gaincal task (used below) automatically does
+    # this when it detects multiple spectral windows in the measurement set. By default, 
+    # the typical ASKAP MS has a single one. When nspw > 1, a combination of mstransorm+cvel
+    # is used to add multiple spws, gaincal, applycal, cvel back to a single spw. Why a 
+    # single spw? Some tasks just work better with it - and this pirate likes a simple life
+    # on the seven seas. Also have no feeling of what the yandasoft suite prefers. 
     if gain_cal_options.nspw > 1:
         cal_path = create_spws_in_ms(
             ms_path=cal_ms.path, nspw=gain_cal_options.nspw
@@ -280,12 +286,16 @@ def gaincal_applycal_ms(
 
     applycal(vis=str(cal_ms.path), gaintable=str(cal_table))
 
-# This is used for when a frequency dependent self-calibration solution is requested
+    # This is used for when a frequency dependent self-calibration solution is requested
+    # It is often useful (mandatory!) to have a single spw for some tasks - both of the casa
+    # and everyone else varity. 
     if gain_cal_options.nspw > 1:
         # putting it all back to a single spw
         cal_ms_path = merge_spws_in_ms(ms_path=cal_ms.path)
-        logger.debug(f"Have written {cal_ms_path}.")
-    
+        # At the time of writing merge_spws_in_ms returns the ms_path=,
+        # but this pirate trusts no one. 
+        cal_ms = cal_ms.with_options(path=cal_ms_path)
+        
     return cal_ms.with_options(column="CORRECTED_DATA")
 
 
