@@ -175,7 +175,6 @@ def create_spws_in_ms(ms_path: Path, nspw: int) -> Path:
     )
 
     logger.info(f"Successfully created the transformed measurement set {transform_ms} with {nspw} SPWs.")
-    logger.info(f"Removing {ms_path}.")
     remove_files_folders(ms_path)
 
     logger.info(f"Renaming {transform_ms} to {ms_path}.")
@@ -207,9 +206,9 @@ def merge_spws_in_ms(ms_path: Path) -> Path:
     )
     
     logger.info(f"Successfully merged spws in {cvel_ms_path}")
-    logger.info(f"Removing {ms_path} and renaming {cvel_ms_path}.")
     
     remove_files_folders(ms_path)
+    
     cvel_ms_path.rename(ms_path)
     
     # Look above - we have renamed the cvel measurement set Captain
