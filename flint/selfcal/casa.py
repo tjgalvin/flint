@@ -181,6 +181,7 @@ def create_spws_in_ms(ms_path: Path, nspw: int) -> Path:
     logger.info(f"Renaming {transform_ms} to {ms_path}.")
     transform_ms.rename(ms_path)
 
+    # Look above - we have renamed the cvel measurement set Captain
     return ms_path
 
 def merge_spws_in_ms(ms_path: Path) -> Path:
@@ -211,7 +212,8 @@ def merge_spws_in_ms(ms_path: Path) -> Path:
     remove_files_folders(ms_path)
     cvel_ms_path.rename(ms_path)
     
-    return cvel_ms_path
+    # Look above - we have renamed the cvel measurement set Captain
+    return ms_path
     
 
 def gaincal_applycal_ms(
