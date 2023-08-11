@@ -39,7 +39,7 @@ class WSCleanOptions(NamedTuple):
     """Memory wsclean should try to limit itself to"""
     local_rms_window: int = 65
     """Size of the window used to estimate rms noise"""
-    size: int = 8144
+    size: int = 6844
     """Image size, only a single dimension is required. Note that this means images will be squares. """
     local_rms: bool = True
     """Whether a local rms map is computed"""
@@ -79,7 +79,7 @@ class WSCleanOptions(NamedTuple):
     """Robustness of the weighting used"""
     data_column: str = "CORRECTED_DATA"
     """Which column in the MS to image"""
-    scale: str = "2.0asec"
+    scale: str = "2.5asec"
     """Pixel scale size"""
     gridder: Optional[str] = "wgridder"
     """Use the wgridder kernel in wsclean (instead of the default w-stacking method)"""
