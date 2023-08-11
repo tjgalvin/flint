@@ -311,12 +311,9 @@ def process_bandpass_science_fields(
             source_name_prefix=source_name_prefix,
         )
 
-    science_fields = []
-    for science_ms in science_mss:
-        split_science_ms = task_split_by_field.submit(
-            ms=science_ms, field=None, out_dir=output_split_science_path
-        )
-        science_fields.append(split_science_ms)
+    science_fields = task_split_by_field.map(
+        ms=science_mss, field=None, out_dir=unmapped(output_split_science_path)
+    )
 
     # The following line will block until the science
     # fields are split out. Since there might be more
@@ -353,9 +350,9 @@ def process_bandpass_science_fields(
 
     wsclean_init = {
         "minuv_l": 200,
-        "weight": "briggs -2.0",
+        "weight": "briggs -1.0",
         "auto_mask": 4.5,
-        "multiscale": False,
+        "multiscale": True,
     }
     wsclean_cmds = task_wsclean_imager.map(
         in_ms=apply_solutions_cmd_list,
@@ -382,8 +379,8 @@ def process_bandpass_science_fields(
 
     gain_cal_rounds = {
         1: {"solint": "600s", "uvrange": ">200lambda"},
-        2: {"solint": "200s", "uvrange": ">200lambda"},
-        3: {"solint": "60s", "uvrange": ">200lambda"},
+        2: {"solint": "60s", "uvrange": ">200lambda"},
+        3: {"solint": "10s", "uvrange": ">200lambda"},
         4: {"calmode": "ap", "solint": "360s", "uvrange": ">200lambda"},
     }
     wsclean_rounds = {
