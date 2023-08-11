@@ -123,7 +123,7 @@ def copy_and_clean_ms_casagain(ms: MS, round: int = 1, verify: bool = True) -> M
                 logger.info(f"Removing {col=} from {str(out_ms_path)}.")
                 try:
                     tab.removecols(col)
-                    tab.flush()
+                    tab.flush(recursive=True)
                 except Exception as e:
                     logger.critical(f"Failed to remove {col=}! \nCaptured error: {e}")
             else:
