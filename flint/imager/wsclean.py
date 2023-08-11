@@ -37,7 +37,7 @@ class WSCleanOptions(NamedTuple):
 
     abs_mem: int = 500
     """Memory wsclean should try to limit itself to"""
-    local_rms_window: int = 95
+    local_rms_window: int = 65
     """Size of the window used to estimate rms noise"""
     size: int = 8144
     """Image size, only a single dimension is required. Note that this means images will be squares. """
@@ -69,7 +69,6 @@ class WSCleanOptions(NamedTuple):
         50,
         75,
         100,
-        150,
         250,
         400,
     )
@@ -164,7 +163,6 @@ def get_wsclean_output_names(
         ImageSet: The file paths that wsclean should create/has created.
     """
     # TODO: NEED TESTS!
-    # TODO: Need to return an ImageSet
     subband_strs = [f"{subband:04}" for subband in range(subbands)]
     if include_mfs:
         subband_strs.append("MFS")
