@@ -5,7 +5,7 @@ This tooling is mostly centred on using gaincal from casatasks.
 from __future__ import annotations
 import regex
 from typing import Optional, NamedTuple, Dict, Any
-from shutil import copytree, rmtree
+from shutil import copytree
 from argparse import ArgumentParser
 from pathlib import Path
 
@@ -15,7 +15,7 @@ from casacore.tables import table
 from flint.logging import logger
 from flint.ms import MS
 from flint.flagging import nan_zero_extreme_flag_ms
-from flint.utils import rsync_copy_directory
+from flint.utils import rsync_copy_directory, remove_files_folders
 
 
 class GainCalOptions(NamedTuple):
@@ -101,7 +101,7 @@ def copy_and_clean_ms_casagain(ms: MS, round: int = 1, verify: bool = True) -> M
 
     if out_ms_path.exists():
         logger.warn(f"{out_ms_path} already exists. Removing it. ")
-        rmtree(out_ms_path)
+        remove_files_folders(out_ms_path)
 
     copytree(ms.path, out_ms_path)
     # Because we can trust nothing, verify the
@@ -176,7 +176,7 @@ def create_spws_in_ms(ms_path: Path, nspw: int) -> Path:
 
     logger.info(f"Successfully created the transformed measurement set {transform_ms} with {nspw} SPWs.")
     logger.info(f"Removing {ms_path}.")
-    rmtree(ms_path)
+    remove_files_folders(ms_path)
 
     logger.info(f"Renaming {transform_ms} to {ms_path}.")
     transform_ms.rename(ms_path)
@@ -208,7 +208,7 @@ def merge_spws_in_ms(ms_path: Path) -> Path:
     logger.info(f"Successfully merged spws in {cvel_ms_path}")
     logger.info(f"Removing {ms_path} and renaming {cvel_ms_path}.")
     
-    rmtree(ms_path)
+    remove_files_folders(ms_path)
     cvel_ms_path.rename(ms_path)
     
     return cvel_ms_path
@@ -247,7 +247,7 @@ def gaincal_applycal_ms(
 
     if cal_table.exists():
         logger.warn(f"Removing {str(cal_table)}")
-        rmtree(cal_table)
+        remove_files_folders(cal_table)
 
     # This is used for when a frequency dependent self-calibration solution is requested. 
     # Apparently in the casa way of life the gaincal task (used below) automatically does
