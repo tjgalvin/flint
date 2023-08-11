@@ -143,7 +143,7 @@ def copy_and_clean_ms_casagain(ms: MS, round: int = 1, verify: bool = True) -> M
 
     return ms
 
-def create_spws_with_mstransform(ms_path: Path, nspw: int) -> Path:
+def create_spws_in_ms(ms_path: Path, nspw: int) -> Path:
     """Use the casa task mstransform to create `nspw` spectral windows
     in the input measurement set. This is necessary when attempting to 
     use gaincal to solve for some frequency-dependent solution. 
@@ -251,7 +251,7 @@ def gaincal_applycal_ms(
 
     # This is used for when a frequency dependent self-calibration solution is requested
     if gain_cal_options.nspw > 1:
-        cal_path = create_spws_with_mstransform(
+        cal_path = create_spws_in_ms(
             ms_path=cal_ms.path, nspw=gain_cal_options.nspw
         )
         # At the time of writing the output path returned above should always
