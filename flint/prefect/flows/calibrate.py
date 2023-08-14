@@ -41,6 +41,7 @@ def task_gaincal_applycal_ms(
     wsclean_cmd: WSCleanCMD,
     round: int,
     update_gain_cal_options: Optional[Dict[str, Any]] = None,
+    archive_input_ms: bool=False
 ) -> MS:
     # TODO: This needs to be expanded to handle multiple MS
     ms = wsclean_cmd.ms
@@ -51,7 +52,7 @@ def task_gaincal_applycal_ms(
         )
 
     return gaincal_applycal_ms(
-        ms=ms, round=round, update_gain_cal_options=update_gain_cal_options
+        ms=ms, round=round, update_gain_cal_options=update_gain_cal_options, archive_input_ms=archive_input_ms
     )
 
 
@@ -399,6 +400,7 @@ def process_bandpass_science_fields(
             wsclean_cmd=wsclean_cmds,
             round=round,
             update_gain_cal_options=unmapped(gain_cal_options),
+            archive_input_ms=True
         )
         flag_mss = task_flag_ms_aoflagger.map(
             ms=cal_mss, container=flagger_container, rounds=1

@@ -4,11 +4,37 @@ for general usage.
 
 import shutil
 import subprocess
-from typing import List
+from typing import List, Optional
 from pathlib import Path
 
 from flint.logging import logger
 
+def zip_folder(in_path: Path, out_zip: Optional[Path] = None) -> Path:
+    """Zip a directory and remove the original. 
+
+    Args:
+        in_path (Path): The path that will be zipped up.
+        out_zip (Path, optional): Name of the output file. A zip extension will be added. Defaults to None.
+    
+    Returns:
+        Path: the path of the compressed zipped folder
+    """
+
+    out_zip = in_path if out_zip is None else out_zip
+    
+    # Get just the name as the base_dir option in shutil.make_archive
+    # is responsible for the output directory
+    out_zip = Path('.') / out_zip.name
+
+    logger.info(f"Zipping {in_path}.")
+    shutil.make_archive(
+        str(out_zip),
+        'zip',
+        base_dir=str(in_path)
+    )
+    remove_files_folders(in_path)
+    
+    return out_zip
 
 def rsync_copy_directory(target_path: Path, out_path: Path) -> Path:
     """A small attempt to rsync a directtory from one location to another.

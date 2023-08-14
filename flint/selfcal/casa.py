@@ -15,7 +15,7 @@ from casacore.tables import table
 from flint.logging import logger
 from flint.ms import MS
 from flint.flagging import nan_zero_extreme_flag_ms
-from flint.utils import rsync_copy_directory, remove_files_folders
+from flint.utils import rsync_copy_directory, remove_files_folders, zip_folder
 
 
 class GainCalOptions(NamedTuple):
@@ -209,6 +209,7 @@ def merge_spws_in_ms(ms_path: Path) -> Path:
     
     remove_files_folders(ms_path)
     
+    logger.info(f"Renaming {cvel_ms_path} to {ms_path}")
     cvel_ms_path.rename(ms_path)
     
     # Look above - we have renamed the cvel measurement set Captain
@@ -220,6 +221,7 @@ def gaincal_applycal_ms(
     round: int = 1,
     gain_cal_options: Optional[GainCalOptions] = None,
     update_gain_cal_options: Optional[Dict[str, Any]] = None,
+    archive_input_ms: bool = False
 ) -> MS:
     """Perform self-calibration using casa's gaincal and applycal tasks against
     an input measurement set.
@@ -229,6 +231,7 @@ def gaincal_applycal_ms(
         round (int, optional): Round of self-calibration, which is used for unique names. Defaults to 1.
         gain_cal_options (Optional[GainCalOptions], optional): Options provided to gaincal. Defaults to None.
         update_gain_cal_options (Optional[Dict[str, Any]], optional): Update the gain_cal_options with these. Defaults to None.
+        archive_input_ms (bool, optional): If True, the input measurement set will be compressed into a single file. Defaults to False. 
 
     Returns:
         MS: _description_
@@ -296,7 +299,10 @@ def gaincal_applycal_ms(
         # At the time of writing merge_spws_in_ms returns the ms_path=,
         # but this pirate trusts no one. 
         cal_ms = cal_ms.with_options(path=cal_ms_path)
-        
+    
+    if archive_input_ms:
+        zip_folder(in_path=ms.path)
+       
     return cal_ms.with_options(column="CORRECTED_DATA")
 
 
