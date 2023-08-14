@@ -39,7 +39,7 @@ class WSCleanOptions(NamedTuple):
     """Memory wsclean should try to limit itself to"""
     local_rms_window: int = 65
     """Size of the window used to estimate rms noise"""
-    size: int = 8144
+    size: int = 6844
     """Image size, only a single dimension is required. Note that this means images will be squares. """
     local_rms: bool = True
     """Whether a local rms map is computed"""
@@ -79,13 +79,13 @@ class WSCleanOptions(NamedTuple):
     """Robustness of the weighting used"""
     data_column: str = "CORRECTED_DATA"
     """Which column in the MS to image"""
-    scale: str = "2.0asec"
+    scale: str = "2.5asec"
     """Pixel scale size"""
     gridder: Optional[str] = "wgridder"
     """Use the wgridder kernel in wsclean (instead of the default w-stacking method)"""
     nwlayers: Optional[int] = None
     """Number of w-layers to use if the gridder mode is w-stacking"""
-    wgridder_accuracy: float = 1e-10
+    wgridder_accuracy: float = 1e-4
     """The accuracy requested of the wgridder (should it be used), compared as the RMS error when compred to a DFT"""
     join_channels: bool = True
     """Collapse the sub-band images down to an MFS image when peak-finding"""
@@ -97,7 +97,7 @@ class WSCleanOptions(NamedTuple):
     """A percentage specifying the maximum w-term to be gridded, relative to the max w-term being considered"""
     no_update_model_required: bool = False
     """Will instruct wsclean not to create the MODEL_DATA column"""
-    no_small_inversion: bool = True
+    no_small_inversion: bool = False
     """Disables an optimisation of wsclean's w-gridder mode. This might improve accuracy of the w-gridder. """
     name: Optional[str] = None
     """Name of the output files passed through to wsclean"""
