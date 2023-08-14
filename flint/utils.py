@@ -22,10 +22,6 @@ def zip_folder(in_path: Path, out_zip: Optional[Path] = None) -> Path:
 
     out_zip = in_path if out_zip is None else out_zip
     
-    # Get just the name as the base_dir option in shutil.make_archive
-    # is responsible for the output directory
-    out_zip = Path('.') / out_zip.name
-
     logger.info(f"Zipping {in_path}.")
     shutil.make_archive(
         str(out_zip),
