@@ -351,8 +351,9 @@ def process_bandpass_science_fields(
     wsclean_init = {
         "minuv_l": 200,
         "weight": "briggs -1.0",
-        "auto_mask": 4.5,
+        "auto_mask": 5.5,
         "multiscale": True,
+        "multiscale_scales": (0, 5, 15, 50, 100, 250)
     }
     wsclean_cmds = task_wsclean_imager.map(
         in_ms=apply_solutions_cmd_list,
@@ -378,9 +379,9 @@ def process_bandpass_science_fields(
         return
 
     gain_cal_rounds = {
-        1: {"solint": "600s", "uvrange": ">200lambda"},
-        2: {"solint": "60s", "uvrange": ">200lambda"},
-        3: {"solint": "10s", "uvrange": ">200lambda"},
+        1: {"solint": "1200s", "uvrange": ">200lambda", "nspw": 8},
+        2: {"solint": "60s", "uvrange": ">200lambda", "nspw": 8},
+        3: {"solint": "60s", "uvrange": ">200lambda", "nspw": 8},
         4: {"calmode": "ap", "solint": "360s", "uvrange": ">200lambda"},
     }
     wsclean_rounds = {

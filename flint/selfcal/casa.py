@@ -5,17 +5,17 @@ This tooling is mostly centred on using gaincal from casatasks.
 from __future__ import annotations
 import regex
 from typing import Optional, NamedTuple, Dict, Any
-from shutil import copytree, rmtree
+from shutil import copytree
 from argparse import ArgumentParser
 from pathlib import Path
 
-from casatasks import gaincal, applycal
+from casatasks import gaincal, applycal, mstransform, cvel
 from casacore.tables import table
 
 from flint.logging import logger
 from flint.ms import MS
 from flint.flagging import nan_zero_extreme_flag_ms
-from flint.utils import rsync_copy_directory
+from flint.utils import rsync_copy_directory, remove_files_folders
 
 
 class GainCalOptions(NamedTuple):
@@ -35,6 +35,11 @@ class GainCalOptions(NamedTuple):
     """Whether data selection actions will be applied in gaincal. """
     gaintype: str = "G"
     """The gain type that would be solved for. """
+    nspw: int = 1
+    """The number of spectral windows to use during the self-calibration rountine. If 1, no changes
+    are made to the measurement set. If more than 1, then the measurement will be reformed to form
+    a new measurement set conforming to the number of spws set. This process can be fragile as the
+    casa tasks sometimes do not like the configurate, so ye warned."""
 
     def with_options(self, **kwargs) -> GainCalOptions:
         _dict = self._asdict()
@@ -96,7 +101,7 @@ def copy_and_clean_ms_casagain(ms: MS, round: int = 1, verify: bool = True) -> M
 
     if out_ms_path.exists():
         logger.warn(f"{out_ms_path} already exists. Removing it. ")
-        rmtree(out_ms_path)
+        remove_files_folders(out_ms_path)
 
     copytree(ms.path, out_ms_path)
     # Because we can trust nothing, verify the
@@ -138,6 +143,77 @@ def copy_and_clean_ms_casagain(ms: MS, round: int = 1, verify: bool = True) -> M
 
     return ms
 
+def create_spws_in_ms(ms_path: Path, nspw: int) -> Path:
+    """Use the casa task mstransform to create `nspw` spectral windows
+    in the input measurement set. This is necessary when attempting to 
+    use gaincal to solve for some frequency-dependent solution. 
+
+    Args:
+        ms_path (Path): The measurement set that should be reformed to have `nspw` spectral windows
+        nspw (int): The number of spectral windows to create
+
+    Returns:
+        Path: The path to the measurement set that was updated
+    """
+
+    logger.info(f"Transforming {str(ms_path)} to have {nspw} SPWs")
+    transform_ms = ms_path.with_suffix(".ms_transform")
+    
+    mstransform(
+        vis=str(ms_path),
+        outputvis=str(transform_ms),
+        regridms=True,
+        nspw=nspw,
+        mode="channel",
+        nchan=-1,
+        start=0,
+        width=1,
+        chanbin=1,
+        createmms=False,
+        datacolumn="all",
+        combinespws=False,
+    )
+
+    logger.info(f"Successfully created the transformed measurement set {transform_ms} with {nspw} SPWs.")
+    remove_files_folders(ms_path)
+
+    logger.info(f"Renaming {transform_ms} to {ms_path}.")
+    transform_ms.rename(ms_path)
+
+    # Look above - we have renamed the cvel measurement set Captain
+    return ms_path
+
+def merge_spws_in_ms(ms_path: Path) -> Path:
+    """Attempt to merge together all SPWs in the input measurement
+    set using the `cvel` casa task. This can be a little fragile. 
+    
+    The `cvel` task creates a new measurement set, so there would
+    temporially be a secondary measurment set. 
+
+    Args:
+        ms_path (Path): The measurement set that should have its SPWs merged together. 
+
+    Returns:
+        Path: The measurement set with merged SPWs. It will have the same path as `ms_path`, but is a new measurement set. 
+    """
+    logger.info(f"Will attempt to merge all spws using cvel.")
+    
+    cvel_ms_path = ms_path.with_suffix('.cvel')
+    cvel(
+        vis=str(ms_path),
+        outputvis=str(cvel_ms_path),
+        mode="channel_b"
+    )
+    
+    logger.info(f"Successfully merged spws in {cvel_ms_path}")
+    
+    remove_files_folders(ms_path)
+    
+    cvel_ms_path.rename(ms_path)
+    
+    # Look above - we have renamed the cvel measurement set Captain
+    return ms_path
+    
 
 def gaincal_applycal_ms(
     ms: MS,
@@ -172,7 +248,23 @@ def gaincal_applycal_ms(
 
     if cal_table.exists():
         logger.warn(f"Removing {str(cal_table)}")
-        rmtree(cal_table)
+        remove_files_folders(cal_table)
+
+    # This is used for when a frequency dependent self-calibration solution is requested. 
+    # Apparently in the casa way of life the gaincal task (used below) automatically does
+    # this when it detects multiple spectral windows in the measurement set. By default, 
+    # the typical ASKAP MS has a single one. When nspw > 1, a combination of mstransorm+cvel
+    # is used to add multiple spws, gaincal, applycal, cvel back to a single spw. Why a 
+    # single spw? Some tasks just work better with it - and this pirate likes a simple life
+    # on the seven seas. Also have no feeling of what the yandasoft suite prefers. 
+    if gain_cal_options.nspw > 1:
+        cal_path = create_spws_in_ms(
+            ms_path=cal_ms.path, nspw=gain_cal_options.nspw
+        )
+        # At the time of writing the output path returned above should always
+        # be the same as the ms_path=, however me be a ye paranoid pirate who
+        # trusts no one of the high seas
+        cal_ms = cal_ms.with_options(path=cal_path)
 
     gaincal(
         vis=str(cal_ms.path),
@@ -195,6 +287,16 @@ def gaincal_applycal_ms(
 
     applycal(vis=str(cal_ms.path), gaintable=str(cal_table))
 
+    # This is used for when a frequency dependent self-calibration solution is requested
+    # It is often useful (mandatory!) to have a single spw for some tasks - both of the casa
+    # and everyone else varity. 
+    if gain_cal_options.nspw > 1:
+        # putting it all back to a single spw
+        cal_ms_path = merge_spws_in_ms(ms_path=cal_ms.path)
+        # At the time of writing merge_spws_in_ms returns the ms_path=,
+        # but this pirate trusts no one. 
+        cal_ms = cal_ms.with_options(path=cal_ms_path)
+        
     return cal_ms.with_options(column="CORRECTED_DATA")
 
 
