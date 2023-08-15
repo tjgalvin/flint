@@ -22,7 +22,7 @@ from flint.imager.wsclean import WSCleanCMD, wsclean_imager
 from flint.logging import logger
 from flint.ms import MS, preprocess_askap_ms, split_by_field
 from flint.prefect.clusters import get_dask_runner
-from flint.sky_model import get_1934_model
+from flint.sky_model import get_1934_model, create_sky_model
 from flint.selfcal.casa import gaincal_applycal_ms
 from flint.convol import get_common_beam, convolve_images, BeamShape
 from flint.coadd.linmos import linmos_images
@@ -34,7 +34,6 @@ task_create_calibrate_cmd = task(create_calibrate_cmd)
 task_split_by_field = task(split_by_field)
 task_select_solution_for_ms = task(select_aosolution_for_ms)
 task_create_apply_solutions_cmd = task(create_apply_solutions_cmd)
-
 
 @task
 def task_gaincal_applycal_ms(
@@ -98,6 +97,9 @@ def task_flag_solutions(calibrate_cmd: CalibrateCommand) -> CalibrateCommand:
         solution_path=flagged_solutions_path, preflagged=True
     )
 
+@task 
+def task_extract_solution_path(calibrate_cmd: CalibrateCommand) -> Path:
+    return calibrate_cmd.solution_path
 
 @task
 def task_plot_solutions(calibrate_cmd: CalibrateCommand) -> None:
@@ -189,6 +191,27 @@ def task_linmos_images(
 
     return linmos_cmd.parset
 
+@task
+def task_create_sky_model(
+    ms_path: Path, cata_dir: Path, calibrate_container: Path
+) -> CalibrateCommand:
+    sky_model = create_sky_model(
+        ms_path=ms_path,
+        cata_dir=cata_dir,
+        hyperdrive_model=False
+    )
+    
+    # To ensure the linter in the create calibrate command below is happy
+    assert isinstance(sky_model.calibrate_model, Path), f"Only calibrate models supported, and not set in sky_model. "
+    
+    calibrate_command = create_calibrate_cmd(
+        ms=ms_path,
+        calibrate_model=sky_model.calibrate_model,
+        container=calibrate_container
+    )
+    
+    return calibrate_command
+
 
 def run_bandpass_stage(
     bandpass_mss: Collection[MS],
@@ -228,7 +251,6 @@ def run_bandpass_stage(
 
 @flow(name="Bandpass")
 def process_bandpass_science_fields(
-    bandpass_path: Path,
     science_path: Path,
     split_path: Path,
     flagger_container: Path,
@@ -239,15 +261,10 @@ def process_bandpass_science_fields(
     wsclean_container: Optional[Path] = None,
     rounds: Optional[int] = 2,
     yandasoft_container: Optional[Path] = None,
+    bandpass_path: Optional[Path] = None,
+    sky_model_path: Optional[Path] = None
 ) -> None:
-    assert (
-        bandpass_path.exists() and bandpass_path.is_dir()
-    ), f"{str(bandpass_path)} does not exist or is not a folder. "
-    bandpass_mss = list([MS.cast(ms_path) for ms_path in bandpass_path.glob(f"*.ms")])
-    assert (
-        len(bandpass_mss) == expected_ms
-    ), f"Expected to find {expected_ms} in {str(bandpass_path)}, found {len(bandpass_mss)}."
-
+    
     assert (
         science_path.exists() and science_path.is_dir()
     ), f"{str(science_path)} does not exist or is not a folder. "
@@ -256,61 +273,75 @@ def process_bandpass_science_fields(
         len(science_mss) == expected_ms
     ), f"Expected to find {expected_ms} in {str(science_path)}, found {len(science_mss)}."
 
-    logger.info(
-        f"Found the following bandpass measurement set: {[bp.path for bp in bandpass_mss]}."
-    )
-    bandpass_folder_name = bandpass_path.name
+
     science_folder_name = science_path.name
 
-    output_split_bandpass_path = (
-        Path(split_path / bandpass_folder_name).absolute().resolve()
-    )
     output_split_science_path = (
         Path(split_path / science_folder_name).absolute().resolve()
     )
-    logger.info(
-        f"Will write extracted bandpass MSs to: {str(output_split_bandpass_path)}."
-    )
+
 
     if not output_split_science_path.exists():
         logger.info(f"Creating {str(output_split_science_path)}")
         output_split_science_path.mkdir(parents=True)
 
-    # This is the model that we will calibrate the bandpass against.
-    # At the time fo writing 1934-638 is the only model that is supported,
-    # not only by this pirate ship, but also the ASKAP telescope itself.
-    model_path: Path = get_1934_model(mode="calibrate")
+    if bandpass_path:
+        assert (
+                bandpass_path.exists() and bandpass_path.is_dir()
+            ), f"{str(bandpass_path)} does not exist or is not a folder. "
+        bandpass_mss = list([MS.cast(ms_path) for ms_path in bandpass_path.glob(f"*.ms")])
+        
+        assert (
+            len(bandpass_mss) == expected_ms
+        ), f"Expected to find {expected_ms} in {str(bandpass_path)}, found {len(bandpass_mss)}."
+        
+        logger.info(
+            f"Found the following bandpass measurement set: {[bp.path for bp in bandpass_mss]}."
+        )
+        
+        bandpass_folder_name = bandpass_path.name
+        output_split_bandpass_path = (
+            Path(split_path / bandpass_folder_name).absolute().resolve()
+        )
+        logger.info(
+            f"Will write extracted bandpass MSs to: {str(output_split_bandpass_path)}."
+        )
+        
+        # This is the model that we will calibrate the bandpass against.
+        # At the time fo writing 1934-638 is the only model that is supported,
+        # not only by this pirate ship, but also the ASKAP telescope itself.
+        model_path: Path = get_1934_model(mode="calibrate")
 
-    # TODO: This check currently expects the input bandpass_path to reffer
-    # to the raw MS data. The output_split_bandpass_path is built up from
-    # that. This behaviour should (or could?) be dependent on a different
-    # option to explictly set the location of precomputed solutions.
-    if output_split_bandpass_path.exists():
-        logger.info(
-            (
-                f"The output bandpass folder {output_split_bandpass_path} appears to exist. "
-                "Will construct commands from pre-computed solutions. "
+        # TODO: This check currently expects the input bandpass_path to reffer
+        # to the raw MS data. The output_split_bandpass_path is built up from
+        # that. This behaviour should (or could?) be dependent on a different
+        # option to explictly set the location of precomputed solutions.
+        if output_split_bandpass_path.exists():
+            logger.info(
+                (
+                    f"The output bandpass folder {output_split_bandpass_path} appears to exist. "
+                    "Will construct commands from pre-computed solutions. "
+                )
             )
-        )
-        # TODO: This will likely need to be expanded should any
-        # other calibration strategies get added
-        calibrate_cmds = find_existing_solutions(
-            bandpass_directory=output_split_bandpass_path,
-            model_path=model_path,
-            use_preflagged=True,
-        )
-    else:
-        logger.info(
-            f"Output bandpass directory {output_split_bandpass_path} not found. Will process the bandpass data. "
-        )
-        calibrate_cmds = run_bandpass_stage(
-            bandpass_mss=bandpass_mss,
-            output_split_bandpass_path=output_split_bandpass_path,
-            calibrate_container=calibrate_container,
-            flagger_container=flagger_container,
-            model_path=model_path,
-            source_name_prefix=source_name_prefix,
-        )
+            # TODO: This will likely need to be expanded should any
+            # other calibration strategies get added
+            calibrate_cmds = find_existing_solutions(
+                bandpass_directory=output_split_bandpass_path,
+                model_path=model_path,
+                use_preflagged=True,
+            )
+        else:
+            logger.info(
+                f"Output bandpass directory {output_split_bandpass_path} not found. Will process the bandpass data. "
+            )
+            calibrate_cmds = run_bandpass_stage(
+                bandpass_mss=bandpass_mss,
+                output_split_bandpass_path=output_split_bandpass_path,
+                calibrate_container=calibrate_container,
+                flagger_container=flagger_container,
+                model_path=model_path,
+                source_name_prefix=source_name_prefix,
+            )
 
     science_fields = task_split_by_field.map(
         ms=science_mss, field=None, out_dir=unmapped(output_split_science_path)
@@ -335,9 +366,22 @@ def process_bandpass_science_fields(
             ms=preprocess_science_ms, container=flagger_container, rounds=1
         )
 
-        solutions_path = task_select_solution_for_ms.submit(
-            calibrate_cmds=calibrate_cmds, ms=flag_field_ms, wait_for=calibrate_cmds
-        )
+        if sky_model_path:
+            calibrate_cmd = task_create_sky_model.submit(
+                ms_path=flag_field_ms, cata_dir=sky_model_path, calibrate_container=calibrate_container
+            )
+            calibrate_cmd = task_flag_solutions.submit(calibrate_cmd=calibrate_cmd)
+            task_plot_solutions.submit(calibrate_cmd=calibrate_cmd)
+                  
+            solutions_path = task_extract_solution_path(calibrate_cmd=calibrate_cmd)
+            
+        elif bandpass_path:
+            solutions_path = task_select_solution_for_ms.submit(
+                calibrate_cmds=calibrate_cmds, ms=flag_field_ms, wait_for=calibrate_cmds
+            )
+        else:
+            raise ValueError(f"Neither a bandpass calibration of sky-model calibration procedure set. ")
+        
         apply_solutions_cmd = task_create_apply_solutions_cmd.submit(
             ms=flag_field_ms,
             solutions_file=solutions_path,
@@ -429,7 +473,6 @@ def process_bandpass_science_fields(
 
 def setup_run_process_science_field(
     cluster_config: Union[str, Path],
-    bandpass_path: Path,
     science_path: Path,
     split_path: Path,
     flagger_container: Path,
@@ -440,7 +483,15 @@ def setup_run_process_science_field(
     wsclean_container: Optional[Path] = None,
     yandasoft_container: Optional[Path] = None,
     rounds: int = 2,
+    bandpass_path: Optional[Path] = None,
+    sky_model_path: Optional[Path] = None
+    
 ) -> None:
+    if bandpass_path == None and sky_model_path == None:
+        raise ValueError(f"Both bandpass_path and sky_model_path are None. This is not allowed. ")
+    if bandpass_path and sky_model_path:
+        raise ValueError(f"{bandpass_path=} and {sky_model_path=} - one has to be unset. ")
+    
     dask_task_runner = get_dask_runner(cluster=cluster_config)
 
     process_bandpass_science_fields.with_options(
@@ -462,12 +513,6 @@ def setup_run_process_science_field(
 
 def get_parser() -> ArgumentParser:
     parser = ArgumentParser(description=__doc__)
-
-    parser.add_argument(
-        "bandpass_path",
-        type=Path,
-        help="Path to directory containing the beam-wise measurement sets that contain the bandpass calibration source. ",
-    )
 
     parser.add_argument(
         "science_path",
@@ -530,6 +575,18 @@ def get_parser() -> ArgumentParser:
         default=2,
         help="The number of selfcalibration rounds to perfrom. ",
     )
+    parser.add_argument(
+        '--sky-model-path',
+        type=Path,
+        default=None,
+        help="Path to the directory containing knows sky-model catalogue files that can be used to derive an estimated in-field sky-model. If None, a --bandpass-path should be provided. "
+    )
+    parser.add_argument(
+        "--bandpass-path",
+        type=Path,
+        default=None,
+        help="Path to directory containing the uncalibrated beam-wise measurement sets that contain the bandpass calibration source. If None then the '--sky-model-directory' should be provided. ",
+    )
 
     return parser
 
@@ -546,7 +603,6 @@ def cli() -> None:
 
     setup_run_process_science_field(
         cluster_config=args.cluster_config,
-        bandpass_path=args.bandpass_path,
         science_path=args.science_path,
         split_path=args.split_path,
         flagger_container=args.flagger_container,
@@ -556,6 +612,8 @@ def cli() -> None:
         wsclean_container=args.wsclean_container,
         yandasoft_container=args.yandasoft_container,
         rounds=args.selfcal_rounds,
+        bandpass_path=args.bandpass_path,
+        sky_model_path=args.sky_model_path
     )
 
 
