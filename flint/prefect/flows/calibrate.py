@@ -193,10 +193,10 @@ def task_linmos_images(
 
 @task
 def task_create_sky_model(
-    ms_path: Path, cata_dir: Path, calibrate_container: Path
+    ms: MS, cata_dir: Path, calibrate_container: Path
 ) -> CalibrateCommand:
     sky_model = create_sky_model(
-        ms_path=ms_path,
+        ms_path=ms.path,
         cata_dir=cata_dir,
         hyperdrive_model=False
     )
@@ -205,7 +205,7 @@ def task_create_sky_model(
     assert isinstance(sky_model.calibrate_model, Path), f"Only calibrate models supported, and not set in sky_model. "
     
     calibrate_command = create_calibrate_cmd(
-        ms=ms_path,
+        ms=ms,
         calibrate_model=sky_model.calibrate_model,
         container=calibrate_container
     )
@@ -368,12 +368,12 @@ def process_bandpass_science_fields(
 
         if sky_model_path:
             calibrate_cmd = task_create_sky_model.submit(
-                ms_path=flag_field_ms, cata_dir=sky_model_path, calibrate_container=calibrate_container
+                ms=flag_field_ms, cata_dir=sky_model_path, calibrate_container=calibrate_container
             )
             calibrate_cmd = task_flag_solutions.submit(calibrate_cmd=calibrate_cmd)
             task_plot_solutions.submit(calibrate_cmd=calibrate_cmd)
                   
-            solutions_path = task_extract_solution_path(calibrate_cmd=calibrate_cmd)
+            solutions_path = task_extract_solution_path.submit(calibrate_cmd=calibrate_cmd)
             
         elif bandpass_path:
             solutions_path = task_select_solution_for_ms.submit(
@@ -497,7 +497,6 @@ def setup_run_process_science_field(
     process_bandpass_science_fields.with_options(
         name="Flint Bandpass Imager", task_runner=dask_task_runner
     )(
-        bandpass_path=bandpass_path,
         science_path=science_path,
         split_path=split_path,
         flagger_container=flagger_container,
@@ -508,6 +507,8 @@ def setup_run_process_science_field(
         wsclean_container=wsclean_container,
         yandasoft_container=yandasoft_container,
         rounds=rounds,
+        bandpass_path=bandpass_path,
+        sky_model_path=sky_model_path
     )
 
 
