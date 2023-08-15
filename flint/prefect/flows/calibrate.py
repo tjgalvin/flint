@@ -248,6 +248,74 @@ def run_bandpass_stage(
 
     return calibrate_cmds
 
+def run_bandpass_calibration(
+    bandpass_path: Path,
+    split_path: Path,
+    expected_ms: int,
+    calibrate_container: Path,
+    flagger_container: Path,
+    source_name_prefix: str = "B1934-638"
+):
+    
+    assert (
+            bandpass_path.exists() and bandpass_path.is_dir()
+        ), f"{str(bandpass_path)} does not exist or is not a folder. "
+    bandpass_mss = list([MS.cast(ms_path) for ms_path in bandpass_path.glob(f"*.ms")])
+    
+    assert (
+        len(bandpass_mss) == expected_ms
+    ), f"Expected to find {expected_ms} in {str(bandpass_path)}, found {len(bandpass_mss)}."
+    
+    logger.info(
+        f"Found the following bandpass measurement set: {[bp.path for bp in bandpass_mss]}."
+    )
+    
+    bandpass_folder_name = bandpass_path.name
+    output_split_bandpass_path = (
+        Path(split_path / bandpass_folder_name).absolute().resolve()
+    )
+    logger.info(
+        f"Will write extracted bandpass MSs to: {str(output_split_bandpass_path)}."
+    )
+    
+    # This is the model that we will calibrate the bandpass against.
+    # At the time fo writing 1934-638 is the only model that is supported,
+    # not only by this pirate ship, but also the ASKAP telescope itself.
+    model_path: Path = get_1934_model(mode="calibrate")
+
+    # TODO: This check currently expects the input bandpass_path to reffer
+    # to the raw MS data. The output_split_bandpass_path is built up from
+    # that. This behaviour should (or could?) be dependent on a different
+    # option to explictly set the location of precomputed solutions.
+    if output_split_bandpass_path.exists():
+        logger.info(
+            (
+                f"The output bandpass folder {output_split_bandpass_path} appears to exist. "
+                "Will construct commands from pre-computed solutions. "
+            )
+        )
+        # TODO: This will likely need to be expanded should any
+        # other calibration strategies get added
+        calibrate_cmds = find_existing_solutions(
+            bandpass_directory=output_split_bandpass_path,
+            model_path=model_path,
+            use_preflagged=True,
+        )
+    else:
+        logger.info(
+            f"Output bandpass directory {output_split_bandpass_path} not found. Will process the bandpass data. "
+        )
+        calibrate_cmds = run_bandpass_stage(
+            bandpass_mss=bandpass_mss,
+            output_split_bandpass_path=output_split_bandpass_path,
+            calibrate_container=calibrate_container,
+            flagger_container=flagger_container,
+            model_path=model_path,
+            source_name_prefix=source_name_prefix,
+        )
+
+    return calibrate_cmds
+
 
 @flow(name="Bandpass")
 def process_bandpass_science_fields(
@@ -285,63 +353,16 @@ def process_bandpass_science_fields(
         logger.info(f"Creating {str(output_split_science_path)}")
         output_split_science_path.mkdir(parents=True)
 
+    calibrate_cmds = None
     if bandpass_path:
-        assert (
-                bandpass_path.exists() and bandpass_path.is_dir()
-            ), f"{str(bandpass_path)} does not exist or is not a folder. "
-        bandpass_mss = list([MS.cast(ms_path) for ms_path in bandpass_path.glob(f"*.ms")])
-        
-        assert (
-            len(bandpass_mss) == expected_ms
-        ), f"Expected to find {expected_ms} in {str(bandpass_path)}, found {len(bandpass_mss)}."
-        
-        logger.info(
-            f"Found the following bandpass measurement set: {[bp.path for bp in bandpass_mss]}."
+        calibrate_cmds = run_bandpass_calibration(
+            bandpass_path=bandpass_path,
+            split_path=split_path,
+            expected_ms=expected_ms,
+            calibrate_container=calibrate_container,
+            flagger_container=flagger_container,
+            source_name_prefix=source_name_prefix
         )
-        
-        bandpass_folder_name = bandpass_path.name
-        output_split_bandpass_path = (
-            Path(split_path / bandpass_folder_name).absolute().resolve()
-        )
-        logger.info(
-            f"Will write extracted bandpass MSs to: {str(output_split_bandpass_path)}."
-        )
-        
-        # This is the model that we will calibrate the bandpass against.
-        # At the time fo writing 1934-638 is the only model that is supported,
-        # not only by this pirate ship, but also the ASKAP telescope itself.
-        model_path: Path = get_1934_model(mode="calibrate")
-
-        # TODO: This check currently expects the input bandpass_path to reffer
-        # to the raw MS data. The output_split_bandpass_path is built up from
-        # that. This behaviour should (or could?) be dependent on a different
-        # option to explictly set the location of precomputed solutions.
-        if output_split_bandpass_path.exists():
-            logger.info(
-                (
-                    f"The output bandpass folder {output_split_bandpass_path} appears to exist. "
-                    "Will construct commands from pre-computed solutions. "
-                )
-            )
-            # TODO: This will likely need to be expanded should any
-            # other calibration strategies get added
-            calibrate_cmds = find_existing_solutions(
-                bandpass_directory=output_split_bandpass_path,
-                model_path=model_path,
-                use_preflagged=True,
-            )
-        else:
-            logger.info(
-                f"Output bandpass directory {output_split_bandpass_path} not found. Will process the bandpass data. "
-            )
-            calibrate_cmds = run_bandpass_stage(
-                bandpass_mss=bandpass_mss,
-                output_split_bandpass_path=output_split_bandpass_path,
-                calibrate_container=calibrate_container,
-                flagger_container=flagger_container,
-                model_path=model_path,
-                source_name_prefix=source_name_prefix,
-            )
 
     science_fields = task_split_by_field.map(
         ms=science_mss, field=None, out_dir=unmapped(output_split_science_path)
@@ -375,7 +396,7 @@ def process_bandpass_science_fields(
                   
             solutions_path = task_extract_solution_path.submit(calibrate_cmd=calibrate_cmd)
             
-        elif bandpass_path:
+        elif bandpass_path and calibrate_cmds is not None:
             solutions_path = task_select_solution_for_ms.submit(
                 calibrate_cmds=calibrate_cmds, ms=flag_field_ms, wait_for=calibrate_cmds
             )
