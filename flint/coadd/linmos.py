@@ -66,12 +66,15 @@ def generate_linmos_parameter_set(
     # Parameters are taken from arrakis
     parset = (
         f"linmos.names            = {img_list}\n"
+        # f"linmos.weights          = {weight_list}\n"
+        # f"linmos.beams            = {beam_order_list}\n"
+        # f"linmos.beamangle        = {beam_angle_list}\n"
         f"linmos.imagetype        = fits\n"
         f"linmos.outname          = {image_output_name}_linmos\n"
         f"linmos.outweight        = {image_output_name}_weight\n"
         f"# For ASKAPsoft>1.3.0\n"
         f"linmos.useweightslog    = true\n"
-        f"linmos.weighttype       = FromPrimaryBeamModel\n"
+        f"linmos.weighttype       = Combined\n"
         f"linmos.weightstate      = Inherent\n"
         f"linmos.cutoff           = 0.1\n"
     )
@@ -87,6 +90,7 @@ def generate_linmos_parameter_set(
         parset += (
             f"linmos.primarybeam      = ASKAP_PB\n"
             f"linmos.primarybeam.ASKAP_PB.image = {str(holofile.absolute())}\n"
+            # f"linmos.primarybeam.ASKAP_PB.alpha = {paf_alpha}\n"
             f"linmos.removeleakage    = true\n"
         )
 
