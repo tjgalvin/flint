@@ -4,9 +4,12 @@ from pathlib import Path
 from typing import Optional, Collection, List, NamedTuple
 from argparse import ArgumentParser
 
+import numpy as np
+from astropy.io import fits
+
 from flint.logging import logger
 from flint.sclient import run_singularity_command
-
+from flint.naming import extract_beam_from_name
 
 class LinmosCMD(NamedTuple):
     cmd: str
@@ -14,12 +17,100 @@ class LinmosCMD(NamedTuple):
     parset: Path
     """The output location that the generated linmos parset has been writen to"""
 
+def get_image_weight(image_path: Path, mode: str='median', image_slice: int=0) -> float:
+    """Compute an image weight supplied to linmos, which is used for optimally
+    weighting overlapping images. Supported modes are 'median' and 'mean', which
+    simply resolve to their numpy equivalents. 
+
+    This weight is really a relative weight to used between all images in a set
+    of images being co-added together. So long as these are all calculated in 
+    the same way, it does not necessarily have to correspond to an optimatelly
+    calculated RMS. 
+
+    Args:
+        image (Path): The path to the image fits file to inspect. 
+        mode (str, optional): Which mode should be used when calculating the weight. Defaults to 'median'.
+        image_slice (int, optional): The image slice in the HDU list of the `image` fits file to inspect. Defaults to 0.
+
+    Raises:
+        ValueError: Raised when a mode is requested but does not exist
+
+    Returns:
+        float: The weight to supply to linmos
+    """
+
+    logger.info(f"Compuuting linmos weight using {mode=}, {image_slice=} for {image_path}. ")
+    weight_modes = ('median', 'mean')
+
+    with fits.open(image_path, memmap=True) as in_fits:
+        image_data = in_fits[image_slice]
+        
+        assert len(image_data.shape), f"{len(image_data.shape)=} is less than two. Is this really an image?"
+        
+        logger.info(f"Data shape is: {image_data.shape}")
+        if mode == 'median':
+            weight = np.median(image_data)
+        elif mode == 'mean':
+            weight = np.mean(image_data)
+        else:
+            raise ValueError(f"{mode=} not supported. Modes available: {weight_modes}")
+
+    logger.info(f"Weight {weight=} for {image_path}")
+    return weight
+
+def generate_weights_list_and_files(image_paths: Collection[Path], mode: str='median') -> str:
+    """Generate the expected linmos weight files, and construct an appropriate
+    string that can be embedded into a linmos partset. These weights files will
+    appear as:
+    
+    >>> #Channel Weight
+    >>> 0 1234.5
+    >>> 1 6789.0
+
+    The weights should be correct relative to the entire set of input images. 
+    They do not necessarily have to correspond to an accurate measure of the RMS. 
+    
+    This function will create a corresponding text file for each input image. At
+    the moment it is only intended to work on MFS images. It __is not__ currently
+    intended to be used on image cubes. 
+
+    Args:
+        image_paths (Collection[Path]): Images to iterate over to create a corresponding weights.txt file. 
+        mode (str, optional): The mode to use when calling get_image_weight
+
+    Returns:
+        str: The string to embedded into the yandasoft linmos parset file
+    """
+    logger.info(
+        f"No weights provided. Calculating weights for {len(image_paths)}."
+    )
+    
+    # TODO: image cubes should be supported here. This would required iterating
+    # over each channel in the FITS cube. 
+    weight_file_list = []
+    for image in image_paths:
+        weight_file = image.with_suffix(".weights")
+        weight_file_list.append(weight_file)
+        
+        # Must be of the format:
+        # #Channel Weight
+        # 0 1234.5
+        # 1 6789.0
+        with open(weight_file, "w") as out_file:
+            out_file.write("#Channel Weight\n")
+            image_weight = get_image_weight(image_path=image)
+            out_file.write(f"0 {image_weight}\n")
+
+    weight_str = [str(weight_file) for weight_file in weight_file_list if weight_file.exists()]
+    weight_list = "[" + ",".join(weight_str) + "]"
+
+    return weight_list
 
 def generate_linmos_parameter_set(
     images: Collection[Path],
     parset_output_name: Path,
     image_output_name: str = "linmos_field",
-    weight_list: Optional[Path] = None,
+    weight_list: Optional[str] = None,
     holofile: Optional[Path] = None,
 ) -> Path:
     """Generate a parset file that will be used with the
@@ -29,7 +120,7 @@ def generate_linmos_parameter_set(
         images (Collection[Path]): The images that will be coadded into a single field image.
         parset_output_name (Path): Path of the output linmos parset file.
         image_output_name (str, optional): Name of the output image linmos produces. The weight image will have a similar name. Defaults to "linmos_field".
-        weight_list (Optional[Path], optional): If not None, this should be a new-line delimited text file used to weight the input images. Defaults to None.
+        weight_list (str, optional): If not None, this string will be embedded into the yandasoft linmos parset as-is. It should represent the formatted string pointing to weight files, and should be equal length of the input images. If None it is internally generated. Defaults to None.
         holofile (Optional[Path], optional): Path to a FITS cube produced by the holography processing pipeline. Used by linmos to appropriate primary-beam correct the images. Defaults to None.
 
     Returns:
@@ -46,28 +137,21 @@ def generate_linmos_parameter_set(
         images
     ), "Some images were dropped from the linmos image string. Something is bad, walk the plank. "
 
-    # If no weights_list has been provided (and therefore no opttimal
+    # If no weights_list has been provided (and therefore no optimal
     # beam-wise weighting) assume that all beams are of about the same
     # quality. In reality, this should be updated to provide a RMS noise
     # estimate per-pixel of each image.
-    # TODO: build out functionality to create RMS images, and use those
-    # here
-    # TODO: these weight files need toe be per image, and the new-line
-    # numbers are per-channel weights.
     if weight_list is None:
-        weight_list = Path(f"{image_output_name}.weight_list")
-        logger.warn(
-            f"No weight list has been provided. Assuming equal weights, and writing to {weight_list}."
-        )
-        with open(weight_list, "w") as weight_file:
-            for _ in images:
-                weight_file.write("1.0\n")
-
+        weight_list = generate_weights_list_and_files(image_paths=images, mode='median')
+    
+    beam_order_strs = [str(extract_beam_from_name(str(p.name))) for p in images]
+    beam_order_list = "[" + ",".join(beam_order_strs) + "]"
+     
     # Parameters are taken from arrakis
     parset = (
         f"linmos.names            = {img_list}\n"
-        # f"linmos.weights          = {weight_list}\n"
-        # f"linmos.beams            = {beam_order_list}\n"
+        f"linmos.weights          = {weight_list}\n"
+        f"linmos.beams            = {beam_order_list}\n"
         # f"linmos.beamangle        = {beam_angle_list}\n"
         f"linmos.imagetype        = fits\n"
         f"linmos.outname          = {image_output_name}_linmos\n"
@@ -110,7 +194,7 @@ def linmos_images(
     images: Collection[Path],
     parset_output_name: Path,
     image_output_name: str = "linmos_field",
-    weight_list: Optional[Path] = None,
+    weight_list: Optional[str] = None,
     holofile: Optional[Path] = None,
     container: Path = Path("yandasoft.sif"),
 ) -> LinmosCMD:
@@ -120,7 +204,7 @@ def linmos_images(
         images (Collection[Path]): The images that will be coadded into a single field image.
         parset_output_name (Path): Path of the output linmos parset file.
         image_output_name (str, optional): Name of the output image linmos produces. The weight image will have a similar name. Defaults to "linmos_field".
-        weight_list (Optional[Path], optional): If not None, this should be a new-line delimited text file used to weight the input images. Defaults to None.
+        weight_list (str, optional): If not None, this string will be embedded into the yandasoft linmos parset as-is. It should represent the formatted string pointing to weight files, and should be equal length of the input images. If None it is internally generated. Defaults to None.
         holofile (Optional[Path], optional): Path to a FITS cube produced by the holography processing pipeline. Used by linmos to appropriate primary-beam correct the images. Defaults to None.
         container (Path, optional): Path to the singularity container that has the yandasoft tools. Defaults to Path('yandasoft.sif').
 
