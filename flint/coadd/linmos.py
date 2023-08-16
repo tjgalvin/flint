@@ -17,9 +17,9 @@ class LinmosCMD(NamedTuple):
     parset: Path
     """The output location that the generated linmos parset has been writen to"""
 
-def get_image_weight(image_path: Path, mode: str='median', image_slice: int=0) -> float:
+def get_image_weight(image_path: Path, mode: str='mad', image_slice: int=0) -> float:
     """Compute an image weight supplied to linmos, which is used for optimally
-    weighting overlapping images. Supported modes are 'median' and 'mean', which
+    weighting overlapping images. Supported modes are 'mad' and 'mtd', which
     simply resolve to their numpy equivalents. 
 
     This weight is really a relative weight to used between all images in a set
@@ -29,7 +29,7 @@ def get_image_weight(image_path: Path, mode: str='median', image_slice: int=0) -
 
     Args:
         image (Path): The path to the image fits file to inspect. 
-        mode (str, optional): Which mode should be used when calculating the weight. Defaults to 'median'.
+        mode (str, optional): Which mode should be used when calculating the weight. Defaults to 'mad'.
         image_slice (int, optional): The image slice in the HDU list of the `image` fits file to inspect. Defaults to 0.
 
     Raises:
@@ -40,7 +40,7 @@ def get_image_weight(image_path: Path, mode: str='median', image_slice: int=0) -
     """
 
     logger.info(f"Compuuting linmos weight using {mode=}, {image_slice=} for {image_path}. ")
-    weight_modes = ('median', 'mean')
+    weight_modes = ('mad', 'std')
 
     with fits.open(image_path, memmap=True) as in_fits:
         image_data = in_fits[image_slice].data
@@ -48,14 +48,16 @@ def get_image_weight(image_path: Path, mode: str='median', image_slice: int=0) -
         assert len(image_data.shape), f"{len(image_data.shape)=} is less than two. Is this really an image?"
         
         logger.info(f"Data shape is: {image_data.shape}")
-        if mode == 'median':
-            weight = np.median(image_data)
-        elif mode == 'mean':
-            weight = np.mean(image_data)
+        if mode == 'mad':
+            median = np.median(image_data)
+            weight = np.median(np.abs(image_data - median))
+            
+        elif mode == 'std':
+            weight = np.std(image_data)
         else:
             raise ValueError(f"{mode=} not supported. Modes available: {weight_modes}")
 
-    logger.info(f"Weight {weight=} for {image_path}")
+    logger.info(f"Weight {weight} for {image_path}")
     return weight
 
 def generate_weights_list_and_files(image_paths: Collection[Path], mode: str='median') -> str:

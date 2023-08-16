@@ -65,7 +65,7 @@ def raw_ms_format(in_name: str) -> Union[None,RawNameComponents]:
     logger.info(f"Matched groups are: {groups}")
     
     return RawNameComponents(
-        date=groups['name'],
+        date=groups['date'],
         time=groups['time'],
         beam=groups['beam'],
         spw=groups['spw']
