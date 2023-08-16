@@ -29,7 +29,7 @@ class BeamShape(NamedTuple):
     bmin_arcsec: float
     """The size of the minor-axis of the beam, in arcseconds."""
     bpa_deg: float
-    """Rotation of the beam, in desgrees."""
+    """Rotation of the beam, in degrees."""
 
     @classmethod
     def from_radio_beam(cls, radio_beam: Beam) -> BeamShape:

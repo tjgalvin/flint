@@ -43,7 +43,7 @@ def get_image_weight(image_path: Path, mode: str='median', image_slice: int=0) -
     weight_modes = ('median', 'mean')
 
     with fits.open(image_path, memmap=True) as in_fits:
-        image_data = in_fits[image_slice]
+        image_data = in_fits[image_slice].data
         
         assert len(image_data.shape), f"{len(image_data.shape)=} is less than two. Is this really an image?"
         

@@ -51,7 +51,9 @@ def raw_ms_format(in_name: str) -> Union[None,RawNameComponents]:
     """
     
     logger.debug(f"Matching {in_name}")
-    regex = re.compile("^(?P<date>[0-9]{4}-[0-9]{1,2}-[0-9]{1,2})_(?P<time>[0-9]+)_(?P<beam>[0-9]+)(_(?P<spw>[0-9]+))*")
+    regex = re.compile(
+        "^(?P<date>[0-9]{4}-[0-9]{1,2}-[0-9]{1,2})_(?P<time>[0-9]+)_(?P<beam>[0-9]+)(_(?P<spw>[0-9]+))*"
+    )
     results = regex.match(in_name)
     
     if results is None:
