@@ -41,6 +41,7 @@ def get_image_weight(image_path: Path, mode: str='mad', image_slice: int=0) -> f
 
     logger.info(f"Compuuting linmos weight using {mode=}, {image_slice=} for {image_path}. ")
     weight_modes = ('mad', 'std')
+    assert mode in weight_modes, f"Invalid {mode=} specified. Available modes: {weight_modes}"
 
     with fits.open(image_path, memmap=True) as in_fits:
         image_data = in_fits[image_slice].data
@@ -54,12 +55,12 @@ def get_image_weight(image_path: Path, mode: str='mad', image_slice: int=0) -> f
         elif mode == 'std':
             weight = np.std(image_data)
         else:
-            raise ValueError(f"{mode=} not supported. Modes available: {weight_modes}")
+            raise ValueError(f"Invalid {mode=} specified. Available modes: {weight_modes}")
 
     logger.info(f"Weight {weight} for {image_path}")
     return weight
 
-def generate_weights_list_and_files(image_paths: Collection[Path], mode: str='median') -> str:
+def generate_weights_list_and_files(image_paths: Collection[Path], mode: str='mad') -> str:
     """Generate the expected linmos weight files, and construct an appropriate
     string that can be embedded into a linmos partset. These weights files will
     appear as:
@@ -90,7 +91,7 @@ def generate_weights_list_and_files(image_paths: Collection[Path], mode: str='me
     # over each channel in the FITS cube. 
     weight_file_list = []
     for image in image_paths:
-        weight_file = image.with_suffix(".weights")
+        weight_file = image.with_suffix(".weights.txt")
         weight_file_list.append(weight_file)
         
         # Must be of the format:
@@ -98,8 +99,9 @@ def generate_weights_list_and_files(image_paths: Collection[Path], mode: str='me
         # 0 1234.5
         # 1 6789.0
         with open(weight_file, "w") as out_file:
+            logger.info(f"Writing {weight_file}")
             out_file.write("#Channel Weight\n")
-            image_weight = get_image_weight(image_path=image)
+            image_weight = get_image_weight(image_path=image, mode=mode)
             out_file.write(f"0 {image_weight}\n")
 
     weight_str = [str(weight_file) for weight_file in weight_file_list if weight_file.exists()]
@@ -143,7 +145,7 @@ def generate_linmos_parameter_set(
     # quality. In reality, this should be updated to provide a RMS noise
     # estimate per-pixel of each image.
     if weight_list is None:
-        weight_list = generate_weights_list_and_files(image_paths=images, mode='median')
+        weight_list = generate_weights_list_and_files(image_paths=images, mode='std')
     
     beam_order_strs = [str(extract_beam_from_name(str(p.name))) for p in images]
     beam_order_list = "[" + ",".join(beam_order_strs) + "]"
