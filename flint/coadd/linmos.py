@@ -82,7 +82,7 @@ def generate_weights_list_and_files(image_paths: Collection[Path], mode: str='me
         str: The string to embedded into the yandasoft linmos parset file
     """
     logger.info(
-        f"No weights provided. Calculating weights for {len(image_paths)}."
+        f"No weights provided. Calculating weights for {len(image_paths)} images."
     )
     
     # TODO: image cubes should be supported here. This would required iterating
