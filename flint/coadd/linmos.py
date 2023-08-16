@@ -50,8 +50,7 @@ def get_image_weight(image_path: Path, mode: str='mad', image_slice: int=0) -> f
         logger.info(f"Data shape is: {image_data.shape}")
         if mode == 'mad':
             median = np.median(image_data)
-            weight = np.median(np.abs(image_data - median))
-            
+            weight = np.median(np.abs(image_data - median))            
         elif mode == 'std':
             weight = np.std(image_data)
         else:
@@ -130,12 +129,12 @@ def generate_linmos_parameter_set(
     """
 
     img_str: List[str] = list(
-        set([str(p).replace(".fits", "") for p in images if p.exists()])
+        [str(p).replace(".fits", "") for p in images if p.exists()]
     )
     logger.info(f"{len(img_str)} unique images from {len(images)} input collection. ")
     img_list: str = "[" + ",".join(img_str) + "]"
 
-    assert len(img_str) == len(
+    assert len(set(img_str)) == len(
         images
     ), "Some images were dropped from the linmos image string. Something is bad, walk the plank. "
 
