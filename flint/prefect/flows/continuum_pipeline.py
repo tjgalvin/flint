@@ -460,7 +460,7 @@ def process_bandpass_science_fields(
     }
     wsclean_rounds = {
         1: {"minuv_l": 200, "auto_mask": 4},
-        2: {"minuv_l": 200, "auto_mask": 3.5},
+        2: {"minuv_l": 200, "auto_mask": 3.25, "local_rms_window": 105},
         3: {"minuv_l": 200, "auto_mask": 3.5},
         4: {"local_rms_window": 125, "minuv_l": 200, "auto_mask": 3.5},
     }
