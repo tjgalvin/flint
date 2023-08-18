@@ -322,7 +322,7 @@ def run_bandpass_calibration(
     return calibrate_cmds
 
 
-@flow(name="Bandpass")
+@flow(name="Flint Continuum Pipeline")
 def process_bandpass_science_fields(
     science_path: Path,
     split_path: Path,
@@ -527,7 +527,7 @@ def setup_run_process_science_field(
     dask_task_runner = get_dask_runner(cluster=cluster_config)
 
     process_bandpass_science_fields.with_options(
-        name="Flint Bandpass Imager", task_runner=dask_task_runner
+        name="Flint Continuum Pipeline", task_runner=dask_task_runner
     )(
         science_path=science_path,
         split_path=split_path,
