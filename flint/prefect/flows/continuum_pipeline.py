@@ -424,8 +424,8 @@ def process_bandpass_science_fields(
 
     wsclean_init = {
         "minuv_l": 200,
-        "weight": "briggs -1.0",
-        "auto_mask": 5.5,
+        "weight": "briggs -0.5",
+        "auto_mask": 4.0,
         "multiscale": True,
         "multiscale_scales": (0, 5, 15, 50, 100, 250),
     }
@@ -453,14 +453,14 @@ def process_bandpass_science_fields(
         return
 
     gain_cal_rounds = {
-        1: {"solint": "1200s", "uvrange": ">200lambda", "nspw": 8},
-        2: {"solint": "60s", "uvrange": ">200lambda", "nspw": 8},
-        3: {"solint": "60s", "uvrange": ">200lambda", "nspw": 8},
+        1: {"solint": "1200s", "uvrange": ">200lambda", "nspw": 1},
+        2: {"solint": "60s", "uvrange": ">200lambda", "nspw": 1},
+        3: {"solint": "60s", "uvrange": ">200lambda", "nspw": 1},
         4: {"calmode": "ap", "solint": "360s", "uvrange": ">200lambda"},
     }
     wsclean_rounds = {
-        1: {"minuv_l": 200, "auto_mask": 4},
-        2: {"minuv_l": 200, "auto_mask": 3.25, "local_rms_window": 105},
+        1: {"minuv_l": 200, "auto_mask": 4, "multiscale_scales": (0, 5, 15, 30, 50, 100, 250, 400, 700)},
+        2: {"minuv_l": 200, "auto_mask": 3.5, "local_rms_window": 105, "multiscale_scales": (0, 5, 15, 30, 50, 100, 250, 400, 700)},
         3: {"minuv_l": 200, "auto_mask": 3.5},
         4: {"local_rms_window": 125, "minuv_l": 200, "auto_mask": 3.5},
     }
@@ -473,7 +473,7 @@ def process_bandpass_science_fields(
             wsclean_cmd=wsclean_cmds,
             round=round,
             update_gain_cal_options=unmapped(gain_cal_options),
-            archive_input_ms=True,
+            archive_input_ms=False,
         )
         flag_mss = task_flag_ms_aoflagger.map(
             ms=cal_mss, container=flagger_container, rounds=1
