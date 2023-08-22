@@ -26,6 +26,7 @@ from flint.sky_model import get_1934_model, create_sky_model
 from flint.selfcal.casa import gaincal_applycal_ms
 from flint.convol import get_common_beam, convolve_images, BeamShape
 from flint.coadd.linmos import linmos_images
+from flint.utils import zip_folder, remove_files_folders
 
 task_extract_correct_bandpass_pointing = task(extract_correct_bandpass_pointing)
 task_preprocess_askap_ms = task(preprocess_askap_ms)
@@ -35,6 +36,14 @@ task_split_by_field = task(split_by_field)
 task_select_solution_for_ms = task(select_aosolution_for_ms)
 task_create_apply_solutions_cmd = task(create_apply_solutions_cmd)
 
+@task
+def task_zip_ms(in_item: WSCleanCMD) -> Path:
+
+    ms = in_item.ms
+    
+    zipped_ms = zip_folder(in_path=ms)
+
+    return zipped_ms
 
 @task
 def task_gaincal_applycal_ms(
@@ -336,6 +345,7 @@ def process_bandpass_science_fields(
     yandasoft_container: Optional[Path] = None,
     bandpass_path: Optional[Path] = None,
     sky_model_path: Optional[Path] = None,
+    zip_ms: bool = False
 ) -> None:
     assert (
         science_path.exists() and science_path.is_dir()
@@ -408,7 +418,7 @@ def process_bandpass_science_fields(
             )
         else:
             raise ValueError(
-                f"Neither a bandpass calibration of sky-model calibration procedure set. "
+                f"Neither a bandpass calibration or sky-model calibration procedure set. "
             )
 
         apply_solutions_cmd = task_create_apply_solutions_cmd.submit(
@@ -427,7 +437,7 @@ def process_bandpass_science_fields(
         "weight": "briggs -1.0",
         "auto_mask": 5.5,
         "multiscale": True,
-        "multiscale_scales": (0, 5, 15, 50, 100, 250),
+        "multiscale_scales": (0, 15, 50, 100, 250),
     }
     wsclean_cmds = task_wsclean_imager.map(
         in_ms=apply_solutions_cmd_list,
@@ -453,9 +463,9 @@ def process_bandpass_science_fields(
         return
 
     gain_cal_rounds = {
-        1: {"solint": "1200s", "uvrange": ">200lambda", "nspw": 8},
-        2: {"solint": "60s", "uvrange": ">200lambda", "nspw": 8},
-        3: {"solint": "60s", "uvrange": ">200lambda", "nspw": 8},
+        1: {"solint": "1200s", "uvrange": ">200lambda", "nspw": 1},
+        2: {"solint": "60s", "uvrange": ">200lambda", "nspw": 1},
+        3: {"solint": "60s", "uvrange": ">200lambda", "nspw": 1},
         4: {"calmode": "ap", "solint": "360s", "uvrange": ">200lambda"},
     }
     wsclean_rounds = {
@@ -475,6 +485,9 @@ def process_bandpass_science_fields(
             update_gain_cal_options=unmapped(gain_cal_options),
             archive_input_ms=False,
         )
+        if zip_ms:
+            task_zip_ms.map(in_item=wsclean_cmds, wait_for=cal_mss)
+        
         flag_mss = task_flag_ms_aoflagger.map(
             ms=cal_mss, container=flagger_container, rounds=1
         )
@@ -499,6 +512,10 @@ def process_bandpass_science_fields(
             holofile=holofile,
         )
 
+    # zip up the final measurement set, which is not included in the above loop
+    if zip_ms:
+        task_zip_ms.map(in_item=wsclean_cmds, wait_for=cal_mss)
+        
 
 def setup_run_process_science_field(
     cluster_config: Union[str, Path],
@@ -514,6 +531,7 @@ def setup_run_process_science_field(
     rounds: int = 2,
     bandpass_path: Optional[Path] = None,
     sky_model_path: Optional[Path] = None,
+    zip_ms: bool=False
 ) -> None:
     if bandpass_path == None and sky_model_path == None:
         raise ValueError(
@@ -541,6 +559,7 @@ def setup_run_process_science_field(
         rounds=rounds,
         bandpass_path=bandpass_path,
         sky_model_path=sky_model_path,
+        zip_ms=zip_ms
     )
 
 
@@ -620,6 +639,11 @@ def get_parser() -> ArgumentParser:
         default=None,
         help="Path to directory containing the uncalibrated beam-wise measurement sets that contain the bandpass calibration source. If None then the '--sky-model-directory' should be provided. ",
     )
+    parser.add_argument(
+        '--zip-ms',
+        action='store_true',
+        help='Zip up measurement sets as imaging and self-calibration is carried out.'
+    )
 
     return parser
 
@@ -647,6 +671,7 @@ def cli() -> None:
         rounds=args.selfcal_rounds,
         bandpass_path=args.bandpass_path,
         sky_model_path=args.sky_model_path,
+        zip_ms=args.zip_ms
     )
 
 
