@@ -95,3 +95,31 @@ def extract_beam_from_name(name: Union[str, Path]) -> int:
         raise ValueError(f"Unrecognised file name format for {name=}. ")
 
     return int(results.beam)
+
+
+class AegeanNames(NamedTuple):
+    """Base names that would be used in various Aegean related tasks"""
+
+    bkg_image: Path
+    rms_image: Path
+    comp_cat: Path
+    ds9_region: Path
+    resid_image: Path
+
+
+def create_aegean_names(base_output: str) -> AegeanNames:
+    """Create the expected names for aegean and its tools.
+
+    Args:
+        base_output (str): The base name that aegean outputs are built from.
+
+    Returns:
+        AegeanNames: A collection of names to be produced by Aegean related tasks
+    """
+    return AegeanNames(
+        bkg_image=Path(f"{base_output}_bkg.fits"),
+        rms_image=Path(f"{base_output}_rms.fits"),
+        comp_cat=Path(f"{base_output}_comp.fits"),
+        ds9_region=Path(f"{base_output}_overlay.reg"),
+        resid_image=Path(f"{base_output}_residual.fits"),
+    )
