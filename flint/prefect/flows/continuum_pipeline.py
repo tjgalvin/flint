@@ -41,7 +41,7 @@ def task_zip_ms(in_item: WSCleanCMD) -> Path:
 
     ms = in_item.ms
     
-    zipped_ms = zip_folder(in_path=ms)
+    zipped_ms = zip_folder(in_path=ms.path)
 
     return zipped_ms
 
