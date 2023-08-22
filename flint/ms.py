@@ -312,7 +312,7 @@ def split_by_field(
 
             out_path = (
                 ms_out_dir
-                / ms.path.with_suffix(f".{split_name.replace('_','.')}.ms").name
+                / ms.path.with_suffix(f".{split_name}.ms").name
             )
 
             logger.info(f"Writing {str(out_path)} for {split_name}")
