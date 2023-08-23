@@ -170,6 +170,11 @@ def generate_linmos_parameter_set(
     beam_order_strs = [str(extract_beam_from_name(str(p.name))) for p in images]
     beam_order_list = "[" + ",".join(beam_order_strs) + "]"
 
+    # The yandasoft linmos tasks will insist on adding a .fits extension
+    # so it needs to be dropped from the Path objects. Using the Path.stem
+    # attribute drops the parent directory (absolute directory).
+    parent_dir = linmos_names.image_fits.parent
+
     # Parameters are taken from arrakis
     parset = (
         f"linmos.names            = {img_list}\n"
@@ -177,8 +182,8 @@ def generate_linmos_parameter_set(
         f"linmos.beams            = {beam_order_list}\n"
         # f"linmos.beamangle        = {beam_angle_list}\n"
         f"linmos.imagetype        = fits\n"
-        f"linmos.outname          = {str(linmos_names.image_fits.stem)}\n"
-        f"linmos.outweight        = {str(linmos_names.weight_fits.stem)}\n"
+        f"linmos.outname          = {str(parent_dir / linmos_names.image_fits.stem)}\n"
+        f"linmos.outweight        = {str(parent_dir / linmos_names.weight_fits.stem)}\n"
         f"# For ASKAPsoft>1.3.0\n"
         f"linmos.useweightslog    = true\n"
         f"linmos.weighttype       = Combined\n"
