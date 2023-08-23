@@ -101,10 +101,15 @@ class AegeanNames(NamedTuple):
     """Base names that would be used in various Aegean related tasks"""
 
     bkg_image: Path
+    """Background map computed by BANE"""
     rms_image: Path
+    """RMS noise map computed by BANE"""
     comp_cat: Path
+    """Component catalogue produced by the aegean source finder"""
     ds9_region: Path
+    """DS9 region overlay file"""
     resid_image: Path
+    """Residual map after subtracting component catalogue produced by AeRes"""
 
 
 def create_aegean_names(base_output: str) -> AegeanNames:

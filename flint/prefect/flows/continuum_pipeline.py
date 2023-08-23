@@ -37,26 +37,36 @@ task_split_by_field = task(split_by_field)
 task_select_solution_for_ms = task(select_aosolution_for_ms)
 task_create_apply_solutions_cmd = task(create_apply_solutions_cmd)
 
-@task 
+
+@task
 def task_run_bane_and_aegean(image: WSCleanCMD) -> AegeanOutputs:
-    
+    logger.critical(
+        (
+            "This mode is currently error until the BANE and aegean flint functions are rewritten. "
+            "It is suggested that aegean source finding is not activated. "
+        )
+    )
+
     if isinstance(image, WSCleanCMD):
         assert image.imageset is not None, f"Image set attribute unset. "
         image_paths = image.imageset.image
-        
+
         logger.info(f"Have extracted image: {image_paths}")
-        
+
         # For the moment, will only source find on an MFS image
-        image_paths = [image for image in image_paths if '-MFS-' in str(image)]
-        assert len(image_paths) == 1, f"More than one image found after filter for MFS only images. "
-        # Get out the only path in the list. 
+        image_paths = [image for image in image_paths if "-MFS-" in str(image)]
+        assert (
+            len(image_paths) == 1
+        ), f"More than one image found after filter for MFS only images. "
+        # Get out the only path in the list.
         image_path = image_paths[0]
     else:
         raise ValueError(f"Unexpected type, have received {type(image)}. ")
-       
+
     aegean_outputs = run_bane_and_aegean(image=image_path)
 
     return aegean_outputs
+
 
 @task
 def task_zip_ms(in_item: WSCleanCMD) -> Path:
@@ -557,7 +567,7 @@ def setup_run_process_science_field(
     bandpass_path: Optional[Path] = None,
     sky_model_path: Optional[Path] = None,
     zip_ms: bool = False,
-    run_aegean: bool = False
+    run_aegean: bool = False,
 ) -> None:
     if bandpass_path == None and sky_model_path == None:
         raise ValueError(
@@ -586,7 +596,7 @@ def setup_run_process_science_field(
         bandpass_path=bandpass_path,
         sky_model_path=sky_model_path,
         zip_ms=zip_ms,
-        run_aegean=run_aegean
+        run_aegean=run_aegean,
     )
 
 
@@ -672,9 +682,9 @@ def get_parser() -> ArgumentParser:
         help="Zip up measurement sets as imaging and self-calibration is carried out.",
     )
     parser.add_argument(
-        '--run-aegean',
-        action='store_true',
-        help='Run the aegean source finder on images. '
+        "--run-aegean",
+        action="store_true",
+        help="Run the aegean source finder on images. ",
     )
 
     return parser
@@ -704,7 +714,7 @@ def cli() -> None:
         bandpass_path=args.bandpass_path,
         sky_model_path=args.sky_model_path,
         zip_ms=args.zip_ms,
-        run_aegean=args.run_aegean
+        run_aegean=args.run_aegean,
     )
 
 
