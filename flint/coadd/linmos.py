@@ -20,6 +20,7 @@ class LinmosCMD(NamedTuple):
     image_fits: Path
     """Path to the output linmos image created (or will be). """
 
+
 def get_image_weight(
     image_path: Path, mode: str = "mad", image_slice: int = 0
 ) -> float:
@@ -257,7 +258,11 @@ def linmos_images(
         image=container, command=linmos_cmd_str, bind_dirs=bind_dirs
     )
 
-    linmos_cmd = LinmosCMD(cmd=linmos_cmd_str, parset=linmos_parset, image_fits=linmos_names.image_fits.absolute())
+    linmos_cmd = LinmosCMD(
+        cmd=linmos_cmd_str,
+        parset=linmos_parset,
+        image_fits=linmos_names.image_fits.absolute(),
+    )
 
     return linmos_cmd
 
@@ -312,10 +317,11 @@ def cli() -> None:
 
     if args.mode == "parset":
         if args.yandasoft_container is None:
+            linmos_names = create_linmos_names(name_prefix=args.image_output_name)
             generate_linmos_parameter_set(
                 images=args.images,
                 parset_output_name=args.parset_output_name,
-                image_output_name=args.image_output_name,
+                linmos_names=linmos_names,
                 weight_list=args.weight_list,
                 holofile=args.holofile,
             )
