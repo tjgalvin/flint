@@ -44,7 +44,7 @@ def run_bane_and_aegean(image: Path, cores: int = 8) -> AegeanOutputs:
     # to multi-process. Explcitly setting cores to be more
     # than nslices resolves.
     BANE.filter_image(
-        im_name=str(image), out_base=base_output, cores=cores, nslice=cores - 1
+        im_name=str(image), out_base=base_output, cores=cores, nslice=cores - 3
     )
     # These are the bane outputs
     bkg_image_path = aegean_names.bkg_image
