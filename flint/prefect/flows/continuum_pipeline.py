@@ -26,7 +26,8 @@ from flint.sky_model import get_1934_model, create_sky_model
 from flint.selfcal.casa import gaincal_applycal_ms
 from flint.convol import get_common_beam, convolve_images, BeamShape
 from flint.coadd.linmos import linmos_images
-from flint.utils import zip_folder, remove_files_folders
+from flint.utils import zip_folder
+from flint.source_finding import aegean
 
 task_extract_correct_bandpass_pointing = task(extract_correct_bandpass_pointing)
 task_preprocess_askap_ms = task(preprocess_askap_ms)
@@ -345,7 +346,8 @@ def process_bandpass_science_fields(
     yandasoft_container: Optional[Path] = None,
     bandpass_path: Optional[Path] = None,
     sky_model_path: Optional[Path] = None,
-    zip_ms: bool = False
+    zip_ms: bool = False,
+    run_aegean: bool = False
 ) -> None:
     assert (
         science_path.exists() and science_path.is_dir()

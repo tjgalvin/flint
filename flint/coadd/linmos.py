@@ -9,7 +9,7 @@ from astropy.io import fits
 
 from flint.logging import logger
 from flint.sclient import run_singularity_command
-from flint.naming import extract_beam_from_name
+from flint.naming import extract_beam_from_name, create_linmos_names, LinmosNames
 
 
 class LinmosCMD(NamedTuple):
@@ -17,7 +17,8 @@ class LinmosCMD(NamedTuple):
     """The yandasoft linmos task that will be executed"""
     parset: Path
     """The output location that the generated linmos parset has been writen to"""
-
+    image_fits: Path
+    """Path to the output linmos image created (or will be). """
 
 def get_image_weight(
     image_path: Path, mode: str = "mad", image_slice: int = 0
@@ -130,7 +131,7 @@ def generate_weights_list_and_files(
 def generate_linmos_parameter_set(
     images: Collection[Path],
     parset_output_name: Path,
-    image_output_name: str = "linmos_field",
+    linmos_names: LinmosNames,
     weight_list: Optional[str] = None,
     holofile: Optional[Path] = None,
 ) -> Path:
@@ -140,7 +141,7 @@ def generate_linmos_parameter_set(
     Args:
         images (Collection[Path]): The images that will be coadded into a single field image.
         parset_output_name (Path): Path of the output linmos parset file.
-        image_output_name (str, optional): Name of the output image linmos produces. The weight image will have a similar name. Defaults to "linmos_field".
+        linmos_names (LinmosNames): Names of the output image and weights that linmos will produces. The weight image will have a similar name. Defaults to "linmos_field".
         weight_list (str, optional): If not None, this string will be embedded into the yandasoft linmos parset as-is. It should represent the formatted string pointing to weight files, and should be equal length of the input images. If None it is internally generated. Defaults to None.
         holofile (Optional[Path], optional): Path to a FITS cube produced by the holography processing pipeline. Used by linmos to appropriate primary-beam correct the images. Defaults to None.
 
@@ -175,8 +176,8 @@ def generate_linmos_parameter_set(
         f"linmos.beams            = {beam_order_list}\n"
         # f"linmos.beamangle        = {beam_angle_list}\n"
         f"linmos.imagetype        = fits\n"
-        f"linmos.outname          = {image_output_name}_linmos\n"
-        f"linmos.outweight        = {image_output_name}_weight\n"
+        f"linmos.outname          = {str(linmos_names.image_fits.stem)}\n"
+        f"linmos.outweight        = {str(linmos_names.weight_fits.stem)}\n"
         f"# For ASKAPsoft>1.3.0\n"
         f"linmos.useweightslog    = true\n"
         f"linmos.weighttype       = Combined\n"
@@ -237,10 +238,12 @@ def linmos_images(
         container.exists()
     ), f"The yandasoft container {str(container)} was not found. "
 
+    linmos_names: LinmosNames = create_linmos_names(name_prefix=image_output_name)
+
     linmos_parset = generate_linmos_parameter_set(
         images=images,
         parset_output_name=parset_output_name,
-        image_output_name=image_output_name,
+        linmos_names=linmos_names,
         weight_list=weight_list,
         holofile=holofile,
     )
@@ -254,7 +257,7 @@ def linmos_images(
         image=container, command=linmos_cmd_str, bind_dirs=bind_dirs
     )
 
-    linmos_cmd = LinmosCMD(cmd=linmos_cmd_str, parset=linmos_parset)
+    linmos_cmd = LinmosCMD(cmd=linmos_cmd_str, parset=linmos_parset, image_fits=linmos_names.image_fits.absolute())
 
     return linmos_cmd
 
