@@ -95,3 +95,65 @@ def extract_beam_from_name(name: Union[str, Path]) -> int:
         raise ValueError(f"Unrecognised file name format for {name=}. ")
 
     return int(results.beam)
+
+
+class AegeanNames(NamedTuple):
+    """Base names that would be used in various Aegean related tasks"""
+
+    bkg_image: Path
+    """Background map computed by BANE"""
+    rms_image: Path
+    """RMS noise map computed by BANE"""
+    comp_cat: Path
+    """Component catalogue produced by the aegean source finder"""
+    ds9_region: Path
+    """DS9 region overlay file"""
+    resid_image: Path
+    """Residual map after subtracting component catalogue produced by AeRes"""
+
+
+def create_aegean_names(base_output: str) -> AegeanNames:
+    """Create the expected names for aegean and its tools.
+
+    Args:
+        base_output (str): The base name that aegean outputs are built from.
+
+    Returns:
+        AegeanNames: A collection of names to be produced by Aegean related tasks
+    """
+    return AegeanNames(
+        bkg_image=Path(f"{base_output}_bkg.fits"),
+        rms_image=Path(f"{base_output}_rms.fits"),
+        comp_cat=Path(f"{base_output}_comp.fits"),
+        ds9_region=Path(f"{base_output}_overlay.reg"),
+        resid_image=Path(f"{base_output}_residual.fits"),
+    )
+
+
+class LinmosNames(NamedTuple):
+    """Creates expected output names for the yandasoft linmos task."""
+
+    image_fits: Path
+    """Path to the final fits co-added image"""
+    weight_fits: Path
+    """Path to the weights fits image created when co-adding images"""
+
+
+def create_linmos_names(name_prefix: str) -> LinmosNames:
+    """This creates the names that would be output but the yandasoft
+    linmos task. It returns the names for the linmos and weight maps
+    that linmos would create. These names will have the .fits extension
+    with them, but be aware that when the linmos parset if created
+    these are omitted.
+
+    Args:
+        name_prefix (str): The prefix of the filename that will be used to create the linmos and weight file names.
+
+    Returns:
+        LinmosNames: Collection of expected filenames
+    """
+    logger.info(f"Linmos name prefix is: {name_prefix}")
+    return LinmosNames(
+        image_fits=Path(f"{name_prefix}_linmos.fits"),
+        weight_fits=Path(f"{name_prefix}_weight.fits"),
+    )

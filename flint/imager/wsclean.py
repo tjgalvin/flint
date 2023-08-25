@@ -63,7 +63,6 @@ class WSCleanOptions(NamedTuple):
     """Multiscale bias term"""
     multiscale_scales: Optional[Collection[int]] = (
         0,
-        5,
         15,
         25,
         50,

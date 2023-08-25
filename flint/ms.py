@@ -310,10 +310,7 @@ def split_by_field(
             logger.info(f"Selecting FIELD={split_name}")
             sub_ms = taql(f"select * from $tab where FIELD_ID=={split_idx}")
 
-            out_path = (
-                ms_out_dir
-                / ms.path.with_suffix(f".{split_name}.ms").name
-            )
+            out_path = ms_out_dir / ms.path.with_suffix(f".{split_name}.ms").name
 
             logger.info(f"Writing {str(out_path)} for {split_name}")
             sub_ms.copy(str(out_path), deep=True)

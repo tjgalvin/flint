@@ -26,6 +26,8 @@ from flint.sky_model import get_1934_model, create_sky_model
 from flint.selfcal.casa import gaincal_applycal_ms
 from flint.convol import get_common_beam, convolve_images, BeamShape
 from flint.coadd.linmos import linmos_images
+from flint.utils import zip_folder
+from flint.source_finding.aegean import run_bane_and_aegean, AegeanOutputs
 
 task_extract_correct_bandpass_pointing = task(extract_correct_bandpass_pointing)
 task_preprocess_askap_ms = task(preprocess_askap_ms)
@@ -34,6 +36,45 @@ task_create_calibrate_cmd = task(create_calibrate_cmd)
 task_split_by_field = task(split_by_field)
 task_select_solution_for_ms = task(select_aosolution_for_ms)
 task_create_apply_solutions_cmd = task(create_apply_solutions_cmd)
+
+
+@task
+def task_run_bane_and_aegean(image: WSCleanCMD) -> AegeanOutputs:
+    logger.critical(
+        (
+            "This mode is currently error until the BANE and aegean flint functions are rewritten. "
+            "It is suggested that aegean source finding is not activated. "
+        )
+    )
+
+    if isinstance(image, WSCleanCMD):
+        assert image.imageset is not None, f"Image set attribute unset. "
+        image_paths = image.imageset.image
+
+        logger.info(f"Have extracted image: {image_paths}")
+
+        # For the moment, will only source find on an MFS image
+        image_paths = [image for image in image_paths if "-MFS-" in str(image)]
+        assert (
+            len(image_paths) == 1
+        ), f"More than one image found after filter for MFS only images. "
+        # Get out the only path in the list.
+        image_path = image_paths[0]
+    else:
+        raise ValueError(f"Unexpected type, have received {type(image)}. ")
+
+    aegean_outputs = run_bane_and_aegean(image=image_path)
+
+    return aegean_outputs
+
+
+@task
+def task_zip_ms(in_item: WSCleanCMD) -> Path:
+    ms = in_item.ms
+
+    zipped_ms = zip_folder(in_path=ms.path)
+
+    return zipped_ms
 
 
 @task
@@ -336,6 +377,8 @@ def process_bandpass_science_fields(
     yandasoft_container: Optional[Path] = None,
     bandpass_path: Optional[Path] = None,
     sky_model_path: Optional[Path] = None,
+    zip_ms: bool = False,
+    run_aegean: bool = False,
 ) -> None:
     assert (
         science_path.exists() and science_path.is_dir()
@@ -408,7 +451,7 @@ def process_bandpass_science_fields(
             )
         else:
             raise ValueError(
-                f"Neither a bandpass calibration of sky-model calibration procedure set. "
+                f"Neither a bandpass calibration or sky-model calibration procedure set. "
             )
 
         apply_solutions_cmd = task_create_apply_solutions_cmd.submit(
@@ -427,13 +470,15 @@ def process_bandpass_science_fields(
         "weight": "briggs -0.5",
         "auto_mask": 4.0,
         "multiscale": True,
-        "multiscale_scales": (0, 5, 15, 50, 100, 250),
+        "multiscale_scales": (0, 15, 50, 100, 250),
     }
     wsclean_cmds = task_wsclean_imager.map(
         in_ms=apply_solutions_cmd_list,
         wsclean_container=wsclean_container,
         update_wsclean_options=unmapped(wsclean_init),
     )
+    if run_aegean:
+        task_run_bane_and_aegean.map(image=wsclean_cmds)
 
     beam_shape = task_get_common_beam.submit(wsclean_cmds=wsclean_cmds, cutoff=25.0)
     conv_images = task_convolve_image.map(
@@ -475,6 +520,9 @@ def process_bandpass_science_fields(
             update_gain_cal_options=unmapped(gain_cal_options),
             archive_input_ms=False,
         )
+        if zip_ms:
+            task_zip_ms.map(in_item=wsclean_cmds, wait_for=cal_mss)
+
         flag_mss = task_flag_ms_aoflagger.map(
             ms=cal_mss, container=flagger_container, rounds=1
         )
@@ -499,6 +547,10 @@ def process_bandpass_science_fields(
             holofile=holofile,
         )
 
+    # zip up the final measurement set, which is not included in the above loop
+    if zip_ms:
+        task_zip_ms.map(in_item=wsclean_cmds, wait_for=cal_mss)
+
 
 def setup_run_process_science_field(
     cluster_config: Union[str, Path],
@@ -514,6 +566,8 @@ def setup_run_process_science_field(
     rounds: int = 2,
     bandpass_path: Optional[Path] = None,
     sky_model_path: Optional[Path] = None,
+    zip_ms: bool = False,
+    run_aegean: bool = False,
 ) -> None:
     if bandpass_path == None and sky_model_path == None:
         raise ValueError(
@@ -541,6 +595,8 @@ def setup_run_process_science_field(
         rounds=rounds,
         bandpass_path=bandpass_path,
         sky_model_path=sky_model_path,
+        zip_ms=zip_ms,
+        run_aegean=run_aegean,
     )
 
 
@@ -620,6 +676,16 @@ def get_parser() -> ArgumentParser:
         default=None,
         help="Path to directory containing the uncalibrated beam-wise measurement sets that contain the bandpass calibration source. If None then the '--sky-model-directory' should be provided. ",
     )
+    parser.add_argument(
+        "--zip-ms",
+        action="store_true",
+        help="Zip up measurement sets as imaging and self-calibration is carried out.",
+    )
+    parser.add_argument(
+        "--run-aegean",
+        action="store_true",
+        help="Run the aegean source finder on images. ",
+    )
 
     return parser
 
@@ -647,6 +713,8 @@ def cli() -> None:
         rounds=args.selfcal_rounds,
         bandpass_path=args.bandpass_path,
         sky_model_path=args.sky_model_path,
+        zip_ms=args.zip_ms,
+        run_aegean=args.run_aegean,
     )
 
 
