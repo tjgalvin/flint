@@ -138,6 +138,9 @@ def plot_solutions(
     phases = np.angle(data, deg=True)
     channels = np.arange(ao_sols.nchan)
 
+    ref_ant = select_refant(bandpass=solutions.bandpass)
+    logger.info(f"Overwriting reference antenna selection, using {ref_ant=}")
+
     ncolumns = 6
     nrows = ao_sols.nant // ncolumns
     if ncolumns * nrows < ao_sols.nant:
@@ -636,6 +639,32 @@ def apply_solutions_to_ms(
     return apply_solutions_cmd
 
 
+def select_refant(bandpass: np.ndarray) -> int:
+    """Attempt to select an optimal reference antenna. This works in
+    a fairly simple way, and simply selects the antenna which is select
+    based purely on the number of valid/unflagged solutions in the 
+    bandpass aosolutions file. 
+
+    Args:
+        bandpass (np.ndarray): The aosolutions file that has been 
+        solved for
+
+    Returns:
+        int: The index of the reference antenna that should be used.
+    """
+    
+    assert len(bandpass.shape) == 4, f"Expected a bandpass of shape (times, ant, channels, pol), received {bandpass.shape=}"
+
+    # create the mask of valid solutions
+    mask = np.isfinite(bandpass)
+    # Sum_mask will be a shape of length 2 (time, ants)
+    sum_mask = np.sum(mask, axis=(2,3))
+    
+    # The refant will be the one with the highest number
+    max_ant = np.argmax(sum_mask, keepdims=True)
+
+    return max_ant[0][0]
+
 def flag_aosolutions(
     solutions_path: Path,
     ref_ant: int = 0,
@@ -682,6 +711,9 @@ def flag_aosolutions(
 
     # TODO: Need a procedure to select an optimal reference antenna. What would
     # happen if the ref_ant was not available when the bandpass was being taken.
+
+    ref_ant = select_refant(bandpass=solutions.bandpass)
+    logger.info(f"Overwriting reference antenna selection, using {ref_ant=}")
 
     for time in range(solutions.nsol):
         for pol in (0, 3):
