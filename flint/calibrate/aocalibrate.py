@@ -138,7 +138,7 @@ def plot_solutions(
     phases = np.angle(data, deg=True)
     channels = np.arange(ao_sols.nchan)
 
-    ref_ant = select_refant(bandpass=solutions.bandpass)
+    ref_ant = select_refant(bandpass=ao_sols.bandpass)
     logger.info(f"Overwriting reference antenna selection, using {ref_ant=}")
 
     ncolumns = 6
