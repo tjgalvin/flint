@@ -10,7 +10,7 @@ from AegeanTools.catalogs import save_catalog
 
 from flint.logging import logger
 from flint.naming import create_aegean_names
-
+from flint.sclient import run_singularity_command
 
 class AegeanOutputs(NamedTuple):
     """Somple structure to represent output aegean products"""
@@ -22,8 +22,28 @@ class AegeanOutputs(NamedTuple):
     comp: Path
     """Source component catalogue created by Aegean"""
 
+def run_bane_and_aegean(image: Path, aegean_container: Path, cores: int=8) -> AegeanOutputs:
 
-def run_bane_and_aegean(image: Path, cores: int = 8) -> AegeanOutputs:
+    base_output = str(image.stem)
+    logger.info(f"Using base output name of: {base_output}")
+
+    aegean_names = create_aegean_names(base_output=base_output)
+
+    bane_command_str = f"BANE {str(image)} --cores {cores} --stripes {cores//2}"
+    logger.info(f"Constructed BANE command. ")
+
+    bind_dir = [image.absolute()]
+    run_singularity_command(image=aegean_container, command=bane_command_str, bind_dirs=bind_dir)
+
+    aegean_command = f"aegean {str{image}} --autoload --table {aegean_names.comp_cat}"
+    logger.info(f"Constructed aegean command. ")
+
+    run_singularity_command(image=aegean_container, command=aegean_command, bind_dirs=bind_dir)
+
+    return aegean_names
+
+
+def python_run_bane_and_aegean(image: Path, cores: int = 8) -> AegeanOutputs:
     """Run BANE, the background and noise estimator, and aegean, the source finder,
     against an input image.
 
@@ -97,6 +117,12 @@ def get_parser() -> ArgumentParser:
     bane_parser.add_argument(
         "image", type=Path, help="The image that BANE will process"
     )
+    bane_parser.add_argument(
+        "container", type=Path, help="Path to container with AegeanTools"
+    )
+    bane_parser.add_argument(
+        "--cores", type=int, default=8, help="Number of cores to instruct aegean to use"
+    )
 
     return parser
 
@@ -107,7 +133,11 @@ def cli() -> None:
     args = parser.parse_args()
 
     if args.mode == "find":
-        run_bane_and_aegean(image=args.image)
+        run_bane_and_aegean(
+            image=args.image,
+            aegean_container=args.container,
+            cores=args.cores
+        )
 
 
 if __name__ == "__main__":
