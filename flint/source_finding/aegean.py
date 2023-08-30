@@ -35,7 +35,7 @@ def run_bane_and_aegean(image: Path, aegean_container: Path, cores: int=8) -> Ae
     bind_dir = [image.absolute()]
     run_singularity_command(image=aegean_container, command=bane_command_str, bind_dirs=bind_dir)
 
-    aegean_command = f"aegean {str{image}} --autoload --table {aegean_names.comp_cat}"
+    aegean_command = f"aegean {str(image)} --autoload --table {str(aegean_names.comp_cat)}"
     logger.info(f"Constructed aegean command. ")
 
     run_singularity_command(image=aegean_container, command=aegean_command, bind_dirs=bind_dir)
