@@ -35,7 +35,8 @@ def run_bane_and_aegean(image: Path, aegean_container: Path, cores: int=8) -> Ae
     Returns:
         AegeanOutputs: The newly created BANE products
     """
-    base_output = str(image.stem)
+    image = image.absolute()
+    base_output = str(image.parent / image.stem)
     logger.info(f"Using base output name of: {base_output}")
 
     aegean_names = create_aegean_names(base_output=base_output)
