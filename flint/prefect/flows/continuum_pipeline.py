@@ -39,7 +39,7 @@ task_create_apply_solutions_cmd = task(create_apply_solutions_cmd)
 
 
 @task
-def task_run_bane_and_aegean(image: WSCleanCMD) -> AegeanOutputs:
+def task_run_bane_and_aegean(image: WSCleanCMD, aegean_container: Path) -> AegeanOutputs:
     logger.critical(
         (
             "This mode is currently error until the BANE and aegean flint functions are rewritten. "
@@ -63,7 +63,7 @@ def task_run_bane_and_aegean(image: WSCleanCMD) -> AegeanOutputs:
     else:
         raise ValueError(f"Unexpected type, have received {type(image)}. ")
 
-    aegean_outputs = run_bane_and_aegean(image=image_path)
+    aegean_outputs = run_bane_and_aegean(image=image_path, aegean_container=aegean_container)
 
     return aegean_outputs
 
@@ -379,7 +379,10 @@ def process_bandpass_science_fields(
     sky_model_path: Optional[Path] = None,
     zip_ms: bool = False,
     run_aegean: bool = False,
+    aegean_container: Optional[Path] = None
 ) -> None:
+    run_aegean = False if aegean_container is None else run_aegean
+    
     assert (
         science_path.exists() and science_path.is_dir()
     ), f"{str(science_path)} does not exist or is not a folder. "
@@ -478,7 +481,7 @@ def process_bandpass_science_fields(
         update_wsclean_options=unmapped(wsclean_init),
     )
     if run_aegean:
-        task_run_bane_and_aegean.map(image=wsclean_cmds)
+        task_run_bane_and_aegean.map(image=wsclean_cmds, aegean_container=unmapped(aegean_container))
 
     beam_shape = task_get_common_beam.submit(wsclean_cmds=wsclean_cmds, cutoff=25.0)
     conv_images = task_convolve_image.map(
@@ -568,6 +571,7 @@ def setup_run_process_science_field(
     sky_model_path: Optional[Path] = None,
     zip_ms: bool = False,
     run_aegean: bool = False,
+    aegean_container: Optional[Path] = None
 ) -> None:
     if bandpass_path == None and sky_model_path == None:
         raise ValueError(
@@ -597,6 +601,7 @@ def setup_run_process_science_field(
         sky_model_path=sky_model_path,
         zip_ms=zip_ms,
         run_aegean=run_aegean,
+        aegean_container=aegean_container
     )
 
 
@@ -686,6 +691,12 @@ def get_parser() -> ArgumentParser:
         action="store_true",
         help="Run the aegean source finder on images. ",
     )
+    parser.add_argument(
+        "--aegean-container",
+        type=Path,
+        default=None,
+        help="Path to the singularity container with aegean",
+    )
 
     return parser
 
@@ -715,6 +726,7 @@ def cli() -> None:
         sky_model_path=args.sky_model_path,
         zip_ms=args.zip_ms,
         run_aegean=args.run_aegean,
+        aegean_container=args.aegean_container
     )
 
 

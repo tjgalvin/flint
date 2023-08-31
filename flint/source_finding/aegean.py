@@ -40,7 +40,17 @@ def run_bane_and_aegean(image: Path, aegean_container: Path, cores: int=8) -> Ae
 
     run_singularity_command(image=aegean_container, command=aegean_command, bind_dirs=bind_dir)
 
-    return aegean_names
+    # These are the bane outputs
+    bkg_image_path = aegean_names.bkg_image
+    rms_image_path = aegean_names.rms_image
+
+    aegean_outputs = AegeanOutputs(
+        bkg=bkg_image_path, rms=rms_image_path, comp=aegean_names.comp_cat
+    )
+
+    logger.info(f"Aegeam finished running. {aegean_outputs=}")
+
+    return aegean_outputs
 
 
 def python_run_bane_and_aegean(image: Path, cores: int = 8) -> AegeanOutputs:
