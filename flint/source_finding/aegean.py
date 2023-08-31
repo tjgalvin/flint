@@ -23,7 +23,18 @@ class AegeanOutputs(NamedTuple):
     """Source component catalogue created by Aegean"""
 
 def run_bane_and_aegean(image: Path, aegean_container: Path, cores: int=8) -> AegeanOutputs:
+    """Run BANE, the background and noise estimator, and aegean, the source finder,
+    against an input image. This function attempts to hook into the AegeanTools 
+    module directly, which does not work with dask daemon processes. 
 
+    Args:
+        image (Path): The input image that BANE will calculate a background and RMS map for
+        aegean_container (Path): Path to a singularity container that was the AegeanTools packages installed. 
+        cores (int, optional): The number of cores to allow BANE to use. Internally BANE will create a number of sub-processes. Defaults to 8.
+
+    Returns:
+        AegeanOutputs: The newly created BANE products
+    """
     base_output = str(image.stem)
     logger.info(f"Using base output name of: {base_output}")
 
@@ -55,7 +66,8 @@ def run_bane_and_aegean(image: Path, aegean_container: Path, cores: int=8) -> Ae
 
 def python_run_bane_and_aegean(image: Path, cores: int = 8) -> AegeanOutputs:
     """Run BANE, the background and noise estimator, and aegean, the source finder,
-    against an input image.
+    against an input image. This function attempts to hook into the AegeanTools 
+    module directly, which does not work with dask daemon processes. 
 
     Args:
         image (Path): The input image that BANE will calculate a background and RMS map for
