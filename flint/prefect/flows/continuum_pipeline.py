@@ -1,4 +1,8 @@
-"""A prefect based pipeline to bandpass calibrate data and apply it to a science observation
+"""A prefect based pipeline that:
+- will perform bandpass calibration with PKS B1934-638 data, or from a derived sky-model
+- copy and apply to science field
+- image and self-calibration the science fields
+- run aegean source finding
 """
 from time import time
 from argparse import ArgumentParser
