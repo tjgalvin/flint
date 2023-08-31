@@ -40,12 +40,6 @@ task_create_apply_solutions_cmd = task(create_apply_solutions_cmd)
 
 @task
 def task_run_bane_and_aegean(image: WSCleanCMD, aegean_container: Path) -> AegeanOutputs:
-    logger.critical(
-        (
-            "This mode is currently error until the BANE and aegean flint functions are rewritten. "
-            "It is suggested that aegean source finding is not activated. "
-        )
-    )
 
     if isinstance(image, WSCleanCMD):
         assert image.imageset is not None, f"Image set attribute unset. "
