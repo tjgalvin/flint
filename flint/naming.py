@@ -121,6 +121,8 @@ def create_aegean_names(base_output: str) -> AegeanNames:
     Returns:
         AegeanNames: A collection of names to be produced by Aegean related tasks
     """
+    base_output = str(base_output)
+    
     return AegeanNames(
         bkg_image=Path(f"{base_output}_bkg.fits"),
         rms_image=Path(f"{base_output}_rms.fits"),
