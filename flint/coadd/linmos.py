@@ -60,6 +60,9 @@ def get_image_weight(
             image_data.shape
         ), f"{len(image_data.shape)=} is less than two. Is this really an image?"
 
+        # remove non-finite numbers
+        image_data = image_data[np.isfinite(image_data)]
+
         logger.info(f"Data shape is: {image_data.shape}")
         if mode == "mad":
             median = np.median(image_data)
