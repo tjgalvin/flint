@@ -277,7 +277,7 @@ def run_bandpass_stage(
             source_name_prefix=source_name_prefix,
             ms_out_dir=output_split_bandpass_path,
         )
-        preprocess_bandpass_ms = task_preprocess_askap_ms.submit(ms=extract_bandpass_ms)
+        preprocess_bandpass_ms = task_preprocess_askap_ms.submit(ms=extract_bandpass_ms, skip_rotation=True)
         flag_bandpass_ms = task_flag_ms_aoflagger.submit(
             ms=preprocess_bandpass_ms, container=flagger_container, rounds=1
         )
@@ -377,7 +377,8 @@ def process_bandpass_science_fields(
     sky_model_path: Optional[Path] = None,
     zip_ms: bool = False,
     run_aegean: bool = False,
-    aegean_container: Optional[Path] = None
+    aegean_container: Optional[Path] = None,
+    no_imaging: bool = False
 ) -> None:
     run_aegean = False if aegean_container is None else run_aegean
     
@@ -461,6 +462,10 @@ def process_bandpass_science_fields(
             container=calibrate_container,
         )
         apply_solutions_cmd_list.append(apply_solutions_cmd)
+
+    if no_imaging:
+        logger.info(f"No imaging will be performed, as requested bu {no_imaging=}")
+        return
 
     if wsclean_container is None:
         logger.info(f"No wsclean container provided. Rerutning. ")
@@ -569,7 +574,8 @@ def setup_run_process_science_field(
     sky_model_path: Optional[Path] = None,
     zip_ms: bool = False,
     run_aegean: bool = False,
-    aegean_container: Optional[Path] = None
+    aegean_container: Optional[Path] = None,
+    no_imaging: bool = False
 ) -> None:
     if bandpass_path == None and sky_model_path == None:
         raise ValueError(
@@ -599,7 +605,8 @@ def setup_run_process_science_field(
         sky_model_path=sky_model_path,
         zip_ms=zip_ms,
         run_aegean=run_aegean,
-        aegean_container=aegean_container
+        aegean_container=aegean_container,
+        no_imaging=no_imaging
     )
 
 
@@ -695,6 +702,11 @@ def get_parser() -> ArgumentParser:
         default=None,
         help="Path to the singularity container with aegean",
     )
+    parser.add_argument(
+        "--no-imaging",
+        action="store_true",
+        help="Do not perform any imaging, only derive bandpass solutions and apply to sources. "
+    )
 
     return parser
 
@@ -724,7 +736,8 @@ def cli() -> None:
         sky_model_path=args.sky_model_path,
         zip_ms=args.zip_ms,
         run_aegean=args.run_aegean,
-        aegean_container=args.aegean_container
+        aegean_container=args.aegean_container,
+        no_imaging=args.no_imaging
     )
 
 

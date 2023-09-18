@@ -415,6 +415,7 @@ def preprocess_askap_ms(
     data_column: str = "DATA",
     instrument_column: str = "INSTRUMENT_DATA",
     overwrite: bool = True,
+    skip_rotation: bool = False
 ) -> MS:
     """The ASKAP MS stores its data in a way that is not immediatedly accessible
     to other astronomical software, like wsclean or casa. For each measurement set
@@ -434,6 +435,7 @@ def preprocess_askap_ms(
         data_column (str, optional): The name of the data column to correct. This will first be renamed to the value specified by `instrument_column` before being corrected. Defaults to 'DATA'.
         instrument_column (str, optional): The name of the column that will hold the original `data_column` data. Defaults to 'INSTRUMENT_DATA'
         overwrite (bool, optional): If the `instrument_column` and `data_column` both exist and `overwrite=True` the `data_column` will be overwritten. Otherwise, a `ValueError` is raised. Defaults to True.
+        skip_rotation (bool, optional): If true, the visibilities are not rotated Defaults to False. 
 
     Returns:
         MS: An updated measurement set with the corrections applied.
@@ -460,13 +462,20 @@ def preprocess_askap_ms(
             if not overwrite:
                 raise ValueError(msg)
 
-        if data_column in colnames and instrument_column not in colnames:
+        if not skip_rotation and data_column in colnames and instrument_column not in colnames:
             logger.info(f"Renaming {data_column} to {instrument_column}.")
             tab.renamecol(data_column, instrument_column)
 
     logger.info(f"Correcting the field table. ")
     fix_ms_dir(ms=str(ms.path))
     logger.info(f"Applying roation matrix to correlations. ")
+    
+    if skip_rotation:
+        # TODO: Should we copy the DATA to INSTRUMENT_DATA?
+        logger.info("Skipping the rotation of the visibilities. ")
+        logger.info(f"Returning {ms=}.")
+        return ms.with_options(column=data_column)
+    
     fix_ms_corrs(
         ms=ms.path, data_column=instrument_column, corrected_data_column=data_column
     )
