@@ -10,20 +10,71 @@ to be in a singularity container. There are several reasons
 for this, but the principal one is that the numba module used
 by potatopeel may be difficult to get working correctly alongside
 dask and flint. Keeping it simple at this point is the main aim. 
+
+The CLI of potatopeel is called across two stages:
+
+configFile="${source_name}_peel.cfg"
+$container peel_configuration.py "${configFile}" \
+    --image_size=${IMSIZE} \
+    --image_scale=${scale} \
+    --image_briggs=${PEEL_BRIGGS} \
+    --image_channels=4 \
+    --image_minuvl=0 \
+    --peel_size=1000 \
+    --peel_scale=${scale} \
+    --peel_channels=${chansOut} \
+    --peel_nmiter=7 \
+    --peel_minuvl=0 \
+    --peel_multiscale
+
+$container potato ${TMP_DIR}${obsid}.ms ${source_ra} ${source_dec} ${peel_fov} ${subtract_rad} \
+    --config ${configFile} \
+    -solint ${PEEL_SOLINT} \
+    -calmode ${PEEL_CALMODE}  \
+    -minpeelflux ${threshold1} \
+    --name ${source_name} \
+    --refant 1 \
+    --direct_subtract \
+    --no_time \
+    --intermediate_peels \
+    --tmp ${TMP_DIR}
+
 """
 
 from argparse import ArgumentParser
 from pathlib import Path
 
 from casacore.tables import table
+from astropy.table import table
+import astropy.units as u
+from astropy.coordinates import SkyCoord
 
 from flint.logging import logger
-from flint.ms import MS
+from flint.ms import MS, get_radec_direction
+from flint.types import RADecRadians
+
+
+def find_sources_to_peel(ms: MS):
+    field_idx = 0
+    logger.debug(f"Extracting image direction for {field_idx=}")
+    image_direction: RADecRadians = get_radec_direction(ms=ms, field_idx=field_idx)
+    image_coord = SkyCoord(image_direction.ra * u.rad, image_direction.dec * u.rad)
+
+    logger.info(f"Considering sources to peel around {image_coord=}")
+
+    # TODO: Get the known sources to peel
 
 
 def prepare_ms_for_potato(ms: MS) -> MS:
     """The potatopeel software requires the data column being operated against to be
     called DATA. This is a requirement of CASA and its gaincal / applysolution task.
+
+    If there is already a DATA column and this is not the nominated data column described
+    by the MS then it is removed, and the nominated data column is renamed.
+
+    If the DATA column already exists and it is the nominated column described by
+    MS then this is returned. If there is a CORRECTED_DATA column in this situation
+    it is removed.
 
     Args:
         ms (MS): The measurement set that will be edited

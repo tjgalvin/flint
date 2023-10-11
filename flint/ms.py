@@ -7,7 +7,7 @@ from shutil import rmtree
 from argparse import ArgumentParser
 from os import PathLike
 from pathlib import Path
-from typing import List, NamedTuple, Optional, Union
+from typing import List, NamedTuple, Optional, Union, Tuple
 from contextlib import contextmanager
 
 import numpy as np
@@ -17,6 +17,7 @@ from fixms.fix_ms_dir import fix_ms_dir
 
 from flint.logging import logger
 from flint.utils import rsync_copy_directory
+from flint.types import RADecRadians
 
 
 class MS(NamedTuple):
@@ -221,6 +222,28 @@ def get_freqs_from_ms(ms: Union[MS, Path]) -> np.ndarray:
     ), f"Frequency axis has dimensionality greater than one. Not expecting that. {len(freqs.shape)}"
 
     return freqs
+
+
+def get_radec_direction(ms: Union[MS, Path], field_idx: int = 0) -> RADecRadians:
+    """Return the direction of the measurement set for a given field index. These are simple the
+    (RA, Dec) of the 'REFERENCE_DIR' in units of radians
+
+    Args:
+        ms (Union[MS, Path]): The measurement set to extract the direction from
+        field_idx (int, optional): The field index of the FIELD table in ms to inspect. Defaults to 0.
+
+    Returns:
+        RADecRadians: A tuple of (RA, Dec) in units of radians.
+    """
+
+    ms = MS.cast(ms)
+
+    with table(str(ms.path), ack=False) as tab:
+        row = tab[field_idx]
+        radec = np.squeeze(row["REFERENCE_DIR"])
+        direction = RADecRadians(ra=radec[0], dec=radec[1])
+
+    return direction
 
 
 def describe_ms(ms: Union[MS, Path], verbose: bool = True) -> MSSummary:
