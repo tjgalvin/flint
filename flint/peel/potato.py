@@ -21,7 +21,7 @@ from flint.logging import logger
 from flint.ms import MS
 
 
-def move_column_into_data(ms: MS) -> MS:
+def prepare_ms_for_potato(ms: MS) -> MS:
     """The potatopeel software requires the data column being operated against to be
     called DATA. This is a requirement of CASA and its gaincal / applysolution task.
 
@@ -40,6 +40,12 @@ def move_column_into_data(ms: MS) -> MS:
     # just return, ya scally-wag
     if data_column == "DATA":
         logger.info(f"{data_column=} is already DATA. No need to rename. ")
+
+        with table(str(ms.path), readonly=False, ack=False) as tab:
+            if "CORRECTED_DATA" in tab.colnames():
+                logger.info(f"Removing CORRECTED_DATA column from {ms.path}")
+                tab.removecols("CORRECTED_DATA")
+
         return ms
 
     with table(str(ms.path), ack=False, readonly=False) as tab:
@@ -53,9 +59,17 @@ def move_column_into_data(ms: MS) -> MS:
         # there is not an existing DATA column
         if "DATA" in colnames:
             logger.info("Removing the existing DATA column")
-            tab.deletecol("DATA")
+            tab.removecols("DATA")
 
-    return ms
+        tab.renamecol(data_column, "DATA")
+
+        # Remove any CORRECT_DATA column, should it exist, as
+        # potatopeel will create it
+        if "CORRECTED_DATA" in colnames:
+            logger.info(f"Removing CORRECTED_DATA column from {ms.path}")
+            tab.removecols("CORRECTED_DATA")
+
+    return ms.with_options(column="DATA")
 
 
 def potato_peel(ms: MS, potato_container: Path) -> MS:
@@ -64,8 +78,7 @@ def potato_peel(ms: MS, potato_container: Path) -> MS:
     logger.info(f"Will attempt to peel the {ms=}")
     logger.info(f"Using the potato peel container {potato_container}")
 
-    # TODO: Need to ensure that the data_column column is moved into DATA
-    # TODO: Should we ensure that there is not CORRECT_DATA before running potatopeel?
+    ms = prepare_ms_for_potato(ms=ms)
 
     return ms
 
