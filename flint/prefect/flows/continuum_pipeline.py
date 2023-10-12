@@ -264,6 +264,7 @@ def run_bandpass_stage(
     flagger_container: Path,
     model_path: Path,
     source_name_prefix: str = "B1934-638",
+    skip_rotation: bool = False
 ) -> List[CalibrateCommand]:
     if not output_split_bandpass_path.exists():
         logger.info(f"Creating {str(output_split_bandpass_path)}")
@@ -271,13 +272,14 @@ def run_bandpass_stage(
 
     calibrate_cmds: List[CalibrateCommand] = []
 
+
     for bandpass_ms in bandpass_mss:
         extract_bandpass_ms = task_extract_correct_bandpass_pointing.submit(
             ms=bandpass_ms,
             source_name_prefix=source_name_prefix,
             ms_out_dir=output_split_bandpass_path,
         )
-        preprocess_bandpass_ms = task_preprocess_askap_ms.submit(ms=extract_bandpass_ms, skip_rotation=True)
+        preprocess_bandpass_ms = task_preprocess_askap_ms.submit(ms=extract_bandpass_ms, skip_rotation=skip_rotation)
         flag_bandpass_ms = task_flag_ms_aoflagger.submit(
             ms=preprocess_bandpass_ms, container=flagger_container, rounds=1
         )
@@ -475,7 +477,7 @@ def process_bandpass_science_fields(
         "minuv_l": 200,
         "weight": "briggs -0.5",
         "auto_mask": 4.0,
-        "multiscale": True,
+        "multiscale": False,
         "multiscale_scales": (0, 15, 50, 100, 250),
     }
     wsclean_cmds = task_wsclean_imager.map(
@@ -510,10 +512,10 @@ def process_bandpass_science_fields(
         4: {"calmode": "ap", "solint": "360s", "uvrange": ">200lambda"},
     }
     wsclean_rounds = {
-        1: {"minuv_l": 200, "auto_mask": 4, "multiscale_scales": (0, 5, 15, 30, 50, 100, 250, 400, 700)},
-        2: {"minuv_l": 200, "auto_mask": 3.5, "local_rms_window": 105, "multiscale_scales": (0, 5, 15, 30, 50, 100, 250, 400, 700)},
-        3: {"minuv_l": 200, "auto_mask": 3.5},
-        4: {"local_rms_window": 125, "minuv_l": 200, "auto_mask": 3.5},
+        1: {"multiscale": False, "minuv_l": 200, "auto_mask": 4, "multiscale_scales": (0, 5, 15, 30, 50, 100, 250, 400, 700)},
+        2: {"multiscale": False, "minuv_l": 200, "auto_mask": 3.5, "local_rms_window": 105, "multiscale_scales": (0, 5, 15, 30, 50, 100, 250, 400, 700)},
+        3: {"multiscale": False, "minuv_l": 200, "auto_mask": 3.5},
+        4: {"multiscale": False, "local_rms_window": 125, "minuv_l": 200, "auto_mask": 3.5},
     }
 
     for round in range(1, rounds + 1):
