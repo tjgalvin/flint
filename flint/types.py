@@ -1,7 +1,7 @@
 """Common and generic types that are used throughout flint.  
 """
 
-from typing import NamedTyple
+from typing import NamedTuple
 
 
 class RADecRadians(NamedTuple):
