@@ -40,12 +40,12 @@ $container potato ${TMP_DIR}${obsid}.ms ${source_ra} ${source_dec} ${peel_fov} $
     --tmp ${TMP_DIR}
 
 """
-
+import pkg_resources
 from argparse import ArgumentParser
 from pathlib import Path
 
 from casacore.tables import table
-from astropy.table import table
+from astropy.table import Table
 import astropy.units as u
 from astropy.coordinates import SkyCoord
 
@@ -54,15 +54,36 @@ from flint.ms import MS, get_radec_direction
 from flint.types import RADecRadians
 
 
-def find_sources_to_peel(ms: MS):
-    field_idx = 0
+def load_known_peel_sources() -> Table:
+    """Locate and load the packaged set of known sources to peel. These sources
+    are drawn from Duchesne et. al. (2023), Table 3.
+
+    Returns:
+        Table: The astropy Table of candidate sources to remove.
+    """
+
+    model_dir = pkg_resources.resource_filename("flint", "data/peeling/")
+    peel_srcs_csv = Path(model_dir) / "peel_sources.csv"
+
+    logger.info(f"Loading in {peel_srcs_csv=}")
+    peel_tab = Table.read(peel_srcs_csv)
+
+    logger.info(f"Loaded {len(peel_tab)} sources. ")
+
+    return peel_tab
+
+
+def find_sources_to_peel(ms: MS, field_idx: int = 0):
     logger.debug(f"Extracting image direction for {field_idx=}")
     image_direction: RADecRadians = get_radec_direction(ms=ms, field_idx=field_idx)
     image_coord = SkyCoord(image_direction.ra * u.rad, image_direction.dec * u.rad)
 
     logger.info(f"Considering sources to peel around {image_coord=}")
 
-    # TODO: Get the known sources to peel
+    peel_srcs_tab = load_known_peel_sources()
+    peel_srcs_coord = SkyCoord(
+        peel_srcs_tab["RA"], peel_srcs_tab["Dec"], unit=(u.hourangle, u.degree)
+    )
 
 
 def prepare_ms_for_potato(ms: MS) -> MS:
