@@ -48,10 +48,12 @@ from casacore.tables import table
 from astropy.table import Table
 import astropy.units as u
 from astropy.coordinates import SkyCoord
+import numpy as np
 
 from flint.logging import logger
-from flint.ms import MS, get_radec_direction
+from flint.ms import MS, get_radec_direction, get_freqs_from_ms
 from flint.types import RADecRadians
+from flint.sky_model import generate_gaussian_pb
 
 
 def load_known_peel_sources() -> Table:
@@ -73,7 +75,26 @@ def load_known_peel_sources() -> Table:
     return peel_tab
 
 
-def find_sources_to_peel(ms: MS, field_idx: int = 0):
+def find_sources_to_peel(
+    ms: MS, field_idx: int = 0, max_sep_deg: float = 5, cutoff: float = 0.1
+) -> Table:
+    """Obtain a set of sources to peel from a reference candidate set. This will
+    evaluate whether a source should be peels based on two criteria:
+
+    - if it is below a nominal primary beam cut off level (10 percent, assuming a gaussian primary beam)
+    - if the sources is within some separation of the imaging center
+
+    Args:
+        ms (MS): The measurement set that is being considered
+        field_idx (int, optional): Which field in the MS to draw the position from. Defaults to 0.
+        max_sep_deg (float, optional): The radius from the imaging center a source needs to be (in degrees) for it to be considered a source to peel. Defaults to 5.
+        cutoff (float, optional): The primary beam attentuation level a source needs to be below for it to be considered a source to peel. Defaults to 0.1.
+
+    Returns:
+        Table: Collection of sources to peel from the reference table. Column names are Name, RA, Dec, Aperture. This is the package table
+    """
+    max_sep = max_sep_deg * u.deg
+
     logger.debug(f"Extracting image direction for {field_idx=}")
     image_direction: RADecRadians = get_radec_direction(ms=ms, field_idx=field_idx)
     image_coord = SkyCoord(image_direction.ra * u.rad, image_direction.dec * u.rad)
@@ -81,9 +102,38 @@ def find_sources_to_peel(ms: MS, field_idx: int = 0):
     logger.info(f"Considering sources to peel around {image_coord=}")
 
     peel_srcs_tab = load_known_peel_sources()
-    peel_srcs_coord = SkyCoord(
-        peel_srcs_tab["RA"], peel_srcs_tab["Dec"], unit=(u.hourangle, u.degree)
-    )
+
+    freqs = get_freqs_from_ms(ms=ms)
+    nominal_freq = np.mean(freqs)
+    logger.info(f"The nominal frequency is {nominal_freq / 1e6}MHz")
+
+    peel_srcs = []
+
+    # TODO: Make this a mapping function
+    for src in peel_srcs_tab:
+        src_coord = SkyCoord(src["RA"], src["Dec"], unit=(u.hourrangle, u.degree))
+        offset = image_coord.separation(src_coord)
+
+        if offset > max_sep:
+            logger.debug(
+                f"{src['Name']} offset is {offset}, max separation is {max_sep}"
+            )
+            continue
+
+        gauss_taper = generate_gaussian_pb(
+            freqs=nominal_freq, aperture=12 * u.m, offset=offset
+        )
+        if gauss_taper.atten > cutoff:
+            logger.info(
+                f"{src['Name']} attenuation {gauss_taper.atten} is above {cutoff=} (in field of view)"
+            )
+            continue
+
+        peel_srcs.append(src)
+
+    peel_tab = Table(peel_srcs)
+
+    return peel_tab
 
 
 def prepare_ms_for_potato(ms: MS) -> MS:
@@ -145,10 +195,26 @@ def prepare_ms_for_potato(ms: MS) -> MS:
 
 
 def potato_peel(ms: MS, potato_container: Path) -> MS:
+    """Peel out sources from a measurement set using PotatoPeel. Candidate sources
+    from a known list of sources (see Table 3 or RACS-Mid paper) are considered.
+
+    Args:
+        ms (MS): The measurement set to peel out known sources
+        potato_container (Path): Location of container with potatopeel software installed
+
+    Returns:
+        MS: Updated measurement set
+    """
     potato_container = potato_container.absolute()
 
     logger.info(f"Will attempt to peel the {ms=}")
     logger.info(f"Using the potato peel container {potato_container}")
+
+    peel_tab = find_sources_to_peel(ms=ms)
+
+    if len(peel_tab) == 0:
+        logger.info(f"No sources to peel. ")
+        return ms
 
     ms = prepare_ms_for_potato(ms=ms)
 
@@ -160,17 +226,34 @@ def get_parser() -> ArgumentParser:
         description="A simple interface into the potatopeel software"
     )
 
-    parser.add_argument(
+    subparser = parser.add_subparsers(dest="mode")
+
+    check_parser = subparser.add_parser(
+        "check", help="Check whether there are sources to peel from a measurement set"
+    )
+
+    check_parser.add_argument(
+        "ms", type=Path, help="Path to the measurement set that will be considered"
+    )
+
+    list_parser = subparser.add_parser(
+        "list", help="List the known candidate sources available for peeling. "
+    )
+
+    peel_parser = subparser.add_parser(
+        "peel", help="Attempt to peel sources using potatopeel"
+    )
+    peel_parser.add_argument(
         "ms", type=Path, help="Path the to the measurement set with a source to peel"
     )
 
-    parser.add_argument(
+    peel_parser.add_argument(
         "--potato-container",
         type=Path,
         default=Path("./potato.sif"),
         help="Path to the singularity container that represented potatopeel",
     )
-    parser.add_argument(
+    peel_parser.add_argument(
         "--data-column",
         type=str,
         default="DATA",
@@ -185,9 +268,21 @@ def cli():
 
     args = parser.parse_args()
 
-    ms = MS(path=args.ms, column=args.data_column)
+    if args.mode == "list":
+        tab = load_known_peel_sources()
+        logger.info("Known candidate sources to peel")
+        logger.info(tab)
 
-    potato_peel(ms=ms, potato_peel=args.potato_container)
+    if args.mode == "check":
+        ms = MS(path=args.ms)
+        tab = find_sources_to_peel(ms=ms)
+        logger.info(f"Sources to peel")
+        logger.info(tab)
+
+    if args.mode == "peel":
+        ms = MS(path=args.ms, column=args.data_column)
+
+        potato_peel(ms=ms, potato_peel=args.potato_container)
 
 
 if __name__ == "__main__":
