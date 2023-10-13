@@ -429,6 +429,7 @@ def create_calibrate_cmd(
     """
     ms = MS.cast(ms)
     logger.info(f"Creating calibrate command for {ms.path}")
+    logger.info(f"Will calibrate data column {ms.column}")
 
     # This is a typical calibrate command.
     # calibrate -minuv 100 -i 50 -datacolumn DATA
@@ -671,6 +672,7 @@ def flag_aosolutions(
     flag_cut: float = 3,
     plot_dir: Optional[Path] = None,
     out_solutions_path: Optional[Path] = None,
+    zero_cross_terms: bool = True
 ) -> Path:
     """Will open a previously solved ao-calibrate solutions file and flag additional channels and antennae.
 
@@ -686,6 +688,7 @@ def flag_aosolutions(
         flag_cut (float, optional): Significance of a phase-outlier from the mean (or median) before it should be flagged. Defaults to 3.
         plot_dir (Optional[Path], optional): Where diagnostic flagging plots should be written. If None, no plots will be produced. Defaults to None.
         out_solutions_path (Optional[Path], optional): The output path of the flagged solutions file. If None, the solutions_path provided is used. Defaults to None.
+        zero_cross_terms (bool, optional): Set the XY and YX terms of each Jones to be 0. Defaults to True.
 
     Returns:
         Path: Path to the updated solutions file. This is out_solutions_path if provided, otherwise solutions_path
@@ -792,6 +795,15 @@ def flag_aosolutions(
                 logger.info(f"{ant=} failed mean amplitude gain test. Flagging {ant=}.")
                 bandpass[time, ant, :, :] = np.nan
 
+    if zero_cross_terms:
+        logger.info(f"Zeroing XY and YX terms. ")
+        # Without constraints on the polarised sky aocalibrate is not able to constrain these terms. 
+        # It seems that during its optimisation it is essentially adding noise since there is no 
+        # informaiton to constain. 
+        for pol in (1, 2):
+            # Nan multiplied by another is nan
+            bandpass[..., pol] *= 0
+        
     # TODO: This needs to be moved to a common naming module
     out_solutions_path = (
         solutions_path.with_suffix(PREFLAGGED_SUFFIX)
