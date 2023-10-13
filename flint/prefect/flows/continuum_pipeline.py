@@ -264,7 +264,7 @@ def run_bandpass_stage(
     flagger_container: Path,
     model_path: Path,
     source_name_prefix: str = "B1934-638",
-    skip_rotation: bool = True
+    skip_rotation: bool = False
 ) -> List[CalibrateCommand]:
     if not output_split_bandpass_path.exists():
         logger.info(f"Creating {str(output_split_bandpass_path)}")

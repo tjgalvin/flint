@@ -468,7 +468,6 @@ def preprocess_askap_ms(
 
     logger.info(f"Correcting the field table. ")
     fix_ms_dir(ms=str(ms.path))
-    logger.info(f"Applying roation matrix to correlations. ")
     
     if skip_rotation:
         # TODO: Should we copy the DATA to INSTRUMENT_DATA?
@@ -476,6 +475,7 @@ def preprocess_askap_ms(
         logger.info(f"Returning {ms=}.")
         return ms.with_options(column=data_column)
     
+    logger.info(f"Applying roation matrix to correlations. ")
     logger.info(f"Rotating visibilities for {ms.path} with data_column={instrument_column} amd corrected_data_column={data_column}")
     fix_ms_corrs(
         ms=ms.path, data_column=instrument_column, corrected_data_column=data_column
