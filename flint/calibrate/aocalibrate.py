@@ -672,7 +672,7 @@ def flag_aosolutions(
     flag_cut: float = 3,
     plot_dir: Optional[Path] = None,
     out_solutions_path: Optional[Path] = None,
-    zero_cross_terms: bool = True
+    zero_cross_terms: bool = False
 ) -> Path:
     """Will open a previously solved ao-calibrate solutions file and flag additional channels and antennae.
 
@@ -688,7 +688,7 @@ def flag_aosolutions(
         flag_cut (float, optional): Significance of a phase-outlier from the mean (or median) before it should be flagged. Defaults to 3.
         plot_dir (Optional[Path], optional): Where diagnostic flagging plots should be written. If None, no plots will be produced. Defaults to None.
         out_solutions_path (Optional[Path], optional): The output path of the flagged solutions file. If None, the solutions_path provided is used. Defaults to None.
-        zero_cross_terms (bool, optional): Set the XY and YX terms of each Jones to be 0. Defaults to True.
+        zero_cross_terms (bool, optional): Set the XY and YX terms of each Jones to be 0. Defaults to False.
 
     Returns:
         Path: Path to the updated solutions file. This is out_solutions_path if provided, otherwise solutions_path
