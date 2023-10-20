@@ -41,6 +41,14 @@ task_split_by_field = task(split_by_field)
 task_select_solution_for_ms = task(select_aosolution_for_ms)
 task_create_apply_solutions_cmd = task(create_apply_solutions_cmd)
 
+@task
+def task_bandpass_create_apply_solutions_cmd(
+            ms: MS,
+            calibrate_cmd: CalibrateCommand,
+            container: Path
+        ):
+    return create_apply_solutions_cmd(ms=ms, solutions_file=calibrate_cmd.solution_path, container=container)
+    
 
 @task
 def task_run_bane_and_aegean(image: WSCleanCMD, aegean_container: Path) -> AegeanOutputs:
@@ -291,6 +299,12 @@ def run_bandpass_stage(
         calibrate_cmd = task_flag_solutions.submit(calibrate_cmd=calibrate_cmd)
         task_plot_solutions.submit(calibrate_cmd=calibrate_cmd)
         calibrate_cmds.append(calibrate_cmd)
+
+        apply_solutions_cmd = task_bandpass_create_apply_solutions_cmd.submit(
+            ms=flag_bandpass_ms,
+            calibrate_cmd=calibrate_cmd,
+            container=calibrate_container,
+        )
 
     return calibrate_cmds
 
