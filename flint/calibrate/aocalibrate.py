@@ -133,13 +133,13 @@ def plot_solutions(
         logger.warn(f"Found {ao_sols.nsol} intervals, plotting the first. ")
     plot_sol = 0  # The first time interval
 
+    ref_ant = select_refant(bandpass=ao_sols.bandpass)
+    logger.info(f"Overwriting reference antenna selection, using {ref_ant=}")
+
     data = ao_sols.bandpass[plot_sol] / ao_sols.bandpass[plot_sol, ref_ant, :, :]
     amplitudes = np.abs(data)
     phases = np.angle(data, deg=True)
     channels = np.arange(ao_sols.nchan)
-
-    ref_ant = select_refant(bandpass=ao_sols.bandpass)
-    logger.info(f"Overwriting reference antenna selection, using {ref_ant=}")
 
     ncolumns = 6
     nrows = ao_sols.nant // ncolumns
@@ -642,28 +642,31 @@ def apply_solutions_to_ms(
 def select_refant(bandpass: np.ndarray) -> int:
     """Attempt to select an optimal reference antenna. This works in
     a fairly simple way, and simply selects the antenna which is select
-    based purely on the number of valid/unflagged solutions in the 
-    bandpass aosolutions file. 
+    based purely on the number of valid/unflagged solutions in the
+    bandpass aosolutions file.
 
     Args:
-        bandpass (np.ndarray): The aosolutions file that has been 
+        bandpass (np.ndarray): The aosolutions file that has been
         solved for
 
     Returns:
         int: The index of the reference antenna that should be used.
     """
-    
-    assert len(bandpass.shape) == 4, f"Expected a bandpass of shape (times, ant, channels, pol), received {bandpass.shape=}"
+
+    assert (
+        len(bandpass.shape) == 4
+    ), f"Expected a bandpass of shape (times, ant, channels, pol), received {bandpass.shape=}"
 
     # create the mask of valid solutions
     mask = np.isfinite(bandpass)
     # Sum_mask will be a shape of length 2 (time, ants)
-    sum_mask = np.sum(mask, axis=(2,3))
-    
+    sum_mask = np.sum(mask, axis=(2, 3))
+
     # The refant will be the one with the highest number
     max_ant = np.argmax(sum_mask, keepdims=True)
 
     return max_ant[0][0]
+
 
 def flag_aosolutions(
     solutions_path: Path,
