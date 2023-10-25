@@ -10,6 +10,11 @@ A pirate themed toy ASKAP-RACS pipeline.
 
 Yarrrr-Harrrr fiddley-dee!
 
+.. image:: logo.jpeg
+   :width: 400
+   :alt: Capn' Flint - Credit: DALLE 3
+
+
 .. toctree::
    :maxdepth: 2
    :caption: Contents:
