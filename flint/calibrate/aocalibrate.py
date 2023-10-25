@@ -8,7 +8,6 @@ from argparse import ArgumentParser
 
 import numpy as np
 import matplotlib.pyplot as plt
-from spython.main import Client as sclient
 
 from flint.logging import logger
 from flint.ms import MS, get_beam_from_ms, consistent_ms
@@ -323,7 +322,7 @@ def find_existing_solutions(
     expected_suffix = expected_suffix if expected_suffix else CALIBRATE_SUFFIX
 
     if use_preflagged:
-        logger.info(f"Will search for preflagged solutions. ")
+        logger.info("Will search for preflagged solutions. ")
         expected_suffix += ".preflagged"
 
     bandpass_mss = bandpass_directory.glob("*ms")
@@ -542,7 +541,7 @@ def run_calibrate(calibrate_cmd: CalibrateCommand, container: Path) -> None:
     assert container.exists(), f"The calibrate container {container} does not exist. "
     assert (
         calibrate_cmd.ms is not None
-    ), f"When calibrating the 'ms' field attribute must be defined. "
+    ), "When calibrating the 'ms' field attribute must be defined. "
 
     run_singularity_command(
         image=container,
@@ -796,7 +795,7 @@ def flag_aosolutions(
                 bandpass[time, ant, :, :] = np.nan
 
     if zero_cross_terms:
-        logger.info(f"Zeroing XY and YX terms. ")
+        logger.info("Zeroing XY and YX terms. ")
         # Without constraints on the polarised sky aocalibrate is not able to constrain these terms. 
         # It seems that during its optimisation it is essentially adding noise since there is no 
         # informaiton to constain. 
