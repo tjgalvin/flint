@@ -4,6 +4,8 @@ A pirate themed toy ASKAP-RACS pipeline.
 
 Yarrrr-Harrrr fiddley-dee!
 
+<img src="docs/logo.jpeg" alt="Capn' Flint - Credit: DALLE 3" style="width:400px;"/>
+
 ## About
 
 As a toy, this `flint` package is trying to get a minimum start-to-finish workflow written for `RACS` style data. `python` functions are used to do the work, and `prefect` is used to orchestrate their usage into a larger pipeline. 
