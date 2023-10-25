@@ -429,6 +429,7 @@ def create_calibrate_cmd(
     """
     ms = MS.cast(ms)
     logger.info(f"Creating calibrate command for {ms.path}")
+    logger.info(f"Will calibrate data column {ms.column}")
 
     # This is a typical calibrate command.
     # calibrate -minuv 100 -i 50 -datacolumn DATA
@@ -675,6 +676,7 @@ def flag_aosolutions(
     plot_dir: Optional[Path] = None,
     out_solutions_path: Optional[Path] = None,
     flag_ant_xyyx_mean_gain: bool = False,
+    zero_cross_terms: bool = False,
 ) -> Path:
     """Will open a previously solved ao-calibrate solutions file and flag additional channels and antennae.
 
@@ -691,6 +693,7 @@ def flag_aosolutions(
         plot_dir (Optional[Path], optional): Where diagnostic flagging plots should be written. If None, no plots will be produced. Defaults to None.
         out_solutions_path (Optional[Path], optional): The output path of the flagged solutions file. If None, the solutions_path provided is used. Defaults to None.
         flag_ant_xyyx_mean_gain (bool, optional): Whether to flag antennas based on the mean gain ratio of the XY and YX amplitude gains. Defaults to False.
+        zero_cross_terms (bool, optional): Set the XY and YX terms of each Jones to be 0. Defaults to False.
 
     Returns:
         Path: Path to the updated solutions file. This is out_solutions_path if provided, otherwise solutions_path
@@ -804,6 +807,15 @@ def flag_aosolutions(
                     f"{ant=} failed mean amplitude gain test based on XY/YX. Flagging {ant=}."
                 )
                 bandpass[time, ant, :, :] = np.nan
+
+    if zero_cross_terms:
+        logger.info(f"Zeroing XY and YX terms. ")
+        # Without constraints on the polarised sky aocalibrate is not able to constrain these terms.
+        # It seems that during its optimisation it is essentially adding noise since there is no
+        # informaiton to constain.
+        for pol in (1, 2):
+            # Nan multiplied by another is nan
+            bandpass[..., pol] *= 0
 
     # TODO: This needs to be moved to a common naming module
     out_solutions_path = (

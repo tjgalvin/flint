@@ -41,6 +41,14 @@ task_split_by_field = task(split_by_field)
 task_select_solution_for_ms = task(select_aosolution_for_ms)
 task_create_apply_solutions_cmd = task(create_apply_solutions_cmd)
 
+@task
+def task_bandpass_create_apply_solutions_cmd(
+            ms: MS,
+            calibrate_cmd: CalibrateCommand,
+            container: Path
+        ):
+    return create_apply_solutions_cmd(ms=ms, solutions_file=calibrate_cmd.solution_path, container=container)
+    
 
 @task
 def task_run_bane_and_aegean(image: WSCleanCMD, aegean_container: Path) -> AegeanOutputs:
@@ -264,6 +272,7 @@ def run_bandpass_stage(
     flagger_container: Path,
     model_path: Path,
     source_name_prefix: str = "B1934-638",
+    skip_rotation: bool = False
 ) -> List[CalibrateCommand]:
     if not output_split_bandpass_path.exists():
         logger.info(f"Creating {str(output_split_bandpass_path)}")
@@ -271,13 +280,14 @@ def run_bandpass_stage(
 
     calibrate_cmds: List[CalibrateCommand] = []
 
+
     for bandpass_ms in bandpass_mss:
         extract_bandpass_ms = task_extract_correct_bandpass_pointing.submit(
             ms=bandpass_ms,
             source_name_prefix=source_name_prefix,
             ms_out_dir=output_split_bandpass_path,
         )
-        preprocess_bandpass_ms = task_preprocess_askap_ms.submit(ms=extract_bandpass_ms)
+        preprocess_bandpass_ms = task_preprocess_askap_ms.submit(ms=extract_bandpass_ms, skip_rotation=skip_rotation)
         flag_bandpass_ms = task_flag_ms_aoflagger.submit(
             ms=preprocess_bandpass_ms, container=flagger_container, rounds=1
         )
@@ -289,6 +299,12 @@ def run_bandpass_stage(
         calibrate_cmd = task_flag_solutions.submit(calibrate_cmd=calibrate_cmd)
         task_plot_solutions.submit(calibrate_cmd=calibrate_cmd)
         calibrate_cmds.append(calibrate_cmd)
+
+        apply_solutions_cmd = task_bandpass_create_apply_solutions_cmd.submit(
+            ms=flag_bandpass_ms,
+            calibrate_cmd=calibrate_cmd,
+            container=calibrate_container,
+        )
 
     return calibrate_cmds
 
@@ -377,7 +393,8 @@ def process_bandpass_science_fields(
     sky_model_path: Optional[Path] = None,
     zip_ms: bool = False,
     run_aegean: bool = False,
-    aegean_container: Optional[Path] = None
+    aegean_container: Optional[Path] = None,
+    no_imaging: bool = False
 ) -> None:
     run_aegean = False if aegean_container is None else run_aegean
     
@@ -462,6 +479,10 @@ def process_bandpass_science_fields(
         )
         apply_solutions_cmd_list.append(apply_solutions_cmd)
 
+    if no_imaging:
+        logger.info(f"No imaging will be performed, as requested bu {no_imaging=}")
+        return
+
     if wsclean_container is None:
         logger.info(f"No wsclean container provided. Rerutning. ")
         return
@@ -470,7 +491,7 @@ def process_bandpass_science_fields(
         "minuv_l": 200,
         "weight": "briggs -0.5",
         "auto_mask": 4.0,
-        "multiscale": True,
+        "multiscale": False,
         "multiscale_scales": (0, 15, 50, 100, 250),
     }
     wsclean_cmds = task_wsclean_imager.map(
@@ -505,10 +526,10 @@ def process_bandpass_science_fields(
         4: {"calmode": "ap", "solint": "360s", "uvrange": ">200lambda"},
     }
     wsclean_rounds = {
-        1: {"minuv_l": 200, "auto_mask": 4, "multiscale_scales": (0, 5, 15, 30, 50, 100, 250, 400, 700)},
-        2: {"minuv_l": 200, "auto_mask": 3.5, "local_rms_window": 105, "multiscale_scales": (0, 5, 15, 30, 50, 100, 250, 400, 700)},
-        3: {"minuv_l": 200, "auto_mask": 3.5},
-        4: {"local_rms_window": 125, "minuv_l": 200, "auto_mask": 3.5},
+        1: {"multiscale": False, "minuv_l": 200, "auto_mask": 4, "multiscale_scales": (0, 5, 15, 30, 50, 100, 250, 400, 700)},
+        2: {"multiscale": False, "minuv_l": 200, "auto_mask": 3.5, "local_rms_window": 105, "multiscale_scales": (0, 5, 15, 30, 50, 100, 250, 400, 700)},
+        3: {"multiscale": False, "minuv_l": 200, "auto_mask": 3.5},
+        4: {"multiscale": False, "local_rms_window": 125, "minuv_l": 200, "auto_mask": 3.5},
     }
 
     for round in range(1, rounds + 1):
@@ -569,7 +590,8 @@ def setup_run_process_science_field(
     sky_model_path: Optional[Path] = None,
     zip_ms: bool = False,
     run_aegean: bool = False,
-    aegean_container: Optional[Path] = None
+    aegean_container: Optional[Path] = None,
+    no_imaging: bool = False
 ) -> None:
     if bandpass_path == None and sky_model_path == None:
         raise ValueError(
@@ -599,7 +621,8 @@ def setup_run_process_science_field(
         sky_model_path=sky_model_path,
         zip_ms=zip_ms,
         run_aegean=run_aegean,
-        aegean_container=aegean_container
+        aegean_container=aegean_container,
+        no_imaging=no_imaging
     )
 
 
@@ -695,6 +718,11 @@ def get_parser() -> ArgumentParser:
         default=None,
         help="Path to the singularity container with aegean",
     )
+    parser.add_argument(
+        "--no-imaging",
+        action="store_true",
+        help="Do not perform any imaging, only derive bandpass solutions and apply to sources. "
+    )
 
     return parser
 
@@ -724,7 +752,8 @@ def cli() -> None:
         sky_model_path=args.sky_model_path,
         zip_ms=args.zip_ms,
         run_aegean=args.run_aegean,
-        aegean_container=args.aegean_container
+        aegean_container=args.aegean_container,
+        no_imaging=args.no_imaging
     )
 
 
