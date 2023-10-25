@@ -4,7 +4,6 @@
 - image and self-calibration the science fields
 - run aegean source finding
 """
-from time import time
 from argparse import ArgumentParser
 from pathlib import Path
 from typing import Any, List, Dict, Optional, Union, Collection
@@ -54,7 +53,7 @@ def task_bandpass_create_apply_solutions_cmd(
 def task_run_bane_and_aegean(image: WSCleanCMD, aegean_container: Path) -> AegeanOutputs:
 
     if isinstance(image, WSCleanCMD):
-        assert image.imageset is not None, f"Image set attribute unset. "
+        assert image.imageset is not None, "Image set attribute unset. "
         image_paths = image.imageset.image
 
         logger.info(f"Have extracted image: {image_paths}")
@@ -63,7 +62,7 @@ def task_run_bane_and_aegean(image: WSCleanCMD, aegean_container: Path) -> Aegea
         image_paths = [image for image in image_paths if "-MFS-" in str(image)]
         assert (
             len(image_paths) == 1
-        ), f"More than one image found after filter for MFS only images. "
+        ), "More than one image found after filter for MFS only images. "
         # Get out the only path in the list.
         image_path = image_paths[0]
     else:
@@ -135,9 +134,9 @@ def task_flag_solutions(calibrate_cmd: CalibrateCommand) -> CalibrateCommand:
         try:
             logger.info(f"Attempting to create {plot_dir}")
             plot_dir.mkdir(parents=True)
-        except:
+        except FileExistsError:
             logger.warn(
-                f"Creating the directory failed. Likely already exists. Race conditions, me-hearty."
+                "Creating the directory failed. Likely already exists. Race conditions, me-hearty."
             )
 
     flagged_solutions_path = flag_aosolutions(
@@ -256,7 +255,7 @@ def task_create_sky_model(
     # To ensure the linter in the create calibrate command below is happy
     assert isinstance(
         sky_model.calibrate_model, Path
-    ), f"Only calibrate models supported, and not set in sky_model. "
+    ), "Only calibrate models supported, and not set in sky_model. "
 
     calibrate_command = create_calibrate_cmd(
         ms=ms, calibrate_model=sky_model.calibrate_model, container=calibrate_container
@@ -320,7 +319,7 @@ def run_bandpass_calibration(
     assert (
         bandpass_path.exists() and bandpass_path.is_dir()
     ), f"{str(bandpass_path)} does not exist or is not a folder. "
-    bandpass_mss = list([MS.cast(ms_path) for ms_path in bandpass_path.glob(f"*.ms")])
+    bandpass_mss = list([MS.cast(ms_path) for ms_path in bandpass_path.glob("*.ms")])
 
     assert (
         len(bandpass_mss) == expected_ms
@@ -401,7 +400,7 @@ def process_bandpass_science_fields(
     assert (
         science_path.exists() and science_path.is_dir()
     ), f"{str(science_path)} does not exist or is not a folder. "
-    science_mss = list([MS.cast(ms_path) for ms_path in science_path.glob(f"*.ms")])
+    science_mss = list([MS.cast(ms_path) for ms_path in science_path.glob("*.ms")])
     assert (
         len(science_mss) == expected_ms
     ), f"Expected to find {expected_ms} in {str(science_path)}, found {len(science_mss)}."
@@ -469,7 +468,7 @@ def process_bandpass_science_fields(
             )
         else:
             raise ValueError(
-                f"Neither a bandpass calibration or sky-model calibration procedure set. "
+                "Neither a bandpass calibration or sky-model calibration procedure set. "
             )
 
         apply_solutions_cmd = task_create_apply_solutions_cmd.submit(
@@ -484,7 +483,7 @@ def process_bandpass_science_fields(
         return
 
     if wsclean_container is None:
-        logger.info(f"No wsclean container provided. Rerutning. ")
+        logger.info("No wsclean container provided. Rerutning. ")
         return
 
     wsclean_init = {
@@ -509,14 +508,14 @@ def process_bandpass_science_fields(
     if yandasoft_container is not None:
         parset = task_linmos_images.submit(
             images=conv_images,
-            parset_output_name=f"linmos_noselfcal_parset.txt",
+            parset_output_name="linmos_noselfcal_parset.txt",
             container=yandasoft_container,
-            field_name=f"example_field_noselfcal",
+            field_name="example_field_noselfcal",
             holofile=holofile,
         )
 
     if rounds is None:
-        logger.info(f"No self-calibration will be performed. Returning")
+        logger.info("No self-calibration will be performed. Returning")
         return
 
     gain_cal_rounds = {
@@ -558,7 +557,7 @@ def process_bandpass_science_fields(
             wsclean_cmd=wsclean_cmds, beam_shape=unmapped(beam_shape), cutoff=25.0
         )
         if yandasoft_container is None:
-            logger.info(f"No yandasoft container supplied, not linmosing. ")
+            logger.info("No yandasoft container supplied, not linmosing. ")
             continue
 
         parset = task_linmos_images.submit(
@@ -593,9 +592,9 @@ def setup_run_process_science_field(
     aegean_container: Optional[Path] = None,
     no_imaging: bool = False
 ) -> None:
-    if bandpass_path == None and sky_model_path == None:
+    if bandpass_path is None and sky_model_path is None:
         raise ValueError(
-            f"Both bandpass_path and sky_model_path are None. This is not allowed. "
+            "Both bandpass_path and sky_model_path are None. This is not allowed. "
         )
     if bandpass_path and sky_model_path:
         raise ValueError(
