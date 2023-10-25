@@ -674,6 +674,7 @@ def flag_aosolutions(
     flag_cut: float = 3,
     plot_dir: Optional[Path] = None,
     out_solutions_path: Optional[Path] = None,
+    flag_ant_xyyx_mean_gain: bool = False,
 ) -> Path:
     """Will open a previously solved ao-calibrate solutions file and flag additional channels and antennae.
 
@@ -689,6 +690,7 @@ def flag_aosolutions(
         flag_cut (float, optional): Significance of a phase-outlier from the mean (or median) before it should be flagged. Defaults to 3.
         plot_dir (Optional[Path], optional): Where diagnostic flagging plots should be written. If None, no plots will be produced. Defaults to None.
         out_solutions_path (Optional[Path], optional): The output path of the flagged solutions file. If None, the solutions_path provided is used. Defaults to None.
+        flag_ant_xyyx_mean_gain (bool, optional): Whether to flag antennas based on the mean gain ratio of the XY and YX amplitude gains. Defaults to False.
 
     Returns:
         Path: Path to the updated solutions file. This is out_solutions_path if provided, otherwise solutions_path
@@ -793,6 +795,14 @@ def flag_aosolutions(
                 xx_complex_gains=ant_gains[:, 0], yy_complex_gains=ant_gains[:, 3]
             ):
                 logger.info(f"{ant=} failed mean amplitude gain test. Flagging {ant=}.")
+                bandpass[time, ant, :, :] = np.nan
+
+            if flag_ant_xyyx_mean_gain and flag_mean_xxyy_amplitude_ratio(
+                xx_complex_gains=ant_gains[:, 1], yy_complex_gains=ant_gains[:, 2]
+            ):
+                logger.info(
+                    f"{ant=} failed mean amplitude gain test based on XY/YX. Flagging {ant=}."
+                )
                 bandpass[time, ant, :, :] = np.nan
 
     # TODO: This needs to be moved to a common naming module
