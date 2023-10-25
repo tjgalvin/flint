@@ -40,15 +40,22 @@ def run_bane_and_aegean(image: Path, aegean_container: Path, cores: int=8) -> Ae
     logger.info(f"Using base output name of: {base_output}")
 
     aegean_names = create_aegean_names(base_output=base_output)
+    logger.debug(f"{aegean_names=}")
 
     bane_command_str = f"BANE {str(image)} --cores {cores} --stripes {cores//2}"
-    logger.info(f"Constructed BANE command. ")
+    logger.info("Constructed BANE command. ")
 
     bind_dir = [image.absolute()]
     run_singularity_command(image=aegean_container, command=bane_command_str, bind_dirs=bind_dir)
 
-    aegean_command = f"aegean {str(image)} --autoload --table {str(aegean_names.comp_cat)}"
-    logger.info(f"Constructed aegean command. ")
+    # NOTE: Aegean will add the '_comp' component to the output tables. So, if we want
+    # basename_comp.fits
+    # to be the output component table then we want to pass
+    # --table basename.fits
+    # and have to rely on aegean doing the right thing. 
+    aegean_command = f"aegean {str(image)} --autoload --table {base_output}.fits"
+    logger.info("Constructed aegean command. ")
+    logger.debug(f"{aegean_command=}")
 
     run_singularity_command(image=aegean_container, command=aegean_command, bind_dirs=bind_dir)
 
