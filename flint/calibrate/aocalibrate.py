@@ -132,13 +132,13 @@ def plot_solutions(
         logger.warn(f"Found {ao_sols.nsol} intervals, plotting the first. ")
     plot_sol = 0  # The first time interval
 
+    ref_ant = select_refant(bandpass=ao_sols.bandpass)
+    logger.info(f"Overwriting reference antenna selection, using {ref_ant=}")
+
     data = ao_sols.bandpass[plot_sol] / ao_sols.bandpass[plot_sol, ref_ant, :, :]
     amplitudes = np.abs(data)
     phases = np.angle(data, deg=True)
     channels = np.arange(ao_sols.nchan)
-
-    ref_ant = select_refant(bandpass=ao_sols.bandpass)
-    logger.info(f"Overwriting reference antenna selection, using {ref_ant=}")
 
     ncolumns = 6
     nrows = ao_sols.nant // ncolumns
@@ -642,28 +642,31 @@ def apply_solutions_to_ms(
 def select_refant(bandpass: np.ndarray) -> int:
     """Attempt to select an optimal reference antenna. This works in
     a fairly simple way, and simply selects the antenna which is select
-    based purely on the number of valid/unflagged solutions in the 
-    bandpass aosolutions file. 
+    based purely on the number of valid/unflagged solutions in the
+    bandpass aosolutions file.
 
     Args:
-        bandpass (np.ndarray): The aosolutions file that has been 
+        bandpass (np.ndarray): The aosolutions file that has been
         solved for
 
     Returns:
         int: The index of the reference antenna that should be used.
     """
-    
-    assert len(bandpass.shape) == 4, f"Expected a bandpass of shape (times, ant, channels, pol), received {bandpass.shape=}"
+
+    assert (
+        len(bandpass.shape) == 4
+    ), f"Expected a bandpass of shape (times, ant, channels, pol), received {bandpass.shape=}"
 
     # create the mask of valid solutions
     mask = np.isfinite(bandpass)
     # Sum_mask will be a shape of length 2 (time, ants)
-    sum_mask = np.sum(mask, axis=(2,3))
-    
+    sum_mask = np.sum(mask, axis=(2, 3))
+
     # The refant will be the one with the highest number
     max_ant = np.argmax(sum_mask, keepdims=True)
 
     return max_ant[0][0]
+
 
 def flag_aosolutions(
     solutions_path: Path,
@@ -671,7 +674,8 @@ def flag_aosolutions(
     flag_cut: float = 3,
     plot_dir: Optional[Path] = None,
     out_solutions_path: Optional[Path] = None,
-    zero_cross_terms: bool = False
+    flag_ant_xyyx_mean_gain: bool = False,
+    zero_cross_terms: bool = False,
 ) -> Path:
     """Will open a previously solved ao-calibrate solutions file and flag additional channels and antennae.
 
@@ -687,6 +691,7 @@ def flag_aosolutions(
         flag_cut (float, optional): Significance of a phase-outlier from the mean (or median) before it should be flagged. Defaults to 3.
         plot_dir (Optional[Path], optional): Where diagnostic flagging plots should be written. If None, no plots will be produced. Defaults to None.
         out_solutions_path (Optional[Path], optional): The output path of the flagged solutions file. If None, the solutions_path provided is used. Defaults to None.
+        flag_ant_xyyx_mean_gain (bool, optional): Whether to flag antennas based on the mean gain ratio of the XY and YX amplitude gains. Defaults to False.
         zero_cross_terms (bool, optional): Set the XY and YX terms of each Jones to be 0. Defaults to False.
 
     Returns:
@@ -794,15 +799,23 @@ def flag_aosolutions(
                 logger.info(f"{ant=} failed mean amplitude gain test. Flagging {ant=}.")
                 bandpass[time, ant, :, :] = np.nan
 
+            if flag_ant_xyyx_mean_gain and flag_mean_xxyy_amplitude_ratio(
+                xx_complex_gains=ant_gains[:, 1], yy_complex_gains=ant_gains[:, 2]
+            ):
+                logger.info(
+                    f"{ant=} failed mean amplitude gain test based on XY/YX. Flagging {ant=}."
+                )
+                bandpass[time, ant, :, :] = np.nan
+
     if zero_cross_terms:
-        logger.info("Zeroing XY and YX terms. ")
-        # Without constraints on the polarised sky aocalibrate is not able to constrain these terms. 
-        # It seems that during its optimisation it is essentially adding noise since there is no 
-        # informaiton to constain. 
+        logger.info(f"Zeroing XY and YX terms. ")
+        # Without constraints on the polarised sky aocalibrate is not able to constrain these terms.
+        # It seems that during its optimisation it is essentially adding noise since there is no
+        # informaiton to constain.
         for pol in (1, 2):
             # Nan multiplied by another is nan
             bandpass[..., pol] *= 0
-        
+
     # TODO: This needs to be moved to a common naming module
     out_solutions_path = (
         solutions_path.with_suffix(PREFLAGGED_SUFFIX)
