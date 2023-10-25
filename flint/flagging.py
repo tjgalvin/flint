@@ -52,7 +52,7 @@ def nan_zero_extreme_flag_ms(
     ms = MS.cast(ms)
 
     if data_column is None and ms.column is None:
-        logger.warn(f"No valid data column selected, using default of DATA")
+        logger.warn("No valid data column selected, using default of DATA")
         data_column = "DATA"
     elif data_column is None and ms.column is not None:
         logger.info(f"Using nominated {ms.column} column for {str(ms.path)}")
@@ -94,7 +94,7 @@ def nan_zero_extreme_flag_ms(
             f"Flags before: {no_flags_before}, Flags after: {no_flags_after}, Difference {no_flags_after - no_flags_before}"
         )
 
-        logger.info(f"Adding updated flags column")
+        logger.info("Adding updated flags column")
         tab.putcol("FLAG", flags)
 
         if nan_data_on_flag:
@@ -118,7 +118,7 @@ def create_aoflagger_cmd(ms: MS) -> AOFlaggerCommand:
     Returns:
         AOFlaggerCommand: The aoflagger command that will be run
     """
-    logger.info(f"Creating an AOFlagger command. ")
+    logger.info("Creating an AOFlagger command. ")
 
     assert (
         ms.column is not None
@@ -166,7 +166,7 @@ def flag_ms_aoflagger(ms: MS, container: Path, rounds: int = 1) -> MS:
     aoflagger_cmd = create_aoflagger_cmd(ms=ms)
 
     for i in range(rounds):
-        logger.info(f"Flagging command constructed. ")
+        logger.info("Flagging command constructed. ")
         run_aoflagger_cmd(aoflagger_cmd=aoflagger_cmd, container=container)
 
     return ms
@@ -191,7 +191,7 @@ def flag_ms_by_antenna_ids(
     ant_ids = (ant_ids,) if isinstance(ant_ids, int) else ant_ids
 
     if len(ant_ids) == 0:
-        logger.info(f"Antenna list to flag is empty. Exiting. ")
+        logger.info("Antenna list to flag is empty. Exiting. ")
         return ms
 
     logger.info(f"Will flag {str(ms.path)}.")

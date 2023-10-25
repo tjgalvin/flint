@@ -808,7 +808,7 @@ def flag_aosolutions(
                 bandpass[time, ant, :, :] = np.nan
 
     if zero_cross_terms:
-        logger.info(f"Zeroing XY and YX terms. ")
+        logger.info("Zeroing XY and YX terms. ")
         # Without constraints on the polarised sky aocalibrate is not able to constrain these terms.
         # It seems that during its optimisation it is essentially adding noise since there is no
         # informaiton to constain.

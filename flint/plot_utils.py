@@ -5,7 +5,6 @@ from typing import Optional
 import matplotlib.pyplot as plt
 import numpy as np
 
-from flint.logging import logger
 
 
 def fill_between_flags(

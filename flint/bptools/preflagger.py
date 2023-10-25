@@ -241,7 +241,7 @@ def flag_outlier_phase(
             p0,
         )
     except ValueError:
-        logger.critical(f"The phase outlier fit method failed. Flagging antenna. ")
+        logger.critical("The phase outlier fit method failed. Flagging antenna. ")
         raise PhaseOutlierFitError
 
     fit_model_gains = complex_gain_model(idxs, *results[0])
@@ -465,7 +465,7 @@ def flag_mean_xxyy_amplitude_ratio(
     assert (
         xx_complex_gains.shape == yy_complex_gains.shape
     ), f"Input xx and yy shapes do not match. {xx_complex_gains.shape=} {yy_complex_gains.shape=}"
-    logger.info(f"Calculating mean ratios. ")
+    logger.info("Calculating mean ratios. ")
 
     xx_amplitudes = np.abs(xx_complex_gains)
     yy_amplitudes = np.abs(yy_complex_gains)

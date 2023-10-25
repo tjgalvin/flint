@@ -63,7 +63,7 @@ def get_selfcal_ms_name(in_ms_path: Path, round: int = 1) -> Path:
     """
     res = regex.search("\\.round[0-9]+.ms", str(in_ms_path.name))
     if res:
-        logger.info(f"Detected a previous round of self-calibration. ")
+        logger.info("Detected a previous round of self-calibration. ")
         span = res.span()
         name_str = str(in_ms_path.name)
         name = f"{name_str[:span[0]]}.round{round}.ms"
@@ -111,7 +111,7 @@ def copy_and_clean_ms_casagain(ms: MS, round: int = 1, verify: bool = True) -> M
     if verify:
         rsync_copy_directory(ms.path, out_ms_path)
 
-    logger.info(f"Copying finished. ")
+    logger.info("Copying finished. ")
 
     # The casa gaincal and applycal tasks __really__ expect the input and output
     # column names to be DATA and CORRECTED_DATA. So, here we will go through the
@@ -134,7 +134,7 @@ def copy_and_clean_ms_casagain(ms: MS, round: int = 1, verify: bool = True) -> M
             else:
                 logger.warn(f"Column {col} not found in {str(out_ms_path)}.")
 
-        logger.info(f"Renaming CORRECTED_DATA to DATA. ")
+        logger.info("Renaming CORRECTED_DATA to DATA. ")
         tab.renamecol("CORRECTED_DATA", "DATA")
 
     ms = ms.with_options(path=out_ms_path, column="DATA")
@@ -200,7 +200,7 @@ def merge_spws_in_ms(ms_path: Path) -> Path:
     Returns:
         Path: The measurement set with merged SPWs. It will have the same path as `ms_path`, but is a new measurement set.
     """
-    logger.info(f"Will attempt to merge all spws using cvel.")
+    logger.info("Will attempt to merge all spws using cvel.")
 
     cvel_ms_path = ms_path.with_suffix(".cvel")
     cvel(vis=str(ms_path), outputvis=str(cvel_ms_path), mode="channel_b")
@@ -246,7 +246,7 @@ def gaincal_applycal_ms(
 
     cal_ms = copy_and_clean_ms_casagain(ms=ms, round=round)
 
-    cal_table = cal_ms.path.absolute().parent / cal_ms.path.with_suffix(f".caltable")
+    cal_table = cal_ms.path.absolute().parent / cal_ms.path.with_suffix(".caltable")
     logger.info(f"Will create calibration table {cal_table}.")
 
     if cal_table.exists():
@@ -280,7 +280,7 @@ def gaincal_applycal_ms(
 
     if not cal_table.exists():
         logger.critical(
-            f"The calibration table was not created. Likely gaincal failed. "
+            "The calibration table was not created. Likely gaincal failed. "
         )
         return ms
 

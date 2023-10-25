@@ -100,7 +100,7 @@ def python_run_bane_and_aegean(image: Path, cores: int = 8) -> AegeanOutputs:
     bkg_image_path = aegean_names.bkg_image
     rms_image_path = aegean_names.rms_image
 
-    logger.info(f"Have finished running BANE. ")
+    logger.info("Have finished running BANE. ")
     assert (
         bkg_image_path.exists()
     ), f"BANE output image {bkg_image_path} does not exists. "
@@ -109,7 +109,7 @@ def python_run_bane_and_aegean(image: Path, cores: int = 8) -> AegeanOutputs:
     ), f"BANE output image {rms_image_path} does not exists. "
 
     # TODO: These options need to have an associated class
-    logger.info(f"About to run aegean. ")
+    logger.info("About to run aegean. ")
     source_finder = SourceFinder()
     sf_results = source_finder.find_sources_in_image(
         filename=str(image),

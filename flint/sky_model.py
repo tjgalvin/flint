@@ -376,7 +376,7 @@ def load_catalogue(
 
     else:
         # Assertion is done to keep the linters happy
-        assert ms_pointing is not None, f"Expected SkyCoord object, received None. "
+        assert ms_pointing is not None, "Expected SkyCoord object, received None. "
         dec_point = float(ms_pointing.dec.deg)
         logger.info(f"Automatically loading catalogue based on {dec_point=:.2f}")
 

@@ -3,7 +3,7 @@ products.
 """
 import re
 from pathlib import Path
-from typing import Union, Optional, Dict, NamedTuple
+from typing import Union, Optional, NamedTuple
 
 from flint.logging import logger
 

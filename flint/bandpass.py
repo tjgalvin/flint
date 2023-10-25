@@ -1,6 +1,5 @@
 """Procedure to calibrate bandpass observation
 """
-import logging
 from argparse import ArgumentParser
 from pathlib import Path
 from typing import Optional, Union
@@ -59,7 +58,7 @@ def flag_bandpass_offset_pointings(ms: Union[MS, Path]) -> MS:
 
     good_field_name = f"B1934-638_beam{ms_summary.beam}"
     logger.info(f"The B1934-638 field name is {good_field_name}. ")
-    logger.info(f"Will attempt to flag other fields. ")
+    logger.info("Will attempt to flag other fields. ")
 
     with table(f"{str(ms.path)}/FIELD", readonly=True, ack=False) as tab:
         # The ID is _position_ of the matching row in the table.
@@ -208,7 +207,7 @@ def calibrate_bandpass(
 
     if aoflagger_container is not None:
         for i in range(3):
-            logger.info(f"Will run flagger on extracted measurement set. ")
+            logger.info("Will run flagger on extracted measurement set. ")
             flag_ms_aoflagger(
                 ms=ms.with_options(column="DATA"), container=aoflagger_container
             )

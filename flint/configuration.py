@@ -34,7 +34,7 @@ def load_yaml(input_yaml: Path) -> Any:
     with open(input_yaml, "r") as in_file:
         input_strategy = yaml.load(in_file, Loader=yaml.Loader)
 
-    logger.info(f"Loaded strategy is: ")
+    logger.info("Loaded strategy is: ")
 
     init_wsclean = WSCleanOptions(**input_strategy["initial"])
     logger.info(f"The initial wsclean options:\n {init_wsclean}")
@@ -66,7 +66,7 @@ def create_default_yaml(
     Returns:
         Path: Path to the written yaml output file.
     """
-    logger.info(f"Generating a default stategy. ")
+    logger.info("Generating a default stategy. ")
     strategy: Dict[Any, Any] = {}
 
     initial_wsclean = WSCleanOptions()

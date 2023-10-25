@@ -287,7 +287,7 @@ def split_by_field(
     # TODO: Split describe_ms up so can get just fiels
     ms_summary = describe_ms(ms, verbose=False)
 
-    logger.info(f"Collecting field names and corresponding FIELD_IDs")
+    logger.info("Collecting field names and corresponding FIELD_IDs")
     fields = [field] if field else ms_summary.fields
     field_idxs = [get_field_id_for_field(ms=ms, field_name=field) for field in fields]
 
@@ -449,7 +449,7 @@ def preprocess_askap_ms(
     logger.info(
         f"Will be running ASKAP MS conversion operations against {str(ms.path)}."
     )
-    logger.info(f"Correcting directions. ")
+    logger.info("Correcting directions. ")
 
     with table(str(ms.path), ack=False, readonly=False) as tab:
         colnames = tab.colnames()
@@ -466,7 +466,7 @@ def preprocess_askap_ms(
             logger.info(f"Renaming {data_column} to {instrument_column}.")
             tab.renamecol(data_column, instrument_column)
 
-    logger.info(f"Correcting the field table. ")
+    logger.info("Correcting the field table. ")
     fix_ms_dir(ms=str(ms.path))
     
     if skip_rotation:
@@ -475,7 +475,7 @@ def preprocess_askap_ms(
         logger.info(f"Returning {ms=}.")
         return ms.with_options(column=data_column)
     
-    logger.info(f"Applying roation matrix to correlations. ")
+    logger.info("Applying roation matrix to correlations. ")
     logger.info(f"Rotating visibilities for {ms.path} with data_column={instrument_column} amd corrected_data_column={data_column}")
     fix_ms_corrs(
         ms=ms.path, data_column=instrument_column, corrected_data_column=data_column
