@@ -12,7 +12,7 @@ include = [
 [tool.poetry.dependencies]
 python = "3.8"
 astropy = "*"
-numpy = "*"
+numpy = "<2"
 python-casacore = "*"
 scipy = "*"
 spython = "^0.3.0"
