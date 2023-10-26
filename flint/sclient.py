@@ -55,6 +55,7 @@ def run_singularity_command(
             return_result=True,
             quiet=False,
             stream=True,
+            stream_type="both"
         )
 
         for line in output:
