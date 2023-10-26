@@ -552,6 +552,11 @@ def process_bandpass_science_fields(
             wsclean_container=wsclean_container,
             update_wsclean_options=unmapped(wsclean_options),
         )
+        
+        # Do source finding on the last round of self-cal'ed images
+        if round == rounds and run_aegean:
+            task_run_bane_and_aegean.map(image=wsclean_cmds, aegean_container=unmapped(aegean_container))
+
         beam_shape = task_get_common_beam.submit(wsclean_cmds=wsclean_cmds, cutoff=25.0)
         conv_images = task_convolve_image.map(
             wsclean_cmd=wsclean_cmds, beam_shape=unmapped(beam_shape), cutoff=25.0
