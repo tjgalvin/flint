@@ -28,7 +28,7 @@ from flint.prefect.clusters import get_dask_runner
 from flint.sky_model import get_1934_model, create_sky_model
 from flint.selfcal.casa import gaincal_applycal_ms
 from flint.convol import get_common_beam, convolve_images, BeamShape
-from flint.coadd.linmos import linmos_images
+from flint.coadd.linmos import linmos_images, LinmosCMD
 from flint.utils import zip_folder
 from flint.source_finding.aegean import run_bane_and_aegean, AegeanOutputs
 
@@ -50,7 +50,7 @@ def task_bandpass_create_apply_solutions_cmd(
     
 
 @task
-def task_run_bane_and_aegean(image: WSCleanCMD, aegean_container: Path) -> AegeanOutputs:
+def task_run_bane_and_aegean(image: Union[WSCleanCMD,LinmosCMD], aegean_container: Path) -> AegeanOutputs:
 
     if isinstance(image, WSCleanCMD):
         assert image.imageset is not None, "Image set attribute unset. "
@@ -65,6 +65,11 @@ def task_run_bane_and_aegean(image: WSCleanCMD, aegean_container: Path) -> Aegea
         ), "More than one image found after filter for MFS only images. "
         # Get out the only path in the list.
         image_path = image_paths[0]
+    elif isinstance(image, LinmosCMD):
+        logger.info(f"Will be running aegean on a linmos image")
+
+        image_path = image.image_fits
+        assert image_path.exists(), f"Image path {image_path} does not exist"
     else:
         raise ValueError(f"Unexpected type, have received {type(image)}. ")
 
@@ -513,6 +518,10 @@ def process_bandpass_science_fields(
             field_name="example_field_noselfcal",
             holofile=holofile,
         )
+        
+        if run_aegean:
+            task_run_bane_and_aegean.map(image=parset, aegean_container=unmapped(aegean_container))
+
 
     if rounds is None:
         logger.info("No self-calibration will be performed. Returning")
@@ -572,6 +581,10 @@ def process_bandpass_science_fields(
             field_name=f"example_field_round{round}",
             holofile=holofile,
         )
+
+        if run_aegean:
+            task_run_bane_and_aegean.map(image=parset, aegean_container=unmapped(aegean_container))
+
 
     # zip up the final measurement set, which is not included in the above loop
     if zip_ms:
