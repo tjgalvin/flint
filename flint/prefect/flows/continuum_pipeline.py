@@ -489,8 +489,8 @@ def process_bandpass_science_fields(
     wsclean_init = {
         "minuv_l": 200,
         "weight": "briggs -0.5",
-        "auto_mask": 4.0,
-        "multiscale": False,
+        "auto_mask": 4.5,
+        "multiscale": True,
         "multiscale_scales": (0, 15, 50, 100, 250),
     }
     wsclean_cmds = task_wsclean_imager.map(
@@ -525,8 +525,8 @@ def process_bandpass_science_fields(
         4: {"calmode": "ap", "solint": "360s", "uvrange": ">200lambda"},
     }
     wsclean_rounds = {
-        1: {"multiscale": False, "minuv_l": 200, "auto_mask": 4, "multiscale_scales": (0, 5, 15, 30, 50, 100, 250, 400, 700)},
-        2: {"multiscale": False, "minuv_l": 200, "auto_mask": 3.5, "local_rms_window": 105, "multiscale_scales": (0, 5, 15, 30, 50, 100, 250, 400, 700)},
+        1: {"multiscale": True, "minuv_l": 200, "auto_mask": 4, "multiscale_scales": (0, 15, 30, 50, 100, 150)},
+        2: {"multiscale": True, "minuv_l": 200, "auto_mask": 3.5, "local_rms_window": 105, "multiscale_scales": (0, 15, 30, 50, 100, 150)},
         3: {"multiscale": False, "minuv_l": 200, "auto_mask": 3.5},
         4: {"multiscale": False, "local_rms_window": 125, "minuv_l": 200, "auto_mask": 3.5},
     }
