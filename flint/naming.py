@@ -122,7 +122,7 @@ def create_aegean_names(base_output: str) -> AegeanNames:
         AegeanNames: A collection of names to be produced by Aegean related tasks
     """
     base_output = str(base_output)
-    
+
     return AegeanNames(
         bkg_image=Path(f"{base_output}_bkg.fits"),
         rms_image=Path(f"{base_output}_rms.fits"),
@@ -159,3 +159,40 @@ def create_linmos_names(name_prefix: str) -> LinmosNames:
         image_fits=Path(f"{name_prefix}_linmos.fits"),
         weight_fits=Path(f"{name_prefix}_weight.fits"),
     )
+
+
+def get_sbid_from_path(path: Path) -> int:
+    """Attempt to extract the SBID of a observation from a path. It is a fairly simple ruleset
+    that follows the typical use cases that are actually in practise. There is no mechanism to
+    get the SBID from the measurement set meta-data.
+
+    If the path provided ends in a .ms suffix, the parent directory is assumed to be named
+    the sbid. Otherwise, the name of the subject directory is. A test is made to ensure the
+    sbid is made up of integers only.
+
+    Args:
+        path (Path): The path that contains the sbid to extract.
+
+    Raises:
+        ValueError: Raised when the SBID extracted from the path is not all digits
+
+    Returns:
+        int: The sbid extracted
+    """
+    path = Path(path)
+    path_suffix = path.suffix
+
+    logger.debug(f"Suffix of {path} is {path_suffix}")
+
+    if path_suffix.endswith(".ms"):
+        logger.debug("This is a measurement set, so sbid must be the parent directory")
+        sbid = path.parent.name
+    else:
+        sbid = path.name
+
+    if not sbid.isdigit():
+        raise ValueError(
+            f"Extracted {sbid=} from {str(path)} failed appears to be non-conforming - it is not a number! "
+        )
+
+    return int(sbid)
