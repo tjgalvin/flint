@@ -19,20 +19,6 @@ class RawNameComponents(NamedTuple):
     """If multiple MS were written as the data were in a high-frequency resolution mode, which segment"""
 
 
-# Beginnings of some tests to write, ye old sea dog
-# In [42]: e = re.compile("(?P<date>[0-9]{4}-[0-9]{1,2}-[0-9]{1,2})_(?P<time>[0-9]+)_(?P<beam>[0-9]+)(_(?P<spw>[0-9]+))*")
-# In [43]: results = e.match(a)
-# In [44]: results.groupdict()
-# Out[44]: {'date': '2022-04-14', 'time': '100122', 'beam': '1', 'spw': None}
-# In [45]: results = e.match(b)
-# In [46]: results.groupdict()
-# Out[46]: {'date': '2022-04-14', 'time': '100122', 'beam': '1', 'spw': '2'}
-# In [47]: a
-# Out[47]: '2022-04-14_100122_1'
-# In [48]: b
-# Out[48]: '2022-04-14_100122_1_2'
-
-
 def raw_ms_format(in_name: str) -> Union[None, RawNameComponents]:
     """The typical ASKAP measurement written to the ingest disks
     has the form:
