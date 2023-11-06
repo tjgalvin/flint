@@ -49,6 +49,28 @@ def test_raw_name_components():
     assert components.time == "100122"
     assert components.spw == "3"
 
+def test_components_all_beams_spws():
+    for beam in range(36):
+        for spw in range(10):
+            ms = f"2022-04-14_100122_{beam}_{spw}.ms"
+
+            components = raw_ms_format(ms)
+            assert isinstance(components, RawNameComponents)
+            assert components.beam == f"{beam}"
+            assert components.date == "2022-04-14"
+            assert components.time == "100122"
+            assert components.spw == f"{spw}"
+
+    for beam in range(36):
+        ms = f"2022-04-14_100122_{beam}.ms"
+
+        components = raw_ms_format(ms)
+        assert isinstance(components, RawNameComponents)
+        assert components.beam == f"{beam}"
+        assert components.date == "2022-04-14"
+        assert components.time == "100122"
+        assert components.spw is None
+
 
 def test_create_ms_name():
     example_path = "/scratch3/gal16b/askap_sbids/39400/2022-04-14_100122_0.ms"
