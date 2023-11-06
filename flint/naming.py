@@ -3,7 +3,7 @@ products.
 """
 import re
 from pathlib import Path
-from typing import Union, Optional, NamedTuple
+from typing import Union, Optional, NamedTuple, List, Any
 
 from flint.logging import logger
 
@@ -17,20 +17,6 @@ class RawNameComponents(NamedTuple):
     """Beam number of the data"""
     spw: Optional[str] = None
     """If multiple MS were written as the data were in a high-frequency resolution mode, which segment"""
-
-
-# Beginnings of some tests to write, ye old sea dog
-# In [42]: e = re.compile("(?P<date>[0-9]{4}-[0-9]{1,2}-[0-9]{1,2})_(?P<time>[0-9]+)_(?P<beam>[0-9]+)(_(?P<spw>[0-9]+))*")
-# In [43]: results = e.match(a)
-# In [44]: results.groupdict()
-# Out[44]: {'date': '2022-04-14', 'time': '100122', 'beam': '1', 'spw': None}
-# In [45]: results = e.match(b)
-# In [46]: results.groupdict()
-# Out[46]: {'date': '2022-04-14', 'time': '100122', 'beam': '1', 'spw': '2'}
-# In [47]: a
-# Out[47]: '2022-04-14_100122_1'
-# In [48]: b
-# Out[48]: '2022-04-14_100122_1_2'
 
 
 def raw_ms_format(in_name: str) -> Union[None, RawNameComponents]:
@@ -97,6 +83,55 @@ def extract_beam_from_name(name: Union[str, Path]) -> int:
     return int(results.beam)
 
 
+def create_ms_name(
+    ms_path: Path, sbid: Optional[int] = None, field: Optional[str] = None
+) -> str:
+    """Create a consistent naming scheme for measurement sets. At present
+    it is intented to be used for splitting fields from raw measurement
+    sets, but can be expanded.
+
+    Args:
+        ms_path (Path): The measurement set being considered. A RawNameComponents will be constructed against it.
+        sbid (Optional[int], optional): An explicit SBID to include in the name, otherwise one will attempted to be extracted the the ms path. If these fail the sbid is set of 00000. Defaults to None.
+        field (Optional[str], optional): The field that this measurement set will contain. Defaults to None.
+
+    Returns:
+        str: The filename of the measurement set
+    """
+
+    # TODO: What to do if the MS does not work with RawMSComponents?
+
+    ms_path = Path(ms_path).absolute()
+    ms_name_list: List[Any] = []
+
+    # Use the explicit SBID is provided, otherwise attempt
+    # to extract it
+    sbid_text = "SB0000"
+    if sbid:
+        sbid_text = f"SB{sbid}"
+    else:
+        try:
+            sbid = get_sbid_from_path(path=ms_path)
+            sbid_text = f"SB{sbid}"
+        except:
+            pass
+    ms_name_list.append(sbid_text)
+
+    if field:
+        ms_name_list.append(field)
+
+    components = raw_ms_format(in_name=ms_path.name)
+    if components:
+        ms_name_list.append(f"beam{components.beam}")
+        if components.spw:
+            ms_name_list.append(f"spw{components.spw}")
+
+    ms_name_list.append("ms")
+    ms_name = ".".join(ms_name_list)
+
+    return ms_name
+
+
 class AegeanNames(NamedTuple):
     """Base names that would be used in various Aegean related tasks"""
 
@@ -122,7 +157,7 @@ def create_aegean_names(base_output: str) -> AegeanNames:
         AegeanNames: A collection of names to be produced by Aegean related tasks
     """
     base_output = str(base_output)
-    
+
     return AegeanNames(
         bkg_image=Path(f"{base_output}_bkg.fits"),
         rms_image=Path(f"{base_output}_rms.fits"),
@@ -159,3 +194,40 @@ def create_linmos_names(name_prefix: str) -> LinmosNames:
         image_fits=Path(f"{name_prefix}_linmos.fits"),
         weight_fits=Path(f"{name_prefix}_weight.fits"),
     )
+
+
+def get_sbid_from_path(path: Path) -> int:
+    """Attempt to extract the SBID of a observation from a path. It is a fairly simple ruleset
+    that follows the typical use cases that are actually in practise. There is no mechanism to
+    get the SBID from the measurement set meta-data.
+
+    If the path provided ends in a .ms suffix, the parent directory is assumed to be named
+    the sbid. Otherwise, the name of the subject directory is. A test is made to ensure the
+    sbid is made up of integers only.
+
+    Args:
+        path (Path): The path that contains the sbid to extract.
+
+    Raises:
+        ValueError: Raised when the SBID extracted from the path is not all digits
+
+    Returns:
+        int: The sbid extracted
+    """
+    path = Path(path)
+    path_suffix = path.suffix
+
+    logger.debug(f"Suffix of {path} is {path_suffix}")
+
+    if path_suffix.endswith(".ms"):
+        logger.debug("This is a measurement set, so sbid must be the parent directory")
+        sbid = path.parent.name
+    else:
+        sbid = path.name
+
+    if not sbid.isdigit():
+        raise ValueError(
+            f"Extracted {sbid=} from {str(path)} failed appears to be non-conforming - it is not a number! "
+        )
+
+    return int(sbid)
