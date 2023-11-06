@@ -66,12 +66,12 @@ def task_run_bane_and_aegean(image: Union[WSCleanCMD,LinmosCMD], aegean_containe
         # Get out the only path in the list.
         image_path = image_paths[0]
     elif isinstance(image, LinmosCMD):
-        logger.info(f"Will be running aegean on a linmos image")
+        logger.info("Will be running aegean on a linmos image")
 
         image_path = image.image_fits
         assert image_path.exists(), f"Image path {image_path} does not exist"
     else:
-        raise ValueError(f"Unexpected type, have received {type(image)}. ")
+        raise ValueError(f"Unexpected type, have received {type(image)} for {image=}. ")
 
     aegean_outputs = run_bane_and_aegean(image=image_path, aegean_container=aegean_container)
 
@@ -224,7 +224,7 @@ def task_linmos_images(
     filter: str = "-MFS-",
     field_name: str = "unnamed_field",
     holofile: Optional[Path] = None,
-) -> Path:
+) -> LinmosCMD:
     # TODO: Need to flatten images
     # TODO: Need a better way of getting field names
 
@@ -246,7 +246,7 @@ def task_linmos_images(
         holofile=holofile,
     )
 
-    return linmos_cmd.parset
+    return linmos_cmd
 
 
 @task
