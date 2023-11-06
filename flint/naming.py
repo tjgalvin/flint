@@ -3,7 +3,7 @@ products.
 """
 import re
 from pathlib import Path
-from typing import Union, Optional, NamedTuple
+from typing import Union, Optional, NamedTuple, List, Any
 
 from flint.logging import logger
 
@@ -81,6 +81,55 @@ def extract_beam_from_name(name: Union[str, Path]) -> int:
         raise ValueError(f"Unrecognised file name format for {name=}. ")
 
     return int(results.beam)
+
+
+def create_ms_name(
+    ms_path: Path, sbid: Optional[int] = None, field: Optional[str] = None
+) -> str:
+    """Create a consistent naming scheme for measurement sets. At present
+    it is intented to be used for splitting fields from raw measurement
+    sets, but can be expanded.
+
+    Args:
+        ms_path (Path): The measurement set being considered. A RawNameComponents will be constructed against it.
+        sbid (Optional[int], optional): An explicit SBID to include in the name, otherwise one will attempted to be extracted the the ms path. If these fail the sbid is set of 00000. Defaults to None.
+        field (Optional[str], optional): The field that this measurement set will contain. Defaults to None.
+
+    Returns:
+        str: The filename of the measurement set
+    """
+
+    # TODO: What to do if the MS does not work with RawMSComponents?
+
+    ms_path = Path(ms_path).absolute()
+    ms_name_list: List[Any] = []
+
+    # Use the explicit SBID is provided, otherwise attempt
+    # to extract it
+    sbid_text = "SB0000"
+    if sbid:
+        sbid_text = f"SB{sbid}"
+    else:
+        try:
+            sbid = get_sbid_from_path(path=ms_path)
+            sbid_text = f"SB{sbid}"
+        except:
+            pass
+    ms_name_list.append(sbid_text)
+
+    if field:
+        ms_name_list.append(field)
+
+    components = raw_ms_format(in_name=ms_path.name)
+    if components:
+        ms_name_list.append(f"beam{components.beam}")
+        if components.spw:
+            ms_name_list.append(f"spw{components.spw}")
+
+    ms_name_list.append("ms")
+    ms_name = ".".join(ms_name_list)
+
+    return ms_name
 
 
 class AegeanNames(NamedTuple):
