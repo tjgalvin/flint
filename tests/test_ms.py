@@ -38,7 +38,7 @@ def test_raw_name_components():
     assert components.beam == "0"
     assert components.date == "2022-04-14"
     assert components.time == "100122"
-    assert components.spw == None
+    assert components.spw is None
 
     ms = "2022-04-14_100122_0_3.ms"
 

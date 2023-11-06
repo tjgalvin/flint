@@ -12,7 +12,7 @@ from flint.flagging import flag_ms_aoflagger
 from flint.logging import logger
 from flint.ms import MS, describe_ms, preprocess_askap_ms
 from flint.sky_model import KNOWN_1934_FILES, get_1934_model
-
+from flint.naming import create_ms_name
 
 def plot_solutions(solutions_path: Path, ref_ant: int = 0) -> None:
     """Plot solutions for AO-style solutions
@@ -146,7 +146,7 @@ def extract_correct_bandpass_pointing(
     good_field_name = f"{source_name_prefix}_beam{ms_summary.beam}"
     field_id = ms.get_field_id_for_field(field_name=good_field_name)
 
-    out_path = ms.path.with_suffix(f".{source_name_prefix}.beam{ms_summary.beam}.ms")
+    out_name = create_ms_name(ms_path=ms.path, field=f"{source_name_prefix}")
 
     # Handle writing out to elected output directory.
     # TODO: Move this to a helper utility.
@@ -160,7 +160,7 @@ def extract_correct_bandpass_pointing(
                 logger.warn(f"{e}")
                 pass
 
-        out_path = ms_out_dir / out_path.name
+        out_path = ms_out_dir / Path(out_name).name
 
     logger.info(f"Will create a MS, writing to {out_path}")
     with table(f"{str(ms.path)}") as tab:
