@@ -520,7 +520,7 @@ def process_bandpass_science_fields(
         )
         
         if run_aegean:
-            task_run_bane_and_aegean.map(image=parset, aegean_container=unmapped(aegean_container))
+            task_run_bane_and_aegean.submit(image=parset, aegean_container=unmapped(aegean_container))
 
 
     if rounds is None:
@@ -583,7 +583,7 @@ def process_bandpass_science_fields(
         )
 
         if run_aegean:
-            task_run_bane_and_aegean.map(image=parset, aegean_container=unmapped(aegean_container))
+            task_run_bane_and_aegean.submit(image=parset, aegean_container=unmapped(aegean_container))
 
 
     # zip up the final measurement set, which is not included in the above loop
