@@ -57,13 +57,90 @@ def raw_ms_format(in_name: str) -> Union[None, RawNameComponents]:
         date=groups["date"], time=groups["time"], beam=groups["beam"], spw=groups["spw"]
     )
 
+class ProcessedNameComponents(NamedTuple):
+    """Container for a file name derived from a MS flint name. Generally of the 
+    form: SB.Field.Beam.Spw"""
+    sbid: int
+    """The sbid of the observation"""
+    field: str
+    """The name of the field extracted"""
+    beam: str 
+    """The beam of the observation processed"""
+    spw: Optional[str] = None 
+    """The SPW of the observation. If there is only one spw this is None."""
+
+def processed_ms_format(in_name: Union[str, Path]) -> ProcessedNameComponents:
+    """Will take a formatted name (i.e. one derived from the flint.naming.create_ms_name) 
+    and attempt to extract its main components. This includes the SBID, field, beam and spw. 
+
+    Args:
+        in_name (Union[str, Path]): The name that needs to be broken down into components
+
+    Returns:
+        FormatedNameComponents: A structure container the sbid, field, beam and spw
+    """
+    
+    in_name = in_name.name if isinstance(in_name, Path) else in_name
+    
+    logger.debug(f"Matching {in_name}")
+    # A raw string is used to avoid bad unicode escaping
+    regex = re.compile(
+        r"^SB(?P<sbid>[0-9]+)\.(?P<field>.+)\.beam(?P<beam>[0-9]+)(\.spw(?P<spw>[0-9]+))*"\
+    )
+    results = regex.match(in_name)
+
+    if results is None:
+        logger.info(f"No results to {in_name} found")
+        return None
+
+    groups = results.groupdict()
+
+    logger.info(f"Matched groups are: {groups}")
+
+    return ProcessedNameComponents(
+        sbid=groups["sbid"], field=groups["field"], beam=groups["beam"], spw=groups["spw"]
+    )
+
+def extract_components_from_name(name: Union[str, Path]) -> Union[RawNameComponents, ProcessedNameComponents]:
+    """Attempts to break down a file name of a recognised format into its principal compobnents. 
+    Presumably this is a measurement set or something derived from it (i.e. images). 
+    
+    There are two formats currently recognised:
+    - the raw measurement set format produced by the ASKAP ingest system (date, time, beam, spw, underscore delimited)
+    - a formatted name produced by flint (SBID, field, beam, spw, dot delimited)
+    
+    Internally this function attempts to run two regular expression filters against the input, 
+    and returns to the set of components that a filter has matched. 
+    
+    Args:
+        name (Union[str,Path]): The name to examine to search for the beam number.
+
+    Raises:
+        ValueError: Raised if the name was not was not successfully matched against the known format
+
+    Returns:
+        Union[RawNameComponents,ProcessedNameComponents]: The extracted name components within a name
+    """
+    name = str(name.name) if isinstance(name, Path) else name
+    results_raw = raw_ms_format(in_name=name)
+    results_formatted = processed_ms_format(in_name=name) 
+
+    if results_raw is None and results_formatted is None:
+        raise ValueError(f"Unrecognised file name format for {name=}. ")
+
+    if results_raw is not None and results_formatted is not None:
+        logger.info(f"The {name=} was recognised as both a RawNameComponent and ProcessedNameComponent. Taking the latter. ")
+        logger.info(f"{results_raw=} {results_formatted=} ")
+        results = results_formatted
+
+    results = results_raw if results_raw else results_formatted
+
+    return results
 
 def extract_beam_from_name(name: Union[str, Path]) -> int:
-    """Attempts to extract the beam number of a file name, presumably a measurement set,
-    that has the form similar to the typical format of raw measurement sets freshly written
-    to disk. Such a search might be useful when considering images where the beam information
-    might not be attached in the FITS file (or otherwise passed around).
-
+    """Attempts to extract the beam number from some input name should it follow a 
+    known naming convention. 
+    
     Args:
         name (Union[str,Path]): The name to examine to search for the beam number.
 
@@ -74,12 +151,8 @@ def extract_beam_from_name(name: Union[str, Path]) -> int:
         int: Beam number that extracted from the input name
     """
 
-    name = str(name.name) if isinstance(name, Path) else name
-    results = raw_ms_format(in_name=name)
-
-    if results is None:
-        raise ValueError(f"Unrecognised file name format for {name=}. ")
-
+    results = extract_components_from_name(name=name)
+    
     return int(results.beam)
 
 
