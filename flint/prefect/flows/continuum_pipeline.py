@@ -31,6 +31,7 @@ from flint.convol import get_common_beam, convolve_images, BeamShape
 from flint.coadd.linmos import linmos_images, LinmosCMD
 from flint.utils import zip_folder
 from flint.source_finding.aegean import run_bane_and_aegean, AegeanOutputs
+from flint.naming import processed_ms_format, get_sbid_from_path
 
 task_extract_correct_bandpass_pointing = task(extract_correct_bandpass_pointing)
 task_preprocess_askap_ms = task(preprocess_askap_ms)
@@ -222,7 +223,8 @@ def task_linmos_images(
     parset_output_name: str,
     container: Path,
     filter: str = "-MFS-",
-    field_name: str = "unnamed_field",
+    field_name: Optional[str] = None,
+    suffix_str: str = 'noselfcal',
     holofile: Optional[Path] = None,
 ) -> LinmosCMD:
     # TODO: Need to flatten images
@@ -234,8 +236,15 @@ def task_linmos_images(
     filter_images = [img for img in all_images if filter in str(img)]
     logger.info(f"Number of filtered images to linmos: {len(filter_images)}")
 
+    if field_name is None:
+        candidate_image = filter_images[0]
+        field_name = processed_ms_format(in_name=candidate_image).field
+        logger.info(f"Extracted {field_name=} from {candidate_image=}")
+
+    base_name = f"{field_name}.{suffix_str}"
+
     out_dir = Path(filter_images[0].parent)
-    out_name = out_dir / field_name
+    out_name = out_dir / base_name
     logger.info(f"Base output image name will be: {out_name}")
 
     linmos_cmd = linmos_images(
@@ -492,9 +501,10 @@ def process_bandpass_science_fields(
         return
 
     wsclean_init = {
+        "size": 8144,
         "minuv_l": 200,
         "weight": "briggs -0.5",
-        "auto_mask": 4.5,
+        "auto_mask": 5,
         "multiscale": True,
         "multiscale_scales": (0, 15, 50, 100, 250),
     }
@@ -515,7 +525,7 @@ def process_bandpass_science_fields(
             images=conv_images,
             parset_output_name="linmos_noselfcal_parset.txt",
             container=yandasoft_container,
-            field_name="example_field_noselfcal",
+            suffix_str="noselfcal",
             holofile=holofile,
         )
         
@@ -534,8 +544,8 @@ def process_bandpass_science_fields(
         4: {"calmode": "ap", "solint": "360s", "uvrange": ">200lambda"},
     }
     wsclean_rounds = {
-        1: {"multiscale": True, "minuv_l": 200, "auto_mask": 4, "multiscale_scales": (0, 15, 30, 50, 100, 150)},
-        2: {"multiscale": True, "minuv_l": 200, "auto_mask": 3.5, "local_rms_window": 105, "multiscale_scales": (0, 15, 30, 50, 100, 150)},
+        1: {"size": 8144,"multiscale": True, "minuv_l": 200, "auto_mask": 4, "multiscale_scales": (0, 15, 30, 50, 100, 150)},
+        2: {"size": 8144,"multiscale": True, "minuv_l": 200, "auto_mask": 3.5, "local_rms_window": 105, "multiscale_scales": (0, 15, 30, 50, 100, 150)},
         3: {"multiscale": False, "minuv_l": 200, "auto_mask": 3.5},
         4: {"multiscale": False, "local_rms_window": 125, "minuv_l": 200, "auto_mask": 3.5},
     }
@@ -578,7 +588,7 @@ def process_bandpass_science_fields(
             images=conv_images,
             parset_output_name=f"linmos_round{round}_parset.txt",
             container=yandasoft_container,
-            field_name=f"example_field_round{round}",
+            suffix_str=f"round{round}",
             holofile=holofile,
         )
 
@@ -619,10 +629,12 @@ def setup_run_process_science_field(
             f"{bandpass_path=} and {sky_model_path=} - one has to be unset. "
         )
 
+    science_sbid = get_sbid_from_path(path=science_path)
+
     dask_task_runner = get_dask_runner(cluster=cluster_config)
 
     process_bandpass_science_fields.with_options(
-        name="Flint Continuum Pipeline", task_runner=dask_task_runner
+        name=f"Flint Continuum Pipeline - {science_sbid}", task_runner=dask_task_runner
     )(
         science_path=science_path,
         split_path=split_path,
