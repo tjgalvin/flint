@@ -223,7 +223,7 @@ def delete_wsclean_outputs(
     Returns:
         Collection[Path]: The paths that were removed (or at least attempted to be removed)/
     """
-
+    # TODO: This glob needs to be replaced with something more explicit
     paths = [Path(p) for p in glob(f"{prefix}-*{output_type}.fits")]
     logger.info(f"Found {len(paths)} matching {prefix=} and {output_type=}.")
     rm_paths: List[Path] = []
