@@ -53,7 +53,7 @@ def run_bane_and_aegean(image: Path, aegean_container: Path, cores: int=8) -> Ae
     # to be the output component table then we want to pass
     # --table basename.fits
     # and have to rely on aegean doing the right thing. 
-    aegean_command = f"aegean {str(image)} --autoload --maxsummits 6 --table {base_output}.fits"
+    aegean_command = f"aegean {str(image)} --autoload --maxsummits 4 --table {base_output}.fits"
     logger.info("Constructed aegean command. ")
     logger.debug(f"{aegean_command=}")
 
