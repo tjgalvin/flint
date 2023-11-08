@@ -29,7 +29,7 @@ def run_singularity_command(
     if not image.exists():
         raise FileNotFoundError(f"The singularity container {image} was not found. ")
 
-    logger.debug(f"Running {command} in {image}")
+    logger.info(f"Running {command} in {image}")
     logger.info(f"Attempting to run singularity command on {gethostname()}")
 
     bind_str = None
