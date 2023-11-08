@@ -226,6 +226,7 @@ def task_linmos_images(
     field_name: Optional[str] = None,
     suffix_str: str = 'noselfcal',
     holofile: Optional[Path] = None,
+    sbid: Optional[int] = None
 ) -> LinmosCMD:
     # TODO: Need to flatten images
     # TODO: Need a better way of getting field names
@@ -236,12 +237,18 @@ def task_linmos_images(
     filter_images = [img for img in all_images if filter in str(img)]
     logger.info(f"Number of filtered images to linmos: {len(filter_images)}")
 
+    candidate_image = filter_images[0]
+    candidate_image_fields = processed_ms_format(in_name=candidate_image)
+    
     if field_name is None:
-        candidate_image = filter_images[0]
-        field_name = processed_ms_format(in_name=candidate_image).field
+        field_name = candidate_image_fields.field
         logger.info(f"Extracted {field_name=} from {candidate_image=}")
+    
+    if sbid is None:
+        sbid = candidate_image_fields.sbid
+        logger.info(f"Extracted {sbid=} from {candidate_image=}")
 
-    base_name = f"{field_name}.{suffix_str}"
+    base_name = f"SB{sbid}.{field_name}.{suffix_str}"
 
     out_dir = Path(filter_images[0].parent)
     out_name = out_dir / base_name
@@ -414,7 +421,7 @@ def process_bandpass_science_fields(
     assert (
         science_path.exists() and science_path.is_dir()
     ), f"{str(science_path)} does not exist or is not a folder. "
-    science_mss = list([MS.cast(ms_path) for ms_path in science_path.glob("*.ms")])
+    science_mss = list([MS.cast(ms_path) for ms_path in sorted(science_path.glob("*.ms"))])
     assert (
         len(science_mss) == expected_ms
     ), f"Expected to find {expected_ms} in {str(science_path)}, found {len(science_mss)}."
@@ -502,12 +509,14 @@ def process_bandpass_science_fields(
 
     wsclean_init = {
         "size": 8144,
-        "minuv_l": 200,
+        "minuv_l": 235,
         "weight": "briggs -0.5",
         "auto_mask": 5,
         "multiscale": True,
+        "local_rms_window": 35,
         "multiscale_scales": (0, 15, 50, 100, 250),
     }
+    
     wsclean_cmds = task_wsclean_imager.map(
         in_ms=apply_solutions_cmd_list,
         wsclean_container=wsclean_container,
@@ -538,14 +547,14 @@ def process_bandpass_science_fields(
         return
 
     gain_cal_rounds = {
-        1: {"solint": "1200s", "uvrange": ">200lambda", "nspw": 1},
-        2: {"solint": "60s", "uvrange": ">200lambda", "nspw": 1},
-        3: {"solint": "60s", "uvrange": ">200lambda", "nspw": 1},
+        1: {"solint": "1200s", "uvrange": ">235lambda", "nspw": 1},
+        2: {"solint": "60s", "uvrange": ">235lambda", "nspw": 1},
+        3: {"solint": "60s", "uvrange": ">235lambda", "nspw": 1},
         4: {"calmode": "ap", "solint": "360s", "uvrange": ">200lambda"},
     }
     wsclean_rounds = {
-        1: {"size": 8144,"multiscale": True, "minuv_l": 200, "auto_mask": 4, "multiscale_scales": (0, 15, 30, 50, 100, 150)},
-        2: {"size": 8144,"multiscale": True, "minuv_l": 200, "auto_mask": 3.5, "local_rms_window": 105, "multiscale_scales": (0, 15, 30, 50, 100, 150)},
+        1: {"size": 8144,"multiscale": True, "minuv_l": 235, "auto_mask": 4, "multiscale_scales": (0, 15, 30, 50, 100, 150)},
+        2: {"size": 8144,"multiscale": True, "minuv_l": 235, "auto_mask": 4, "local_rms_window": 105, "multiscale_scales": (0, 15, 30, 50, 100, 150)},
         3: {"multiscale": False, "minuv_l": 200, "auto_mask": 3.5},
         4: {"multiscale": False, "local_rms_window": 125, "minuv_l": 200, "auto_mask": 3.5},
     }
@@ -558,10 +567,10 @@ def process_bandpass_science_fields(
             wsclean_cmd=wsclean_cmds,
             round=round,
             update_gain_cal_options=unmapped(gain_cal_options),
-            archive_input_ms=False,
+            archive_input_ms=zip_ms,
         )
-        if zip_ms:
-            task_zip_ms.map(in_item=wsclean_cmds, wait_for=cal_mss)
+        # if zip_ms:
+        #     task_zip_ms.map(in_item=wsclean_cmds, wait_for=cal_mss)
 
         flag_mss = task_flag_ms_aoflagger.map(
             ms=cal_mss, container=flagger_container, rounds=1
