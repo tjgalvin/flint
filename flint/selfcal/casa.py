@@ -16,7 +16,7 @@ from flint.logging import logger
 from flint.ms import MS
 from flint.flagging import nan_zero_extreme_flag_ms
 from flint.utils import rsync_copy_directory, remove_files_folders, zip_folder
-
+from flint.exceptions import GainCalError
 
 class GainCalOptions(NamedTuple):
     """Options provided to the casatasks gaincal function. Most options correspond to those in gaincal."""
@@ -222,6 +222,7 @@ def gaincal_applycal_ms(
     gain_cal_options: Optional[GainCalOptions] = None,
     update_gain_cal_options: Optional[Dict[str, Any]] = None,
     archive_input_ms: bool = False,
+    raise_error_on_fail: bool = True
 ) -> MS:
     """Perform self-calibration using casa's gaincal and applycal tasks against
     an input measurement set.
@@ -232,9 +233,13 @@ def gaincal_applycal_ms(
         gain_cal_options (Optional[GainCalOptions], optional): Options provided to gaincal. Defaults to None.
         update_gain_cal_options (Optional[Dict[str, Any]], optional): Update the gain_cal_options with these. Defaults to None.
         archive_input_ms (bool, optional): If True, the input measurement set will be compressed into a single file. Defaults to False.
+        raise_error_on_fail (bool, optional): If gaincal does not converge raise en error. if False and gain cal fails return the input ms. Defaults to True. 
 
+    Raises:
+        GainCallError: Raised when raise_error_on_fail is True and gaincal does not converge. 
+    
     Returns:
-        MS: _description_
+        MS: THe self-calibrated measurement set. 
     """
     logger.info(f"Measurement set to be self-calibrated: ms={ms}")
 
@@ -282,8 +287,11 @@ def gaincal_applycal_ms(
         logger.critical(
             "The calibration table was not created. Likely gaincal failed. "
         )
-        return ms
-
+        if raise_error_on_fail:
+            raise GainCalError(f"Gaincal failed for {cal_ms.path}")
+        else:
+            return ms
+        
     logger.info("Solutions have been solved. Applying them. ")
 
     applycal(vis=str(cal_ms.path), gaintable=str(cal_table))
