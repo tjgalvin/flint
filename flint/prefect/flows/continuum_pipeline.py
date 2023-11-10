@@ -276,7 +276,7 @@ def task_linmos_images(
     
     linmos_cmd = linmos_images(
         images=filter_images,
-        parset_output_path=out_dir / Path(parset_output_path),
+        parset_output_path=Path(parset_output_path),
         image_output_name=str(out_name),
         container=container,
         holofile=holofile,
