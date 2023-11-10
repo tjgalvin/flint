@@ -134,7 +134,7 @@ def generate_weights_list_and_files(
 
 def generate_linmos_parameter_set(
     images: Collection[Path],
-    parset_output_name: Path,
+    parset_output_path: Path,
     linmos_names: LinmosNames,
     weight_list: Optional[str] = None,
     holofile: Optional[Path] = None,
@@ -144,7 +144,7 @@ def generate_linmos_parameter_set(
 
     Args:
         images (Collection[Path]): The images that will be coadded into a single field image.
-        parset_output_name (Path): Path of the output linmos parset file.
+        parset_output_path (Path): Path of the output linmos parset file.
         linmos_names (LinmosNames): Names of the output image and weights that linmos will produces. The weight image will have a similar name. Defaults to "linmos_field".
         weight_list (str, optional): If not None, this string will be embedded into the yandasoft linmos parset as-is. It should represent the formatted string pointing to weight files, and should be equal length of the input images. If None it is internally generated. Defaults to None.
         holofile (Optional[Path], optional): Path to a FITS cube produced by the holography processing pipeline. Used by linmos to appropriate primary-beam correct the images. Defaults to None.
@@ -210,20 +210,20 @@ def generate_linmos_parameter_set(
         )
 
     # Now write the file, me hearty
-    logger.info(f"Writing parset to {str(parset_output_name)}.")
+    logger.info(f"Writing parset to {str(parset_output_path)}.")
     logger.info(f"{parset}")
     assert not Path(
-        parset_output_name
-    ).exists(), f"The parset {parset_output_name} already exists!"
-    with open(parset_output_name, "w") as parset_file:
+        parset_output_path
+    ).exists(), f"The parset {parset_output_path} already exists!"
+    with open(parset_output_path, "w") as parset_file:
         parset_file.write(parset)
 
-    return parset_output_name
+    return parset_output_path
 
 
 def linmos_images(
     images: Collection[Path],
-    parset_output_name: Path,
+    parset_output_path: Path,
     image_output_name: str = "linmos_field",
     weight_list: Optional[str] = None,
     holofile: Optional[Path] = None,
@@ -233,7 +233,7 @@ def linmos_images(
 
     Args:
         images (Collection[Path]): The images that will be coadded into a single field image.
-        parset_output_name (Path): Path of the output linmos parset file.
+        parset_output_path (Path): Path of the output linmos parset file.
         image_output_name (str, optional): Name of the output image linmos produces. The weight image will have a similar name. Defaults to "linmos_field".
         weight_list (str, optional): If not None, this string will be embedded into the yandasoft linmos parset as-is. It should represent the formatted string pointing to weight files, and should be equal length of the input images. If None it is internally generated. Defaults to None.
         holofile (Optional[Path], optional): Path to a FITS cube produced by the holography processing pipeline. Used by linmos to appropriate primary-beam correct the images. Defaults to None.
@@ -251,7 +251,7 @@ def linmos_images(
 
     linmos_parset = generate_linmos_parameter_set(
         images=images,
-        parset_output_name=parset_output_name,
+        parset_output_path=parset_output_path,
         linmos_names=linmos_names,
         weight_list=weight_list,
         holofile=holofile,
@@ -288,7 +288,7 @@ def get_parser() -> ArgumentParser:
         "images", type=Path, nargs="+", help="The images that will be coadded"
     )
     parset_parser.add_argument(
-        "parset_output_name", type=Path, help="The output path of the linmos parser"
+        "parset_output_path", type=Path, help="The output path of the linmos parser"
     )
     parset_parser.add_argument(
         "--image-output-name",
@@ -328,7 +328,7 @@ def cli() -> None:
             linmos_names = create_linmos_names(name_prefix=args.image_output_name)
             generate_linmos_parameter_set(
                 images=args.images,
-                parset_output_name=args.parset_output_name,
+                parset_output_path=args.parset_output_path,
                 linmos_names=linmos_names,
                 weight_list=args.weight_list,
                 holofile=args.holofile,
@@ -336,7 +336,7 @@ def cli() -> None:
         else:
             linmos_images(
                 images=args.images,
-                parset_output_name=args.parset_output_name,
+                parset_output_path=args.parset_output_path,
                 image_output_name=args.image_output_name,
                 weight_list=args.weight_list,
                 holofile=args.holofile,

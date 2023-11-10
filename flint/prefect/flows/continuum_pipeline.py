@@ -228,13 +228,13 @@ def task_convolve_image(
 @task
 def task_linmos_images(
     images: Collection[Collection[Path]],
-    parset_output_name: str,
     container: Path,
     filter: str = "-MFS-",
     field_name: Optional[str] = None,
     suffix_str: str = 'noselfcal',
     holofile: Optional[Path] = None,
-    sbid: Optional[int] = None
+    sbid: Optional[int] = None,
+    parset_output_path: Optional[str]=None,
 ) -> LinmosCMD:
     # TODO: Need to flatten images
     # TODO: Need a better way of getting field names
@@ -262,9 +262,15 @@ def task_linmos_images(
     out_name = out_dir / base_name
     logger.info(f"Base output image name will be: {out_name}")
 
+    if parset_output_path is None:
+        parset_output_path = f"{out_name.name}_parset.txt"
+
+    parset_output_path = out_dir / Path(parset_output_path)
+    logger.info(f"Parsert output path is {parset_output_path}")
+    
     linmos_cmd = linmos_images(
         images=filter_images,
-        parset_output_name=out_dir / Path(parset_output_name),
+        parset_output_path=out_dir / Path(parset_output_path),
         image_output_name=str(out_name),
         container=container,
         holofile=holofile,
@@ -540,7 +546,6 @@ def process_bandpass_science_fields(
     if yandasoft_container is not None:
         parset = task_linmos_images.submit(
             images=conv_images,
-            parset_output_name="linmos_noselfcal_parset.txt",
             container=yandasoft_container,
             suffix_str="noselfcal",
             holofile=holofile,
@@ -603,7 +608,6 @@ def process_bandpass_science_fields(
 
         parset = task_linmos_images.submit(
             images=conv_images,
-            parset_output_name=f"linmos_round{round}_parset.txt",
             container=yandasoft_container,
             suffix_str=f"round{round}",
             holofile=holofile,
