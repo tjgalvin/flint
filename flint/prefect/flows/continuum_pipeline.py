@@ -212,13 +212,19 @@ def task_convolve_image(
 
     logger.info(f"Will convolve {image_paths}")
 
+    # experience has shown that astropy units do not always work correctly
+    # in a multiprocessing / dask environment. The unit registery does not 
+    # seem to serialise correctly, and we can get weird arcsecond is not 
+    # compatiable with arcsecond type errors. Import here in an attempt 
+    # to minimise
     from radio_beam import Beam 
     from astropy.io import fits 
+    import astropy.units as u
     
     # Print the beams out here for logging
     for image_path in image_paths:
         image_beam = Beam.from_fits_header(fits.getheader(str(image_path)))
-        logger.info(f"{str(image_path.name)}: {image_beam}")
+        logger.info(f"{str(image_path.name)}: {image_beam.major.to(u.arcsecond)} {image_beam.minor.to(u.arcsecond)}  {image_beam.pa}")
 
     return convolve_images(
         image_paths=image_paths, beam_shape=beam_shape, cutoff=cutoff
