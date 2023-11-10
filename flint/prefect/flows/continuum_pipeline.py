@@ -212,6 +212,14 @@ def task_convolve_image(
 
     logger.info(f"Will convolve {image_paths}")
 
+    from radio_beam import Beam 
+    from astropy.io import fits 
+    
+    # Print the beams out here for logging
+    for image_path in image_paths:
+        image_beam = Beam.from_fits_header(fits.getheader(str(image_path)))
+        logger.info(f"{str(image_path.name)}: {image_beam}")
+
     return convolve_images(
         image_paths=image_paths, beam_shape=beam_shape, cutoff=cutoff
     )
@@ -553,8 +561,8 @@ def process_bandpass_science_fields(
         4: {"calmode": "ap", "solint": "360s", "uvrange": ">200lambda"},
     }
     wsclean_rounds = {
-        1: {"size": 8144,"multiscale": True, "minuv_l": 235, "auto_mask": 4, "multiscale_scales": (0, 15, 30, 50, 100, 150)},
-        2: {"size": 8144,"multiscale": True, "minuv_l": 235, "auto_mask": 4, "local_rms_window": 105, "multiscale_scales": (0, 15, 30, 50, 100, 150)},
+        1: {"size": 8144,"multiscale": True, "minuv_l": 235, "auto_mask": 4.5, "local_rms_window": 55, "multiscale_scales": (0, 15, 30, 50, 100, 150)},
+        2: {"size": 8144,"multiscale": True, "minuv_l": 235, "auto_mask": 4, "local_rms_window": 55, "multiscale_scales": (0, 15, 30, 50, 100, 150)},
         3: {"multiscale": False, "minuv_l": 200, "auto_mask": 3.5},
         4: {"multiscale": False, "local_rms_window": 125, "minuv_l": 200, "auto_mask": 3.5},
     }
