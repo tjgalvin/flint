@@ -66,9 +66,11 @@ def get_image_weight(
         logger.info(f"Data shape is: {image_data.shape}")
         if mode == "mad":
             median = np.median(image_data)
-            weight = np.median(np.abs(image_data - median))
+            mad = np.median(np.abs(image_data - median))
+            weight = 1. / mad ** 2
         elif mode == "std":
-            weight = np.std(image_data)
+            std = np.std(image_data)
+            weight = 1. / std ** 2
         else:
             raise ValueError(
                 f"Invalid {mode=} specified. Available modes: {weight_modes}"
