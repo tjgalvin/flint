@@ -45,8 +45,8 @@ def get_image_weight(
         float: The weight to supply to linmos
     """
 
-    logger.info(
-        f"Compuuting linmos weight using {mode=}, {image_slice=} for {image_path}. "
+    logger.debug(
+        f"Computing linmos weight using {mode=}, {image_slice=} for {image_path}. "
     )
     weight_modes = ("mad", "std")
     assert (
@@ -63,7 +63,7 @@ def get_image_weight(
         # remove non-finite numbers
         image_data = image_data[np.isfinite(image_data)]
 
-        logger.info(f"Data shape is: {image_data.shape}")
+        logger.debug(f"Data shape is: {image_data.shape}")
         if mode == "mad":
             median = np.median(image_data)
             mad = np.median(np.abs(image_data - median))
@@ -76,7 +76,7 @@ def get_image_weight(
                 f"Invalid {mode=} specified. Available modes: {weight_modes}"
             )
 
-    logger.info(f"Weight {weight} for {image_path}")
+    logger.info(f"Weight {weight:.3f} for {image_path}")
     return weight
 
 
@@ -170,7 +170,7 @@ def generate_linmos_parameter_set(
     # quality. In reality, this should be updated to provide a RMS noise
     # estimate per-pixel of each image.
     if weight_list is None:
-        weight_list = generate_weights_list_and_files(image_paths=images, mode="std")
+        weight_list = generate_weights_list_and_files(image_paths=images, mode="mad")
 
     beam_order_strs = [str(extract_beam_from_name(str(p.name))) for p in images]
     beam_order_list = "[" + ",".join(beam_order_strs) + "]"
