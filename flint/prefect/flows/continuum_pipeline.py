@@ -528,13 +528,13 @@ def process_bandpass_science_fields(
         return
 
     wsclean_init = {
-        "size": 8144,
+        "size": 7144,
         "minuv_l": 235,
         "weight": "briggs -0.5",
         "auto_mask": 5,
         "multiscale": True,
-        "local_rms_window": 35,
-        "multiscale_scales": (0, 15, 50, 100, 250),
+        "local_rms_window": 55,
+        "multiscale_scales":  (0, 15, 30, 50, 100, 150, 225),
     }
     
     wsclean_cmds = task_wsclean_imager.map(
@@ -572,8 +572,8 @@ def process_bandpass_science_fields(
         4: {"calmode": "ap", "solint": "360s", "uvrange": ">200lambda"},
     }
     wsclean_rounds = {
-        1: {"size": 8144,"multiscale": True, "minuv_l": 235, "auto_mask": 4.5, "local_rms_window": 55, "multiscale_scales": (0, 15, 30, 50, 100, 150)},
-        2: {"size": 8144,"multiscale": True, "minuv_l": 235, "auto_mask": 4, "local_rms_window": 55, "multiscale_scales": (0, 15, 30, 50, 100, 150)},
+        1: {"size": 8144,"multiscale": True, "minuv_l": 235, "auto_mask": 5, "local_rms_window": 55, "multiscale_scales": (0, 15, 30, 50, 100, 150, 225)},
+        2: {"size": 8144,"multiscale": True, "minuv_l": 235, "auto_mask": 4.5, "local_rms_window": 55, "multiscale_scales": (0, 15, 30, 50, 100, 150, 225)},
         3: {"multiscale": False, "minuv_l": 200, "auto_mask": 3.5},
         4: {"multiscale": False, "local_rms_window": 125, "minuv_l": 200, "auto_mask": 3.5},
     }
@@ -625,7 +625,7 @@ def process_bandpass_science_fields(
 
     # zip up the final measurement set, which is not included in the above loop
     if zip_ms:
-        task_zip_ms.map(in_item=wsclean_cmds, wait_for=cal_mss)
+        task_zip_ms.map(in_item=wsclean_cmds, wait_for=wsclean_cmds)
 
 
 def setup_run_process_science_field(
