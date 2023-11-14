@@ -59,7 +59,7 @@ class WSCleanOptions(NamedTuple):
     """Maximum numer of minor cycles"""
     multiscale: bool = True
     """Enable multiscale deconvolution"""
-    multiscale_scale_bias: float = 0.85
+    multiscale_scale_bias: float = 0.75
     """Multiscale bias term"""
     multiscale_scales: Optional[Collection[int]] = (
         0,
