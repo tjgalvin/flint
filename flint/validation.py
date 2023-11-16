@@ -17,6 +17,8 @@ from astropy.coordinates import SkyCoord
 
 from flint.logging import logger
 
+# TODO: These should be packaged with flint, they are
+# small enough where they can just be commited
 DEZOTTI = Path("de_zotti_1p4.txt")
 SKADS = "SKADS_1p4GHz.fits"
 
@@ -150,6 +152,7 @@ def get_known_catalogue(name: str) -> Catalogue:
         Catalogue: Information of the survey catalogue
     """
     # TODO: This should be expanded to include the units as well
+    # TODO: Catalogues here need to be packaged somehow
 
     name = name.upper()
 
