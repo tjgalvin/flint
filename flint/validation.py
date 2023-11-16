@@ -1,3 +1,7 @@
+"""Utility function to create a one figure multi panel validation plot
+for continuum imaging of RACS data
+"""
+
 from pathlib import Path
 from typing import NamedTuple, Tuple, Optional
 
@@ -5,15 +9,14 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.gridspec import GridSpec
 from matplotlib.figure import Figure
-
 from astropy.io import fits
 import astropy.units as u
 from astropy.table import Table
 from astropy.wcs import WCS
 from astropy.coordinates import SkyCoord
 
-RMS = Path("SB39400.RACS_0635-31.round2_linmos_rms.fits")
-CAT = Path("SB39400.RACS_0635-31.round2_linmos_comp.fits")
+from flint.logging import logger
+
 DEZOTTI = Path("de_zotti_1p4.txt")
 SKADS = "SKADS_1p4GHz.fits"
 
@@ -406,6 +409,27 @@ def plot_source_counts(
     dezotti: Optional[Table] = None,
     skads: Optional[Table] = None,
 ) -> plt.Axes:
+    """Create a figure of source counts from a astropy Table. If
+    `freq` and either `dezotti` / `skads` are supplied then these
+    precomputed source count tables are also included in the
+    panel.
+
+    When computing the source counts for `catalogue`, only a
+    minimumal set of corrections are derived and applied.
+
+    Args:
+        catalogue (Table): The catalogue to derive source counts for
+        rms_info (RMSImageInfo): Look up information from the RMS file that catalogue was constructed against
+        ax (plt.Axes): The axes panel the counts will be plottedd on
+        freq (Optional[float], optional): Frequency that the source catalogue. Used to scale the Dezotti and SKADS tables. Defaults to None.
+        dezotti (Optional[Table], optional): Loaded reference table of Dezotti source counts. Defaults to None.
+        skads (Optional[Table], optional): Loaded reference table of SKADS source counts. Defaults to None.
+
+    Returns:
+        plt.Axes: The axes object used for plotting
+    """
+    # TODO: Is the freq column needed anymore
+
     fluxes = catalogue["int_flux"]
 
     source_counts = get_source_counts(fluxes=fluxes, area=rms_info.area)
@@ -545,9 +569,9 @@ def plot_astrometry_comparison(
     ax.errorbar(mean_x, mean_y, xerr=std_x, yerr=std_y, fmt="ok")
 
     ax.grid()
-    ax.axvline(0, color='black', ls=':')
-    ax.axhline(0, color='black', ls=':')
-    
+    ax.axvline(0, color="black", ls=":")
+    ax.axhline(0, color="black", ls=":")
+
     ax.text(
         -7.0,
         7.0,
@@ -652,8 +676,30 @@ def plot_psf(fig: Figure, ax: plt.Axes, rms_info: RMSImageInfo) -> plt.Axes:
     return ax
 
 
-def main():
-    rms_info = get_rms_image_info(rms_path=RMS)
+def create_validation_plot(
+    rms_image_path: Path, source_catalogue_path: Path, output_path: Path
+) -> Path:
+    """Create a simple multi-panel validation figure intended to asses
+    the correctness of an image and associated source catalogue.
+
+    The image described by `rms_image_path` should be a FITS file. The
+    WCS of this file is used for plotting and rreading the synthesised
+    beam information using the standard CRVAL/BMAJ/BMIN keywords.
+
+    The source catalogue is read using astropy.table.Table. This routine
+    also expects that some level of units are embedded in the catalogue.
+    For Aegean produced catalogues this is the case.
+
+    Args:
+        rms_image_path (Path): The RMS fits image the source catalogue was constructed against.
+        source_catalogue_path (Path): The source catalogue.
+        output_path (Path): The output path of the figure to create
+
+    Returns:
+        Path: The output path of the figure
+    """
+    rms_info = get_rms_image_info(rms_path=rms_image_path)
+
     dezotti = Table.read(DEZOTTI, format="ascii")
     skads = Table.read(SKADS)
 
@@ -664,10 +710,10 @@ def main():
 
     validator_layout = make_validator_axes_layout(fig=fig, rms_path=RMS)
 
-    askap_table = Table.read(CAT)
+    askap_table = Table.read(source_catalogue_path)
     askap_cata = Catalogue(
         survey="ASKAP",
-        file_name=CAT,
+        file_name=source_catalogue_path.name,
         freq=rms_info.header["CRVAL3"],
         ra_col="ra",
         dec_col="dec",
@@ -731,8 +777,10 @@ def main():
         fig=fig, ax=validator_layout.ax_brightness2, match_result=nvss_match
     )
 
-    fig.savefig("example.png", dpi=300, bbox_inches="tight")
+    fig.savefig(str(output_path), dpi=300, bbox_inches="tight")
+
+    return output_path
 
 
 if __name__ == "__main__":
-    main()
+    pass
