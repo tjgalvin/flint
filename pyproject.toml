@@ -6,7 +6,9 @@ authors = ["tgalvin <tim.galvin@csiro.au>"]
 license = "MIT"
 readme = "README.md"
 include = [
-    {path = 'flint/data/model/1934-638.calibrate.txt'}
+    {path = 'flint/data/model/1934-638.calibrate.txt'},
+    {path = 'flint/data/source_counts/de_zotti_1p4.txt'},
+    {path = 'flint/data/source_counts/SKADS_1p4GHz.fits'},
 ]
 
 [tool.poetry.dependencies]
@@ -51,4 +53,5 @@ flint_convol = "flint.convol:cli"
 flint_yandalinmos = "flint.coadd.linmos:cli"
 flint_config = "flint.configuration:cli"
 flint_aegean = "flint.source_finding.aegean:cli"
+flint_validation_plot = "flint.validation:cli"
 flint_flow_continuum_pipeline = "flint.prefect.flows.continuum_pipeline:cli"

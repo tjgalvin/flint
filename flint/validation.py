@@ -4,8 +4,10 @@ for continuum imaging of RACS data
 
 from pathlib import Path
 from typing import NamedTuple, Tuple, Optional
+from argparse import ArgumentParser
 
 import numpy as np
+import pkg_resources
 import matplotlib.pyplot as plt
 from matplotlib.gridspec import GridSpec
 from matplotlib.figure import Figure
@@ -16,11 +18,6 @@ from astropy.wcs import WCS
 from astropy.coordinates import SkyCoord
 
 from flint.logging import logger
-
-# TODO: These should be packaged with flint, they are
-# small enough where they can just be commited
-DEZOTTI = Path("de_zotti_1p4.txt")
-SKADS = "SKADS_1p4GHz.fits"
 
 F_SMALL = 7
 F_MED = 8
@@ -131,7 +128,7 @@ class MatchResult(NamedTuple):
     """Brightness in Jy of source in the second survey"""
 
 
-def get_known_catalogue(name: str) -> Catalogue:
+def get_known_catalogue_info(name: str) -> Catalogue:
     """Return the parameters of a recognised catalogue.
 
     These are currently hardcoded.
@@ -201,17 +198,21 @@ def get_known_catalogue(name: str) -> Catalogue:
     return catalogue
 
 
-def load_known_catalogue(name: str) -> Tuple[Table, Catalogue]:
+def load_known_catalogue(
+    name: str, reference_catalogue_directory: Path
+) -> Tuple[Table, Catalogue]:
     """Load in a known catalogue table
 
     Args:
         name (str): Name of the survey to load
+        reference_catalogue_directory (Path): Tje directory location with the reference catalogues installed
 
     Returns:
         Tuple[Table,Catalogue]: The loaded table and Catalogue structure describing the columns
     """
-    catalogue = get_known_catalogue(name=name)
-    table = Table.read(catalogue.file_name)
+    catalogue = get_known_catalogue_info(name=name)
+    catalogue_path = reference_catalogue_directory / catalogue.file_name
+    table = Table.read(catalogue_path)
 
     if name == "SUMSS":
         table[catalogue.flux_col] = table[catalogue.flux_col] * u.mJy
@@ -376,6 +377,9 @@ def get_source_counts(
     Returns:
         SourceCounts: Source counts and their properties
     """
+    logger.info(
+        f"Computing source counts for {len(fluxes)} sources, {Nbins=}, {area=:.2f} sq.deg."
+    )
 
     logf = np.linspace(minlogf, maxlogf, Nbins)
     f = np.power(10.0, logf)
@@ -547,6 +551,9 @@ def plot_astrometry_comparison(
     Returns:
         plt.Axes: The Axes plotted on
     """
+    logger.info(
+        f"Plotting astrometry match between {match_result.name1} and {match_result.name2}"
+    )
     if len(match_result.pos1) == 0:
         ax.set_xlim(-8.0, 8.0)
         ax.set_ylim(-8.0, 8.0)
@@ -590,7 +597,9 @@ def plot_astrometry_comparison(
         bbox=dict(facecolor="white", edgecolor="none", alpha=0.8),
     )
 
-    ax.set(xlim=(-8, 8), ylim=(-8, 8), ylabel="Offset (arcsec)")
+    ax.set(
+        xlim=(-8, 8), ylim=(-8, 8), xlabel="Offset (arcsec)", ylabel="Offset (arcsec)"
+    )
     le_a1 = r" $\epsilon_{SU} : ({%.1f}\pm{%.1f},{%.1f}\pm{%.1f})$" % (
         mean_x,
         std_x,
@@ -680,7 +689,10 @@ def plot_psf(fig: Figure, ax: plt.Axes, rms_info: RMSImageInfo) -> plt.Axes:
 
 
 def create_validation_plot(
-    rms_image_path: Path, source_catalogue_path: Path, output_path: Path
+    rms_image_path: Path,
+    source_catalogue_path: Path,
+    output_path: Path,
+    reference_catalogue_directory: Path,
 ) -> Path:
     """Create a simple multi-panel validation figure intended to asses
     the correctness of an image and associated source catalogue.
@@ -693,26 +705,40 @@ def create_validation_plot(
     also expects that some level of units are embedded in the catalogue.
     For Aegean produced catalogues this is the case.
 
+    The reference_catalogue_path sets the directory to look into when
+    searching for the reference ICRF, NVSS and SUMSS cataloues.
+
     Args:
         rms_image_path (Path): The RMS fits image the source catalogue was constructed against.
         source_catalogue_path (Path): The source catalogue.
         output_path (Path): The output path of the figure to create
+        reference_catalogue_directory (Path): The directory that contains the reference ICRF, NVSS and SUMSS catalogues.
 
     Returns:
         Path: The output path of the figure
     """
     rms_info = get_rms_image_info(rms_path=rms_image_path)
 
-    dezotti = Table.read(DEZOTTI, format="ascii")
-    skads = Table.read(SKADS)
+    dezotti_path = Path(
+        pkg_resources.resource_filename("flint", "data/source_counts/de_zotti_1p4.txt")
+    )
+    skads_path = Path(
+        pkg_resources.resource_filename("flint", "data/source_counts/SKADS_1p4GHz.fits")
+    )
+
+    logger.info(f"Loading {dezotti_path}")
+    dezotti = Table.read(dezotti_path, format="ascii")
+    logger.info(f"Loading {skads_path=}")
+    skads = Table.read(skads_path)
 
     height = 8.0
     width = height * np.sqrt(2.0)
 
     fig = plt.figure(figsize=(width, height))
 
-    validator_layout = make_validator_axes_layout(fig=fig, rms_path=RMS)
+    validator_layout = make_validator_axes_layout(fig=fig, rms_path=rms_image_path)
 
+    logger.info(f"Loading {source_catalogue_path=}")
     askap_table = Table.read(source_catalogue_path)
     askap_cata = Catalogue(
         survey="ASKAP",
@@ -739,7 +765,9 @@ def create_validation_plot(
 
     plot_psf(fig=fig, ax=validator_layout.ax_psf, rms_info=rms_info)
 
-    ierf_table, ierf_catalogue = load_known_catalogue(name="ICRF")
+    ierf_table, ierf_catalogue = load_known_catalogue(
+        name="ICRF", reference_catalogue_directory=reference_catalogue_directory
+    )
     ierf_match = match_nearest_neighbour(
         table1=askap_table,
         table2=ierf_table,
@@ -750,7 +778,9 @@ def create_validation_plot(
         fig=fig, ax=validator_layout.ax_astrometry, match_result=ierf_match
     )
 
-    sumss_table, sumss_catalogue = load_known_catalogue(name="SUMSS")
+    sumss_table, sumss_catalogue = load_known_catalogue(
+        name="SUMSS", reference_catalogue_directory=reference_catalogue_directory
+    )
     sumss_match = match_nearest_neighbour(
         table1=askap_table,
         table2=sumss_table,
@@ -765,7 +795,9 @@ def create_validation_plot(
         fig=fig, ax=validator_layout.ax_brightness1, match_result=sumss_match
     )
 
-    nvss_table, nvss_catalogue = load_known_catalogue(name="NVSS")
+    nvss_table, nvss_catalogue = load_known_catalogue(
+        name="NVSS", reference_catalogue_directory=reference_catalogue_directory
+    )
     nvss_match = match_nearest_neighbour(
         table1=askap_table,
         table2=nvss_table,
@@ -785,5 +817,49 @@ def create_validation_plot(
     return output_path
 
 
+def get_parser() -> ArgumentParser:
+    """Create the argument parser for the validation plot creation
+
+    Returns:
+        ArgumentParser: CLI entry point
+    """
+    parser = ArgumentParser(
+        description="Create a validation figure to highlight the reliability of some process continuum field"
+    )
+
+    parser.add_argument(
+        "rms_image_path", type=Path, help="Path to the RMS image of the field"
+    )
+    parser.add_argument(
+        "source_catalogue_path",
+        type=Path,
+        help="Path to the source catalogue. At present on Aegean formatted component catalogues supported. ",
+    )
+    parser.add_argument(
+        "output_path", type=Path, help="Location of the output figure to create. "
+    )
+    parser.add_argument(
+        "--reference-catalogue-directory",
+        type=Path,
+        default=Path("."),
+        help="Directory container the reference ICFS, NVSS and SUMSS catalogues. These are known catalogues and expect particular file names. ",
+    )
+
+    return parser
+
+
+def cli() -> None:
+    """CLI entry point for validation plot creation"""
+    parser = get_parser()
+
+    args = parser.parse_args()
+    create_validation_plot(
+        rms_image_path=args.rms_image_path,
+        source_catalogue_path=args.source_catalogue_path,
+        output_path=args.output_path,
+        reference_catalogue_directory=args.reference_catalogue_directory,
+    )
+
+
 if __name__ == "__main__":
-    pass
+    cli()
