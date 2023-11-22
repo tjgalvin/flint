@@ -315,14 +315,7 @@ def task_create_sky_model(
 @task
 def task_create_validation_plot(
     aegean_outputs: AegeanOutputs, reference_catalogue_directory: Path
-) -> Optional[Path]:
-    if reference_catalogue_directory is None:
-        logger.info(
-            f"Reference catalogue directory has not been supplied. Skipping validation plot creation. "
-        )
-
-        return None
-
+) -> Path:
     output_figure_path = aegean_outputs.comp.with_suffix(".validation.png")
 
     logger.info(f"Will create {output_figure_path=}")
@@ -469,6 +462,7 @@ def process_bandpass_science_fields(
     reference_catalogue_directory: Optional[Path] = None,
 ) -> None:
     run_aegean = False if aegean_container is None else run_aegean
+    run_validation = reference_catalogue_directory is None
 
     assert (
         science_path.exists() and science_path.is_dir()
@@ -598,10 +592,11 @@ def process_bandpass_science_fields(
                 image=parset, aegean_container=unmapped(aegean_container)
             )
 
-            task_create_validation_plot.submit(
-                aegean_outputs=aegean_outputs,
-                reference_catalogue_directory=reference_catalogue_directory,
-            )
+            if run_validation:
+                task_create_validation_plot.submit(
+                    aegean_outputs=aegean_outputs,
+                    reference_catalogue_directory=reference_catalogue_directory,
+                )
 
     if rounds is None:
         logger.info("No self-calibration will be performed. Returning")
@@ -687,10 +682,11 @@ def process_bandpass_science_fields(
                 image=parset, aegean_container=unmapped(aegean_container)
             )
 
-            task_create_validation_plot.submit(
-                aegean_outputs=aegean_outputs,
-                reference_catalogue_directory=reference_catalogue_directory,
-            )
+            if run_validation:
+                task_create_validation_plot.submit(
+                    aegean_outputs=aegean_outputs,
+                    reference_catalogue_directory=reference_catalogue_directory,
+                )
 
     # zip up the final measurement set, which is not included in the above loop
     if zip_ms:
