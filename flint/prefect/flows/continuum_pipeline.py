@@ -32,6 +32,7 @@ from flint.coadd.linmos import linmos_images, LinmosCMD
 from flint.utils import zip_folder
 from flint.source_finding.aegean import run_bane_and_aegean, AegeanOutputs
 from flint.naming import processed_ms_format, get_sbid_from_path
+from flint.validation import create_validation_plot
 
 task_extract_correct_bandpass_pointing = task(extract_correct_bandpass_pointing)
 task_preprocess_askap_ms = task(preprocess_askap_ms)
@@ -41,18 +42,20 @@ task_split_by_field = task(split_by_field)
 task_select_solution_for_ms = task(select_aosolution_for_ms)
 task_create_apply_solutions_cmd = task(create_apply_solutions_cmd)
 
+
 @task
 def task_bandpass_create_apply_solutions_cmd(
-            ms: MS,
-            calibrate_cmd: CalibrateCommand,
-            container: Path
-        ):
-    return create_apply_solutions_cmd(ms=ms, solutions_file=calibrate_cmd.solution_path, container=container)
-    
+    ms: MS, calibrate_cmd: CalibrateCommand, container: Path
+):
+    return create_apply_solutions_cmd(
+        ms=ms, solutions_file=calibrate_cmd.solution_path, container=container
+    )
+
 
 @task
-def task_run_bane_and_aegean(image: Union[WSCleanCMD,LinmosCMD], aegean_container: Path) -> AegeanOutputs:
-
+def task_run_bane_and_aegean(
+    image: Union[WSCleanCMD, LinmosCMD], aegean_container: Path
+) -> AegeanOutputs:
     if isinstance(image, WSCleanCMD):
         assert image.imageset is not None, "Image set attribute unset. "
         image_paths = image.imageset.image
@@ -74,7 +77,9 @@ def task_run_bane_and_aegean(image: Union[WSCleanCMD,LinmosCMD], aegean_containe
     else:
         raise ValueError(f"Unexpected type, have received {type(image)} for {image=}. ")
 
-    aegean_outputs = run_bane_and_aegean(image=image_path, aegean_container=aegean_container)
+    aegean_outputs = run_bane_and_aegean(
+        image=image_path, aegean_container=aegean_container
+    )
 
     return aegean_outputs
 
@@ -213,18 +218,20 @@ def task_convolve_image(
     logger.info(f"Will convolve {image_paths}")
 
     # experience has shown that astropy units do not always work correctly
-    # in a multiprocessing / dask environment. The unit registery does not 
-    # seem to serialise correctly, and we can get weird arcsecond is not 
-    # compatiable with arcsecond type errors. Import here in an attempt 
+    # in a multiprocessing / dask environment. The unit registery does not
+    # seem to serialise correctly, and we can get weird arcsecond is not
+    # compatiable with arcsecond type errors. Import here in an attempt
     # to minimise
-    from radio_beam import Beam 
-    from astropy.io import fits 
+    from radio_beam import Beam
+    from astropy.io import fits
     import astropy.units as u
-    
+
     # Print the beams out here for logging
     for image_path in image_paths:
         image_beam = Beam.from_fits_header(fits.getheader(str(image_path)))
-        logger.info(f"{str(image_path.name)}: {image_beam.major.to(u.arcsecond)} {image_beam.minor.to(u.arcsecond)}  {image_beam.pa}")
+        logger.info(
+            f"{str(image_path.name)}: {image_beam.major.to(u.arcsecond)} {image_beam.minor.to(u.arcsecond)}  {image_beam.pa}"
+        )
 
     return convolve_images(
         image_paths=image_paths, beam_shape=beam_shape, cutoff=cutoff
@@ -237,10 +244,10 @@ def task_linmos_images(
     container: Path,
     filter: str = "-MFS-",
     field_name: Optional[str] = None,
-    suffix_str: str = 'noselfcal',
+    suffix_str: str = "noselfcal",
     holofile: Optional[Path] = None,
     sbid: Optional[int] = None,
-    parset_output_path: Optional[str]=None,
+    parset_output_path: Optional[str] = None,
 ) -> LinmosCMD:
     # TODO: Need to flatten images
     # TODO: Need a better way of getting field names
@@ -253,11 +260,11 @@ def task_linmos_images(
 
     candidate_image = filter_images[0]
     candidate_image_fields = processed_ms_format(in_name=candidate_image)
-    
+
     if field_name is None:
         field_name = candidate_image_fields.field
         logger.info(f"Extracted {field_name=} from {candidate_image=}")
-    
+
     if sbid is None:
         sbid = candidate_image_fields.sbid
         logger.info(f"Extracted {sbid=} from {candidate_image=}")
@@ -273,7 +280,7 @@ def task_linmos_images(
 
     parset_output_path = out_dir / Path(parset_output_path)
     logger.info(f"Parsert output path is {parset_output_path}")
-    
+
     linmos_cmd = linmos_images(
         images=filter_images,
         parset_output_path=Path(parset_output_path),
@@ -305,6 +312,29 @@ def task_create_sky_model(
     return calibrate_command
 
 
+@task
+def task_create_validation_plot(
+    aegean_outputs: AegeanOutputs, reference_catalogue_directory: Path
+) -> Optional[Path]:
+    if reference_catalogue_directory is None:
+        logger.info(
+            f"Reference catalogue directory has not been supplied. Skipping validation plot creation. "
+        )
+
+        return None
+
+    output_figure_path = aegean_outputs.comp.with_suffix(".validation.png")
+
+    logger.info(f"Will create {output_figure_path=}")
+
+    return create_validation_plot(
+        rms_image_path=aegean_outputs.rms,
+        source_catalogue_path=aegean_outputs.comp,
+        output_path=output_figure_path,
+        reference_catalogue_directory=reference_catalogue_directory,
+    )
+
+
 def run_bandpass_stage(
     bandpass_mss: Collection[MS],
     output_split_bandpass_path: Path,
@@ -312,7 +342,7 @@ def run_bandpass_stage(
     flagger_container: Path,
     model_path: Path,
     source_name_prefix: str = "B1934-638",
-    skip_rotation: bool = False
+    skip_rotation: bool = False,
 ) -> List[CalibrateCommand]:
     if not output_split_bandpass_path.exists():
         logger.info(f"Creating {str(output_split_bandpass_path)}")
@@ -320,14 +350,15 @@ def run_bandpass_stage(
 
     calibrate_cmds: List[CalibrateCommand] = []
 
-
     for bandpass_ms in bandpass_mss:
         extract_bandpass_ms = task_extract_correct_bandpass_pointing.submit(
             ms=bandpass_ms,
             source_name_prefix=source_name_prefix,
             ms_out_dir=output_split_bandpass_path,
         )
-        preprocess_bandpass_ms = task_preprocess_askap_ms.submit(ms=extract_bandpass_ms, skip_rotation=skip_rotation)
+        preprocess_bandpass_ms = task_preprocess_askap_ms.submit(
+            ms=extract_bandpass_ms, skip_rotation=skip_rotation
+        )
         flag_bandpass_ms = task_flag_ms_aoflagger.submit(
             ms=preprocess_bandpass_ms, container=flagger_container, rounds=1
         )
@@ -434,14 +465,17 @@ def process_bandpass_science_fields(
     zip_ms: bool = False,
     run_aegean: bool = False,
     aegean_container: Optional[Path] = None,
-    no_imaging: bool = False
+    no_imaging: bool = False,
+    reference_catalogue_directory: Optional[Path] = None,
 ) -> None:
     run_aegean = False if aegean_container is None else run_aegean
-    
+
     assert (
         science_path.exists() and science_path.is_dir()
     ), f"{str(science_path)} does not exist or is not a folder. "
-    science_mss = list([MS.cast(ms_path) for ms_path in sorted(science_path.glob("*.ms"))])
+    science_mss = list(
+        [MS.cast(ms_path) for ms_path in sorted(science_path.glob("*.ms"))]
+    )
     assert (
         len(science_mss) == expected_ms
     ), f"Expected to find {expected_ms} in {str(science_path)}, found {len(science_mss)}."
@@ -534,16 +568,18 @@ def process_bandpass_science_fields(
         "auto_mask": 5,
         "multiscale": True,
         "local_rms_window": 55,
-        "multiscale_scales":  (0, 15, 30, 50, 100, 150, 225),
+        "multiscale_scales": (0, 15, 30, 50, 100, 150, 225),
     }
-    
+
     wsclean_cmds = task_wsclean_imager.map(
         in_ms=apply_solutions_cmd_list,
         wsclean_container=wsclean_container,
         update_wsclean_options=unmapped(wsclean_init),
     )
     if run_aegean:
-        task_run_bane_and_aegean.map(image=wsclean_cmds, aegean_container=unmapped(aegean_container))
+        task_run_bane_and_aegean.map(
+            image=wsclean_cmds, aegean_container=unmapped(aegean_container)
+        )
 
     beam_shape = task_get_common_beam.submit(wsclean_cmds=wsclean_cmds, cutoff=25.0)
     conv_images = task_convolve_image.map(
@@ -556,10 +592,16 @@ def process_bandpass_science_fields(
             suffix_str="noselfcal",
             holofile=holofile,
         )
-        
-        if run_aegean:
-            task_run_bane_and_aegean.submit(image=parset, aegean_container=unmapped(aegean_container))
 
+        if run_aegean:
+            aegean_outputs = task_run_bane_and_aegean.submit(
+                image=parset, aegean_container=unmapped(aegean_container)
+            )
+
+            task_create_validation_plot.submit(
+                aegean_outputs=aegean_outputs,
+                reference_catalogue_directory=reference_catalogue_directory,
+            )
 
     if rounds is None:
         logger.info("No self-calibration will be performed. Returning")
@@ -572,10 +614,29 @@ def process_bandpass_science_fields(
         4: {"calmode": "ap", "solint": "360s", "uvrange": ">200lambda"},
     }
     wsclean_rounds = {
-        1: {"size": 8144,"multiscale": True, "minuv_l": 235, "auto_mask": 5, "local_rms_window": 55, "multiscale_scales": (0, 15, 30, 50, 100, 150, 225)},
-        2: {"size": 8144,"multiscale": True, "minuv_l": 235, "auto_mask": 4.5, "local_rms_window": 55, "multiscale_scales": (0, 15, 30, 50, 100, 150, 225)},
+        1: {
+            "size": 8144,
+            "multiscale": True,
+            "minuv_l": 235,
+            "auto_mask": 5,
+            "local_rms_window": 55,
+            "multiscale_scales": (0, 15, 30, 50, 100, 150, 225),
+        },
+        2: {
+            "size": 8144,
+            "multiscale": True,
+            "minuv_l": 235,
+            "auto_mask": 4.5,
+            "local_rms_window": 55,
+            "multiscale_scales": (0, 15, 30, 50, 100, 150, 225),
+        },
         3: {"multiscale": False, "minuv_l": 200, "auto_mask": 3.5},
-        4: {"multiscale": False, "local_rms_window": 125, "minuv_l": 200, "auto_mask": 3.5},
+        4: {
+            "multiscale": False,
+            "local_rms_window": 125,
+            "minuv_l": 200,
+            "auto_mask": 3.5,
+        },
     }
 
     for round in range(1, rounds + 1):
@@ -599,10 +660,12 @@ def process_bandpass_science_fields(
             wsclean_container=wsclean_container,
             update_wsclean_options=unmapped(wsclean_options),
         )
-        
+
         # Do source finding on the last round of self-cal'ed images
         if round == rounds and run_aegean:
-            task_run_bane_and_aegean.map(image=wsclean_cmds, aegean_container=unmapped(aegean_container))
+            task_run_bane_and_aegean.map(
+                image=wsclean_cmds, aegean_container=unmapped(aegean_container)
+            )
 
         beam_shape = task_get_common_beam.submit(wsclean_cmds=wsclean_cmds, cutoff=25.0)
         conv_images = task_convolve_image.map(
@@ -620,8 +683,14 @@ def process_bandpass_science_fields(
         )
 
         if run_aegean:
-            task_run_bane_and_aegean.submit(image=parset, aegean_container=unmapped(aegean_container))
+            aegean_outputs = task_run_bane_and_aegean.submit(
+                image=parset, aegean_container=unmapped(aegean_container)
+            )
 
+            task_create_validation_plot.submit(
+                aegean_outputs=aegean_outputs,
+                reference_catalogue_directory=reference_catalogue_directory,
+            )
 
     # zip up the final measurement set, which is not included in the above loop
     if zip_ms:
@@ -645,7 +714,8 @@ def setup_run_process_science_field(
     zip_ms: bool = False,
     run_aegean: bool = False,
     aegean_container: Optional[Path] = None,
-    no_imaging: bool = False
+    no_imaging: bool = False,
+    reference_catalogue_directory: Optional[Path] = None,
 ) -> None:
     if bandpass_path is None and sky_model_path is None:
         raise ValueError(
@@ -678,7 +748,8 @@ def setup_run_process_science_field(
         zip_ms=zip_ms,
         run_aegean=run_aegean,
         aegean_container=aegean_container,
-        no_imaging=no_imaging
+        no_imaging=no_imaging,
+        reference_catalogue_directory=reference_catalogue_directory,
     )
 
 
@@ -777,7 +848,13 @@ def get_parser() -> ArgumentParser:
     parser.add_argument(
         "--no-imaging",
         action="store_true",
-        help="Do not perform any imaging, only derive bandpass solutions and apply to sources. "
+        help="Do not perform any imaging, only derive bandpass solutions and apply to sources. ",
+    )
+    parser.add_argument(
+        "--reference-catalogue-directory",
+        type=Path,
+        default=None,
+        help="Path to the directory containing the ICFS, NVSS and SUMSS referenece catalogues. These are required for validaiton plots. ",
     )
 
     return parser
@@ -809,7 +886,8 @@ def cli() -> None:
         zip_ms=args.zip_ms,
         run_aegean=args.run_aegean,
         aegean_container=args.aegean_container,
-        no_imaging=args.no_imaging
+        no_imaging=args.no_imaging,
+        reference_catalogue_directory=args.reference_catalogue_directory,
     )
 
 
