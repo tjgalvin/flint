@@ -98,7 +98,7 @@ def nan_zero_extreme_flag_ms(
         tab.putcol("FLAG", flags)
 
         if nan_data_on_flag:
-            data[flags == True] = np.nan
+            data[flags is True] = np.nan
             logger.info(f"Setting {np.sum(flags)} DATA items to NaN.")
             tab.putcol(data_column, data)
 
