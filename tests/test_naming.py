@@ -9,7 +9,7 @@ from flint.naming import (
     extract_components_from_name,
     extract_beam_from_name,
     RawNameComponents,
-    ProcessedNameComponents
+    ProcessedNameComponents,
 )
 
 
@@ -52,6 +52,7 @@ def test_raw_name_components():
     assert components.date == "2022-04-14"
     assert components.time == "100122"
     assert components.spw == "3"
+
 
 def test_components_all_beams_spws():
     for beam in range(36):
@@ -120,61 +121,99 @@ def test_create_ms_name_no_sbid():
     ms_path_3 = create_ms_name(ms_path=example_path_3, field="RACS_0635-31")
     assert isinstance(ms_path_3, str)
     assert ms_path_3 == expected_3
-    
+
+
 def test_formatted_name_components():
-    ex = 'SB39400.RACS_0635-31.beam33-MFS-image.conv.fits'
+    ex = "SB39400.RACS_0635-31.beam33-MFS-image.conv.fits"
 
     components = processed_ms_format(in_name=ex)
     assert isinstance(components, ProcessedNameComponents)
-    assert components.sbid == '39400'
-    assert components.field == 'RACS_0635-31'
-    assert components.beam == '33'
-    assert components.spw is None 
+    assert components.sbid == "39400"
+    assert components.field == "RACS_0635-31"
+    assert components.beam == "33"
+    assert components.spw is None
+    assert components.round == None
 
-
-    ex = 'SB39400.RACS_0635-31.beam33.spw123-MFS-image.conv.fits'
+    ex = "SB39400.RACS_0635-31.beam33.spw123-MFS-image.conv.fits"
 
     components = processed_ms_format(in_name=ex)
     assert isinstance(components, ProcessedNameComponents)
-    assert components.sbid == '39400'
-    assert components.field == 'RACS_0635-31'
-    assert components.beam == '33'
-    assert components.spw == '123'
+    assert components.sbid == "39400"
+    assert components.field == "RACS_0635-31"
+    assert components.beam == "33"
+    assert components.spw == "123"
+    assert components.round == None
 
-
-    ex_path = Path('/this/is/and/example/path/SB39400.RACS_0635-31.beam33.spw123-MFS-image.conv.fits')
+    ex_path = Path(
+        "/this/is/and/example/path/SB39400.RACS_0635-31.beam33.spw123-MFS-image.conv.fits"
+    )
 
     components = processed_ms_format(in_name=ex_path)
     assert isinstance(components, ProcessedNameComponents)
-    assert components.sbid == '39400'
-    assert components.field == 'RACS_0635-31'
-    assert components.beam == '33'
-    assert components.spw == '123'
+    assert components.sbid == "39400"
+    assert components.field == "RACS_0635-31"
+    assert components.beam == "33"
+    assert components.spw == "123"
+    assert components.round == None
+
+
+def test_formatted_name_components_wround():
+    ex = "SB39400.RACS_0635-31.beam33.round1-MFS-image.conv.fits"
+
+    components = processed_ms_format(in_name=ex)
+    assert isinstance(components, ProcessedNameComponents)
+    assert components.sbid == "39400"
+    assert components.field == "RACS_0635-31"
+    assert components.beam == "33"
+    assert components.spw is None
+    assert components.round == "1"
+
+    ex = "SB39400.RACS_0635-31.beam33.spw123.round12-MFS-image.conv.fits"
+
+    components = processed_ms_format(in_name=ex)
+    assert isinstance(components, ProcessedNameComponents)
+    assert components.sbid == "39400"
+    assert components.field == "RACS_0635-31"
+    assert components.beam == "33"
+    assert components.spw == "123"
+    assert components.round == "12"
+
+    ex_path = Path(
+        "/this/is/and/example/path/SB39400.RACS_0635-31.beam33.spw123.round123-MFS-image.conv.fits"
+    )
+
+    components = processed_ms_format(in_name=ex_path)
+    assert isinstance(components, ProcessedNameComponents)
+    assert components.sbid == "39400"
+    assert components.field == "RACS_0635-31"
+    assert components.beam == "33"
+    assert components.spw == "123"
+    assert components.round == "123"
+
 
 def test_get_correct_name_format():
-    
     examples = [
-        'SB39400.RACS_0635-31.beam33-MFS-image.conv.fits',
-        'SB39400.RACS_0635-31.beam33.ms',
-        Path('/this/is/and/example/path/SB39400.RACS_0635-31.beam33.spw123-MFS-image.conv.fits'),
+        "SB39400.RACS_0635-31.beam33-MFS-image.conv.fits",
+        "SB39400.RACS_0635-31.beam33.ms",
+        Path(
+            "/this/is/and/example/path/SB39400.RACS_0635-31.beam33.spw123-MFS-image.conv.fits"
+        ),
     ]
 
     for ex in examples:
         res = extract_components_from_name(name=ex)
         assert isinstance(res, ProcessedNameComponents)
 
-    examples = [
-        "2022-04-14_100122_0.averaged.ms"
-    ]
-    
+    examples = ["2022-04-14_100122_0.averaged.ms"]
+
     for ex in examples:
         res = extract_components_from_name(name=ex)
         assert isinstance(res, RawNameComponents)
 
 
-
 def test_get_beam_from_name():
     assert extract_beam_from_name(name="2022-04-14_100122_0.averaged.ms") == 0
-    assert extract_beam_from_name(name='SB39400.RACS_0635-31.beam33-MFS-image.conv.fits') == 33
-    
-    
+    assert (
+        extract_beam_from_name(name="SB39400.RACS_0635-31.beam33-MFS-image.conv.fits")
+        == 33
+    )

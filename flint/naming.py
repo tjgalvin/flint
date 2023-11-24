@@ -57,21 +57,26 @@ def raw_ms_format(in_name: str) -> Union[None, RawNameComponents]:
         date=groups["date"], time=groups["time"], beam=groups["beam"], spw=groups["spw"]
     )
 
+
 class ProcessedNameComponents(NamedTuple):
-    """Container for a file name derived from a MS flint name. Generally of the 
+    """Container for a file name derived from a MS flint name. Generally of the
     form: SB.Field.Beam.Spw"""
+
     sbid: int
     """The sbid of the observation"""
     field: str
     """The name of the field extracted"""
-    beam: str 
+    beam: str
     """The beam of the observation processed"""
-    spw: Optional[str] = None 
+    spw: Optional[str] = None
     """The SPW of the observation. If there is only one spw this is None."""
+    round: Optional[str] = None
+    """The self-calibration round detected. This might be represented as 'noselfcal' in some image products, e.g. linmos. """
+
 
 def processed_ms_format(in_name: Union[str, Path]) -> ProcessedNameComponents:
-    """Will take a formatted name (i.e. one derived from the flint.naming.create_ms_name) 
-    and attempt to extract its main components. This includes the SBID, field, beam and spw. 
+    """Will take a formatted name (i.e. one derived from the flint.naming.create_ms_name)
+    and attempt to extract its main components. This includes the SBID, field, beam and spw.
 
     Args:
         in_name (Union[str, Path]): The name that needs to be broken down into components
@@ -79,13 +84,13 @@ def processed_ms_format(in_name: Union[str, Path]) -> ProcessedNameComponents:
     Returns:
         FormatedNameComponents: A structure container the sbid, field, beam and spw
     """
-    
+
     in_name = in_name.name if isinstance(in_name, Path) else in_name
-    
+
     logger.debug(f"Matching {in_name}")
     # A raw string is used to avoid bad unicode escaping
     regex = re.compile(
-        r"^SB(?P<sbid>[0-9]+)\.(?P<field>.+)\.beam(?P<beam>[0-9]+)(\.spw(?P<spw>[0-9]+))*"\
+        r"^SB(?P<sbid>[0-9]+)\.(?P<field>.+)\.beam(?P<beam>[0-9]+)((\.spw(?P<spw>[0-9]+))?)((\.round(?P<round>[0-9]+))?)*"
     )
     results = regex.match(in_name)
 
@@ -98,20 +103,27 @@ def processed_ms_format(in_name: Union[str, Path]) -> ProcessedNameComponents:
     logger.info(f"Matched groups are: {groups}")
 
     return ProcessedNameComponents(
-        sbid=groups["sbid"], field=groups["field"], beam=groups["beam"], spw=groups["spw"]
+        sbid=groups["sbid"],
+        field=groups["field"],
+        beam=groups["beam"],
+        spw=groups["spw"],
+        round=groups["round"],
     )
 
-def extract_components_from_name(name: Union[str, Path]) -> Union[RawNameComponents, ProcessedNameComponents]:
-    """Attempts to break down a file name of a recognised format into its principal compobnents. 
-    Presumably this is a measurement set or something derived from it (i.e. images). 
-    
+
+def extract_components_from_name(
+    name: Union[str, Path]
+) -> Union[RawNameComponents, ProcessedNameComponents]:
+    """Attempts to break down a file name of a recognised format into its principal compobnents.
+    Presumably this is a measurement set or something derived from it (i.e. images).
+
     There are two formats currently recognised:
     - the raw measurement set format produced by the ASKAP ingest system (date, time, beam, spw, underscore delimited)
     - a formatted name produced by flint (SBID, field, beam, spw, dot delimited)
-    
-    Internally this function attempts to run two regular expression filters against the input, 
-    and returns to the set of components that a filter has matched. 
-    
+
+    Internally this function attempts to run two regular expression filters against the input,
+    and returns to the set of components that a filter has matched.
+
     Args:
         name (Union[str,Path]): The name to examine to search for the beam number.
 
@@ -123,13 +135,15 @@ def extract_components_from_name(name: Union[str, Path]) -> Union[RawNameCompone
     """
     name = str(name.name) if isinstance(name, Path) else name
     results_raw = raw_ms_format(in_name=name)
-    results_formatted = processed_ms_format(in_name=name) 
+    results_formatted = processed_ms_format(in_name=name)
 
     if results_raw is None and results_formatted is None:
         raise ValueError(f"Unrecognised file name format for {name=}. ")
 
     if results_raw is not None and results_formatted is not None:
-        logger.info(f"The {name=} was recognised as both a RawNameComponent and ProcessedNameComponent. Taking the latter. ")
+        logger.info(
+            f"The {name=} was recognised as both a RawNameComponent and ProcessedNameComponent. Taking the latter. "
+        )
         logger.info(f"{results_raw=} {results_formatted=} ")
         results = results_formatted
 
@@ -137,10 +151,11 @@ def extract_components_from_name(name: Union[str, Path]) -> Union[RawNameCompone
 
     return results
 
+
 def extract_beam_from_name(name: Union[str, Path]) -> int:
-    """Attempts to extract the beam number from some input name should it follow a 
-    known naming convention. 
-    
+    """Attempts to extract the beam number from some input name should it follow a
+    known naming convention.
+
     Args:
         name (Union[str,Path]): The name to examine to search for the beam number.
 
@@ -152,7 +167,7 @@ def extract_beam_from_name(name: Union[str, Path]) -> int:
     """
 
     results = extract_components_from_name(name=name)
-    
+
     return int(results.beam)
 
 

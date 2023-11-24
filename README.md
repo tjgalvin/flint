@@ -21,6 +21,8 @@ Most of the `python` routines have a CLI that can be used to test them in a piec
 - `flint_convol`: Convols a collection of images to a common resolution. 
 - `flint_yandalinmos`: Will co-add a collection of images of a single field together, optionally including holography measurements. 
 - `flint_config`: The beginnings of a configuration-based scheme to specify options throughout a workflow. 
+- `flint_aegean`: Simple interface to execute BANE and aegean against a provided image. These tools are expected to be packaged in a singularity container. 
+- `flint_validation_plot`: Create a simple, quick look figure that expresses the key quality statistics of an image. It is intended to be used against a full continuum field image, but in-principal be used for a per beam image. 
 
 The following commands use the `prefect` framework to link together individual tasks together (outlined above) into a single data-processing pipeline. 
 - `flint_flow_continuum_pipeline`: Performs bandpass calibration, solution copying, imaging, self-calibration and mosaicing. 
@@ -40,10 +42,65 @@ Some of the innovative components of ASKAP and the `yandasoft` package have resu
 
 At the moment this toy pipeline uses `singularity` containers to use compiled software that are outside the `python` ecosystem. For the moment there are no 'supported' container packaged with this repository -- sorry! 
 
-In a nutshell, the containers used throughout are passed in as command line arguments, whose context should be enough to explain what it is expecting. At the time of writing there are two containers for:
+In a nutshell, the containers used throughout are passed in as command line arguments, whose context should be enough to explain what it is expecting. At the time of writing there are four containers for:
 - calibration: this should contain `calibrate` and `applysolutions`. These are tools written by Andre Offringa. 
 - flagging: this should contain `aoflagger`, which is installable via a `apt install aoflagger` within ubunutu. 
 - imaging: this should contain `wsclean`. This should be at least version 3. At the moment a modified version is being used (which implements a `-force-mask-round` option). 
+- source finding: `aegeam` is used for basic component catalogue creation. It is not intedended to be used to produce final source catalogues, but to help construct quick-look data products. A minimal set of `BANE` and `aegean` options are used. 
+
+## Validation Plots
+
+The validation plots that are created are simple and aim to provide a quality assessment at a quick glance. An RMS image and corresponding source component catalogue are the base data products derived from the ASKAP data that are supplied to the routine. 
+
+External catalogues are supplied to a source to compare against. In the current `flint` package these catalogues (and their expected columns) are:
+- ICRF
+
+```
+Catalogue(
+    survey="ICRF",
+    file_name="icrf.csv",
+    freq=1e9,
+    ra_col="RA",
+    dec_col="Dec",
+    name_col="IERS Des.",
+    flux_col="None",
+    maj_col="None",
+    min_col="None",
+    pa_col="None",
+)
+```
+- NVSS
+```
+Catalogue(
+    survey="NVSS",
+    file_name="VIII_65_nvss.dat_CH_2.fits",
+    name_col="NVSS",
+    freq=1.4e9,
+    ra_col="RA",
+    dec_col="Dec",
+    flux_col="S1.4",
+    maj_col="MajAxis",
+    min_col="MinAxis",
+    pa_col="PA",
+)
+```
+- SUMSS
+```
+Catalogue(
+    survey="SUMSS",
+    file_name="sumsscat.Mar-11-2008_CLH.fits",
+    freq=8.43e8,
+    ra_col="RA",
+    dec_col="DEC",
+    name_col="Mosaic",
+    flux_col="St",
+    maj_col="dMajAxis",
+    min_col="dMinAxis",
+    pa_col="dPA",
+)
+```
+
+These catalogues are currently not distributed with the source code / python installable. Instead when required a parameter specifying their host directory on disk needs to be supplied. The known filename is used to find the appropriate catalogue and its full path. 
 
 
 ## Contributions
