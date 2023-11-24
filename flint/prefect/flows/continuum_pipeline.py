@@ -462,7 +462,7 @@ def process_bandpass_science_fields(
     reference_catalogue_directory: Optional[Path] = None,
 ) -> None:
     run_aegean = False if aegean_container is None else run_aegean
-    run_validation = reference_catalogue_directory is None
+    run_validation = reference_catalogue_directory is not None
 
     assert (
         science_path.exists() and science_path.is_dir()
@@ -556,7 +556,7 @@ def process_bandpass_science_fields(
         return
 
     wsclean_init = {
-        "size": 9144,
+        "size": 6144,
         "minuv_l": 235,
         "weight": "briggs -0.5",
         "auto_mask": 5,
@@ -609,8 +609,8 @@ def process_bandpass_science_fields(
         4: {"calmode": "ap", "solint": "360s", "uvrange": ">200lambda"},
     }
     wsclean_rounds = {
-        1: {"size": 9144,"multiscale": True, "minuv_l": 235, "auto_mask": 5, "local_rms_window": 55, "multiscale_scales": (0, 15, 30, 40, 50, 60, 70)},
-        2: {"size": 9144,"multiscale": True, "minuv_l": 235, "auto_mask": 4., "local_rms_window": 55, "multiscale_scales": (0, 15, 30, 40, 50, 60, 70)},
+        1: {"size": 6144,"multiscale": True, "minuv_l": 235, "auto_mask": 5, "local_rms_window": 55, "multiscale_scales": (0, 15, 30, 40, 50, 60, 70)},
+        2: {"size": 6144,"multiscale": True, "minuv_l": 235, "auto_mask": 4., "local_rms_window": 55, "multiscale_scales": (0, 15, 30, 40, 50, 60, 70)},
         3: {"multiscale": False, "minuv_l": 200, "auto_mask": 3.5},
         4: {
             "multiscale": False,
