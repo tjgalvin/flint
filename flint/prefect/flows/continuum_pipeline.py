@@ -203,7 +203,7 @@ def task_get_common_beam(
 
 @task
 def task_convolve_image(
-    wsclean_cmd: WSCleanCMD, beam_shape: BeamShape, cutoff: float = 25
+    wsclean_cmd: WSCleanCMD, beam_shape: BeamShape, cutoff: float = 60
 ) -> Collection[Path]:
     assert (
         wsclean_cmd.imageset is not None
@@ -528,13 +528,13 @@ def process_bandpass_science_fields(
         return
 
     wsclean_init = {
-        "size": 7144,
+        "size": 9144,
         "minuv_l": 235,
         "weight": "briggs -0.5",
         "auto_mask": 5,
         "multiscale": True,
         "local_rms_window": 55,
-        "multiscale_scales":  (0, 15, 30, 50, 100, 150, 225),
+        "multiscale_scales":  (0, 15, 30, 40, 50, 60, 70),
     }
     
     wsclean_cmds = task_wsclean_imager.map(
@@ -545,9 +545,9 @@ def process_bandpass_science_fields(
     if run_aegean:
         task_run_bane_and_aegean.map(image=wsclean_cmds, aegean_container=unmapped(aegean_container))
 
-    beam_shape = task_get_common_beam.submit(wsclean_cmds=wsclean_cmds, cutoff=25.0)
+    beam_shape = task_get_common_beam.submit(wsclean_cmds=wsclean_cmds, cutoff=150.0)
     conv_images = task_convolve_image.map(
-        wsclean_cmd=wsclean_cmds, beam_shape=unmapped(beam_shape), cutoff=25.0
+        wsclean_cmd=wsclean_cmds, beam_shape=unmapped(beam_shape), cutoff=150.0
     )
     if yandasoft_container is not None:
         parset = task_linmos_images.submit(
@@ -566,14 +566,14 @@ def process_bandpass_science_fields(
         return
 
     gain_cal_rounds = {
-        1: {"solint": "1200s", "uvrange": ">235lambda", "nspw": 1},
+        1: {"solint": "1200s", "uvrange": ">235lambda", "nspw": 2},
         2: {"solint": "60s", "uvrange": ">235lambda", "nspw": 1},
         3: {"solint": "60s", "uvrange": ">235lambda", "nspw": 1},
         4: {"calmode": "ap", "solint": "360s", "uvrange": ">200lambda"},
     }
     wsclean_rounds = {
-        1: {"size": 8144,"multiscale": True, "minuv_l": 235, "auto_mask": 5, "local_rms_window": 55, "multiscale_scales": (0, 15, 30, 50, 100, 150, 225)},
-        2: {"size": 8144,"multiscale": True, "minuv_l": 235, "auto_mask": 4.5, "local_rms_window": 55, "multiscale_scales": (0, 15, 30, 50, 100, 150, 225)},
+        1: {"size": 9144,"multiscale": True, "minuv_l": 235, "auto_mask": 5, "local_rms_window": 55, "multiscale_scales": (0, 15, 30, 40, 50, 60, 70)},
+        2: {"size": 9144,"multiscale": True, "minuv_l": 235, "auto_mask": 4., "local_rms_window": 55, "multiscale_scales": (0, 15, 30, 40, 50, 60, 70)},
         3: {"multiscale": False, "minuv_l": 200, "auto_mask": 3.5},
         4: {"multiscale": False, "local_rms_window": 125, "minuv_l": 200, "auto_mask": 3.5},
     }
@@ -588,9 +588,7 @@ def process_bandpass_science_fields(
             update_gain_cal_options=unmapped(gain_cal_options),
             archive_input_ms=zip_ms,
         )
-        # if zip_ms:
-        #     task_zip_ms.map(in_item=wsclean_cmds, wait_for=cal_mss)
-
+        
         flag_mss = task_flag_ms_aoflagger.map(
             ms=cal_mss, container=flagger_container, rounds=1
         )
@@ -604,9 +602,9 @@ def process_bandpass_science_fields(
         if round == rounds and run_aegean:
             task_run_bane_and_aegean.map(image=wsclean_cmds, aegean_container=unmapped(aegean_container))
 
-        beam_shape = task_get_common_beam.submit(wsclean_cmds=wsclean_cmds, cutoff=25.0)
+        beam_shape = task_get_common_beam.submit(wsclean_cmds=wsclean_cmds, cutoff=150.0)
         conv_images = task_convolve_image.map(
-            wsclean_cmd=wsclean_cmds, beam_shape=unmapped(beam_shape), cutoff=25.0
+            wsclean_cmd=wsclean_cmds, beam_shape=unmapped(beam_shape), cutoff=150.0
         )
         if yandasoft_container is None:
             logger.info("No yandasoft container supplied, not linmosing. ")
