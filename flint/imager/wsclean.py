@@ -100,6 +100,8 @@ class WSCleanOptions(NamedTuple):
     """Disables an optimisation of wsclean's w-gridder mode. This might improve accuracy of the w-gridder. """
     name: Optional[str] = None
     """Name of the output files passed through to wsclean"""
+    beam_fitting_size: Optional[float] = 1.25
+    """Use a fitting box the size of <factor> times the theoretical beam size for fitting a Gaussian to the PSF."""
 
     def with_options(self, **kwargs) -> WSCleanOptions:
         """Return a new instance of WSCleanOptions with updated components"""
