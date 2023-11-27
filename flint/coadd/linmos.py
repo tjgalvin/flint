@@ -21,6 +21,83 @@ class LinmosCMD(NamedTuple):
     """Path to the output linmos image created (or will be). """
 
 
+class BoundingBox(NamedTuple):
+    """Simple container to represent a bounding box"""
+
+    xmin: int
+    """Minimum x pixel"""
+    xmax: int
+    """Maximum x pixel"""
+    ymin: int
+    """Minimum y pixel"""
+    ymax: int
+    """Maximum y pixel"""
+
+
+def create_bound_box(image_data: np.ndarray, is_masked: bool = False) -> BoundingBox:
+    """Construct a bounding box around finite pixels.
+
+    If ``is_mask` is ``False``, the ``image_data`` will be masked internally using ``numpy.isfinite``.
+
+    Args:
+        image_data (np.ndarray): The image data that will have a bounding box constructed for.
+        is_masked (bool, optional): if this is ``True`` the ``image_data`` are treated as a boolean mask array. Defaults to False.
+
+    Returns:
+        BoundingBox: The tight bounding box around pixels.
+    """
+    assert (
+        len(image_data.shape) == 2
+    ), f"Only two-dimensional arrays supported, received {image_data.shape}"
+
+    # First convert to a boolean array
+    image_valid = image_data if is_masked else np.isfinite(image_data)
+
+    # Then make them 1D arrays
+    x_valid = np.any(image_valid, axis=1)
+    y_valid = np.any(image_valid, axis=0)
+
+    # Now get the first and last index
+    xmin, xmax = np.where(x_valid)[0][[0, -1]]
+    ymin, ymax = np.where(y_valid)[0][[0, -1]]
+
+    return BoundingBox(xmin=xmin, xmax=xmax, ymin=ymin, ymax=ymax)
+
+
+def trim_fits_image(image_path: Path) -> Path:
+    """Trim the FITS image produces by linmos to remove as many empty pixels around
+    the border of the image as possible. This is an inplace operation.
+
+    Args:
+        image_path (Path): The FITS image that will have its border trimmed
+
+    Returns:
+        Path: Path of the FITS image that had its border trimmed
+    """
+    logger.info(f"Trimming {image_path.name}")
+    with fits.open(image_path) as fits_image:
+        data = fits_image[0].data
+        logger.info(f"Original data shape: {data.shape}")
+
+        bounding_box = create_bound_box(image_data=np.squeeze(data), is_masked=False)
+
+        data = data[
+            ...,
+            bounding_box.xmin : bounding_box.xmax,
+            bounding_box.ymin : bounding_box.ymax,
+        ]
+
+        header = fits_image[0].header
+        header["CRPIX1"] -= bounding_box.ymin
+        header["CRPIX2"] -= bounding_box.xmin
+
+        logger.info(f"Trimmed data shape: {data.shape}")
+
+    fits.writeto(filename=image_path, data=data, header=header, overwrite=True)
+
+    return image_path
+
+
 def get_image_weight(
     image_path: Path, mode: str = "mad", image_slice: int = 0
 ) -> float:
@@ -67,10 +144,10 @@ def get_image_weight(
         if mode == "mad":
             median = np.median(image_data)
             mad = np.median(np.abs(image_data - median))
-            weight = 1. / mad ** 2
+            weight = 1.0 / mad**2
         elif mode == "std":
             std = np.std(image_data)
-            weight = 1. / std ** 2
+            weight = 1.0 / std**2
         else:
             raise ValueError(
                 f"Invalid {mode=} specified. Available modes: {weight_modes}"
@@ -273,6 +350,9 @@ def linmos_images(
         parset=linmos_parset,
         image_fits=linmos_names.image_fits.absolute(),
     )
+
+    # Trim the fits image to remove empty pixels
+    trim_fits_image(image_path=linmos_names.image_fits)
 
     return linmos_cmd
 
