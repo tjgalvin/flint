@@ -1,16 +1,17 @@
-"""Basic utilities to load operational parameters from a yaml-based 
+"""Basic utilities to load operational parameters from a yaml-based
 configuration file. The idea being that a configuration file would
 be used to specify the options for imaging and self-calibration
-throughout the pipeline. 
+throughout the pipeline.
 """
-import yaml
-from typing import Optional, Any, Dict
 from argparse import ArgumentParser
 from pathlib import Path
+from typing import Any, Dict, Optional
+
+import yaml
 
 from flint.imager.wsclean import WSCleanOptions
-from flint.selfcal.casa import GainCalOptions
 from flint.logging import logger
+from flint.selfcal.casa import GainCalOptions
 
 
 def load_yaml(input_yaml: Path) -> Any:

@@ -1,16 +1,17 @@
-"""A basic interface into aegean source finding routines. 
+"""A basic interface into aegean source finding routines.
 """
 from argparse import ArgumentParser
 from pathlib import Path
 from typing import NamedTuple
 
 from AegeanTools import BANE
-from AegeanTools.source_finder import SourceFinder
 from AegeanTools.catalogs import save_catalog
+from AegeanTools.source_finder import SourceFinder
 
 from flint.logging import logger
 from flint.naming import create_aegean_names
 from flint.sclient import run_singularity_command
+
 
 class AegeanOutputs(NamedTuple):
     """Somple structure to represent output aegean products"""
@@ -22,14 +23,17 @@ class AegeanOutputs(NamedTuple):
     comp: Path
     """Source component catalogue created by Aegean"""
 
-def run_bane_and_aegean(image: Path, aegean_container: Path, cores: int=8) -> AegeanOutputs:
+
+def run_bane_and_aegean(
+    image: Path, aegean_container: Path, cores: int = 8
+) -> AegeanOutputs:
     """Run BANE, the background and noise estimator, and aegean, the source finder,
-    against an input image. This function attempts to hook into the AegeanTools 
-    module directly, which does not work with dask daemon processes. 
+    against an input image. This function attempts to hook into the AegeanTools
+    module directly, which does not work with dask daemon processes.
 
     Args:
         image (Path): The input image that BANE will calculate a background and RMS map for
-        aegean_container (Path): Path to a singularity container that was the AegeanTools packages installed. 
+        aegean_container (Path): Path to a singularity container that was the AegeanTools packages installed.
         cores (int, optional): The number of cores to allow BANE to use. Internally BANE will create a number of sub-processes. Defaults to 8.
 
     Returns:
@@ -46,18 +50,22 @@ def run_bane_and_aegean(image: Path, aegean_container: Path, cores: int=8) -> Ae
     logger.info("Constructed BANE command. ")
 
     bind_dir = [image.absolute()]
-    run_singularity_command(image=aegean_container, command=bane_command_str, bind_dirs=bind_dir)
+    run_singularity_command(
+        image=aegean_container, command=bane_command_str, bind_dirs=bind_dir
+    )
 
     # NOTE: Aegean will add the '_comp' component to the output tables. So, if we want
     # basename_comp.fits
     # to be the output component table then we want to pass
     # --table basename.fits
-    # and have to rely on aegean doing the right thing. 
+    # and have to rely on aegean doing the right thing.
     aegean_command = f"aegean {str(image)} --autoload --nocov --maxsummits 4 --table {base_output}.fits"
     logger.info("Constructed aegean command. ")
     logger.debug(f"{aegean_command=}")
 
-    run_singularity_command(image=aegean_container, command=aegean_command, bind_dirs=bind_dir)
+    run_singularity_command(
+        image=aegean_container, command=aegean_command, bind_dirs=bind_dir
+    )
 
     # These are the bane outputs
     bkg_image_path = aegean_names.bkg_image
@@ -74,8 +82,8 @@ def run_bane_and_aegean(image: Path, aegean_container: Path, cores: int=8) -> Ae
 
 def python_run_bane_and_aegean(image: Path, cores: int = 8) -> AegeanOutputs:
     """Run BANE, the background and noise estimator, and aegean, the source finder,
-    against an input image. This function attempts to hook into the AegeanTools 
-    module directly, which does not work with dask daemon processes. 
+    against an input image. This function attempts to hook into the AegeanTools
+    module directly, which does not work with dask daemon processes.
 
     Args:
         image (Path): The input image that BANE will calculate a background and RMS map for
@@ -164,9 +172,7 @@ def cli() -> None:
 
     if args.mode == "find":
         run_bane_and_aegean(
-            image=args.image,
-            aegean_container=args.container,
-            cores=args.cores
+            image=args.image, aegean_container=args.container, cores=args.cores
         )
 
 

@@ -6,7 +6,7 @@
 """
 from argparse import ArgumentParser
 from pathlib import Path
-from typing import Any, List, Dict, Optional, Union, Collection
+from typing import Any, Collection, Dict, List, Optional, Union
 
 from prefect import flow, task, unmapped
 
@@ -16,22 +16,22 @@ from flint.calibrate.aocalibrate import (
     CalibrateCommand,
     create_apply_solutions_cmd,
     create_calibrate_cmd,
-    select_aosolution_for_ms,
-    flag_aosolutions,
     find_existing_solutions,
+    flag_aosolutions,
+    select_aosolution_for_ms,
 )
+from flint.coadd.linmos import LinmosCMD, linmos_images
+from flint.convol import BeamShape, convolve_images, get_common_beam
 from flint.flagging import flag_ms_aoflagger
 from flint.imager.wsclean import WSCleanCMD, wsclean_imager
 from flint.logging import logger
 from flint.ms import MS, preprocess_askap_ms, split_by_field
+from flint.naming import get_sbid_from_path, processed_ms_format
 from flint.prefect.clusters import get_dask_runner
-from flint.sky_model import get_1934_model, create_sky_model
 from flint.selfcal.casa import gaincal_applycal_ms
-from flint.convol import get_common_beam, convolve_images, BeamShape
-from flint.coadd.linmos import linmos_images, LinmosCMD
+from flint.sky_model import create_sky_model, get_1934_model
+from flint.source_finding.aegean import AegeanOutputs, run_bane_and_aegean
 from flint.utils import zip_folder
-from flint.source_finding.aegean import run_bane_and_aegean, AegeanOutputs
-from flint.naming import processed_ms_format, get_sbid_from_path
 from flint.validation import create_validation_plot
 
 task_extract_correct_bandpass_pointing = task(extract_correct_bandpass_pointing)
@@ -222,9 +222,9 @@ def task_convolve_image(
     # seem to serialise correctly, and we can get weird arcsecond is not
     # compatiable with arcsecond type errors. Import here in an attempt
     # to minimise
-    from radio_beam import Beam
-    from astropy.io import fits
     import astropy.units as u
+    from astropy.io import fits
+    from radio_beam import Beam
 
     # Print the beams out here for logging
     for image_path in image_paths:
@@ -562,7 +562,7 @@ def process_bandpass_science_fields(
         "auto_mask": 5,
         "multiscale": True,
         "local_rms_window": 55,
-        "multiscale_scales":  (0, 15, 30, 40, 50, 60, 70),
+        "multiscale_scales": (0, 15, 30, 40, 50, 60, 70),
     }
 
     wsclean_cmds = task_wsclean_imager.map(
@@ -609,8 +609,22 @@ def process_bandpass_science_fields(
         4: {"calmode": "ap", "solint": "360s", "uvrange": ">200lambda"},
     }
     wsclean_rounds = {
-        1: {"size": 6144,"multiscale": True, "minuv_l": 235, "auto_mask": 5, "local_rms_window": 55, "multiscale_scales": (0, 15, 30, 40, 50, 60, 70)},
-        2: {"size": 6144,"multiscale": True, "minuv_l": 235, "auto_mask": 4., "local_rms_window": 55, "multiscale_scales": (0, 15, 30, 40, 50, 60, 70)},
+        1: {
+            "size": 6144,
+            "multiscale": True,
+            "minuv_l": 235,
+            "auto_mask": 5,
+            "local_rms_window": 55,
+            "multiscale_scales": (0, 15, 30, 40, 50, 60, 70),
+        },
+        2: {
+            "size": 6144,
+            "multiscale": True,
+            "minuv_l": 235,
+            "auto_mask": 4.0,
+            "local_rms_window": 55,
+            "multiscale_scales": (0, 15, 30, 40, 50, 60, 70),
+        },
         3: {"multiscale": False, "minuv_l": 200, "auto_mask": 3.5},
         4: {
             "multiscale": False,
@@ -630,7 +644,7 @@ def process_bandpass_science_fields(
             update_gain_cal_options=unmapped(gain_cal_options),
             archive_input_ms=zip_ms,
         )
-        
+
         flag_mss = task_flag_ms_aoflagger.map(
             ms=cal_mss, container=flagger_container, rounds=1
         )
@@ -646,7 +660,9 @@ def process_bandpass_science_fields(
                 image=wsclean_cmds, aegean_container=unmapped(aegean_container)
             )
 
-        beam_shape = task_get_common_beam.submit(wsclean_cmds=wsclean_cmds, cutoff=150.0)
+        beam_shape = task_get_common_beam.submit(
+            wsclean_cmds=wsclean_cmds, cutoff=150.0
+        )
         conv_images = task_convolve_image.map(
             wsclean_cmd=wsclean_cmds, beam_shape=unmapped(beam_shape), cutoff=150.0
         )

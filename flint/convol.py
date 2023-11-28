@@ -2,13 +2,14 @@
 this is mostly to smooth to a common resolution
 """
 from __future__ import annotations
-import warnings
-from pathlib import Path
-from argparse import ArgumentParser
-from typing import NamedTuple, Collection, Optional, List
 
-from astropy.wcs import FITSFixedWarning
+import warnings
+from argparse import ArgumentParser
+from pathlib import Path
+from typing import Collection, List, NamedTuple, Optional
+
 import astropy.units as u
+from astropy.wcs import FITSFixedWarning
 from racs_tools import beamcon_2D
 from radio_beam import Beam
 

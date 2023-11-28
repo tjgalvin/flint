@@ -1,11 +1,11 @@
-"""Collection of functions and tooling intended 
-for general usage. 
+"""Collection of functions and tooling intended
+for general usage.
 """
 
 import shutil
 import subprocess
-from typing import List, Optional
 from pathlib import Path
+from typing import List, Optional
 
 from flint.logging import logger
 

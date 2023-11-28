@@ -1,25 +1,26 @@
 """Code to use AO calibrate s
 """
 from __future__ import annotations  # used to keep mypy/pylance happy in AOSolutions
+
 import struct
-from pathlib import Path
-from typing import NamedTuple, Optional, Union, Iterable, List, Collection, List
 from argparse import ArgumentParser
+from pathlib import Path
+from typing import Collection, Iterable, List, NamedTuple, Optional, Union
 
-import numpy as np
 import matplotlib.pyplot as plt
+import numpy as np
 
-from flint.logging import logger
-from flint.ms import MS, get_beam_from_ms, consistent_ms
-from flint.sclient import run_singularity_command
-from flint.plot_utils import fill_between_flags
 from flint.bptools.preflagger import (
-    flag_outlier_phase,
-    flags_over_threshold,
     flag_mean_residual_amplitude,
     flag_mean_xxyy_amplitude_ratio,
+    flag_outlier_phase,
+    flags_over_threshold,
 )
 from flint.exceptions import PhaseOutlierFitError
+from flint.logging import logger
+from flint.ms import MS, consistent_ms, get_beam_from_ms
+from flint.plot_utils import fill_between_flags
+from flint.sclient import run_singularity_command
 
 CALIBRATE_SUFFIX = ".calibrate.bin"
 PREFLAGGED_SUFFIX = ".preflagged"

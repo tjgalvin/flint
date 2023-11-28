@@ -9,6 +9,8 @@ class PhaseOutlierFitError(Exception):
 
     pass
 
+
 class GainCalError(Exception):
     """Raised when it appears like the casa gaincal task fails."""
+
     pass

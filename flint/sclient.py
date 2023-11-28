@@ -1,9 +1,9 @@
 """Utilities related to running commands in a singularity container
 """
-from socket import gethostname
 from pathlib import Path
-from typing import Optional, Union, Collection
+from socket import gethostname
 from subprocess import CalledProcessError
+from typing import Collection, Optional, Union
 
 from spython.main import Client as sclient
 
@@ -55,7 +55,7 @@ def run_singularity_command(
             return_result=True,
             quiet=False,
             stream=True,
-            stream_type="both"
+            stream_type="both",
         )
 
         for line in output:

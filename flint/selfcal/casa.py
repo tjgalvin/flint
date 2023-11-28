@@ -3,20 +3,22 @@
 This tooling is mostly centred on using gaincal from casatasks.
 """
 from __future__ import annotations
-import regex
-from typing import Optional, NamedTuple, Dict, Any
-from shutil import copytree
+
 from argparse import ArgumentParser
 from pathlib import Path
+from shutil import copytree
+from typing import Any, Dict, NamedTuple, Optional
 
-from casatasks import gaincal, applycal, mstransform, cvel
+import regex
 from casacore.tables import table
+from casatasks import applycal, cvel, gaincal, mstransform
 
+from flint.exceptions import GainCalError
+from flint.flagging import nan_zero_extreme_flag_ms
 from flint.logging import logger
 from flint.ms import MS
-from flint.flagging import nan_zero_extreme_flag_ms
-from flint.utils import rsync_copy_directory, remove_files_folders, zip_folder
-from flint.exceptions import GainCalError
+from flint.utils import remove_files_folders, rsync_copy_directory, zip_folder
+
 
 class GainCalOptions(NamedTuple):
     """Options provided to the casatasks gaincal function. Most options correspond to those in gaincal."""
@@ -222,7 +224,7 @@ def gaincal_applycal_ms(
     gain_cal_options: Optional[GainCalOptions] = None,
     update_gain_cal_options: Optional[Dict[str, Any]] = None,
     archive_input_ms: bool = False,
-    raise_error_on_fail: bool = True
+    raise_error_on_fail: bool = True,
 ) -> MS:
     """Perform self-calibration using casa's gaincal and applycal tasks against
     an input measurement set.
@@ -233,13 +235,13 @@ def gaincal_applycal_ms(
         gain_cal_options (Optional[GainCalOptions], optional): Options provided to gaincal. Defaults to None.
         update_gain_cal_options (Optional[Dict[str, Any]], optional): Update the gain_cal_options with these. Defaults to None.
         archive_input_ms (bool, optional): If True, the input measurement set will be compressed into a single file. Defaults to False.
-        raise_error_on_fail (bool, optional): If gaincal does not converge raise en error. if False and gain cal fails return the input ms. Defaults to True. 
+        raise_error_on_fail (bool, optional): If gaincal does not converge raise en error. if False and gain cal fails return the input ms. Defaults to True.
 
     Raises:
-        GainCallError: Raised when raise_error_on_fail is True and gaincal does not converge. 
-    
+        GainCallError: Raised when raise_error_on_fail is True and gaincal does not converge.
+
     Returns:
-        MS: THe self-calibrated measurement set. 
+        MS: THe self-calibrated measurement set.
     """
     logger.info(f"Measurement set to be self-calibrated: ms={ms}")
 
@@ -291,7 +293,7 @@ def gaincal_applycal_ms(
             raise GainCalError(f"Gaincal failed for {cal_ms.path}")
         else:
             return ms
-        
+
     logger.info("Solutions have been solved. Applying them. ")
 
     applycal(vis=str(cal_ms.path), gaintable=str(cal_table))

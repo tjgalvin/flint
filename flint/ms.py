@@ -1,22 +1,23 @@
 """Operations related to measurement sets
 """
-from __future__ import (
+from __future__ import (  # Used for mypy/pylance to like the return type of MS.with_options
     annotations,
-)  # Used for mypy/pylance to like the return type of MS.with_options
-from shutil import rmtree
+)
+
 from argparse import ArgumentParser
+from contextlib import contextmanager
 from os import PathLike
 from pathlib import Path
+from shutil import rmtree
 from typing import List, NamedTuple, Optional, Union
-from contextlib import contextmanager
 
 import numpy as np
 from casacore.tables import table, taql
 from fixms.fix_ms_corrs import fix_ms_corrs
 from fixms.fix_ms_dir import fix_ms_dir
 
-from flint.naming import create_ms_name
 from flint.logging import logger
+from flint.naming import create_ms_name
 from flint.utils import rsync_copy_directory
 
 
