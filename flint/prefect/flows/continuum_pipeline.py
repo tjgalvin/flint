@@ -166,7 +166,7 @@ def task_extract_solution_path(calibrate_cmd: CalibrateCommand) -> Path:
 
 @task
 def task_plot_solutions(calibrate_cmd: CalibrateCommand) -> None:
-    plot_solutions(solutions_path=calibrate_cmd.solution_path, ref_ant=0)
+    plot_solutions(solutions_path=calibrate_cmd.solution_path, ref_ant=None)
 
 
 @task
@@ -361,7 +361,6 @@ def run_bandpass_stage(
             container=calibrate_container,
         )
         calibrate_cmd = task_flag_solutions.submit(calibrate_cmd=calibrate_cmd)
-        task_plot_solutions.submit(calibrate_cmd=calibrate_cmd)
         calibrate_cmds.append(calibrate_cmd)
 
         apply_solutions_cmd = task_bandpass_create_apply_solutions_cmd.submit(
@@ -422,8 +421,8 @@ def run_bandpass_calibration(
         # other calibration strategies get added
         calibrate_cmds = find_existing_solutions(
             bandpass_directory=output_split_bandpass_path,
-            model_path=model_path,
             use_preflagged=True,
+            use_smoothed=False,
         )
     else:
         logger.info(
@@ -556,13 +555,13 @@ def process_bandpass_science_fields(
         return
 
     wsclean_init = {
-        "size": 6144,
+        "size": 7144,
         "minuv_l": 235,
         "weight": "briggs -0.5",
         "auto_mask": 5,
         "multiscale": True,
         "local_rms_window": 55,
-        "multiscale_scales":  (0, 15, 30, 40, 50, 60, 70),
+        "multiscale_scales": (0, 15, 30, 40, 50, 60, 70),
     }
 
     wsclean_cmds = task_wsclean_imager.map(
@@ -603,14 +602,28 @@ def process_bandpass_science_fields(
         return
 
     gain_cal_rounds = {
-        1: {"solint": "1200s", "uvrange": ">235lambda", "nspw": 2},
+        1: {"solint": "1200s", "uvrange": ">235lambda", "nspw": 1},
         2: {"solint": "60s", "uvrange": ">235lambda", "nspw": 1},
         3: {"solint": "60s", "uvrange": ">235lambda", "nspw": 1},
         4: {"calmode": "ap", "solint": "360s", "uvrange": ">200lambda"},
     }
     wsclean_rounds = {
-        1: {"size": 6144,"multiscale": True, "minuv_l": 235, "auto_mask": 5, "local_rms_window": 55, "multiscale_scales": (0, 15, 30, 40, 50, 60, 70)},
-        2: {"size": 6144,"multiscale": True, "minuv_l": 235, "auto_mask": 4., "local_rms_window": 55, "multiscale_scales": (0, 15, 30, 40, 50, 60, 70)},
+        1: {
+            "size": 7144,
+            "multiscale": True,
+            "minuv_l": 235,
+            "auto_mask": 5,
+            "local_rms_window": 55,
+            "multiscale_scales": (0, 15, 30, 40, 50, 60, 70),
+        },
+        2: {
+            "size": 7144,
+            "multiscale": True,
+            "minuv_l": 235,
+            "auto_mask": 4.0,
+            "local_rms_window": 55,
+            "multiscale_scales": (0, 15, 30, 40, 50, 60, 70),
+        },
         3: {"multiscale": False, "minuv_l": 200, "auto_mask": 3.5},
         4: {
             "multiscale": False,
@@ -630,7 +643,7 @@ def process_bandpass_science_fields(
             update_gain_cal_options=unmapped(gain_cal_options),
             archive_input_ms=zip_ms,
         )
-        
+
         flag_mss = task_flag_ms_aoflagger.map(
             ms=cal_mss, container=flagger_container, rounds=1
         )
@@ -646,7 +659,9 @@ def process_bandpass_science_fields(
                 image=wsclean_cmds, aegean_container=unmapped(aegean_container)
             )
 
-        beam_shape = task_get_common_beam.submit(wsclean_cmds=wsclean_cmds, cutoff=150.0)
+        beam_shape = task_get_common_beam.submit(
+            wsclean_cmds=wsclean_cmds, cutoff=150.0
+        )
         conv_images = task_convolve_image.map(
             wsclean_cmd=wsclean_cmds, beam_shape=unmapped(beam_shape), cutoff=150.0
         )

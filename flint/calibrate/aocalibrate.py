@@ -19,10 +19,9 @@ from flint.bptools.preflagger import (
     flag_mean_residual_amplitude,
     flag_mean_xxyy_amplitude_ratio,
 )
+from flint.bptools.smoother import smooth_bandpass_complex_gains
 from flint.exceptions import PhaseOutlierFitError
-
-CALIBRATE_SUFFIX = ".calibrate.bin"
-PREFLAGGED_SUFFIX = ".preflagged"
+from flint.naming import get_aocalibrate_output_path
 
 
 class CalibrateCommand(NamedTuple):
@@ -96,12 +95,12 @@ class AOSolutions(NamedTuple):
         """
         return save_aosolutions_file(aosolutions=self, output_path=output_path)
 
-    def plot_solutions(self, ref_ant: int = 0) -> Iterable[Path]:
+    def plot_solutions(self, ref_ant: Optional[int] = 0) -> Iterable[Path]:
         """Plot the solutions of all antenna for the first time-inteval
         in the aosolutions file. The XX and the YY will be plotted.
 
         Args:
-            ref_ant (int, optional): Reference antenna to divide the solutions by. Defaults to 0.
+            ref_ant (Optional[int], optional): Reference antenna to use. If None is specified there is no division by a reference antenna.  Defaults to 0.
 
         Returns:
             Iterable[Path]: Path to the phase and amplited plots created.
@@ -111,13 +110,13 @@ class AOSolutions(NamedTuple):
 
 
 def plot_solutions(
-    solutions: Union[Path, AOSolutions], ref_ant: int = 0
+    solutions: Union[Path, AOSolutions], ref_ant: Optional[int] = 0
 ) -> Collection[Path]:
     """Plot solutions for AO-style solutions
 
     Args:
         solutions (Path): Path to the solutions file
-        ref_ant (int, optional): Reference antenna to use. Defaults to 0.
+        ref_ant (Optional[int], optional): Reference antenna to use. If None is specified there is no division by a reference antenna.  Defaults to 0.
 
     Return:
         Collection[Path] -- The paths of the two plots createda
@@ -132,10 +131,14 @@ def plot_solutions(
         logger.warn(f"Found {ao_sols.nsol} intervals, plotting the first. ")
     plot_sol = 0  # The first time interval
 
-    ref_ant = select_refant(bandpass=ao_sols.bandpass)
-    logger.info(f"Overwriting reference antenna selection, using {ref_ant=}")
+    data = ao_sols.bandpass[plot_sol]
+    if ref_ant is not None and ref_ant < 0:
+        ref_ant = select_refant(bandpass=ao_sols.bandpass)
+        logger.info(f"Overwriting reference antenna selection, using {ref_ant=}")
 
-    data = ao_sols.bandpass[plot_sol] / ao_sols.bandpass[plot_sol, ref_ant, :, :]
+    if ref_ant is not None:
+        data = data / ao_sols.bandpass[plot_sol, ref_ant, :, :]
+
     amplitudes = np.abs(data)
     phases = np.angle(data, deg=True)
     channels = np.arange(ao_sols.nchan)
@@ -193,11 +196,11 @@ def plot_solutions(
     fig_amp.tight_layout()
     fig_phase.tight_layout()
 
-    out_amp = f"{str(solutions_path.with_suffix('.amplitude.pdf'))}"
+    out_amp = f"{str(solutions_path.with_suffix(f'.amplitude.pdf'))}"
     logger.info(f"Saving {out_amp}.")
     fig_amp.savefig(out_amp)
 
-    out_phase = f"{str(solutions_path.with_suffix('.phase.pdf'))}"
+    out_phase = f"{str(solutions_path.with_suffix(f'.phase.pdf'))}"
     logger.info(f"Saving {out_phase}.")
     fig_phase.savefig(out_phase)
 
@@ -290,9 +293,8 @@ def load_aosolutions_file(solutions_path: Path) -> AOSolutions:
 
 def find_existing_solutions(
     bandpass_directory: Path,
-    expected_suffix: Optional[str] = None,
     use_preflagged: bool = True,
-    model_path: Path = Path("."),
+    use_smoothed: bool = False,
 ) -> List[CalibrateCommand]:
     """Given a directory that contains a collection of bandpass measurement
     sets, attempt to identify a corresponding set of calibrate binary solution
@@ -308,60 +310,46 @@ def find_existing_solutions(
 
     Args:
         bandpass_directory (Path): Directory to search for split bandpass measurement sets
-        expected_suffix (Optional[str], optional): The suffix to use to find the calibration binary files. If None, a known format is used. Defaults to None.
         use_preflagged (bool, optional): Add the pre-flag suffix when searching for solution files. This uses the expected suffix for preflagged solutions. Defaults to True.
-        model_path (Path, optional): Path to the model file to use. This is passed through to create the CalibrateCommand, and is not strictly required. Defaults to Path('.').
+        use_smoothed (bool, optional): Add the smoothed bandpass suffix when searching for solution files. This uses the expected suffix for smoothed solutions. Defaults to False.
 
     Returns:
         List[CalibrateCommand]: Collection of the calibrate command strcutures that are intended to be used to map the bandpass measurement sets to solution files.
     """
-
     logger.info(
         f"Searching {bandpass_directory} for existing measurement sets and solutions. "
     )
-    expected_suffix = expected_suffix if expected_suffix else CALIBRATE_SUFFIX
 
-    if use_preflagged:
-        logger.info("Will search for preflagged solutions. ")
-        expected_suffix += ".preflagged"
+    bandpass_mss = list(bandpass_directory.glob("*ms"))
+    logger.info(f"Found {len(bandpass_mss)} bandpass measurement sets")
 
-    bandpass_mss = bandpass_directory.glob("*ms")
-
-    # This is a placeholder command. It will not be executed,
-    # but is used to link the measurement set with the appropriate
-    # solutions file. At least with ao-calibrate, there is not
-    # enough information to specify frequency of channels, time
-    # etc. Matching the solutions to the original MS is the
-    # safest thing to do, particularly with the step of matching
-    # the solutions to the beam images. The DATA column is
-    # only relevant for the calibration command, and not used
-    # in any other capacity, ya rotten scallywag
-    calibrate_cmds = [
-        create_calibrate_cmd(ms=MS(path=ms, column="DATA"), calibrate_model=model_path)
-        for ms in bandpass_mss
-    ]
-
-    if use_preflagged:
-        logger.info(
-            f"Updating solution files with preflagger suffix {PREFLAGGED_SUFFIX}."
+    solution_paths = [
+        get_aocalibrate_output_path(
+            ms_path=bandpass_ms,
+            include_preflagger=use_preflagged,
+            include_smoother=use_smoothed,
         )
-        calibrate_cmds = [
-            calibrate_cmd.with_options(
-                preflagged=True,
-                solution_path=calibrate_cmd.solution_path.with_suffix(
-                    PREFLAGGED_SUFFIX
-                ),
-            )
-            for calibrate_cmd in calibrate_cmds
-        ]
-
-    logger.info(f"Constructed Calibrate command list of length {len(calibrate_cmds)}")
+        for bandpass_ms in bandpass_mss
+    ]
 
     # If not all the treasure could be found. At the moment this function will only
     # work if the bandpass solutions were made using the default values.
     assert all(
-        [calibrate_cmd.solution_path.exists() for calibrate_cmd in calibrate_cmds]
+        [solution_path.exists() for solution_path in solution_paths]
     ), f"Missing solution file constructed from scanning {bandpass_directory}. Check the directory. "
+
+    calibrate_cmds = [
+        CalibrateCommand(
+            cmd="None",
+            ms=MS(ms),
+            solution_path=solution_path,
+            model="None",
+            preflagged=True,
+        )
+        for (ms, solution_path) in zip(bandpass_mss, solution_paths)
+    ]
+
+    logger.info(f"Constructed {len(calibrate_cmds)} calibrate commands. ")
 
     return calibrate_cmds
 
@@ -440,11 +428,10 @@ def create_calibrate_cmd(
     if not calibrate_model.exists():
         raise FileNotFoundError(f"Calibrate model {calibrate_model} not found. ")
 
-    solution_path = (
-        ms.path.with_suffix(CALIBRATE_SUFFIX)
-        if solution_path is None
-        else solution_path
-    )
+    if solution_path is None:
+        solution_path = get_aocalibrate_output_path(
+            ms_path=ms.path, include_preflagger=False, include_smoother=False
+        )
 
     calibrate_kwargs: str = " ".join([f"-{key} {item}" for key, item in kwargs.items()])
 
@@ -670,12 +657,13 @@ def select_refant(bandpass: np.ndarray) -> int:
 
 def flag_aosolutions(
     solutions_path: Path,
-    ref_ant: int = 0,
+    ref_ant: Optional[int] = -1,
     flag_cut: float = 3,
     plot_dir: Optional[Path] = None,
     out_solutions_path: Optional[Path] = None,
     flag_ant_xyyx_mean_gain: bool = False,
     zero_cross_terms: bool = False,
+    smooth_solutions: bool = False,
 ) -> Path:
     """Will open a previously solved ao-calibrate solutions file and flag additional channels and antennae.
 
@@ -687,12 +675,13 @@ def flag_aosolutions(
 
     Args:
         solutions_path (Path): Location of the solutions file to examine and flag.
-        ref_ant (int, optional): Reference antenna to use, which is important when searching for phase-outliers. Defaults to 0.
+        ref_ant (int, optional): Reference antenna to use, which is important when searching for phase-outliers and to smooth the bandpass. If ref_ant < 0, then an optimal one is selected. Defaults to -1.
         flag_cut (float, optional): Significance of a phase-outlier from the mean (or median) before it should be flagged. Defaults to 3.
         plot_dir (Optional[Path], optional): Where diagnostic flagging plots should be written. If None, no plots will be produced. Defaults to None.
         out_solutions_path (Optional[Path], optional): The output path of the flagged solutions file. If None, the solutions_path provided is used. Defaults to None.
         flag_ant_xyyx_mean_gain (bool, optional): Whether to flag antennas based on the mean gain ratio of the XY and YX amplitude gains. Defaults to False.
         zero_cross_terms (bool, optional): Set the XY and YX terms of each Jones to be 0. Defaults to False.
+        smooth_solutions (blool, optional): Smooth the complex gain solutions after flaggined. Defaults to False.
 
     Returns:
         Path: Path to the updated solutions file. This is out_solutions_path if provided, otherwise solutions_path
@@ -716,11 +705,9 @@ def flag_aosolutions(
     bandpass = solutions.bandpass
     logger.info(f"Loaded bandpass, shape is {bandpass.shape}")
 
-    # TODO: Need a procedure to select an optimal reference antenna. What would
-    # happen if the ref_ant was not available when the bandpass was being taken.
-
-    ref_ant = select_refant(bandpass=solutions.bandpass)
-    logger.info(f"Overwriting reference antenna selection, using {ref_ant=}")
+    if ref_ant < 0:
+        ref_ant = select_refant(bandpass=solutions.bandpass)
+        logger.info(f"Overwriting reference antenna selection, using {ref_ant=}")
 
     for time in range(solutions.nsol):
         for pol in (0, 3):
@@ -784,9 +771,9 @@ def flag_aosolutions(
                     f"{ant=:02d}, pol={pols[pol]}, flagged {np.sum(flagged) / ant_gains.shape[0] * 100.:.2f}%"
                 )
 
-    # This loop will flag based on stats across different polarisations
     for time in range(solutions.nsol):
         ref_ant_gains = bandpass[time, ref_ant]
+        # This loop will flag based on stats across different polarisations
         for ant in range(solutions.nant):
             # We need to skip the case of flagging on the reference antenna, I think.
             if ref_ant == ant:
@@ -816,13 +803,24 @@ def flag_aosolutions(
             # Nan multiplied by another is nan
             bandpass[..., pol] *= 0
 
-    # TODO: This needs to be moved to a common naming module
-    out_solutions_path = (
-        solutions_path.with_suffix(PREFLAGGED_SUFFIX)
-        if out_solutions_path is None
-        else out_solutions_path
+    # To this point operations carried out to the bandpass were to the mutable array reference
+    # so there is no need to create a new solutions instace
+    out_solutions_path = get_aocalibrate_output_path(
+        ms_path=solutions_path, include_preflagger=True, include_smoother=False
     )
     solutions.save(output_path=out_solutions_path)
+    plot_solutions(solutions=out_solutions_path, ref_ant=ref_ant)
+
+    if smooth_solutions:
+        logger.info("Smoothing the bandpass solutions. ")
+        for time in range(solutions.nsol):
+            bandpass[time] = smooth_bandpass_complex_gains(complex_gains=bandpass[time])
+
+        out_solutions_path = get_aocalibrate_output_path(
+            ms_path=solutions_path, include_preflagger=True, include_smoother=True
+        )
+        solutions.save(output_path=out_solutions_path)
+        plot_solutions(solutions=out_solutions_path, ref_ant=None)
 
     total_flagged = np.sum(~np.isfinite(bandpass)) / np.prod(bandpass.shape)
     if total_flagged > 0.8:

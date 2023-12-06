@@ -8,9 +8,58 @@ from flint.naming import (
     processed_ms_format,
     extract_components_from_name,
     extract_beam_from_name,
+    get_aocalibrate_output_path,
     RawNameComponents,
     ProcessedNameComponents,
 )
+
+
+def test_aocalibrate_into_process_ms_format():
+    ms = Path("/some/made/up/path/SB123.Tim.beam33.round2.ms")
+
+    outpath = get_aocalibrate_output_path(
+        ms_path=ms, include_preflagger=True, include_smoother=True
+    )
+    named_components = processed_ms_format(in_name=outpath)
+    assert isinstance(named_components, ProcessedNameComponents)
+    assert named_components.sbid == "123"
+    assert named_components.field == "Tim"
+    assert named_components.beam == "33"
+
+
+def test_aocalibrate_naming():
+    ms = Path("/some/made/up/path/SB123.Tim.beam33.round2.ms")
+
+    outpath = get_aocalibrate_output_path(
+        ms_path=ms, include_preflagger=True, include_smoother=True
+    )
+    assert outpath == Path(
+        "/some/made/up/path/SB123.Tim.beam33.aocalibrate.preflagged.smoothed.bin"
+    )
+
+    outpath = get_aocalibrate_output_path(
+        ms_path=ms, include_preflagger=True, include_smoother=False
+    )
+    assert outpath == Path(
+        "/some/made/up/path/SB123.Tim.beam33.aocalibrate.preflagged.bin"
+    )
+
+    outpath = get_aocalibrate_output_path(
+        ms_path=ms, include_preflagger=False, include_smoother=False
+    )
+    assert outpath == Path("/some/made/up/path/SB123.Tim.beam33.aocalibrate.bin")
+
+    processed_outputs = processed_ms_format(in_name=outpath)
+    assert isinstance(processed_outputs, ProcessedNameComponents)
+
+    ms = Path("/some/made/up/path/SB123.Tim.beam33.spw1.round2.ms")
+
+    outpath = get_aocalibrate_output_path(
+        ms_path=ms, include_preflagger=True, include_smoother=True
+    )
+    assert outpath == Path(
+        "/some/made/up/path/SB123.Tim.beam33.spw1.aocalibrate.preflagged.smoothed.bin"
+    )
 
 
 def test_get_sbid_from_path():

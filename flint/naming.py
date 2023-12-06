@@ -319,3 +319,40 @@ def get_sbid_from_path(path: Path) -> int:
         )
 
     return int(sbid)
+
+
+def get_aocalibrate_output_path(
+    ms_path: Path, include_preflagger: bool, include_smoother: bool
+) -> Path:
+    """Create a name for an aocalibrate style bandpass solution.
+
+    Args:
+        ms_path (Path): Path of the measurement set that the aocalibrate file will be created for
+        include_preflagger (bool): Whether to include the ``.preflagged`` term to indicate that the preflagger has been executed
+        include_smoother (bool): Whether to include the ``.smoothed`` term to included that bandpas smoothing has been performed
+
+    Returns:
+        Path: The constructed output path of the solutions file. This include the parent directory of the input measurement set
+    """
+    ms_components = processed_ms_format(in_name=ms_path)
+    output_components = [
+        f"SB{ms_components.sbid}.{ms_components.field}.beam{ms_components.beam}"
+    ]
+
+    if ms_components.spw:
+        output_components.append(f"spw{ms_components.spw}")
+
+    output_components.append("aocalibrate")
+
+    if include_preflagger:
+        output_components.append("preflagged")
+    if include_smoother:
+        output_components.append("smoothed")
+
+    output_components.append("bin")
+
+    output_name = ".".join(output_components)
+    output_path = ms_path.parent / output_name
+    logger.info(f"Constructed {output_path}")
+
+    return output_path

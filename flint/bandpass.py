@@ -14,12 +14,13 @@ from flint.ms import MS, describe_ms, preprocess_askap_ms
 from flint.sky_model import KNOWN_1934_FILES, get_1934_model
 from flint.naming import create_ms_name
 
-def plot_solutions(solutions_path: Path, ref_ant: int = 0) -> None:
+
+def plot_solutions(solutions_path: Path, ref_ant: Optional[int] = 0) -> None:
     """Plot solutions for AO-style solutions
 
     Args:
         solutions_path (Path): Path to the solutions file
-        ref_ant (int, optional): Reference antenna to use. Defaults to 0.
+        ref_ant (Optional[int], optional): Reference antenna to use. If None is specified there is no division by a reference antenna.  Defaults to 0.
     """
     logger.info(f"Plotting {solutions_path}")
 
