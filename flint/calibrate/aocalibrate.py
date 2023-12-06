@@ -1,28 +1,28 @@
 """Code to use AO calibrate s
 """
 from __future__ import annotations  # used to keep mypy/pylance happy in AOSolutions
+
 import struct
-from pathlib import Path
-from typing import NamedTuple, Optional, Union, Iterable, List, Collection, List
 from argparse import ArgumentParser
+from pathlib import Path
+from typing import Collection, Iterable, List, NamedTuple, Optional, Union
 
-import numpy as np
 import matplotlib.pyplot as plt
+import numpy as np
 
-from flint.logging import logger
-from flint.ms import MS, get_beam_from_ms, consistent_ms
-from flint.sclient import run_singularity_command
-from flint.plot_utils import fill_between_flags
 from flint.bptools.preflagger import (
-    flag_outlier_phase,
-    flags_over_threshold,
     flag_mean_residual_amplitude,
     flag_mean_xxyy_amplitude_ratio,
+    flag_outlier_phase,
+    flags_over_threshold,
 )
 from flint.bptools.smoother import smooth_bandpass_complex_gains
 from flint.exceptions import PhaseOutlierFitError
 from flint.naming import get_aocalibrate_output_path
-
+from flint.logging import logger
+from flint.ms import MS, consistent_ms, get_beam_from_ms
+from flint.plot_utils import fill_between_flags
+from flint.sclient import run_singularity_command
 
 class CalibrateCommand(NamedTuple):
     """The AO Calibrate command and output path of the corresponding solutions file"""
@@ -196,11 +196,11 @@ def plot_solutions(
     fig_amp.tight_layout()
     fig_phase.tight_layout()
 
-    out_amp = f"{str(solutions_path.with_suffix(f'.amplitude.pdf'))}"
+    out_amp = f"{str(solutions_path.with_suffix('.amplitude.pdf'))}"
     logger.info(f"Saving {out_amp}.")
     fig_amp.savefig(out_amp)
 
-    out_phase = f"{str(solutions_path.with_suffix(f'.phase.pdf'))}"
+    out_phase = f"{str(solutions_path.with_suffix('.phase.pdf'))}"
     logger.info(f"Saving {out_phase}.")
     fig_phase.savefig(out_phase)
 

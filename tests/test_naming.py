@@ -1,6 +1,7 @@
-"""Some tests related to components around measurement sets. 
+"""Some tests related to components around measurement sets.
 """
 from pathlib import Path
+
 from flint.naming import (
     create_ms_name,
     get_sbid_from_path,
@@ -181,7 +182,7 @@ def test_formatted_name_components():
     assert components.field == "RACS_0635-31"
     assert components.beam == "33"
     assert components.spw is None
-    assert components.round == None
+    assert components.round is None
 
     ex = "SB39400.RACS_0635-31.beam33.spw123-MFS-image.conv.fits"
 
@@ -191,7 +192,7 @@ def test_formatted_name_components():
     assert components.field == "RACS_0635-31"
     assert components.beam == "33"
     assert components.spw == "123"
-    assert components.round == None
+    assert components.round is None
 
     ex_path = Path(
         "/this/is/and/example/path/SB39400.RACS_0635-31.beam33.spw123-MFS-image.conv.fits"
@@ -203,7 +204,7 @@ def test_formatted_name_components():
     assert components.field == "RACS_0635-31"
     assert components.beam == "33"
     assert components.spw == "123"
-    assert components.round == None
+    assert components.round is None
 
 
 def test_formatted_name_components_wround():

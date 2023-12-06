@@ -1,4 +1,4 @@
-"""Some utility functions around the creation of Prefect task funners. 
+"""Some utility functions around the creation of Prefect task funners.
 
 For this work we will be using Dask backed workers to perform the compute
 operations.
@@ -6,7 +6,7 @@ operations.
 
 from glob import glob
 from pathlib import Path
-from typing import Any, Union, Dict, Optional, List, Dict
+from typing import Any, Dict, List, Optional, Union
 
 import pkg_resources
 import yaml

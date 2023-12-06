@@ -6,7 +6,7 @@
 Welcome to flint's documentation!
 =================================
 
-A pirate themed toy ASKAP-RACS pipeline. 
+A pirate themed toy ASKAP-RACS pipeline.
 
 Yarrrr-Harrrr fiddley-dee!
 

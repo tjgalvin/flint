@@ -36,6 +36,7 @@ radio-beam = "^0.3.4"
 black = "^23.3.0"
 mypy = "^1.4.1"
 isort = "^5.12.0"
+pre-commit = "*"
 
 [build-system]
 requires = ["poetry-core"]

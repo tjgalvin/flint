@@ -1,9 +1,9 @@
 """Attempts to centralise components to do with naming of pipeline files and data
-products. 
+products.
 """
 import re
 from pathlib import Path
-from typing import Union, Optional, NamedTuple, List, Any
+from typing import Any, List, NamedTuple, Optional, Union
 
 from flint.logging import logger
 

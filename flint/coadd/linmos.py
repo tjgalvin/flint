@@ -1,15 +1,15 @@
-"""This is an interface into the yandasoft linmos task. 
+"""This is an interface into the yandasoft linmos task.
 """
-from pathlib import Path
-from typing import Optional, Collection, List, NamedTuple
 from argparse import ArgumentParser
+from pathlib import Path
+from typing import Collection, List, NamedTuple, Optional
 
 import numpy as np
 from astropy.io import fits
 
 from flint.logging import logger
+from flint.naming import LinmosNames, create_linmos_names, extract_beam_from_name
 from flint.sclient import run_singularity_command
-from flint.naming import extract_beam_from_name, create_linmos_names, LinmosNames
 
 
 class LinmosCMD(NamedTuple):

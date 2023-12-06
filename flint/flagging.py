@@ -1,16 +1,16 @@
 """Utility functions to carry out flagging against ASKAP measurement sets
 """
 
-from typing import NamedTuple, Union, Optional, Collection
-from pathlib import Path
 from argparse import ArgumentParser
+from pathlib import Path
+from typing import Collection, NamedTuple, Optional, Union
 
 import numpy as np
 from casacore.tables import table
 
+from flint.exceptions import MSError
 from flint.logging import logger
 from flint.ms import MS, check_column_in_ms, describe_ms
-from flint.exceptions import MSError
 from flint.sclient import run_singularity_command
 
 

@@ -1,11 +1,12 @@
 """Simple interface into wsclean
 """
 from __future__ import annotations
-from glob import glob
-from pathlib import Path
-from typing import NamedTuple, Collection, Union, List, Tuple, Any, Optional, Dict
-from numbers import Number
+
 from argparse import ArgumentParser
+from glob import glob
+from numbers import Number
+from pathlib import Path
+from typing import Any, Collection, Dict, List, NamedTuple, Optional, Tuple, Union
 
 from flint.logging import logger
 from flint.ms import MS

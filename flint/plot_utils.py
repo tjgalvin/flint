@@ -6,7 +6,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 
-
 def fill_between_flags(
     ax: plt.Axes,
     flags: np.ndarray,

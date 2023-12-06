@@ -1,20 +1,20 @@
 """Tooling to attempt to flag components related to bandpasses. The idea
 being that poorly calibration channels in the antenna-based gains should
-be removed. 
+be removed.
 
 At this point there are no attempts to smooth or interpolate these flagged
-components of the bandpass. 
+components of the bandpass.
 """
-from typing import NamedTuple, Tuple, Optional
 from pathlib import Path
+from typing import NamedTuple, Optional, Tuple
 
-import numpy as np
 import matplotlib.pyplot as plt
-from scipy.optimize import curve_fit
+import numpy as np
 from astropy.stats import sigma_clipped_stats
+from scipy.optimize import curve_fit
 
-from flint.logging import logger
 from flint.exceptions import PhaseOutlierFitError
+from flint.logging import logger
 
 
 class PhaseOutlierResults(NamedTuple):

@@ -2,20 +2,20 @@
 for continuum imaging of RACS data
 """
 
-from pathlib import Path
-from typing import NamedTuple, Tuple, Optional
 from argparse import ArgumentParser
+from pathlib import Path
+from typing import NamedTuple, Optional, Tuple
 
+import astropy.units as u
+import matplotlib.pyplot as plt
 import numpy as np
 import pkg_resources
-import matplotlib.pyplot as plt
-from matplotlib.gridspec import GridSpec
-from matplotlib.figure import Figure
+from astropy.coordinates import SkyCoord
 from astropy.io import fits
-import astropy.units as u
 from astropy.table import Table
 from astropy.wcs import WCS
-from astropy.coordinates import SkyCoord
+from matplotlib.figure import Figure
+from matplotlib.gridspec import GridSpec
 
 from flint.logging import logger
 

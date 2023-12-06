@@ -1,12 +1,12 @@
-"""Tests related to components in the yandasoft linmos coadd. 
+"""Tests related to components in the yandasoft linmos coadd.
 At the moment this is not testing the actual application. Just
-some of trhe helper functions around it. 
+some of trhe helper functions around it.
 """
 
 import numpy as np
 from astropy.io import fits
 
-from flint.coadd.linmos import create_bound_box, BoundingBox, trim_fits_image
+from flint.coadd.linmos import BoundingBox, create_bound_box, trim_fits_image
 
 
 def create_fits_image(out_path):
