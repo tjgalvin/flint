@@ -37,7 +37,7 @@ def extract_beam_mask_from_mosaic(
     # to run the imager in a dry-run type mode n cleaning type mode purely for
     # the WCS.
 
-    mask_names = create_fits_mask_names(fits_name=fits_beam_image_path)
+    mask_names = create_fits_mask_names(fits_image=fits_beam_image_path)
 
     with fits.open(fits_beam_image_path) as beam_image:
         header = beam_image[0].header
@@ -50,13 +50,16 @@ def extract_beam_mask_from_mosaic(
     with fits.open(fits_mosaic_mask_names.mask_fits) as mosaic_mask:
         logger.info("Extracting region")
         extract_img = reproject_interp(
-            np.squeeze(mosaic_mask[0].data),
-            WCS(mosaic_mask[0].header).celestial,
-            WCS(header[0].header).celestial,
-            beam_image_shape,
+            input_data=(
+                np.squeeze(mosaic_mask[0].data),
+                WCS(mosaic_mask[0].header).celestial,
+            ),
+            output_projection=WCS(header).celestial,
+            shape_out=beam_image_shape,
+            order=0,
         )
 
-    fits.writeto(mask_names.mask_fits, extract_img[0], header)
+    fits.writeto(mask_names.mask_fits, extract_img[0].astype(np.int32), header)
 
     return mask_names
 
@@ -115,7 +118,11 @@ def create_snr_mask_from_fits(
     mask_data = (signal_data > min_snr).astype(int)
 
     logger.info(f"Writing {mask_names.mask_fits}")
-    fits.writeto(filename=mask_names.mask_fits, data=mask_data, header=fits_header)
+    fits.writeto(
+        filename=mask_names.mask_fits,
+        data=mask_data.astype(np.int32),
+        header=fits_header,
+    )
 
     return mask_names
 
@@ -129,8 +136,8 @@ def get_parser() -> ArgumentParser:
         dest="mode", help="Operation mode of flint_bandpass"
     )
 
-    fits_parser = subparser(
-        "snrsmask",
+    fits_parser = subparser.add_parser(
+        "snrmask",
         help="Create a mask for an image, using its RMS and BKG images (e.g. outputs from BANE). Output FITS image will default to the image with a mask suffix.",
     )
     fits_parser.add_argument("image", type=Path, help="Path to the input image. ")
