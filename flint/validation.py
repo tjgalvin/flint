@@ -294,10 +294,13 @@ def make_validator_axes_layout(fig: Figure, rms_path: Path) -> ValidatorLayout:
     )
     # Remove the axes that are not used
     # TODO: Actually turn this back on with information
-    _ = ax_dict["T"].axis("off")
+    # _ = ax_dict["T"].axis("off")
+
     # Set the axes that are shared
     _ = ax_dict["N"].sharex(ax_dict["S"])
     _ = ax_dict["n"].sharex(ax_dict["s"])
+
+    fig.tight_layout()
 
     validator_layout = ValidatorLayout(
         ax_rms=ax_dict["B"],
