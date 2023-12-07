@@ -18,11 +18,12 @@ from flint.bptools.preflagger import (
 )
 from flint.bptools.smoother import smooth_bandpass_complex_gains
 from flint.exceptions import PhaseOutlierFitError
-from flint.naming import get_aocalibrate_output_path
 from flint.logging import logger
 from flint.ms import MS, consistent_ms, get_beam_from_ms
+from flint.naming import get_aocalibrate_output_path
 from flint.plot_utils import fill_between_flags
 from flint.sclient import run_singularity_command
+
 
 class CalibrateCommand(NamedTuple):
     """The AO Calibrate command and output path of the corresponding solutions file"""
