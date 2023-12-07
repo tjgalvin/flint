@@ -154,6 +154,23 @@ def get_parser() -> ArgumentParser:
         help="The minimum SNR required for a pixel to be marked as valid. ",
     )
 
+    extract_parser = subparser.add_parser(
+        "extractmask",
+        help="Extract a beam FITS masked region from a larger FITS mask mosaic image. ",
+    )
+
+    extract_parser.add_argument(
+        "beam_image",
+        type=Path,
+        help="The FITS image with the WCS that will be used to extract the mask region from",
+    )
+
+    extract_parser.add_argument(
+        "mosaic_image",
+        type=Path,
+        help="The field mosaic image that will be used as a basis to extract a region mask from",
+    )
+
     return parser
 
 
@@ -169,6 +186,11 @@ def cli():
             fits_bkg_path=args.bkg,
             create_signal_fits=args.save_signal,
             min_snr=args.min_snr,
+        )
+    elif args.mode == "extractmask":
+        extract_beam_mask_from_mosaic(
+            fits_beam_image_path=args.beam_image,
+            fits_mosaic_mask_names=FITSMaskNames(mask_fits=args.mosaic_image),
         )
     else:
         logger.error(f"Supplied mode {args.mode} is not known. ")
