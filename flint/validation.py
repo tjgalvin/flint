@@ -293,8 +293,6 @@ def make_validator_axes_layout(fig: Figure, rms_path: Path) -> ValidatorLayout:
             "aspect": "equal",
         },
     )
-    # Remove the axes that are not used
-    # TODO: Actually turn this back on with information
     for spine in ax_dict["T"].spines.values():
         spine.set_edgecolor("tab:red")
     _ = ax_dict["T"].axes.yaxis.set_visible(False)
@@ -700,6 +698,20 @@ def plot_field_info(
     fig: Figure,
     ax: Axes,
 ) -> Axes:
+    # TODO: Add the field information to the plot
+    # Namely:
+    # - Field name
+    # - J2000 RA / Dec
+    # - Galactic l / b
+    # - SBID
+    # - CAL_SBID
+    # - Start time
+    # - Integration time
+    # - Hour angle range
+    # - Elevation range
+    # - Median rms
+    # - Number of sources
+    # - Processing date
     return ax
 
 
@@ -831,6 +843,9 @@ def create_validation_plot(
         fig=fig,
         ax=validator_layout.ax_legend,
     )
+
+    # TODO: Add title:
+    # e.g. fig.sup_title(f"SBID {sbid} - {field_name} - {date}")
 
     fig.tight_layout()
     fig.savefig(str(output_path), dpi=300, bbox_inches="tight")
