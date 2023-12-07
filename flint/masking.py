@@ -120,6 +120,8 @@ def cli():
             create_signal_fits=args.save_signal,
             min_snr=args.min_snr,
         )
+    else:
+        logger.error(f"Supplied mode {args.mode} is not known. ")
 
 
 if __name__ == "__main__":
