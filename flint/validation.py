@@ -294,13 +294,12 @@ def make_validator_axes_layout(fig: Figure, rms_path: Path) -> ValidatorLayout:
     )
     # Remove the axes that are not used
     # TODO: Actually turn this back on with information
-    # _ = ax_dict["T"].axis("off")
+    _ = ax_dict["T"].axes.yaxis.set_visible(False)
+    _ = ax_dict["T"].axes.xaxis.set_visible(False)
 
     # Set the axes that are shared
     _ = ax_dict["N"].sharex(ax_dict["S"])
     _ = ax_dict["n"].sharex(ax_dict["s"])
-
-    fig.tight_layout()
 
     validator_layout = ValidatorLayout(
         ax_rms=ax_dict["B"],
@@ -645,7 +644,7 @@ def plot_flux_comparison(
     if len(match_result.pos1) == 0:
         ax.loglog([2.0, 2000.0], [2.0, 2000.0], "ow")
         ax.text(
-            100.0, 100.0, f"No data for {match_result.name2}", va="center", ha="center"
+            1e0, 1e2, f"No data for {match_result.name2}", va="center", ha="center"
         )
 
         return ax
@@ -741,7 +740,7 @@ def create_validation_plot(
     logger.info(f"Loading {skads_path=}")
     skads = Table.read(skads_path)
 
-    height = 8.0
+    height = 12.0
     width = height * np.sqrt(2.0)
 
     fig = plt.figure(figsize=(width, height))
@@ -822,6 +821,7 @@ def create_validation_plot(
         fig=fig, ax=validator_layout.ax_brightness2, match_result=nvss_match
     )
 
+    fig.tight_layout()
     fig.savefig(str(output_path), dpi=300, bbox_inches="tight")
 
     return output_path
