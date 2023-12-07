@@ -267,42 +267,49 @@ def make_validator_axes_layout(fig: Figure, rms_path: Path) -> ValidatorLayout:
     Returns:
         ValidatorLayout: Representation of all axes objects
     """
-
-    gridspec = GridSpec(nrows=100, ncols=141)
-    gridspec.update(
-        left=0.0, right=0.9999, bottom=0.001, top=0.999, hspace=0.0, wspace=0.0
-    )
-
-    ax_legend = fig.add_subplot(gridspec[0:28, 0:37])
-    ax_legend.axis("off")
-
+    # My friendship with gridspec is over, now subplot_mosaic is my best friend
+    # Using the following encoding:
+    # T = text / field info
+    # F = flux / source counts
+    # A = astrometry
+    # P = PSF
+    # B = BANE noise map
+    # S = SUMMS flux comparison
+    # s = SUMMS astrometry comparison
+    # N = NVSS flux comparison
+    # n = NVSS astrometry comparison
     rms_wcs = WCS(fits.getheader(rms_path)).celestial
-    ax_rms = fig.add_subplot(gridspec[35:99, 0:70], projection=rms_wcs)
-
-    ax_psf = fig.add_subplot(gridspec[0:28, 87:107])
-    ax_counts = fig.add_subplot(gridspec[0:28, 44:84])
-
-    ax_brightness2 = fig.add_subplot(gridspec[66:98, 74:105])
-    ax_brightness1 = fig.add_subplot(gridspec[33:65, 74:105], sharex=ax_brightness2)
-
-    ax_astrometry2 = fig.add_subplot(gridspec[66:98, 110:])
-    ax_astrometry1 = fig.add_subplot(gridspec[33:65, 110:], sharex=ax_astrometry2)
-    ax_astrometry = fig.add_subplot(gridspec[0:32, 110:], sharex=ax_astrometry2)
+    ax_dict = fig.subplot_mosaic(
+        """
+        TFPA
+        BBSs
+        BBNn
+        """,
+        per_subplot_kw={
+            "B": {"projection": rms_wcs},
+        },
+        subplot_kw={
+            "aspect": "equal",
+        },
+    )
+    # Remove the axes that are not used
+    # TODO: Actually turn this back on with information
+    _ = ax_dict["T"].axis("off")
+    # Set the axes that are shared
+    _ = ax_dict["N"].sharex(ax_dict["S"])
+    _ = ax_dict["n"].sharex(ax_dict["s"])
 
     validator_layout = ValidatorLayout(
-        ax_rms=ax_rms,
-        ax_legend=ax_legend,
-        ax_psf=ax_psf,
-        ax_counts=ax_counts,
-        ax_brightness1=ax_brightness1,
-        ax_brightness2=ax_brightness2,
-        ax_astrometry=ax_astrometry,
-        ax_astrometry1=ax_astrometry1,
-        ax_astrometry2=ax_astrometry2,
+        ax_rms=ax_dict["B"],
+        ax_legend=ax_dict["T"],
+        ax_psf=ax_dict["P"],
+        ax_counts=ax_dict["F"],
+        ax_brightness1=ax_dict["N"],
+        ax_brightness2=ax_dict["S"],
+        ax_astrometry=ax_dict["A"],
+        ax_astrometry1=ax_dict["n"],
+        ax_astrometry2=ax_dict["s"],
     )
-
-    for ax in validator_layout:
-        ax.set_aspect(1.0)
 
     return validator_layout
 
