@@ -22,7 +22,8 @@ from flint.logging import logger
 
 F_SMALL = 7
 F_MED = 8
-
+F_LARGE = 12
+F_HUGE = 20
 
 class Catalogue(NamedTuple):
     """A basic structure used to describe a known catalogue."""
@@ -712,6 +713,34 @@ def plot_field_info(
     # - Median rms
     # - Number of sources
     # - Processing date
+    ax.text(
+        0.1,
+        0.8,
+        f"Field name: {''}",
+        fontdict={"fontsize": F_LARGE},
+        family="monospace",
+    )
+    ax.text(
+        0.0,
+        0.0,
+        f"""
+    - J2000 RA / Dec    : {""}
+    - Galactic l / b    : {""}
+    - SBID              : {""}
+    - CAL_SBID          : {""}
+    - Start time        : {""}
+    - Integration time  : {""}
+    - Hour angle range  : {""}
+    - Elevation range   : {""}
+
+    - Median rms        : {""}
+    - Components        : {""}
+
+    - Processing date   : {""}
+        """,
+        family="monospace",
+        fontdict={"fontsize": F_MED},
+    )
     return ax
 
 
@@ -846,6 +875,7 @@ def create_validation_plot(
 
     # TODO: Add title:
     # e.g. fig.sup_title(f"SBID {sbid} - {field_name} - {date}")
+    fig.suptitle(rf"$\it{{Flint}}$ summary for {''}", fontsize=F_HUGE)
 
     fig.tight_layout()
     fig.savefig(str(output_path), dpi=300, bbox_inches="tight")
