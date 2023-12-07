@@ -16,6 +16,7 @@ from astropy.table import Table
 from astropy.wcs import WCS
 from matplotlib.figure import Figure
 from matplotlib.gridspec import GridSpec
+from matplotlib.axes import Axes
 
 from flint.logging import logger
 
@@ -55,23 +56,23 @@ class Catalogue(NamedTuple):
 class ValidatorLayout(NamedTuple):
     """Simple container for all the matplotlib axes objects"""
 
-    ax_rms: plt.Axes
+    ax_rms: Axes
     """Axes for the RMS of the field"""
-    ax_legend: plt.Axes
+    ax_legend: Axes
     """Container for basic SBID information"""
-    ax_psf: plt.Axes
+    ax_psf: Axes
     """Axes for the PSF of the image"""
-    ax_counts: plt.Axes
+    ax_counts: Axes
     """Axes for quick look source counts"""
-    ax_brightness1: plt.Axes
+    ax_brightness1: Axes
     """Axes to compare brightness of sources from the first catalogue"""
-    ax_brightness2: plt.Axes
+    ax_brightness2: Axes
     """Axes to compare brightness of sources from the first catalogue"""
-    ax_astrometry: plt.Axes
+    ax_astrometry: Axes
     """Axes to compare astrometry of sources"""
-    ax_astrometry1: plt.Axes
+    ax_astrometry1: Axes
     """Axes to compare astrometry of sources from the first catalogue"""
-    ax_astrometry2: plt.Axes
+    ax_astrometry2: Axes
     """Axes to compare astromnetry of sources from the first catalogue"""
 
 
@@ -294,6 +295,8 @@ def make_validator_axes_layout(fig: Figure, rms_path: Path) -> ValidatorLayout:
     )
     # Remove the axes that are not used
     # TODO: Actually turn this back on with information
+    for spine in ax_dict["T"].spines.values():
+        spine.set_edgecolor("tab:red")
     _ = ax_dict["T"].axes.yaxis.set_visible(False)
     _ = ax_dict["T"].axes.xaxis.set_visible(False)
 
@@ -316,16 +319,16 @@ def make_validator_axes_layout(fig: Figure, rms_path: Path) -> ValidatorLayout:
     return validator_layout
 
 
-def plot_rms_map(fig: Figure, ax: plt.Axes, rms_path: Path) -> plt.Axes:
+def plot_rms_map(fig: Figure, ax: Axes, rms_path: Path) -> Axes:
     """Add the RMS image to the figure
 
     Args:
         fig (Figure): Figure that contains the axes object
-        ax (plt.Axes): The axes that will be plotted
+        ax (Axes): The axes that will be plotted
         rms_path (Path): Location of the RMS image
 
     Returns:
-        plt.Axes: The axes object with the plotted RMS image
+        Axes: The axes object with the plotted RMS image
     """
 
     rms_data = fits.getdata(rms_path)
@@ -420,11 +423,11 @@ def get_source_counts(
 def plot_source_counts(
     catalogue: Table,
     rms_info: RMSImageInfo,
-    ax: plt.Axes,
+    ax: Axes,
     freq: Optional[float] = None,
     dezotti: Optional[Table] = None,
     skads: Optional[Table] = None,
-) -> plt.Axes:
+) -> Axes:
     """Create a figure of source counts from a astropy Table. If
     `freq` and either `dezotti` / `skads` are supplied then these
     precomputed source count tables are also included in the
@@ -436,13 +439,13 @@ def plot_source_counts(
     Args:
         catalogue (Table): The catalogue to derive source counts for
         rms_info (RMSImageInfo): Look up information from the RMS file that catalogue was constructed against
-        ax (plt.Axes): The axes panel the counts will be plottedd on
+        ax (Axes): The axes panel the counts will be plottedd on
         freq (Optional[float], optional): Frequency that the source catalogue. Used to scale the Dezotti and SKADS tables. Defaults to None.
         dezotti (Optional[Table], optional): Loaded reference table of Dezotti source counts. Defaults to None.
         skads (Optional[Table], optional): Loaded reference table of SKADS source counts. Defaults to None.
 
     Returns:
-        plt.Axes: The axes object used for plotting
+        Axes: The axes object used for plotting
     """
     # TODO: Is the freq column needed anymore
 
@@ -548,17 +551,17 @@ def match_nearest_neighbour(
 
 
 def plot_astrometry_comparison(
-    fig: Figure, ax: plt.Axes, match_result: MatchResult
-) -> plt.Axes:
+    fig: Figure, ax: Axes, match_result: MatchResult
+) -> Axes:
     """Plot the astrometry of cross matches from a match result set
 
     Args:
         fig (Figure): The figure canvas plotting on
-        ax (plt.Axes): The Axes being plotted on
+        ax (Axes): The Axes being plotted on
         match_result (MatchResult): The set of sources cross-matched and found in common
 
     Returns:
-        plt.Axes: The Axes plotted on
+        Axes: The Axes plotted on
     """
     logger.info(
         f"Plotting astrometry match between {match_result.name1} and {match_result.name2}"
@@ -628,18 +631,18 @@ def plot_astrometry_comparison(
 
 
 def plot_flux_comparison(
-    fig: Figure, ax: plt.Axes, match_result: MatchResult
-) -> plt.Axes:
+    fig: Figure, ax: Axes, match_result: MatchResult
+) -> Axes:
     """Create a flux comparison plot showing the flux densities from two catalogues compared
     to one another.
 
     Args:
         fig (Figure): The figure canvas that the axes is on
-        ax (plt.Axes): The axes object that will be render the plot
+        ax (Axes): The axes object that will be render the plot
         match_result (MatchResult): A result set of the cross-match between two catalogues
 
     Returns:
-        plt.Axes: The aces object that was used for plotting
+        Axes: The aces object that was used for plotting
     """
     if len(match_result.pos1) == 0:
         ax.loglog([2.0, 2000.0], [2.0, 2000.0], "ow")
@@ -668,17 +671,17 @@ def plot_flux_comparison(
     return ax
 
 
-def plot_psf(fig: Figure, ax: plt.Axes, rms_info: RMSImageInfo) -> plt.Axes:
+def plot_psf(fig: Figure, ax: Axes, rms_info: RMSImageInfo) -> Axes:
     """Create a plot highlighting the synthesised beam recorded in the
     RMS image header
 
     Args:
         fig (Figure): Fogire canvas being used
-        ax (plt.Axes): The axes object that will be used for plotting
+        ax (Axes): The axes object that will be used for plotting
         rms_info (RMSImageInfo): Extracted information from the RMS image
 
     Returns:
-        plt.Axes: The aces object used for plotting
+        Axes: The aces object used for plotting
     """
 
     bmaj = rms_info.header["BMAJ"] * 3600
@@ -694,6 +697,12 @@ def plot_psf(fig: Figure, ax: plt.Axes, rms_info: RMSImageInfo) -> plt.Axes:
 
     ax.grid()
 
+    return ax
+
+def plot_field_info(
+    fig: Figure,
+    ax: Axes,
+) -> Axes:
     return ax
 
 
@@ -819,6 +828,11 @@ def create_validation_plot(
     )
     plot_flux_comparison(
         fig=fig, ax=validator_layout.ax_brightness2, match_result=nvss_match
+    )
+
+    plot_field_info(
+        fig=fig,
+        ax=validator_layout.ax_legend,
     )
 
     fig.tight_layout()
