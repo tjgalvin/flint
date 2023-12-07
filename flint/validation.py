@@ -643,9 +643,7 @@ def plot_flux_comparison(
     """
     if len(match_result.pos1) == 0:
         ax.loglog([2.0, 2000.0], [2.0, 2000.0], "ow")
-        ax.text(
-            1e0, 1e2, f"No data for {match_result.name2}", va="center", ha="center"
-        )
+        ax.text(1e0, 1e2, f"No data for {match_result.name2}", va="center", ha="center")
 
         return ax
 
