@@ -14,9 +14,9 @@ from astropy.coordinates import SkyCoord
 from astropy.io import fits
 from astropy.table import Table
 from astropy.wcs import WCS
+from matplotlib.axes import Axes
 from matplotlib.figure import Figure
 from matplotlib.gridspec import GridSpec
-from matplotlib.axes import Axes
 
 from flint.logging import logger
 
@@ -630,9 +630,7 @@ def plot_astrometry_comparison(
     return ax
 
 
-def plot_flux_comparison(
-    fig: Figure, ax: Axes, match_result: MatchResult
-) -> Axes:
+def plot_flux_comparison(fig: Figure, ax: Axes, match_result: MatchResult) -> Axes:
     """Create a flux comparison plot showing the flux densities from two catalogues compared
     to one another.
 
@@ -696,6 +694,7 @@ def plot_psf(fig: Figure, ax: Axes, rms_info: RMSImageInfo) -> Axes:
     ax.grid()
 
     return ax
+
 
 def plot_field_info(
     fig: Figure,
