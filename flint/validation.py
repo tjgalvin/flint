@@ -25,6 +25,7 @@ F_MED = 8
 F_LARGE = 12
 F_HUGE = 20
 
+
 class Catalogue(NamedTuple):
     """A basic structure used to describe a known catalogue."""
 
