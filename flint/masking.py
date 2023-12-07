@@ -11,14 +11,14 @@ from flint.logging import logger
 from flint.naming import FITSMaskNames, create_fits_mask_names
 
 
-def create_mask_from_fits(
+def create_snr_mask_from_fits(
     fits_image_path: Path,
     fits_rms_path: Path,
     fits_bkg_path: Path,
     create_signal_fits: bool = False,
     min_snr: float = 4.0,
 ) -> FITSMaskNames:
-    """Create a mask for an input FITS image given a corresponding pair of RMS and background FITS images.
+    """Create a mask for an input FITS image based on a signal to noise given a corresponding pair of RMS and background FITS images.
 
     Internally the signal image is computed as something akin to:
     > signal = (image - background) / rms
@@ -80,7 +80,7 @@ def get_parser() -> ArgumentParser:
     )
 
     fits_parser = subparser(
-        "fitsmask",
+        "snrsmask",
         help="Create a mask for an image, using its RMS and BKG images (e.g. outputs from BANE). Output FITS image will default to the image with a mask suffix.",
     )
     fits_parser.add_argument("image", type=Path, help="Path to the input image. ")
@@ -97,6 +97,12 @@ def get_parser() -> ArgumentParser:
         action="store_true",
         help="Save the signal map. Defaults to the same as image with a signal suffix. ",
     )
+    fits_parser.add_argument(
+        "--min-snr",
+        type=float,
+        default=4,
+        help="The minimum SNR required for a pixel to be marked as valid. ",
+    )
 
     return parser
 
@@ -105,6 +111,15 @@ def cli():
     parser = get_parser()
 
     args = parser.parse_args()
+
+    if args.mode == "snrmask":
+        create_snr_mask_from_fits(
+            fits_image_path=args.image,
+            fits_rms_path=args.rms,
+            fits_bkg_path=args.bkg,
+            create_signal_fits=args.save_signal,
+            min_snr=args.min_snr,
+        )
 
 
 if __name__ == "__main__":

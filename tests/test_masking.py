@@ -4,7 +4,7 @@ import pytest
 import numpy as np
 from astropy.io import fits
 
-from flint.masking import create_mask_from_fits
+from flint.masking import create_snr_mask_from_fits
 from flint.naming import FITSMaskNames
 
 
@@ -30,7 +30,7 @@ def fits_dir(tmpdir):
 
 
 def test_fits_masking(fits_dir):
-    names = create_mask_from_fits(
+    names = create_snr_mask_from_fits(
         fits_image_path=fits_dir / "image.fits",
         fits_rms_path=fits_dir / "rms.fits",
         fits_bkg_path=fits_dir / "bkg.fits",
@@ -46,7 +46,7 @@ def test_fits_masking(fits_dir):
 
 
 def test_fits_masking_with_signal(fits_dir):
-    names = create_mask_from_fits(
+    names = create_snr_mask_from_fits(
         fits_image_path=fits_dir / "image.fits",
         fits_rms_path=fits_dir / "rms.fits",
         fits_bkg_path=fits_dir / "bkg.fits",
