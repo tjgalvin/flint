@@ -6,9 +6,59 @@ from pathlib import Path
 
 import numpy as np
 from astropy.io import fits
+from astropy.wcs import WCS
+from reproject import reproject_interp
 
 from flint.logging import logger
 from flint.naming import FITSMaskNames, create_fits_mask_names
+
+
+def extract_beam_mask_from_mosaic(
+    fits_beam_image_path: Path, fits_mosaic_mask_names: FITSMaskNames
+) -> FITSMaskNames:
+    """Extract a region based on an existing FITS image from a masked FITS
+    image. Here a masked FITS image is intended to be one created by
+    ``create_snr_mask_from_fits``.
+
+    A simple cutout (e.g. ``CutOut2D``) might not work as intended, as
+    when creating the field image (the intended use case here) might be
+    regridded onto a unique pixel grid that does not correspond to one
+    that would be constructed by wsclean.
+
+    Args:
+        fits_beam_image_path (Path): The template image with a valid WCS. This region is used to extract the masked region
+        fits_mosaic_mask_names (FITSMaskNames): The previously masked image
+
+    Returns:
+        FITSMaskNames: _description_
+    """
+    # TODO: Ideally we can accept an arbitary WCS, or read the wsclean docs to
+    # try to construct it ourselves. The last thing that this pirate wants is
+    # to run the imager in a dry-run type mode n cleaning type mode purely for
+    # the WCS.
+
+    mask_names = create_fits_mask_names(fits_name=fits_beam_image_path)
+
+    with fits.open(fits_beam_image_path) as beam_image:
+        header = beam_image[0].header
+        beam_image_shape = beam_image[0].data.shape[-2:]
+
+    logger.info(
+        f"Will extract {beam_image_shape} from {fits_mosaic_mask_names.mask_fits}"
+    )
+
+    with fits.open(fits_mosaic_mask_names.mask_fits) as mosaic_mask:
+        logger.info("Extracting region")
+        extract_img = reproject_interp(
+            np.squeeze(mosaic_mask[0].data),
+            WCS(mosaic_mask[0].header).celestial,
+            WCS(header[0].header).celestial,
+            beam_image_shape,
+        )
+
+    fits.writeto(mask_names.mask_fits, extract_img[0], header)
+
+    return mask_names
 
 
 def create_snr_mask_from_fits(
