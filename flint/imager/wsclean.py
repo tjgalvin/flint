@@ -103,6 +103,8 @@ class WSCleanOptions(NamedTuple):
     """Name of the output files passed through to wsclean"""
     beam_fitting_size: Optional[float] = 1.25
     """Use a fitting box the size of <factor> times the theoretical beam size for fitting a Gaussian to the PSF."""
+    fits_mask: Optional[Path] = None
+    """Path to a FITS file that encodes a cleaning mask"""
 
     def with_options(self, **kwargs) -> WSCleanOptions:
         """Return a new instance of WSCleanOptions with updated components"""
