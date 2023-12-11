@@ -69,7 +69,7 @@ def create_snr_mask_from_fits(
     fits_rms_path: Path,
     fits_bkg_path: Path,
     create_signal_fits: bool = False,
-    min_snr: float = 4.0,
+    min_snr: float = 5.0,
 ) -> FITSMaskNames:
     """Create a mask for an input FITS image based on a signal to noise given a corresponding pair of RMS and background FITS images.
 
@@ -89,7 +89,7 @@ def create_snr_mask_from_fits(
         fits_rms_path (Path): Path to the FITS file with an RMS image corresponding to ``fits_image_path``
         fits_bkg_path (Path): Path to the FITS file with an baclground image corresponding to ``fits_image_path``
         create_signal_fits (bool, optional): Create an output signal map. Defaults to False.
-        min_snr (float, optional): Minimum signal-to-noise ratio for the masking to include a pixel. Defaults to 4.0.
+        min_snr (float, optional): Minimum signal-to-noise ratio for the masking to include a pixel. Defaults to 5.0.
 
     Returns:
         FITSMaskNames: Container describing the signal and mask FITS image paths. If ``create_signal_path`` is None, then the ``signal_fits`` attribute will be None.
@@ -115,12 +115,12 @@ def create_snr_mask_from_fits(
             filename=mask_names.signal_fits, data=signal_data, header=fits_header
         )
 
-    mask_data = (signal_data > min_snr).astype(int)
+    mask_data = (signal_data > min_snr).astype(np.int32)
 
     logger.info(f"Writing {mask_names.mask_fits}")
     fits.writeto(
         filename=mask_names.mask_fits,
-        data=mask_data.astype(np.int32),
+        data=mask_data,
         header=fits_header,
     )
 

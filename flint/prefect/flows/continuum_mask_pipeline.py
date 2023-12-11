@@ -326,7 +326,9 @@ def task_create_linmos_mask_model(
     logger.info(f"Using {linmos_bkg=}")
 
     linmos_mask_names = create_snr_mask_from_fits(
-        fits_bkg_path=linmos_image, fits_image_path=linmos_rms, fits_rms_path=linmos_bkg
+        fits_image_path=linmos_image,
+        fits_bkg_path=linmos_bkg, 
+        fits_rms_path=linmos_rms
     )
 
     logger.info(f"Created {linmos_mask_names.mask_fits}")

@@ -291,6 +291,9 @@ def create_wsclean_cmd(
                 ",".join(value) if key in options_to_comma_join else " ".join(value)
             )
             cmd += f"-{key} {value_str} "
+        elif isinstance(value, Path):
+            value_str = str(value)
+            cmd += f"-{key} {value_str} "
         elif value is None:
             logger.debug(
                 f"{key} option set to {value}. Not sure what this means. Ignoring. "
