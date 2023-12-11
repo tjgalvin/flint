@@ -408,6 +408,34 @@ def wsclean_imager(
     return wsclean_cmd
 
 
+def create_template_wsclean_options(
+    input_wsclean_options: WSCleanOptions,
+) -> WSCleanOptions:
+    """Construct a simple instance of WSClean options that will not
+    actually clean. This is intended to be used to get a representations
+    FITS header with appropriate WSC information.
+
+    Args:
+        input_wsclean_options (WSCleanOptions): The base set of wsclean options to use
+
+    Returns:
+        WSCleanOptions: Template options to use for the wsclean fits header creation
+    """
+
+    temmplate_options = WSCleanCMD(
+        size=input_wsclean_options.size,
+        channels_out=1,
+        nmiter=0,
+        niter=1,
+        data_column=input_wsclean_options.data_column,
+        scale=input_wsclean_options.scale,
+        name=f"{input_wsclean_options.name}_template",
+    )
+    logger.info(f"Template options are {temmplate_options}")
+
+    return temmplate_options
+
+
 def get_parser() -> ArgumentParser:
     parser = ArgumentParser(description="Routines related to wsclean")
 
