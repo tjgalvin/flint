@@ -3,8 +3,10 @@
 from pathlib import Path
 
 from flint.naming import (
+    FITSMaskNames,
     ProcessedNameComponents,
     RawNameComponents,
+    create_fits_mask_names,
     create_ms_name,
     extract_beam_from_name,
     extract_components_from_name,
@@ -13,6 +15,33 @@ from flint.naming import (
     processed_ms_format,
     raw_ms_format,
 )
+
+
+def test_create_fits_mask_names_no_signal():
+    fits_image = Path("38960/SB38960.RACS_1418-12.noselfcal_linmos.fits")
+
+    result = create_fits_mask_names(fits_image=fits_image, include_signal_path=False)
+    assert isinstance(result, FITSMaskNames)
+    assert isinstance(result.mask_fits, Path)
+    assert result.signal_fits is None
+    assert result.mask_fits == Path(
+        "38960/SB38960.RACS_1418-12.noselfcal_linmos.mask.fits"
+    )
+
+
+def test_create_fits_mask_names():
+    fits_image = Path("38960/SB38960.RACS_1418-12.noselfcal_linmos.fits")
+
+    result = create_fits_mask_names(fits_image=fits_image, include_signal_path=True)
+    assert isinstance(result, FITSMaskNames)
+    assert isinstance(result.signal_fits, Path)
+    assert isinstance(result.mask_fits, Path)
+    assert result.signal_fits == Path(
+        "38960/SB38960.RACS_1418-12.noselfcal_linmos.signal.fits"
+    )
+    assert result.mask_fits == Path(
+        "38960/SB38960.RACS_1418-12.noselfcal_linmos.mask.fits"
+    )
 
 
 def test_aocalibrate_into_process_ms_format():

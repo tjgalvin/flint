@@ -103,6 +103,8 @@ class WSCleanOptions(NamedTuple):
     """Name of the output files passed through to wsclean"""
     beam_fitting_size: Optional[float] = 1.25
     """Use a fitting box the size of <factor> times the theoretical beam size for fitting a Gaussian to the PSF."""
+    fits_mask: Optional[Path] = None
+    """Path to a FITS file that encodes a cleaning mask"""
 
     def with_options(self, **kwargs) -> WSCleanOptions:
         """Return a new instance of WSCleanOptions with updated components"""
@@ -289,6 +291,9 @@ def create_wsclean_cmd(
                 ",".join(value) if key in options_to_comma_join else " ".join(value)
             )
             cmd += f"-{key} {value_str} "
+        elif isinstance(value, Path):
+            value_str = str(value)
+            cmd += f"-{key} {value_str} "
         elif value is None:
             logger.debug(
                 f"{key} option set to {value}. Not sure what this means. Ignoring. "
@@ -406,6 +411,34 @@ def wsclean_imager(
     )
 
     return wsclean_cmd
+
+
+def create_template_wsclean_options(
+    input_wsclean_options: WSCleanOptions,
+) -> WSCleanOptions:
+    """Construct a simple instance of WSClean options that will not
+    actually clean. This is intended to be used to get a representations
+    FITS header with appropriate WSC information.
+
+    Args:
+        input_wsclean_options (WSCleanOptions): The base set of wsclean options to use
+
+    Returns:
+        WSCleanOptions: Template options to use for the wsclean fits header creation
+    """
+
+    temmplate_options = WSCleanCMD(
+        size=input_wsclean_options.size,
+        channels_out=1,
+        nmiter=0,
+        niter=1,
+        data_column=input_wsclean_options.data_column,
+        scale=input_wsclean_options.scale,
+        name=f"{input_wsclean_options.name}_template",
+    )
+    logger.info(f"Template options are {temmplate_options}")
+
+    return temmplate_options
 
 
 def get_parser() -> ArgumentParser:
