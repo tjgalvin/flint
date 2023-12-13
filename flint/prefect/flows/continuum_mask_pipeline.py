@@ -193,7 +193,8 @@ def task_wsclean_imager(
 
     if fits_mask:
         update_wsclean_options["fits_mask"] = fits_mask.mask_fits
-        update_wsclean_options["auto_mask"] = 1.0
+        update_wsclean_options["auto_mask"] = 2
+        update_wsclean_options["force_mask_rounds"] = 2
 
     logger.info(f"wsclean inager {ms=}")
     return wsclean_imager(
@@ -328,7 +329,9 @@ def task_create_linmos_mask_model(
     linmos_mask_names = create_snr_mask_from_fits(
         fits_image_path=linmos_image,
         fits_bkg_path=linmos_bkg, 
-        fits_rms_path=linmos_rms
+        fits_rms_path=linmos_rms,
+        create_signal_fits=True,
+        min_snr=3
     )
 
     logger.info(f"Created {linmos_mask_names.mask_fits}")
@@ -612,13 +615,13 @@ def process_bandpass_science_fields(
         return
 
     wsclean_init = {
-        "size": 6144,
+        "size": 6644,
         "minuv_l": 235,
-        "weight": "briggs -0.5",
+        "weight": "briggs 0.5",
         "auto_mask": 5,
         "multiscale": True,
         "local_rms_window": 55,
-        "multiscale_scales": (0, 15, 30, 40, 50, 60, 70),
+        "multiscale_scales": (0, 15, 30, 40, 50, 60, 70, 120, 240),
     }
 
     wsclean_cmds = task_wsclean_imager.map(
@@ -665,20 +668,20 @@ def process_bandpass_science_fields(
     }
     wsclean_rounds = {
         1: {
-            "size": 6144,
+            "size": 6644,
             "multiscale": True,
             "minuv_l": 235,
             "auto_mask": 5,
             "local_rms_window": 55,
-            "multiscale_scales": (0, 15, 30, 40, 50, 60, 70),
+            "multiscale_scales": (0, 15, 30, 40, 50, 60, 120, 240),
         },
         2: {
-            "size": 6144,
+            "size": 6644,
             "multiscale": True,
             "minuv_l": 235,
             "auto_mask": 4.0,
             "local_rms_window": 55,
-            "multiscale_scales": (0, 15, 30, 40, 50, 60, 70),
+            "multiscale_scales": (0, 15, 30, 40, 50, 60, 120, 240),
         },
     }
 
@@ -730,14 +733,16 @@ def process_bandpass_science_fields(
             image=parset, aegean_container=unmapped(aegean_container)
         )
 
-        linmos_mask = task_create_linmos_mask_model(
-            linmos_parset=parset,
-            image_products=aegean_outputs,
-        )
+        # Use the mask from the first round
+        # if round < rounds:
+        #     linmos_mask = task_create_linmos_mask_model.submit(
+        #         linmos_parset=parset,
+        #         image_products=aegean_outputs,
+        #     )
 
-        beam_masks = task_extract_beam_mask_image.map(
-            linmos_mask_names=unmapped(linmos_mask), wsclean_cmd=wsclean_cmds
-        )
+        #     beam_masks = task_extract_beam_mask_image.map(
+        #         linmos_mask_names=unmapped(linmos_mask), wsclean_cmd=wsclean_cmds
+        #     )
 
         if run_validation:
             task_create_validation_plot.submit(
@@ -784,7 +789,7 @@ def setup_run_process_science_field(
     dask_task_runner = get_dask_runner(cluster=cluster_config)
 
     process_bandpass_science_fields.with_options(
-        name=f"Flint Continuum Pipeline - {science_sbid}", task_runner=dask_task_runner
+        name=f"Flint Continuum Masked Pipeline - {science_sbid}", task_runner=dask_task_runner
     )(
         science_path=science_path,
         split_path=split_path,

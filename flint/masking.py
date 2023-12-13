@@ -58,6 +58,8 @@ def extract_beam_mask_from_mosaic(
             shape_out=beam_image_shape,
             order=0,
         )
+    logger.info("Clipping extract mask results (interpolation errors)")
+    extract_image = np.clip(extract_img, 0.0, 1.0)
 
     fits.writeto(mask_names.mask_fits, extract_img[0].astype(np.int32), header)
 
@@ -69,7 +71,7 @@ def create_snr_mask_from_fits(
     fits_rms_path: Path,
     fits_bkg_path: Path,
     create_signal_fits: bool = False,
-    min_snr: float = 5.0,
+    min_snr: float = 3.5,
 ) -> FITSMaskNames:
     """Create a mask for an input FITS image based on a signal to noise given a corresponding pair of RMS and background FITS images.
 
@@ -89,7 +91,7 @@ def create_snr_mask_from_fits(
         fits_rms_path (Path): Path to the FITS file with an RMS image corresponding to ``fits_image_path``
         fits_bkg_path (Path): Path to the FITS file with an baclground image corresponding to ``fits_image_path``
         create_signal_fits (bool, optional): Create an output signal map. Defaults to False.
-        min_snr (float, optional): Minimum signal-to-noise ratio for the masking to include a pixel. Defaults to 5.0.
+        min_snr (float, optional): Minimum signal-to-noise ratio for the masking to include a pixel. Defaults to 3.5.
 
     Returns:
         FITSMaskNames: Container describing the signal and mask FITS image paths. If ``create_signal_path`` is None, then the ``signal_fits`` attribute will be None.
@@ -115,6 +117,13 @@ def create_snr_mask_from_fits(
             filename=mask_names.signal_fits, data=signal_data, header=fits_header
         )
 
+    # Following the help in wsclean:
+    # WSClean accepts masks in CASA format and in fits file format. A mask is a
+    # normal, single polarization image file, where all zero values are interpreted 
+    # as being not masked, and all non-zero values are interpreted as masked. In the 
+    # case of a fits file, the file may either contain a single frequency or it may
+    # contain a cube of images. 
+    logger.info(f"Clipping using a {min_snr=}")
     mask_data = (signal_data > min_snr).astype(np.int32)
 
     logger.info(f"Writing {mask_names.mask_fits}")
