@@ -15,7 +15,6 @@ from flint.naming import create_ms_name
 from flint.sky_model import KNOWN_1934_FILES, get_1934_model
 
 
-
 def plot_solutions(solutions_path: Path, ref_ant: Optional[int] = 0) -> None:
     """Plot solutions for AO-style solutions
 

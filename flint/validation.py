@@ -14,6 +14,7 @@ from astropy.coordinates import SkyCoord
 from astropy.io import fits
 from astropy.table import Table
 from astropy.wcs import WCS
+from matplotlib.axes import Axes
 from matplotlib.figure import Figure
 from matplotlib.gridspec import GridSpec
 
@@ -21,6 +22,8 @@ from flint.logging import logger
 
 F_SMALL = 7
 F_MED = 8
+F_LARGE = 12
+F_HUGE = 20
 
 
 class Catalogue(NamedTuple):
@@ -55,23 +58,23 @@ class Catalogue(NamedTuple):
 class ValidatorLayout(NamedTuple):
     """Simple container for all the matplotlib axes objects"""
 
-    ax_rms: plt.Axes
+    ax_rms: Axes
     """Axes for the RMS of the field"""
-    ax_legend: plt.Axes
+    ax_legend: Axes
     """Container for basic SBID information"""
-    ax_psf: plt.Axes
+    ax_psf: Axes
     """Axes for the PSF of the image"""
-    ax_counts: plt.Axes
+    ax_counts: Axes
     """Axes for quick look source counts"""
-    ax_brightness1: plt.Axes
+    ax_brightness1: Axes
     """Axes to compare brightness of sources from the first catalogue"""
-    ax_brightness2: plt.Axes
+    ax_brightness2: Axes
     """Axes to compare brightness of sources from the first catalogue"""
-    ax_astrometry: plt.Axes
+    ax_astrometry: Axes
     """Axes to compare astrometry of sources"""
-    ax_astrometry1: plt.Axes
+    ax_astrometry1: Axes
     """Axes to compare astrometry of sources from the first catalogue"""
-    ax_astrometry2: plt.Axes
+    ax_astrometry2: Axes
     """Axes to compare astromnetry of sources from the first catalogue"""
 
 
@@ -267,56 +270,65 @@ def make_validator_axes_layout(fig: Figure, rms_path: Path) -> ValidatorLayout:
     Returns:
         ValidatorLayout: Representation of all axes objects
     """
-
-    gridspec = GridSpec(nrows=100, ncols=141)
-    gridspec.update(
-        left=0.0, right=0.9999, bottom=0.001, top=0.999, hspace=0.0, wspace=0.0
-    )
-
-    ax_legend = fig.add_subplot(gridspec[0:28, 0:37])
-    ax_legend.axis("off")
-
+    # My friendship with gridspec is over, now subplot_mosaic is my best friend
+    # Using the following encoding:
+    # T = text / field info
+    # F = flux / source counts
+    # A = astrometry
+    # P = PSF
+    # B = BANE noise map
+    # S = SUMMS flux comparison
+    # s = SUMMS astrometry comparison
+    # N = NVSS flux comparison
+    # n = NVSS astrometry comparison
     rms_wcs = WCS(fits.getheader(rms_path)).celestial
-    ax_rms = fig.add_subplot(gridspec[35:99, 0:70], projection=rms_wcs)
+    ax_dict = fig.subplot_mosaic(
+        """
+        TFPA
+        BBSs
+        BBNn
+        """,
+        per_subplot_kw={
+            "B": {"projection": rms_wcs},
+        },
+        subplot_kw={
+            "aspect": "equal",
+        },
+    )
+    for spine in ax_dict["T"].spines.values():
+        spine.set_edgecolor("tab:red")
+    _ = ax_dict["T"].axes.yaxis.set_visible(False)
+    _ = ax_dict["T"].axes.xaxis.set_visible(False)
 
-    ax_psf = fig.add_subplot(gridspec[0:28, 87:107])
-    ax_counts = fig.add_subplot(gridspec[0:28, 44:84])
-
-    ax_brightness2 = fig.add_subplot(gridspec[66:98, 74:105])
-    ax_brightness1 = fig.add_subplot(gridspec[33:65, 74:105], sharex=ax_brightness2)
-
-    ax_astrometry2 = fig.add_subplot(gridspec[66:98, 110:])
-    ax_astrometry1 = fig.add_subplot(gridspec[33:65, 110:], sharex=ax_astrometry2)
-    ax_astrometry = fig.add_subplot(gridspec[0:32, 110:], sharex=ax_astrometry2)
+    # Set the axes that are shared
+    _ = ax_dict["N"].sharex(ax_dict["S"])
+    _ = ax_dict["n"].sharex(ax_dict["s"])
 
     validator_layout = ValidatorLayout(
-        ax_rms=ax_rms,
-        ax_legend=ax_legend,
-        ax_psf=ax_psf,
-        ax_counts=ax_counts,
-        ax_brightness1=ax_brightness1,
-        ax_brightness2=ax_brightness2,
-        ax_astrometry=ax_astrometry,
-        ax_astrometry1=ax_astrometry1,
-        ax_astrometry2=ax_astrometry2,
+        ax_rms=ax_dict["B"],
+        ax_legend=ax_dict["T"],
+        ax_psf=ax_dict["P"],
+        ax_counts=ax_dict["F"],
+        ax_brightness1=ax_dict["N"],
+        ax_brightness2=ax_dict["S"],
+        ax_astrometry=ax_dict["A"],
+        ax_astrometry1=ax_dict["n"],
+        ax_astrometry2=ax_dict["s"],
     )
-
-    for ax in validator_layout:
-        ax.set_aspect(1.0)
 
     return validator_layout
 
 
-def plot_rms_map(fig: Figure, ax: plt.Axes, rms_path: Path) -> plt.Axes:
+def plot_rms_map(fig: Figure, ax: Axes, rms_path: Path) -> Axes:
     """Add the RMS image to the figure
 
     Args:
         fig (Figure): Figure that contains the axes object
-        ax (plt.Axes): The axes that will be plotted
+        ax (Axes): The axes that will be plotted
         rms_path (Path): Location of the RMS image
 
     Returns:
-        plt.Axes: The axes object with the plotted RMS image
+        Axes: The axes object with the plotted RMS image
     """
 
     rms_data = fits.getdata(rms_path)
@@ -411,11 +423,11 @@ def get_source_counts(
 def plot_source_counts(
     catalogue: Table,
     rms_info: RMSImageInfo,
-    ax: plt.Axes,
+    ax: Axes,
     freq: Optional[float] = None,
     dezotti: Optional[Table] = None,
     skads: Optional[Table] = None,
-) -> plt.Axes:
+) -> Axes:
     """Create a figure of source counts from a astropy Table. If
     `freq` and either `dezotti` / `skads` are supplied then these
     precomputed source count tables are also included in the
@@ -427,13 +439,13 @@ def plot_source_counts(
     Args:
         catalogue (Table): The catalogue to derive source counts for
         rms_info (RMSImageInfo): Look up information from the RMS file that catalogue was constructed against
-        ax (plt.Axes): The axes panel the counts will be plottedd on
+        ax (Axes): The axes panel the counts will be plottedd on
         freq (Optional[float], optional): Frequency that the source catalogue. Used to scale the Dezotti and SKADS tables. Defaults to None.
         dezotti (Optional[Table], optional): Loaded reference table of Dezotti source counts. Defaults to None.
         skads (Optional[Table], optional): Loaded reference table of SKADS source counts. Defaults to None.
 
     Returns:
-        plt.Axes: The axes object used for plotting
+        Axes: The axes object used for plotting
     """
     # TODO: Is the freq column needed anymore
 
@@ -539,17 +551,17 @@ def match_nearest_neighbour(
 
 
 def plot_astrometry_comparison(
-    fig: Figure, ax: plt.Axes, match_result: MatchResult
-) -> plt.Axes:
+    fig: Figure, ax: Axes, match_result: MatchResult
+) -> Axes:
     """Plot the astrometry of cross matches from a match result set
 
     Args:
         fig (Figure): The figure canvas plotting on
-        ax (plt.Axes): The Axes being plotted on
+        ax (Axes): The Axes being plotted on
         match_result (MatchResult): The set of sources cross-matched and found in common
 
     Returns:
-        plt.Axes: The Axes plotted on
+        Axes: The Axes plotted on
     """
     logger.info(
         f"Plotting astrometry match between {match_result.name1} and {match_result.name2}"
@@ -618,25 +630,21 @@ def plot_astrometry_comparison(
     return ax
 
 
-def plot_flux_comparison(
-    fig: Figure, ax: plt.Axes, match_result: MatchResult
-) -> plt.Axes:
+def plot_flux_comparison(fig: Figure, ax: Axes, match_result: MatchResult) -> Axes:
     """Create a flux comparison plot showing the flux densities from two catalogues compared
     to one another.
 
     Args:
         fig (Figure): The figure canvas that the axes is on
-        ax (plt.Axes): The axes object that will be render the plot
+        ax (Axes): The axes object that will be render the plot
         match_result (MatchResult): A result set of the cross-match between two catalogues
 
     Returns:
-        plt.Axes: The aces object that was used for plotting
+        Axes: The aces object that was used for plotting
     """
     if len(match_result.pos1) == 0:
         ax.loglog([2.0, 2000.0], [2.0, 2000.0], "ow")
-        ax.text(
-            100.0, 100.0, f"No data for {match_result.name2}", va="center", ha="center"
-        )
+        ax.text(1e0, 1e2, f"No data for {match_result.name2}", va="center", ha="center")
 
         return ax
 
@@ -659,17 +667,17 @@ def plot_flux_comparison(
     return ax
 
 
-def plot_psf(fig: Figure, ax: plt.Axes, rms_info: RMSImageInfo) -> plt.Axes:
+def plot_psf(fig: Figure, ax: Axes, rms_info: RMSImageInfo) -> Axes:
     """Create a plot highlighting the synthesised beam recorded in the
     RMS image header
 
     Args:
         fig (Figure): Fogire canvas being used
-        ax (plt.Axes): The axes object that will be used for plotting
+        ax (Axes): The axes object that will be used for plotting
         rms_info (RMSImageInfo): Extracted information from the RMS image
 
     Returns:
-        plt.Axes: The aces object used for plotting
+        Axes: The aces object used for plotting
     """
 
     bmaj = rms_info.header["BMAJ"] * 3600
@@ -685,6 +693,55 @@ def plot_psf(fig: Figure, ax: plt.Axes, rms_info: RMSImageInfo) -> plt.Axes:
 
     ax.grid()
 
+    return ax
+
+
+def plot_field_info(
+    fig: Figure,
+    ax: Axes,
+) -> Axes:
+    # TODO: Add the field information to the plot
+    # Namely:
+    # - Field name
+    # - J2000 RA / Dec
+    # - Galactic l / b
+    # - SBID
+    # - CAL_SBID
+    # - Start time
+    # - Integration time
+    # - Hour angle range
+    # - Elevation range
+    # - Median rms
+    # - Number of sources
+    # - Processing date
+    ax.text(
+        0.1,
+        0.8,
+        f"Field name: {''}",
+        fontdict={"fontsize": F_LARGE},
+        family="monospace",
+    )
+    ax.text(
+        0.0,
+        0.0,
+        f"""
+    - J2000 RA / Dec    : {""}
+    - Galactic l / b    : {""}
+    - SBID              : {""}
+    - CAL_SBID          : {""}
+    - Start time        : {""}
+    - Integration time  : {""}
+    - Hour angle range  : {""}
+    - Elevation range   : {""}
+
+    - Median rms        : {""}
+    - Components        : {""}
+
+    - Processing date   : {""}
+        """,
+        family="monospace",
+        fontdict={"fontsize": F_MED},
+    )
     return ax
 
 
@@ -731,7 +788,7 @@ def create_validation_plot(
     logger.info(f"Loading {skads_path=}")
     skads = Table.read(skads_path)
 
-    height = 8.0
+    height = 12.0
     width = height * np.sqrt(2.0)
 
     fig = plt.figure(figsize=(width, height))
@@ -812,6 +869,16 @@ def create_validation_plot(
         fig=fig, ax=validator_layout.ax_brightness2, match_result=nvss_match
     )
 
+    plot_field_info(
+        fig=fig,
+        ax=validator_layout.ax_legend,
+    )
+
+    # TODO: Add title:
+    # e.g. fig.sup_title(f"SBID {sbid} - {field_name} - {date}")
+    fig.suptitle(rf"$\it{{Flint}}$ summary for {''}", fontsize=F_HUGE)
+
+    fig.tight_layout()
     fig.savefig(str(output_path), dpi=300, bbox_inches="tight")
 
     return output_path
