@@ -4,13 +4,13 @@
 - image and self-calibration the science fields
 - run aegean source finding
 
-This pipeline will attempt to incorporate a masking operation once a linmos 
-field has been produced. Given a linmos image, a signal and mask operation 
-will create a large field image that could then be used as a clean mask 
+This pipeline will attempt to incorporate a masking operation once a linmos
+field has been produced. Given a linmos image, a signal and mask operation
+will create a large field image that could then be used as a clean mask
 provided to wsclean. This process would require a mask to be extracted from
 the larger singnal linmos mask image using a template WCS header. It seems
-that the best way to do this would be to use a header from the preivous 
-imaging round. 
+that the best way to do this would be to use a header from the preivous
+imaging round.
 """
 from argparse import ArgumentParser
 from pathlib import Path
@@ -33,15 +33,15 @@ from flint.convol import BeamShape, convolve_images, get_common_beam
 from flint.flagging import flag_ms_aoflagger
 from flint.imager.wsclean import WSCleanCMD, wsclean_imager
 from flint.logging import logger
+from flint.masking import create_snr_mask_from_fits, extract_beam_mask_from_mosaic
 from flint.ms import MS, preprocess_askap_ms, split_by_field
-from flint.naming import get_sbid_from_path, processed_ms_format, FITSMaskNames
+from flint.naming import FITSMaskNames, get_sbid_from_path, processed_ms_format
 from flint.prefect.clusters import get_dask_runner
 from flint.selfcal.casa import gaincal_applycal_ms
 from flint.sky_model import create_sky_model, get_1934_model
 from flint.source_finding.aegean import AegeanOutputs, run_bane_and_aegean
 from flint.utils import zip_folder
 from flint.validation import create_validation_plot
-from flint.masking import create_snr_mask_from_fits, extract_beam_mask_from_mosaic
 
 task_extract_correct_bandpass_pointing = task(extract_correct_bandpass_pointing)
 task_preprocess_askap_ms = task(preprocess_askap_ms)
@@ -328,10 +328,10 @@ def task_create_linmos_mask_model(
 
     linmos_mask_names = create_snr_mask_from_fits(
         fits_image_path=linmos_image,
-        fits_bkg_path=linmos_bkg, 
+        fits_bkg_path=linmos_bkg,
         fits_rms_path=linmos_rms,
         create_signal_fits=True,
-        min_snr=3
+        min_snr=3,
     )
 
     logger.info(f"Created {linmos_mask_names.mask_fits}")
@@ -789,7 +789,8 @@ def setup_run_process_science_field(
     dask_task_runner = get_dask_runner(cluster=cluster_config)
 
     process_bandpass_science_fields.with_options(
-        name=f"Flint Continuum Masked Pipeline - {science_sbid}", task_runner=dask_task_runner
+        name=f"Flint Continuum Masked Pipeline - {science_sbid}",
+        task_runner=dask_task_runner,
     )(
         science_path=science_path,
         split_path=split_path,

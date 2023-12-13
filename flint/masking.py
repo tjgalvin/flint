@@ -1,5 +1,5 @@
 """Utility functions to make image based masks from images, with the initial
-thought being towards FITS images. 
+thought being towards FITS images.
 """
 from argparse import ArgumentParser
 from pathlib import Path
@@ -119,10 +119,10 @@ def create_snr_mask_from_fits(
 
     # Following the help in wsclean:
     # WSClean accepts masks in CASA format and in fits file format. A mask is a
-    # normal, single polarization image file, where all zero values are interpreted 
-    # as being not masked, and all non-zero values are interpreted as masked. In the 
+    # normal, single polarization image file, where all zero values are interpreted
+    # as being not masked, and all non-zero values are interpreted as masked. In the
     # case of a fits file, the file may either contain a single frequency or it may
-    # contain a cube of images. 
+    # contain a cube of images.
     logger.info(f"Clipping using a {min_snr=}")
     mask_data = (signal_data > min_snr).astype(np.int32)
 

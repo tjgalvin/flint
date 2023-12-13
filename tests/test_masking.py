@@ -1,12 +1,11 @@
 from pathlib import Path
 
-import pytest
 import numpy as np
+import pytest
 from astropy.io import fits
 
 from flint.masking import create_snr_mask_from_fits
 from flint.naming import FITSMaskNames
-
 
 SHAPE = (100, 100)
 
