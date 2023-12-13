@@ -816,7 +816,7 @@ def get_parser() -> ArgumentParser:
         "--sky-model-path",
         type=Path,
         default=None,
-        help="Path to the directory containing knows sky-model catalogue files that can be used to derive an estimated in-field sky-model. If None, a --bandpass-path should be provided. ",
+        help="Path to the directory containing known sky-model catalogue files that can be used to derive an estimated in-field sky-model. If None, a --bandpass-path should be provided. ",
     )
     parser.add_argument(
         "--bandpass-path",
