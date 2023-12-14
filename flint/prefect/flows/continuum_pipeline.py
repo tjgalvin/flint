@@ -363,7 +363,7 @@ def run_bandpass_stage(
         calibrate_cmd = task_flag_solutions.submit(calibrate_cmd=calibrate_cmd)
         calibrate_cmds.append(calibrate_cmd)
 
-        apply_solutions_cmd = task_bandpass_create_apply_solutions_cmd.submit(
+        task_bandpass_create_apply_solutions_cmd.submit(
             ms=flag_bandpass_ms,
             calibrate_cmd=calibrate_cmd,
             container=calibrate_container,

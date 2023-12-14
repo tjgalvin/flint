@@ -242,8 +242,8 @@ def describe_ms(ms: Union[MS, Path], verbose: bool = True) -> MSSummary:
         colnames = tab.colnames()
 
         flags = tab.getcol("FLAG")
-        flagged = np.sum(flags == True)
-        unflagged = np.sum(flags == False)
+        flagged = np.sum(flags is True)
+        unflagged = np.sum(flags is False)
         total = np.prod(flags.shape)
 
         uniq_ants = sorted(list(set(tab.getcol("ANTENNA1"))))
@@ -307,7 +307,7 @@ def split_by_field(
             pass  # Incase above fails due to race condition
 
     logger.info(f"Opening {ms.path}. ")
-    with table(str(ms.path), ack=False) as tab:
+    with table(str(ms.path), ack=False) as tab: # noqa: F841
         for split_name, split_idx in zip(fields, field_idxs):
             logger.info(f"Selecting FIELD={split_name}")
             sub_ms = taql(f"select * from $tab where FIELD_ID=={split_idx}")
