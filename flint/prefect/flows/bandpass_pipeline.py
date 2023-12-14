@@ -138,16 +138,17 @@ def run_bandpass_stage(
     preprocess_bandpass_mss = task_preprocess_askap_ms.map(
         ms=extract_bandpass_mss, skip_rotation=skip_rotation
     )
-    flag_bandpass_mss = task_flag_ms_aoflagger.submit(
+    flag_bandpass_mss = task_flag_ms_aoflagger.map(
         ms=preprocess_bandpass_mss, container=flagger_container, rounds=1
     )
-    calibrate_cmds = task_create_calibrate_cmd.submit(
+    calibrate_cmds = task_create_calibrate_cmd.map(
         ms=flag_bandpass_mss,
         calibrate_model=model_path,
         container=calibrate_container,
     )
+    flag_calibrate_cmds = task_flag_solutions.map(calibrate_cmd=calibrate_cmds)
 
-    return calibrate_cmds
+    return flag_calibrate_cmds
 
 
 @flow
@@ -262,7 +263,7 @@ def setup_run_bandpass_flow(
     bandpass_sbid = get_sbid_from_path(path=bandpass_path)
 
     calibrate_bandpass_flow.with_options(
-        f"Flint Bandpass Pipeline -- {bandpass_sbid}", task_runner=dask_task_runner
+        name=f"Flint Bandpass Pipeline -- {bandpass_sbid}", task_runner=dask_task_runner
     )(
         bandpass_path=bandpass_path,
         split_path=split_path,
@@ -334,7 +335,7 @@ def cli() -> None:
     args = parser.parse_args()
 
     setup_run_bandpass_flow(
-        bandpass_path=args.bandopass_path,
+        bandpass_path=args.bandpass_path,
         split_path=args.split_path,
         expected_ms=args.expected_ms,
         calibrate_container=args.calibrate_container,
