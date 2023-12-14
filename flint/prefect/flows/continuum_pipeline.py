@@ -29,7 +29,6 @@ from flint.ms import MS, preprocess_askap_ms, split_by_field
 from flint.naming import get_sbid_from_path, processed_ms_format
 from flint.prefect.clusters import get_dask_runner
 from flint.selfcal.casa import gaincal_applycal_ms
-from flint.sky_model import create_sky_model, get_1934_model
 from flint.source_finding.aegean import AegeanOutputs, run_bane_and_aegean
 from flint.utils import zip_folder
 from flint.validation import create_validation_plot
