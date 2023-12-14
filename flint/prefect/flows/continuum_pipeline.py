@@ -6,304 +6,33 @@
 """
 from argparse import ArgumentParser
 from pathlib import Path
-from typing import Any, Collection, Dict, List, Optional, Union
+from typing import Optional, Union
 
-from prefect import flow, task, unmapped
+from prefect import flow, unmapped
 
-from flint.bandpass import extract_correct_bandpass_pointing, plot_solutions
 from flint.calibrate.aocalibrate import (
-    ApplySolutions,
-    CalibrateCommand,
-    create_apply_solutions_cmd,
-    create_calibrate_cmd,
     find_existing_solutions,
-    flag_aosolutions,
-    select_aosolution_for_ms,
 )
-from flint.coadd.linmos import LinmosCMD, linmos_images
-from flint.convol import BeamShape, convolve_images, get_common_beam
-from flint.flagging import flag_ms_aoflagger
-from flint.imager.wsclean import WSCleanCMD, wsclean_imager
 from flint.logging import logger
-from flint.ms import MS, preprocess_askap_ms, split_by_field
-from flint.naming import get_sbid_from_path, processed_ms_format
+from flint.naming import get_sbid_from_path
 from flint.prefect.clusters import get_dask_runner
-from flint.selfcal.casa import gaincal_applycal_ms
-from flint.source_finding.aegean import AegeanOutputs, run_bane_and_aegean
-from flint.utils import zip_folder
-from flint.validation import create_validation_plot
-
-task_extract_correct_bandpass_pointing = task(extract_correct_bandpass_pointing)
-task_preprocess_askap_ms = task(preprocess_askap_ms)
-task_flag_ms_aoflagger = task(flag_ms_aoflagger)
-task_create_calibrate_cmd = task(create_calibrate_cmd)
-task_split_by_field = task(split_by_field)
-task_select_solution_for_ms = task(select_aosolution_for_ms)
-task_create_apply_solutions_cmd = task(create_apply_solutions_cmd)
-
-
-@task
-def task_bandpass_create_apply_solutions_cmd(
-    ms: MS, calibrate_cmd: CalibrateCommand, container: Path
-):
-    return create_apply_solutions_cmd(
-        ms=ms, solutions_file=calibrate_cmd.solution_path, container=container
-    )
-
-
-@task
-def task_run_bane_and_aegean(
-    image: Union[WSCleanCMD, LinmosCMD], aegean_container: Path
-) -> AegeanOutputs:
-    if isinstance(image, WSCleanCMD):
-        assert image.imageset is not None, "Image set attribute unset. "
-        image_paths = image.imageset.image
-
-        logger.info(f"Have extracted image: {image_paths}")
-
-        # For the moment, will only source find on an MFS image
-        image_paths = [image for image in image_paths if "-MFS-" in str(image)]
-        assert (
-            len(image_paths) == 1
-        ), "More than one image found after filter for MFS only images. "
-        # Get out the only path in the list.
-        image_path = image_paths[0]
-    elif isinstance(image, LinmosCMD):
-        logger.info("Will be running aegean on a linmos image")
-
-        image_path = image.image_fits
-        assert image_path.exists(), f"Image path {image_path} does not exist"
-    else:
-        raise ValueError(f"Unexpected type, have received {type(image)} for {image=}. ")
-
-    aegean_outputs = run_bane_and_aegean(
-        image=image_path, aegean_container=aegean_container
-    )
-
-    return aegean_outputs
-
-
-@task
-def task_zip_ms(in_item: WSCleanCMD) -> Path:
-    ms = in_item.ms
-
-    zipped_ms = zip_folder(in_path=ms.path)
-
-    return zipped_ms
-
-
-@task
-def task_gaincal_applycal_ms(
-    wsclean_cmd: WSCleanCMD,
-    round: int,
-    update_gain_cal_options: Optional[Dict[str, Any]] = None,
-    archive_input_ms: bool = False,
-) -> MS:
-    # TODO: This needs to be expanded to handle multiple MS
-    ms = wsclean_cmd.ms
-
-    if not isinstance(ms, MS):
-        raise ValueError(
-            f"Unsupported {type(ms)=} {ms=}. Likely multiple MS instances? This is not yet supported. "
-        )
-
-    return gaincal_applycal_ms(
-        ms=ms,
-        round=round,
-        update_gain_cal_options=update_gain_cal_options,
-        archive_input_ms=archive_input_ms,
-    )
-
-
-@task
-def task_flatten_prefect_futures(in_futures: List[List[Any]]) -> List[Any]:
-    """Will flatten a list of lists into a single list. This
-    is useful for when a task-descorated function returns a list.
-
-
-    Args:
-        in_futures (List[List[Any]]): Input list of lists to flatten
-
-    Returns:
-        List[Any]: Flattened form of input
-    """
-    logger.info(f"Received {len(in_futures)} to flatten.")
-    flatten_list = [item for sublist in in_futures for item in sublist]
-    logger.info(f"Flattened list {len(flatten_list)}")
-
-    return flatten_list
-
-
-@task
-def task_flag_solutions(calibrate_cmd: CalibrateCommand) -> CalibrateCommand:
-    solution_path = calibrate_cmd.solution_path
-    ms_path = calibrate_cmd.ms.path
-
-    plot_dir = ms_path.parent / Path("preflagger")
-    if not plot_dir.exists():
-        try:
-            logger.info(f"Attempting to create {plot_dir}")
-            plot_dir.mkdir(parents=True)
-        except FileExistsError:
-            logger.warn(
-                "Creating the directory failed. Likely already exists. Race conditions, me-hearty."
-            )
-
-    flagged_solutions_path = flag_aosolutions(
-        solutions_path=solution_path, ref_ant=0, flag_cut=3, plot_dir=plot_dir
-    )
-
-    return calibrate_cmd.with_options(
-        solution_path=flagged_solutions_path, preflagged=True
-    )
-
-
-@task
-def task_extract_solution_path(calibrate_cmd: CalibrateCommand) -> Path:
-    return calibrate_cmd.solution_path
-
-
-@task
-def task_plot_solutions(calibrate_cmd: CalibrateCommand) -> None:
-    plot_solutions(solutions_path=calibrate_cmd.solution_path, ref_ant=None)
-
-
-@task
-def task_wsclean_imager(
-    in_ms: Union[ApplySolutions, MS],
-    wsclean_container: Path,
-    update_wsclean_options: Optional[Dict[str, Any]] = None,
-) -> WSCleanCMD:
-    ms = in_ms if isinstance(in_ms, MS) else in_ms.ms
-
-    logger.info(f"wsclean inager {ms=}")
-    return wsclean_imager(
-        ms=ms,
-        wsclean_container=wsclean_container,
-        update_wsclean_options=update_wsclean_options,
-    )
-
-
-@task
-def task_get_common_beam(
-    wsclean_cmds: Collection[WSCleanCMD], cutoff: float = 25
-) -> BeamShape:
-    images_to_consider: List[Path] = []
-
-    for wsclean_cmd in wsclean_cmds:
-        if wsclean_cmd.imageset is None:
-            logger.warn(f"No imageset fo {wsclean_cmd.ms} found. Has imager finished?")
-            continue
-        images_to_consider.extend(wsclean_cmd.imageset.image)
-
-    logger.info(
-        f"Considering {len(images_to_consider)} images across {len(wsclean_cmds)} outputs. "
-    )
-
-    beam_shape = get_common_beam(image_paths=images_to_consider, cutoff=cutoff)
-
-    return beam_shape
-
-
-@task
-def task_convolve_image(
-    wsclean_cmd: WSCleanCMD, beam_shape: BeamShape, cutoff: float = 60
-) -> Collection[Path]:
-    assert (
-        wsclean_cmd.imageset is not None
-    ), f"{wsclean_cmd.ms} has no attached imageset."
-    image_paths: Collection[Path] = wsclean_cmd.imageset.image
-
-    logger.info(f"Will convolve {image_paths}")
-
-    # experience has shown that astropy units do not always work correctly
-    # in a multiprocessing / dask environment. The unit registery does not
-    # seem to serialise correctly, and we can get weird arcsecond is not
-    # compatiable with arcsecond type errors. Import here in an attempt
-    # to minimise
-    import astropy.units as u
-    from astropy.io import fits
-    from radio_beam import Beam
-
-    # Print the beams out here for logging
-    for image_path in image_paths:
-        image_beam = Beam.from_fits_header(fits.getheader(str(image_path)))
-        logger.info(
-            f"{str(image_path.name)}: {image_beam.major.to(u.arcsecond)} {image_beam.minor.to(u.arcsecond)}  {image_beam.pa}"
-        )
-
-    return convolve_images(
-        image_paths=image_paths, beam_shape=beam_shape, cutoff=cutoff
-    )
-
-
-@task
-def task_linmos_images(
-    images: Collection[Collection[Path]],
-    container: Path,
-    filter: str = "-MFS-",
-    field_name: Optional[str] = None,
-    suffix_str: str = "noselfcal",
-    holofile: Optional[Path] = None,
-    sbid: Optional[int] = None,
-    parset_output_path: Optional[str] = None,
-) -> LinmosCMD:
-    # TODO: Need to flatten images
-    # TODO: Need a better way of getting field names
-
-    all_images = [img for beam_images in images for img in beam_images]
-    logger.info(f"Number of images to examine {len(all_images)}")
-
-    filter_images = [img for img in all_images if filter in str(img)]
-    logger.info(f"Number of filtered images to linmos: {len(filter_images)}")
-
-    candidate_image = filter_images[0]
-    candidate_image_fields = processed_ms_format(in_name=candidate_image)
-
-    if field_name is None:
-        field_name = candidate_image_fields.field
-        logger.info(f"Extracted {field_name=} from {candidate_image=}")
-
-    if sbid is None:
-        sbid = candidate_image_fields.sbid
-        logger.info(f"Extracted {sbid=} from {candidate_image=}")
-
-    base_name = f"SB{sbid}.{field_name}.{suffix_str}"
-
-    out_dir = Path(filter_images[0].parent)
-    out_name = out_dir / base_name
-    logger.info(f"Base output image name will be: {out_name}")
-
-    if parset_output_path is None:
-        parset_output_path = f"{out_name.name}_parset.txt"
-
-    parset_output_path = out_dir / Path(parset_output_path)
-    logger.info(f"Parsert output path is {parset_output_path}")
-
-    linmos_cmd = linmos_images(
-        images=filter_images,
-        parset_output_path=Path(parset_output_path),
-        image_output_name=str(out_name),
-        container=container,
-        holofile=holofile,
-    )
-
-    return linmos_cmd
-
-@task
-def task_create_validation_plot(
-    aegean_outputs: AegeanOutputs, reference_catalogue_directory: Path
-) -> Path:
-    output_figure_path = aegean_outputs.comp.with_suffix(".validation.png")
-
-    logger.info(f"Will create {output_figure_path=}")
-
-    return create_validation_plot(
-        rms_image_path=aegean_outputs.rms,
-        source_catalogue_path=aegean_outputs.comp,
-        output_path=output_figure_path,
-        reference_catalogue_directory=reference_catalogue_directory,
-    )
+from flint.ms import MS 
+from flint.prefect.common.imaging import (
+    task_split_by_field,
+    task_preprocess_askap_ms,
+    task_flag_ms_aoflagger,
+    task_select_solution_for_ms,
+    task_create_apply_solutions_cmd,
+    task_wsclean_imager,
+    task_run_bane_and_aegean,
+    task_get_common_beam,
+    task_convolve_image,
+    task_linmos_images,
+    task_gaincal_applycal_ms,
+    task_create_validation_plot,
+    task_zip_ms,
+)
+from flint.prefect.common.utils import task_flatten
 
 
 @flow(name="Flint Continuum Pipeline")
@@ -367,7 +96,7 @@ def process_science_fields(
     # The following line will block until the science
     # fields are split out. Since there might be more
     # than a single field in an SBID, we should do this
-    flat_science_mss = task_flatten_prefect_futures(split_science_mss)
+    flat_science_mss = task_flatten.submit(split_science_mss)
 
     preprocess_science_mss = task_preprocess_askap_ms.map(
         ms=flat_science_mss,
