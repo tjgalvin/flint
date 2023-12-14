@@ -26,8 +26,9 @@ Most of the `python` routines have a CLI that can be used to test them in a piec
 - `flint_validation_plot`: Create a simple, quick look figure that expresses the key quality statistics of an image. It is intended to be used against a full continuum field image, but in-principal be used for a per beam image.
 
 The following commands use the `prefect` framework to link together individual tasks together (outlined above) into a single data-processing pipeline.
+- `flint_flow_bandpass_calibrate`: Executes a prefect flow run that will calibrate a set of ASKAP measurement sets taken during a normal bandpass observation sequence. 
 - `flint_flow_continuum_pipeline`: Performs bandpass calibration, solution copying, imaging, self-calibration and mosaicing.
-
+- `flint_flow_cointinuum_mask_pipeline`: Performs bandpass calibration, solution copying, imaging, self-calibration and mosaicing. In this flow a process to construct a robust clean mask is performed by exploiting an initial imaging round. The field image is constructed across all beams, S/N clipping is performed, then guard masks on a per-beam basis are extracted. 
 
 ## Sky-model catalogues
 

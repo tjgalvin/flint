@@ -19,6 +19,7 @@ from flint.prefect.clusters import get_dask_runner
 from flint.naming import get_sbid_from_path
 from flint.bandpass import extract_correct_bandpass_pointing
 from flint.calibrate.aocalibrate import (
+    ApplySolutions,
     CalibrateCommand,
     create_apply_solutions_cmd,
     create_calibrate_cmd,
@@ -29,6 +30,8 @@ from flint.ms import MS, preprocess_askap_ms, split_by_field
 from flint.flagging import flag_ms_aoflagger
 from flint.sky_model import get_1934_model
 
+# These are generic functions that are wrapped. Their inputs are fairly standard
+# and do not require any type of unpacking or testing before they are use.
 task_extract_correct_bandpass_pointing = task(extract_correct_bandpass_pointing)
 task_preprocess_askap_ms = task(preprocess_askap_ms)
 task_flag_ms_aoflagger = task(flag_ms_aoflagger)
@@ -38,10 +41,27 @@ task_select_solution_for_ms = task(select_aosolution_for_ms)
 task_create_apply_solutions_cmd = task(create_apply_solutions_cmd)
 
 
+# The tasks below are ones that require some of the inputs to be cast or transformed
+# into something that is known to the actual worker functions.
+
+
 @task
 def task_bandpass_create_apply_solutions_cmd(
     ms: MS, calibrate_cmd: CalibrateCommand, container: Path
-):
+) -> ApplySolutions:
+    """Apply an ao-calibrate style solutions file to an input measurement set.
+
+    Internally the solutions path to apply to the nominaled measurement set is extracted
+    from the incoming ``calibrate_cmd``.
+
+    Args:
+        ms (MS): The measurement set that will have solutions applied
+        calibrate_cmd (CalibrateCommand): The calibrate command and meta-data describing the solutions to apply
+        container (Path): Path to singularity container that will apply the solutions
+
+    Returns:
+        ApplySolutions: The apply solutions command and meta-data
+    """
     return create_apply_solutions_cmd(
         ms=ms, solutions_file=calibrate_cmd.solution_path, container=container
     )
@@ -49,6 +69,14 @@ def task_bandpass_create_apply_solutions_cmd(
 
 @task
 def task_flag_solutions(calibrate_cmd: CalibrateCommand) -> CalibrateCommand:
+    """Flag calibration solutions
+
+    Args:
+        calibrate_cmd (CalibrateCommand): Calibrate command that contains path to the solution file that will be flagged
+
+    Returns:
+        CalibrateCommand: Calibrate command with update meta-data describing the new solutions file
+    """
     solution_path = calibrate_cmd.solution_path
     ms_path = calibrate_cmd.ms.path
 
