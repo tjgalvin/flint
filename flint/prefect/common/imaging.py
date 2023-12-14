@@ -28,6 +28,7 @@ from flint.source_finding.aegean import AegeanOutputs, run_bane_and_aegean
 from flint.utils import zip_folder
 from flint.validation import create_validation_plot
 
+# These are simple task wrapped functions and require no other modification
 task_preprocess_askap_ms = task(preprocess_askap_ms)
 task_flag_ms_aoflagger = task(flag_ms_aoflagger)
 task_split_by_field = task(split_by_field)
@@ -35,10 +36,23 @@ task_select_solution_for_ms = task(select_aosolution_for_ms)
 task_create_apply_solutions_cmd = task(create_apply_solutions_cmd)
 
 
+# Tasks below are extracting componented from earlier stages, or are 
+# otherwise doing something important
+
 @task
 def task_bandpass_create_apply_solutions_cmd(
     ms: MS, calibrate_cmd: CalibrateCommand, container: Path
-):
+) -> ApplySolutions:
+    """Apply a ao-calibrate solutions file to the subject measurement set. 
+
+    Args:
+        ms (MS): The measurement set that will have the solutions file applied
+        calibrate_cmd (CalibrateCommand): A resulting ao-calibrate command and meta-data item
+        container (Path): The container that can apply the ao-calibrate style solutions file to the measurement set
+
+    Returns:
+        ApplySolutions: The resulting apply solutions command and meta-data
+    """
     return create_apply_solutions_cmd(
         ms=ms, solutions_file=calibrate_cmd.solution_path, container=container
     )
@@ -46,6 +60,18 @@ def task_bandpass_create_apply_solutions_cmd(
 
 @task
 def task_extract_solution_path(calibrate_cmd: CalibrateCommand) -> Path:
+    """Extract the solution path from a calibrate command. This is often required when
+    interacting with a ``PrefectFuture`` wrapped ``CalibrateCommand`` result. 
+
+    Args:
+        calibrate_cmd (CalibrateCommand): The subject calibrate command the solution file will be extracted from
+
+    Returns:
+        Path: Path to the solution file
+    """
+    # TODO: What is actually using this task? Is it better to just pass through a 
+    # CalibrateCommand? 
+    # TODO: Use the get attribute task enabled function
     return calibrate_cmd.solution_path
 
 
@@ -53,6 +79,18 @@ def task_extract_solution_path(calibrate_cmd: CalibrateCommand) -> Path:
 def task_run_bane_and_aegean(
     image: Union[WSCleanCMD, LinmosCMD], aegean_container: Path
 ) -> AegeanOutputs:
+    """Run BANE and Aegean against a FITS image
+
+    Args:
+        image (Union[WSCleanCMD, LinmosCMD]): The image that will be searched
+        aegean_container (Path): Path to a singularity container containing BANE and aegean 
+
+    Raises:
+        ValueError: Raised when ``iamge`` is not a supported type
+
+    Returns:
+        AegeanOutputs: Output BANE and aegean products, including the RMS and BKG images
+    """
     if isinstance(image, WSCleanCMD):
         assert image.imageset is not None, "Image set attribute unset. "
         image_paths = image.imageset.image
@@ -83,6 +121,15 @@ def task_run_bane_and_aegean(
 
 @task
 def task_zip_ms(in_item: WSCleanCMD) -> Path:
+    """Zip a measurement set
+
+    Args:
+        in_item (WSCleanCMD): The inpute item with a ``.ms`` attribute of type ``MS``. 
+
+    Returns:
+        Path: Output path of the zipped measurement set
+    """
+    # TODO: This typing needs to be expanded
     ms = in_item.ms
 
     zipped_ms = zip_folder(in_path=ms.path)
@@ -97,6 +144,21 @@ def task_gaincal_applycal_ms(
     update_gain_cal_options: Optional[Dict[str, Any]] = None,
     archive_input_ms: bool = False,
 ) -> MS:
+    """Perform self-calibration using CASA gaincal and applycal. 
+
+    Args:
+        wsclean_cmd (WSCleanCMD): A resulting wsclean output. This is used purely to extract the ``.ms`` attribute. 
+        round (int): Counter indication which self-calibration round is being performed. A name is included based on this. 
+        update_gain_cal_options (Optional[Dict[str, Any]], optional): Options used to overwrite the default ``gaincal`` options. Defaults to None.
+        archive_input_ms (bool, optional): If True the input measurement set is zipped. Defaults to False.
+
+    Raises:
+        ValueError: Raised when a ``.ms`` attribute can not be obtained
+
+    Returns:
+        MS: Self-calibrated measurement set
+    """
+    # TODO: Need to do a better type system to include the .ms
     # TODO: This needs to be expanded to handle multiple MS
     ms = wsclean_cmd.ms
 
@@ -120,6 +182,17 @@ def task_wsclean_imager(
     update_wsclean_options: Optional[Dict[str, Any]] = None,
     fits_mask: Optional[FITSMaskNames] = None,
 ) -> WSCleanCMD:
+    """Run the wsclean imager against an input measurement set
+
+    Args:
+        in_ms (Union[ApplySolutions, MS]): The measurement set that will be imaged
+        wsclean_container (Path): Path to a singularity container with wsclean packages
+        update_wsclean_options (Optional[Dict[str, Any]], optional): Options to update from the default wsclean options. Defaults to None.
+        fits_mask (Optional[FITSMaskNames], optional): A path to a clean guard mask. Defaults to None.
+
+    Returns:
+        WSCleanCMD: A resulting wsclean command and resulting meta-data
+    """
     ms = in_ms if isinstance(in_ms, MS) else in_ms.ms
 
     update_wsclean_options = (
@@ -143,8 +216,18 @@ def task_wsclean_imager(
 def task_get_common_beam(
     wsclean_cmds: Collection[WSCleanCMD], cutoff: float = 25
 ) -> BeamShape:
+    """Compute a common beam size that all input images will be convoled to. 
+
+    Args:
+        wsclean_cmds (Collection[WSCleanCMD]): Input images whose restoring beam properties will be considered
+        cutoff (float, optional): Major axis larger than this valur, in arcseconds, will be ignored. Defaults to 25.
+
+    Returns:
+        BeamShape: The final convolving beam size to be used
+    """
     images_to_consider: List[Path] = []
 
+    # TODO: This should support other image types
     for wsclean_cmd in wsclean_cmds:
         if wsclean_cmd.imageset is None:
             logger.warn(f"No imageset fo {wsclean_cmd.ms} found. Has imager finished?")
@@ -164,6 +247,16 @@ def task_get_common_beam(
 def task_convolve_image(
     wsclean_cmd: WSCleanCMD, beam_shape: BeamShape, cutoff: float = 60
 ) -> Collection[Path]:
+    """Convolve images to a specified resolution
+
+    Args:
+        wsclean_cmd (WSCleanCMD): Collection of output images from wsclean that will be convolved
+        beam_shape (BeamShape): The shape images will be convolved to
+        cutoff (float, optional): Maximum major beam axis an image is allowed to have before it will not be convolved. Defaults to 60.
+
+    Returns:
+        Collection[Path]: Path to the output images that have been convolved
+    """
     assert (
         wsclean_cmd.imageset is not None
     ), f"{wsclean_cmd.ms} has no attached imageset."
@@ -203,6 +296,21 @@ def task_linmos_images(
     sbid: Optional[int] = None,
     parset_output_path: Optional[str] = None,
 ) -> LinmosCMD:
+    """Run the yandasoft linmos task against a set of input images
+
+    Args:
+        images (Collection[Collection[Path]]): Images that will be co-added together
+        container (Path): Path to singularity container that contains yandasoft
+        filter (str, optional): Filter to extract the images that will be extracted from the set of input images. These will be co-added. Defaults to "-MFS-".
+        field_name (Optional[str], optional): Name of the field, which is included in the output images created. Defaults to None.
+        suffix_str (str, optional): Additional string added to the prefix of the output linmos image products. Defaults to "noselfcal".
+        holofile (Optional[Path], optional): The FITS cube with the beam corrections derived from ASKAP holography. Defaults to None.
+        sbid (Optional[int], optional): SBID of the data being imaged. Defaults to None.
+        parset_output_path (Optional[str], optional): Location to write the linmos parset file to. Defaults to None.
+
+    Returns:
+        LinmosCMD: The linmos command and associated meta-data
+    """
     # TODO: Need to flatten images
     # TODO: Need a better way of getting field names
 
@@ -248,8 +356,23 @@ def task_linmos_images(
 
 @task
 def task_create_linmos_mask_model(
-    linmos_parset: LinmosCMD, image_products: AegeanOutputs
+    linmos_parset: LinmosCMD, image_products: AegeanOutputs,
+    min_snr: Optional[float] = 3.5
 ) -> FITSMaskNames:
+    """Create a mask from a linmos image, with the intention of providing it as a clean mask
+    to an appropriate imager. This is derived using a simple signal to noise cut. 
+
+    Args:
+        linmos_parset (LinmosCMD): Linmos command and associated meta-data
+        image_products (AegeanOutputs): Images of the RMS and BKG
+        min_snr (float, optional): The minimum S/N a pixel should be for it to be included in the clean mask. 
+
+    Raises:
+        ValueError: Raised when ``image_products`` are not known
+
+    Returns:
+        FITSMaskNames: Clean mask where all pixels below a S/N are masked
+    """
     if isinstance(image_products, AegeanOutputs):
         linmos_image = linmos_parset.image_fits
         linmos_rms = image_products.rms
@@ -278,6 +401,15 @@ def task_create_linmos_mask_model(
 def task_extract_beam_mask_image(
     linmos_mask_names: FITSMaskNames, wsclean_cmd: WSCleanCMD
 ) -> FITSMaskNames:
+    """Extract a clean mask for a beam from a larger clean mask (e.g. derived from a field)
+
+    Args:
+        linmos_mask_names (FITSMaskNames): Mask that will be drawn from to form a smaller clean mask (e.g. for a beam)
+        wsclean_cmd (WSCleanCMD): Wsclean command and meta-data. This is used to draw from the WCS to create an appropraite pixel-to-pixel mask
+
+    Returns:
+        FITSMaskNames: Clean mask for a image
+    """
     # All images made by wsclean will have the same WCS
     beam_image = wsclean_cmd.imageset.image[0]
     beam_mask_names = extract_beam_mask_from_mosaic(
@@ -291,6 +423,15 @@ def task_extract_beam_mask_image(
 def task_create_validation_plot(
     aegean_outputs: AegeanOutputs, reference_catalogue_directory: Path
 ) -> Path:
+    """Create a multi-panel figure highlighting the RMS, flux scale and astrometry of a field
+
+    Args:
+        aegean_outputs (AegeanOutputs): Output aegean products
+        reference_catalogue_directory (Path): Directory containing NVSS, SUMSS and ICRS reference catalogues. These catalogues are reconginised internally and have expected names.
+
+    Returns:
+        Path: Path to the output figure created
+    """
     output_figure_path = aegean_outputs.comp.with_suffix(".validation.png")
 
     logger.info(f"Will create {output_figure_path=}")
