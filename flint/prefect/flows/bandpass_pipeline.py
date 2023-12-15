@@ -1,11 +1,11 @@
-"""Pipeline to calibrate a ASKAP style bandpass observation. 
+"""Pipeline to calibrate a ASKAP style bandpass observation.
 
 At the moment this is expected to be performed against observations taken
 towards PKS1934-638. At the time of writing a typical ASKAP bandpass
-observation will cycle each beam so that it is centred on this source. 
-This means that practically there are 36 separate fields at slightly 
+observation will cycle each beam so that it is centred on this source.
+This means that practically there are 36 separate fields at slightly
 different field centres. The bandpass calibration process will first have
-to split the correct field out before actually calibration. 
+to split the correct field out before actually calibration.
 """
 
 from argparse import ArgumentParser
@@ -14,9 +14,6 @@ from typing import Collection, List
 
 from prefect import flow, task
 
-from flint.logging import logger
-from flint.prefect.clusters import get_dask_runner
-from flint.naming import get_sbid_from_path
 from flint.bandpass import extract_correct_bandpass_pointing
 from flint.calibrate.aocalibrate import (
     ApplySolutions,
@@ -26,8 +23,11 @@ from flint.calibrate.aocalibrate import (
     flag_aosolutions,
     select_aosolution_for_ms,
 )
-from flint.ms import MS, preprocess_askap_ms, split_by_field
 from flint.flagging import flag_ms_aoflagger
+from flint.logging import logger
+from flint.ms import MS, preprocess_askap_ms, split_by_field
+from flint.naming import get_sbid_from_path
+from flint.prefect.clusters import get_dask_runner
 from flint.sky_model import get_1934_model
 
 # These are generic functions that are wrapped. Their inputs are fairly standard

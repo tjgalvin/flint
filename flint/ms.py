@@ -307,7 +307,7 @@ def split_by_field(
             pass  # Incase above fails due to race condition
 
     logger.info(f"Opening {ms.path}. ")
-    with table(str(ms.path), ack=False) as tab: # noqa: F841
+    with table(str(ms.path), ack=False) as tab:  # noqa: F841
         for split_name, split_idx in zip(fields, field_idxs):
             logger.info(f"Selecting FIELD={split_name}")
             sub_ms = taql(f"select * from $tab where FIELD_ID=={split_idx}")

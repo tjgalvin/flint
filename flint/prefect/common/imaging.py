@@ -1,7 +1,7 @@
-"""This contains common unitilities to enable components of the prefect imaging flowws. 
+"""This contains common unitilities to enable components of the prefect imaging flowws.
 The majority of the items here are the task decorated functions. Effort should be made
 to avoid putting in too many items that are not going to be directly used by prefect
-imaging flows. 
+imaging flows.
 """
 
 from pathlib import Path
@@ -36,14 +36,15 @@ task_select_solution_for_ms = task(select_aosolution_for_ms)
 task_create_apply_solutions_cmd = task(create_apply_solutions_cmd)
 
 
-# Tasks below are extracting componented from earlier stages, or are 
+# Tasks below are extracting componented from earlier stages, or are
 # otherwise doing something important
+
 
 @task
 def task_bandpass_create_apply_solutions_cmd(
     ms: MS, calibrate_cmd: CalibrateCommand, container: Path
 ) -> ApplySolutions:
-    """Apply a ao-calibrate solutions file to the subject measurement set. 
+    """Apply a ao-calibrate solutions file to the subject measurement set.
 
     Args:
         ms (MS): The measurement set that will have the solutions file applied
@@ -61,7 +62,7 @@ def task_bandpass_create_apply_solutions_cmd(
 @task
 def task_extract_solution_path(calibrate_cmd: CalibrateCommand) -> Path:
     """Extract the solution path from a calibrate command. This is often required when
-    interacting with a ``PrefectFuture`` wrapped ``CalibrateCommand`` result. 
+    interacting with a ``PrefectFuture`` wrapped ``CalibrateCommand`` result.
 
     Args:
         calibrate_cmd (CalibrateCommand): The subject calibrate command the solution file will be extracted from
@@ -69,8 +70,8 @@ def task_extract_solution_path(calibrate_cmd: CalibrateCommand) -> Path:
     Returns:
         Path: Path to the solution file
     """
-    # TODO: What is actually using this task? Is it better to just pass through a 
-    # CalibrateCommand? 
+    # TODO: What is actually using this task? Is it better to just pass through a
+    # CalibrateCommand?
     # TODO: Use the get attribute task enabled function
     return calibrate_cmd.solution_path
 
@@ -83,7 +84,7 @@ def task_run_bane_and_aegean(
 
     Args:
         image (Union[WSCleanCMD, LinmosCMD]): The image that will be searched
-        aegean_container (Path): Path to a singularity container containing BANE and aegean 
+        aegean_container (Path): Path to a singularity container containing BANE and aegean
 
     Raises:
         ValueError: Raised when ``iamge`` is not a supported type
@@ -124,7 +125,7 @@ def task_zip_ms(in_item: WSCleanCMD) -> Path:
     """Zip a measurement set
 
     Args:
-        in_item (WSCleanCMD): The inpute item with a ``.ms`` attribute of type ``MS``. 
+        in_item (WSCleanCMD): The inpute item with a ``.ms`` attribute of type ``MS``.
 
     Returns:
         Path: Output path of the zipped measurement set
@@ -144,11 +145,11 @@ def task_gaincal_applycal_ms(
     update_gain_cal_options: Optional[Dict[str, Any]] = None,
     archive_input_ms: bool = False,
 ) -> MS:
-    """Perform self-calibration using CASA gaincal and applycal. 
+    """Perform self-calibration using CASA gaincal and applycal.
 
     Args:
-        wsclean_cmd (WSCleanCMD): A resulting wsclean output. This is used purely to extract the ``.ms`` attribute. 
-        round (int): Counter indication which self-calibration round is being performed. A name is included based on this. 
+        wsclean_cmd (WSCleanCMD): A resulting wsclean output. This is used purely to extract the ``.ms`` attribute.
+        round (int): Counter indication which self-calibration round is being performed. A name is included based on this.
         update_gain_cal_options (Optional[Dict[str, Any]], optional): Options used to overwrite the default ``gaincal`` options. Defaults to None.
         archive_input_ms (bool, optional): If True the input measurement set is zipped. Defaults to False.
 
@@ -216,7 +217,7 @@ def task_wsclean_imager(
 def task_get_common_beam(
     wsclean_cmds: Collection[WSCleanCMD], cutoff: float = 25
 ) -> BeamShape:
-    """Compute a common beam size that all input images will be convoled to. 
+    """Compute a common beam size that all input images will be convoled to.
 
     Args:
         wsclean_cmds (Collection[WSCleanCMD]): Input images whose restoring beam properties will be considered
@@ -356,16 +357,17 @@ def task_linmos_images(
 
 @task
 def task_create_linmos_mask_model(
-    linmos_parset: LinmosCMD, image_products: AegeanOutputs,
-    min_snr: Optional[float] = 3.5
+    linmos_parset: LinmosCMD,
+    image_products: AegeanOutputs,
+    min_snr: Optional[float] = 3.5,
 ) -> FITSMaskNames:
     """Create a mask from a linmos image, with the intention of providing it as a clean mask
-    to an appropriate imager. This is derived using a simple signal to noise cut. 
+    to an appropriate imager. This is derived using a simple signal to noise cut.
 
     Args:
         linmos_parset (LinmosCMD): Linmos command and associated meta-data
         image_products (AegeanOutputs): Images of the RMS and BKG
-        min_snr (float, optional): The minimum S/N a pixel should be for it to be included in the clean mask. 
+        min_snr (float, optional): The minimum S/N a pixel should be for it to be included in the clean mask.
 
     Raises:
         ValueError: Raised when ``image_products`` are not known
@@ -442,4 +444,3 @@ def task_create_validation_plot(
         output_path=output_figure_path,
         reference_catalogue_directory=reference_catalogue_directory,
     )
-

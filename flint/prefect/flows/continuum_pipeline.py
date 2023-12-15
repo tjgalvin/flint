@@ -10,26 +10,24 @@ from typing import Optional, Union
 
 from prefect import flow, unmapped
 
-from flint.calibrate.aocalibrate import (
-    find_existing_solutions,
-)
+from flint.calibrate.aocalibrate import find_existing_solutions
 from flint.logging import logger
+from flint.ms import MS
 from flint.naming import get_sbid_from_path
 from flint.prefect.clusters import get_dask_runner
-from flint.ms import MS 
 from flint.prefect.common.imaging import (
-    task_split_by_field,
-    task_preprocess_askap_ms,
-    task_flag_ms_aoflagger,
-    task_select_solution_for_ms,
-    task_create_apply_solutions_cmd,
-    task_wsclean_imager,
-    task_run_bane_and_aegean,
-    task_get_common_beam,
     task_convolve_image,
-    task_linmos_images,
-    task_gaincal_applycal_ms,
+    task_create_apply_solutions_cmd,
     task_create_validation_plot,
+    task_flag_ms_aoflagger,
+    task_gaincal_applycal_ms,
+    task_get_common_beam,
+    task_linmos_images,
+    task_preprocess_askap_ms,
+    task_run_bane_and_aegean,
+    task_select_solution_for_ms,
+    task_split_by_field,
+    task_wsclean_imager,
     task_zip_ms,
 )
 from flint.prefect.common.utils import task_flatten
@@ -82,11 +80,9 @@ def process_science_fields(
     # other calibration strategies get added
     # Scan the existing bandpass directory for the existing solutions
     calibrate_cmds = find_existing_solutions(
-        bandpass_directory=bandpass_path,
-        use_preflagged=True,
-        use_smoothed=False
+        bandpass_directory=bandpass_path, use_preflagged=True, use_smoothed=False
     )
-    
+
     logger.info(f"Constructed the following {calibrate_cmds=}")
 
     split_science_mss = task_split_by_field.map(
@@ -109,13 +105,13 @@ def process_science_fields(
     )
     solutions_paths = task_select_solution_for_ms.map(
         calibrate_cmds=unmapped(calibrate_cmds), ms=flag_field_mss
-    ) 
+    )
     apply_solutions_cmds = task_create_apply_solutions_cmd.map(
         ms=flag_field_mss,
         solutions_file=solutions_paths,
         container=calibrate_container,
     )
-    
+
     if no_imaging:
         logger.info(f"No imaging will be performed, as requested bu {no_imaging=}")
         return
@@ -281,7 +277,9 @@ def setup_run_process_science_field(
     no_imaging: bool = False,
     reference_catalogue_directory: Optional[Path] = None,
 ) -> None:
-    assert bandpass_path.exists() and bandpass_path.is_dir(), f"{bandpass_path=} needs to exist and be a directory! "
+    assert (
+        bandpass_path.exists() and bandpass_path.is_dir()
+    ), f"{bandpass_path=} needs to exist and be a directory! "
 
     science_sbid = get_sbid_from_path(path=science_path)
 
