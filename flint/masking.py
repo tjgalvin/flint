@@ -49,7 +49,7 @@ def extract_beam_mask_from_mosaic(
 
     with fits.open(fits_mosaic_mask_names.mask_fits) as mosaic_mask:
         logger.info("Extracting region")
-        extract_img = reproject_interp(
+        extract_image = reproject_interp(
             input_data=(
                 np.squeeze(mosaic_mask[0].data),
                 WCS(mosaic_mask[0].header).celestial,
@@ -59,9 +59,9 @@ def extract_beam_mask_from_mosaic(
             order=0,
         )
     logger.info("Clipping extract mask results (interpolation errors)")
-    extract_image = np.clip(extract_img, 0.0, 1.0)
+    extract_image = np.clip(extract_image, 0.0, 1.0)
 
-    fits.writeto(mask_names.mask_fits, extract_img[0].astype(np.int32), header)
+    fits.writeto(mask_names.mask_fits, extract_image[0].astype(np.int32), header)
 
     return mask_names
 
