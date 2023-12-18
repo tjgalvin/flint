@@ -399,7 +399,7 @@ def task_create_linmos_mask_model(
     return linmos_mask_names
 
 @task
-def task_create_linmos_mask__wbutter_model(
+def task_create_linmos_mask_wbutter_model(
     linmos_parset: LinmosCMD,
     image_products: AegeanOutputs,
     min_snr: Optional[float] = 3.5,
