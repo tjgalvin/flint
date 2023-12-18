@@ -266,6 +266,18 @@ def get_parser() -> ArgumentParser:
         default=4,
         help="The minimum SNR required for a pixel to be marked as valid. ",
     )
+    fits_parser.add_argument(
+        '--use-butterworth',
+        action='store_true',
+        help='Apply a butterworth filter to smooth the total intensity image before computing the signal map. '
+    )
+    fits_parser.add_argument(
+        '--connectivity-shape',
+        default=(4,4),
+        nargs=2,
+        type=int,
+        help='The connectivity matrix to use when applying a binary erosion. Only used when using the butterworth smoothing filter. '
+    )
 
     extract_parser = subparser.add_parser(
         "extractmask",
@@ -293,13 +305,24 @@ def cli():
     args = parser.parse_args()
 
     if args.mode == "snrmask":
-        create_snr_mask_from_fits(
-            fits_image_path=args.image,
-            fits_rms_path=args.rms,
-            fits_bkg_path=args.bkg,
-            create_signal_fits=args.save_signal,
-            min_snr=args.min_snr,
-        )
+        if args.user_butterworth:
+            create_snr_mask_wbutter_from_fits(
+                fits_image_path=args.image,
+                fits_rms_path=args.rms,
+                fits_bkg_path=args.bkg,
+                create_signal_fits=args.save_signal,
+                min_snr=args.min_snr,
+                connectivity_shape=tuple(args.connectivity_shape)
+            )
+        else:
+            create_snr_mask_from_fits(
+                fits_image_path=args.image,
+                fits_rms_path=args.rms,
+                fits_bkg_path=args.bkg,
+                create_signal_fits=args.save_signal,
+                min_snr=args.min_snr,
+            )
+        
     elif args.mode == "extractmask":
         extract_beam_mask_from_mosaic(
             fits_beam_image_path=args.beam_image,
