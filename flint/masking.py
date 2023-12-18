@@ -3,11 +3,14 @@ thought being towards FITS images.
 """
 from argparse import ArgumentParser
 from pathlib import Path
+from typing import Tuple
 
 import numpy as np
 from astropy.io import fits
 from astropy.wcs import WCS
 from reproject import reproject_interp
+from skimage.filters import butterworth
+from skimage.morphology import binary_erosion
 
 from flint.logging import logger
 from flint.naming import FITSMaskNames, create_fits_mask_names
@@ -62,6 +65,101 @@ def extract_beam_mask_from_mosaic(
     extract_image = np.clip(extract_image, 0.0, 1.0)
 
     fits.writeto(mask_names.mask_fits, extract_image[0].astype(np.int32), header)
+
+    return mask_names
+
+
+def create_snr_mask_wbutter_from_fits(
+    fits_image_path: Path,
+    fits_rms_path: Path,
+    fits_bkg_path: Path,
+    create_signal_fits: bool = False,
+    min_snr: float = 5,
+    connectivity_shape: Tuple[int,int] = (8,8)   
+) -> FITSMaskNames:
+    """Create a mask for an input FITS image based on a signal to noise given a corresponding pair of RMS and background FITS images.
+
+    Internally the signal image is computed as something akin to:
+    > signal = (image - background) / rms
+
+    Before deriving a signal map the image is first smoothed using a butterworth filter, and a
+    crude rescaling factor is applied based on the ratio of the maximum pixel values before and
+    after the smoothing is applied. 
+
+    This is done in a staged manner to minimise the number of (potentially large) images
+    held in memory.
+
+    Each of the input images needs to share the same shape. This means that compression
+    features offered by some tooling (e.g. BANE --compress) can not be used.
+
+    Once the signal map as been computed, all pixels below ``min_snr`` are flagged. The resulting
+    islands then have a binary erosion applied to contract the resultingn islands. 
+
+    Args:
+        fits_image_path (Path): Path to the FITS file containing an image
+        fits_rms_path (Path): Path to the FITS file with an RMS image corresponding to ``fits_image_path``
+        fits_bkg_path (Path): Path to the FITS file with an baclground image corresponding to ``fits_image_path``
+        create_signal_fits (bool, optional): Create an output signal map. Defaults to False.
+        min_snr (float, optional): Minimum signal-to-noise ratio for the masking to include a pixel. Defaults to 3.5.
+        connectivity_shape (Tuple[int, int], optional): The connectivity matrix used in the scikit-image binary erosion applied to the mask. Defaults to (8, 8).
+
+    Returns:
+        FITSMaskNames: Container describing the signal and mask FITS image paths. If ``create_signal_path`` is None, then the ``signal_fits`` attribute will be None.
+    """
+    logger.info(f"Creating a mask image with SNR>{min_snr:.2f}")
+    mask_names = create_fits_mask_names(
+        fits_image=fits_image_path, include_signal_path=create_signal_fits
+    )
+
+    with fits.open(fits_image_path) as fits_image:
+        fits_header = fits_image[0].header
+
+        image_max = np.nanmax(fits_image[0].data)
+        image_butter = butterworth(
+            np.nan_to_num(np.squeeze(fits_image[0].data)),
+            0.045,
+            high_pass=False
+        )
+        
+        butter_max = np.nanmax(image_butter)
+        scale_ratio = image_max / butter_max 
+        logger.info(f"Scaling smoothed image by {scale_ratio:.4f}")
+        image_butter *= (image_max / butter_max)
+        
+    with fits.open(fits_bkg_path) as fits_bkg:
+        
+        logger.info("Subtracting background")
+        signal_data = image_butter - np.squeeze(fits_bkg[0].data)
+
+    with fits.open(fits_rms_path) as fits_rms:
+        logger.info("Dividing by RMS")
+        signal_data /= np.squeeze(fits_rms[0].data)
+
+    if create_signal_fits:
+        logger.info(f"Writing {mask_names.signal_fits}")
+        fits.writeto(
+            filename=mask_names.signal_fits, data=signal_data, header=fits_header
+        )
+
+    # Following the help in wsclean:
+    # WSClean accepts masks in CASA format and in fits file format. A mask is a
+    # normal, single polarization image file, where all zero values are interpreted
+    # as being not masked, and all non-zero values are interpreted as masked. In the
+    # case of a fits file, the file may either contain a single frequency or it may
+    # contain a cube of images.
+    logger.info(f"Clipping using a {min_snr=}")
+    mask_data = (signal_data > min_snr).astype(np.int32)
+
+    connectivity_shape = (8,8)
+    logger.info(f"Applying binary erosion with {connectivity_shape=}")
+    mask_data = binary_erosion(mask_data, connectivity_shape)
+
+    logger.info(f"Writing {mask_names.mask_fits}")
+    fits.writeto(
+        filename=mask_names.mask_fits,
+        data=mask_data,
+        header=fits_header,
+    )
 
     return mask_names
 

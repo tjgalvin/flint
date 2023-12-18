@@ -27,6 +27,7 @@ from flint.prefect.common.imaging import (
     task_convolve_image,
     task_create_apply_solutions_cmd,
     task_create_linmos_mask_model,
+    task_create_linmos_mask_wbutter_model,
     task_create_validation_plot,
     task_extract_beam_mask_image,
     task_flag_ms_aoflagger,
@@ -60,6 +61,7 @@ def process_science_fields(
     aegean_container: Optional[Path] = None,
     no_imaging: bool = False,
     reference_catalogue_directory: Optional[Path] = None,
+    butter_mask_smooth: bool = True
 ) -> None:
     run_aegean = False if aegean_container is None else run_aegean
     run_validation = reference_catalogue_directory is not None
@@ -130,13 +132,13 @@ def process_science_fields(
         return
 
     wsclean_init = {
-        "size": 6644,
+        "size": 8000,
         "minuv_l": 235,
-        "weight": "briggs 0",
+        "weight": "briggs -0.5",
         "auto_mask": 5,
         "multiscale": True,
         "local_rms_window": 55,
-        "multiscale_scales": (0, 15, 30, 40, 50, 60, 70, 120, 240),
+        "multiscale_scales": (0, 15, 30, 40, 50, 60, 70, 120, 240, 480),
     }
 
     wsclean_cmds = task_wsclean_imager.map(
@@ -164,10 +166,16 @@ def process_science_fields(
         image=parset, aegean_container=unmapped(aegean_container)
     )
 
-    linmos_mask = task_create_linmos_mask_model(
-        linmos_parset=parset,
-        image_products=aegean_outputs,
-    )
+    if butter_mask_smooth:
+        linmos_mask = task_create_linmos_mask_wbutter_model(
+            linmos_parset=parset,
+            image_products=aegean_outputs,
+        )
+    else:
+        linmos_mask = task_create_linmos_mask_model(
+            linmos_parset=parset,
+            image_products=aegean_outputs,
+        )
 
     beam_masks = task_extract_beam_mask_image.map(
         linmos_mask_names=unmapped(linmos_mask), wsclean_cmd=wsclean_cmds
@@ -178,25 +186,25 @@ def process_science_fields(
         return
 
     gain_cal_rounds = {
-        1: {"solint": "1200s", "uvrange": ">235lambda", "nspw": 1},
-        2: {"solint": "60s", "uvrange": ">235lambda", "nspw": 1},
+        1: {"solint": "60s", "uvrange": ">235lambda", "nspw": 1},
+        2: {"solint": "20s", "uvrange": ">235lambda", "nspw": 1},
     }
     wsclean_rounds = {
         1: {
-            "size": 6644,
+            "size": 8000,
             "multiscale": True,
             "minuv_l": 235,
-            "auto_mask": 5,
+            "auto_mask": 2,
             "local_rms_window": 55,
-            "multiscale_scales": (0, 15, 30, 40, 50, 60, 120, 240),
+            "multiscale_scales": (0, 15, 30, 40, 50, 60, 120, 240, 480),
         },
         2: {
-            "size": 6644,
+            "size": 8000,
             "multiscale": True,
             "minuv_l": 235,
-            "auto_mask": 4.0,
+            "auto_mask": 2.0,
             "local_rms_window": 55,
-            "multiscale_scales": (0, 15, 30, 40, 50, 60, 120, 240),
+            "multiscale_scales": (0, 15, 30, 40, 50, 60, 120, 240, 480),
         },
     }
 
