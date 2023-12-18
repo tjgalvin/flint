@@ -75,7 +75,7 @@ def create_snr_mask_wbutter_from_fits(
     fits_bkg_path: Path,
     create_signal_fits: bool = False,
     min_snr: float = 5,
-    connectivity_shape: Tuple[int,int] = (8,8)   
+    connectivity_shape: Tuple[int,int] = (4,4)   
 ) -> FITSMaskNames:
     """Create a mask for an input FITS image based on a signal to noise given a corresponding pair of RMS and background FITS images.
 
@@ -101,7 +101,7 @@ def create_snr_mask_wbutter_from_fits(
         fits_bkg_path (Path): Path to the FITS file with an baclground image corresponding to ``fits_image_path``
         create_signal_fits (bool, optional): Create an output signal map. Defaults to False.
         min_snr (float, optional): Minimum signal-to-noise ratio for the masking to include a pixel. Defaults to 3.5.
-        connectivity_shape (Tuple[int, int], optional): The connectivity matrix used in the scikit-image binary erosion applied to the mask. Defaults to (8, 8).
+        connectivity_shape (Tuple[int, int], optional): The connectivity matrix used in the scikit-image binary erosion applied to the mask. Defaults to (4, 4).
 
     Returns:
         FITSMaskNames: Container describing the signal and mask FITS image paths. If ``create_signal_path`` is None, then the ``signal_fits`` attribute will be None.
@@ -150,7 +150,6 @@ def create_snr_mask_wbutter_from_fits(
     logger.info(f"Clipping using a {min_snr=}")
     mask_data = (signal_data > min_snr).astype(np.int32)
 
-    connectivity_shape = (8,8)
     logger.info(f"Applying binary erosion with {connectivity_shape=}")
     mask_data = binary_erosion(mask_data, connectivity_shape)
 
