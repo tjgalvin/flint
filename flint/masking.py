@@ -151,7 +151,7 @@ def create_snr_mask_wbutter_from_fits(
     mask_data = (signal_data > min_snr).astype(np.int32)
 
     logger.info(f"Applying binary erosion with {connectivity_shape=}")
-    mask_data = binary_erosion(mask_data, connectivity_shape)
+    mask_data = binary_erosion(mask_data, np.ones(connectivity_shape))
 
     logger.info(f"Writing {mask_names.mask_fits}")
     fits.writeto(
