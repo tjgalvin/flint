@@ -14,7 +14,7 @@ imaging round.
 """
 from argparse import ArgumentParser
 from pathlib import Path
-from typing import Optional, Union, Any
+from typing import Any, Optional, Union
 
 from prefect import flow, unmapped
 

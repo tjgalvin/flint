@@ -20,7 +20,11 @@ from flint.convol import BeamShape, convolve_images, get_common_beam
 from flint.flagging import flag_ms_aoflagger
 from flint.imager.wsclean import WSCleanCMD, wsclean_imager
 from flint.logging import logger
-from flint.masking import create_snr_mask_wbutter_from_fits, create_snr_mask_from_fits, extract_beam_mask_from_mosaic
+from flint.masking import (
+    create_snr_mask_from_fits,
+    create_snr_mask_wbutter_from_fits,
+    extract_beam_mask_from_mosaic,
+)
 from flint.ms import MS, preprocess_askap_ms, split_by_field
 from flint.naming import FITSMaskNames, processed_ms_format
 from flint.selfcal.casa import gaincal_applycal_ms
@@ -398,6 +402,7 @@ def task_create_linmos_mask_model(
 
     return linmos_mask_names
 
+
 @task
 def task_create_linmos_mask_wbutter_model(
     linmos_parset: LinmosCMD,
@@ -409,7 +414,7 @@ def task_create_linmos_mask_wbutter_model(
 
     This will use a butterworth filter to first smooth the image before island thresdholds
     are created. To account for the smooth a binary erosion operation is applied to the
-    resulting mask. 
+    resulting mask.
 
     Args:
         linmos_parset (LinmosCMD): Linmos command and associated meta-data

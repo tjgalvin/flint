@@ -75,7 +75,7 @@ def create_snr_mask_wbutter_from_fits(
     fits_bkg_path: Path,
     create_signal_fits: bool = False,
     min_snr: float = 5,
-    connectivity_shape: Tuple[int,int] = (4,4)   
+    connectivity_shape: Tuple[int, int] = (4, 4),
 ) -> FITSMaskNames:
     """Create a mask for an input FITS image based on a signal to noise given a corresponding pair of RMS and background FITS images.
 
@@ -84,7 +84,7 @@ def create_snr_mask_wbutter_from_fits(
 
     Before deriving a signal map the image is first smoothed using a butterworth filter, and a
     crude rescaling factor is applied based on the ratio of the maximum pixel values before and
-    after the smoothing is applied. 
+    after the smoothing is applied.
 
     This is done in a staged manner to minimise the number of (potentially large) images
     held in memory.
@@ -93,7 +93,7 @@ def create_snr_mask_wbutter_from_fits(
     features offered by some tooling (e.g. BANE --compress) can not be used.
 
     Once the signal map as been computed, all pixels below ``min_snr`` are flagged. The resulting
-    islands then have a binary erosion applied to contract the resultingn islands. 
+    islands then have a binary erosion applied to contract the resultingn islands.
 
     Args:
         fits_image_path (Path): Path to the FITS file containing an image
@@ -116,18 +116,15 @@ def create_snr_mask_wbutter_from_fits(
 
         image_max = np.nanmax(fits_image[0].data)
         image_butter = butterworth(
-            np.nan_to_num(np.squeeze(fits_image[0].data)),
-            0.045,
-            high_pass=False
+            np.nan_to_num(np.squeeze(fits_image[0].data)), 0.045, high_pass=False
         )
-        
+
         butter_max = np.nanmax(image_butter)
-        scale_ratio = image_max / butter_max 
+        scale_ratio = image_max / butter_max
         logger.info(f"Scaling smoothed image by {scale_ratio:.4f}")
-        image_butter *= (image_max / butter_max)
-        
+        image_butter *= image_max / butter_max
+
     with fits.open(fits_bkg_path) as fits_bkg:
-        
         logger.info("Subtracting background")
         signal_data = image_butter - np.squeeze(fits_bkg[0].data)
 
@@ -267,16 +264,16 @@ def get_parser() -> ArgumentParser:
         help="The minimum SNR required for a pixel to be marked as valid. ",
     )
     fits_parser.add_argument(
-        '--use-butterworth',
-        action='store_true',
-        help='Apply a butterworth filter to smooth the total intensity image before computing the signal map. '
+        "--use-butterworth",
+        action="store_true",
+        help="Apply a butterworth filter to smooth the total intensity image before computing the signal map. ",
     )
     fits_parser.add_argument(
-        '--connectivity-shape',
-        default=(4,4),
+        "--connectivity-shape",
+        default=(4, 4),
         nargs=2,
         type=int,
-        help='The connectivity matrix to use when applying a binary erosion. Only used when using the butterworth smoothing filter. '
+        help="The connectivity matrix to use when applying a binary erosion. Only used when using the butterworth smoothing filter. ",
     )
 
     extract_parser = subparser.add_parser(
@@ -312,7 +309,7 @@ def cli():
                 fits_bkg_path=args.bkg,
                 create_signal_fits=args.save_signal,
                 min_snr=args.min_snr,
-                connectivity_shape=tuple(args.connectivity_shape)
+                connectivity_shape=tuple(args.connectivity_shape),
             )
         else:
             create_snr_mask_from_fits(
@@ -322,7 +319,7 @@ def cli():
                 create_signal_fits=args.save_signal,
                 min_snr=args.min_snr,
             )
-        
+
     elif args.mode == "extractmask":
         extract_beam_mask_from_mosaic(
             fits_beam_image_path=args.beam_image,
