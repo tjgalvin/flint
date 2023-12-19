@@ -45,7 +45,7 @@ from flint.prefect.common.utils import task_flatten
 
 
 def _create_linmos_mask(
-    parset: Any, aegean_outputs: Any, butterworth_filter: bool
+    linmos_parset: Any, aegean_outputs: Any, butterworth_filter: bool
 ) -> Any:
     """A common function that pulls together the two linmos masking operations.
     This is an internal function that is calling prefect tasks. It itself can not be
@@ -54,12 +54,12 @@ def _create_linmos_mask(
     # At the moment no others tasks or flows should use this, ya filthy pirate.
     if butterworth_filter:
         linmos_mask = task_create_linmos_mask_wbutter_model(
-            linmos_parset=parset,
+            linmos_parset=linmos_parset,
             image_products=aegean_outputs,
         )
     else:
         linmos_mask = task_create_linmos_mask_model(
-            linmos_parset=parset,
+            linmos_parset=linmos_parset,
             image_products=aegean_outputs,
         )
 
