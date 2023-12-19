@@ -14,7 +14,7 @@ imaging round.
 """
 from argparse import ArgumentParser
 from pathlib import Path
-from typing import Optional, Union
+from typing import Optional, Union, Any
 
 from prefect import flow, unmapped
 
@@ -44,6 +44,28 @@ from flint.prefect.common.imaging import (
 from flint.prefect.common.utils import task_flatten
 
 
+def _create_linmos_mask(
+    parset: Any, aegean_outputs: Any, butterworth_filter: bool
+) -> Any:
+    """A common function that pulls together the two linmos masking operations.
+    This is an internal function that is calling prefect tasks. It itself can not be
+    @task, and is intended not to be share among other codes.
+    """
+    # At the moment no others tasks or flows should use this, ya filthy pirate.
+    if butterworth_filter:
+        linmos_mask = task_create_linmos_mask_wbutter_model(
+            linmos_parset=parset,
+            image_products=aegean_outputs,
+        )
+    else:
+        linmos_mask = task_create_linmos_mask_model(
+            linmos_parset=parset,
+            image_products=aegean_outputs,
+        )
+
+    return linmos_mask
+
+
 @flow(name="Flint Continuum Pipeline")
 def process_science_fields(
     science_path: Path,
@@ -61,7 +83,7 @@ def process_science_fields(
     aegean_container: Optional[Path] = None,
     no_imaging: bool = False,
     reference_catalogue_directory: Optional[Path] = None,
-    butter_mask_smooth: bool = True
+    butterworth_filter: bool = True,
 ) -> None:
     run_aegean = False if aegean_container is None else run_aegean
     run_validation = reference_catalogue_directory is not None
@@ -166,16 +188,11 @@ def process_science_fields(
         image=parset, aegean_container=unmapped(aegean_container)
     )
 
-    if butter_mask_smooth:
-        linmos_mask = task_create_linmos_mask_wbutter_model(
-            linmos_parset=parset,
-            image_products=aegean_outputs,
-        )
-    else:
-        linmos_mask = task_create_linmos_mask_model(
-            linmos_parset=parset,
-            image_products=aegean_outputs,
-        )
+    linmos_mask = _create_linmos_mask(
+        linmos_parset=parset,
+        image_products=aegean_outputs,
+        butterworth_filter=butterworth_filter,
+    )
 
     beam_masks = task_extract_beam_mask_image.map(
         linmos_mask_names=unmapped(linmos_mask), wsclean_cmd=wsclean_cmds
@@ -258,16 +275,11 @@ def process_science_fields(
 
         # Use the mask from the first round
         if round < rounds:
-            if butter_mask_smooth:
-                linmos_mask = task_create_linmos_mask_wbutter_model(
-                    linmos_parset=parset,
-                    image_products=aegean_outputs,
-                )
-            else:
-                linmos_mask = task_create_linmos_mask_model(
-                    linmos_parset=parset,
-                    image_products=aegean_outputs,
-                )
+            linmos_mask = _create_linmos_mask(
+                linmos_parset=parset,
+                image_products=aegean_outputs,
+                butterworth_filter=butterworth_filter,
+            )
 
             beam_masks = task_extract_beam_mask_image.map(
                 linmos_mask_names=unmapped(linmos_mask), wsclean_cmd=wsclean_cmds
@@ -301,6 +313,7 @@ def setup_run_process_science_field(
     aegean_container: Optional[Path] = None,
     no_imaging: bool = False,
     reference_catalogue_directory: Optional[Path] = None,
+    butterworth_filter: bool = False,
 ) -> None:
     assert (
         bandpass_path.exists() and bandpass_path.is_dir()
@@ -329,6 +342,7 @@ def setup_run_process_science_field(
         aegean_container=aegean_container,
         no_imaging=no_imaging,
         reference_catalogue_directory=reference_catalogue_directory,
+        butterworth_filter=butterworth_filter,
     )
 
 
@@ -429,6 +443,11 @@ def get_parser() -> ArgumentParser:
         default=None,
         help="Path to the directory containing the ICFS, NVSS and SUMSS referenece catalogues. These are required for validaiton plots. ",
     )
+    parser.add_argument(
+        "--butterworth-filter",
+        action="store_true",
+        help="Apply a butterworth filter when creating a clean mask from the larger linmos image. This may help capture more extended diffuse emission. ",
+    )
 
     return parser
 
@@ -460,6 +479,7 @@ def cli() -> None:
         aegean_container=args.aegean_container,
         no_imaging=args.no_imaging,
         reference_catalogue_directory=args.reference_catalogue_directory,
+        butterworth_filter=args.butterworth_filter,
     )
 
 
