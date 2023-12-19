@@ -402,7 +402,7 @@ def task_create_linmos_mask_model(
 def task_create_linmos_mask_wbutter_model(
     linmos_parset: LinmosCMD,
     image_products: AegeanOutputs,
-    min_snr: Optional[float] = 3.5,
+    min_snr: Optional[float] = 5,
 ) -> FITSMaskNames:
     """Create a mask from a linmos image, with the intention of providing it as a clean mask
     to an appropriate imager. This is derived using a simple signal to noise cut.
@@ -414,7 +414,7 @@ def task_create_linmos_mask_wbutter_model(
     Args:
         linmos_parset (LinmosCMD): Linmos command and associated meta-data
         image_products (AegeanOutputs): Images of the RMS and BKG
-        min_snr (float, optional): The minimum S/N a pixel should be for it to be included in the clean mask.
+        min_snr (float, optional): The minimum S/N a pixel should be for it to be included in the clean mask. Defaults to 5.
 
     Raises:
         ValueError: Raised when ``image_products`` are not known

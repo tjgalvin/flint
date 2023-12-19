@@ -156,7 +156,7 @@ def create_snr_mask_wbutter_from_fits(
     logger.info(f"Writing {mask_names.mask_fits}")
     fits.writeto(
         filename=mask_names.mask_fits,
-        data=mask_data,
+        data=mask_data.astype(np.int32),
         header=fits_header,
     )
 

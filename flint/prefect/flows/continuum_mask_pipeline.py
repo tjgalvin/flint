@@ -257,15 +257,21 @@ def process_science_fields(
         )
 
         # Use the mask from the first round
-        # if round < rounds:
-        #     linmos_mask = task_create_linmos_mask_model.submit(
-        #         linmos_parset=parset,
-        #         image_products=aegean_outputs,
-        #     )
+        if round < rounds:
+            if butter_mask_smooth:
+                linmos_mask = task_create_linmos_mask_wbutter_model(
+                    linmos_parset=parset,
+                    image_products=aegean_outputs,
+                )
+            else:
+                linmos_mask = task_create_linmos_mask_model(
+                    linmos_parset=parset,
+                    image_products=aegean_outputs,
+                )
 
-        #     beam_masks = task_extract_beam_mask_image.map(
-        #         linmos_mask_names=unmapped(linmos_mask), wsclean_cmd=wsclean_cmds
-        #     )
+            beam_masks = task_extract_beam_mask_image.map(
+                linmos_mask_names=unmapped(linmos_mask), wsclean_cmd=wsclean_cmds
+            )
 
         if run_validation:
             task_create_validation_plot.submit(
