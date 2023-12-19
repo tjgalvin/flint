@@ -190,7 +190,7 @@ def process_science_fields(
 
     linmos_mask = _create_linmos_mask(
         linmos_parset=parset,
-        image_products=aegean_outputs,
+        aegean_outputs=aegean_outputs,
         butterworth_filter=butterworth_filter,
     )
 
@@ -277,7 +277,7 @@ def process_science_fields(
         if round < rounds:
             linmos_mask = _create_linmos_mask(
                 linmos_parset=parset,
-                image_products=aegean_outputs,
+                aegean_outputs=aegean_outputs,
                 butterworth_filter=butterworth_filter,
             )
 
