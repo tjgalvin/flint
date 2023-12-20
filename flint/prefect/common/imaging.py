@@ -20,7 +20,11 @@ from flint.convol import BeamShape, convolve_images, get_common_beam
 from flint.flagging import flag_ms_aoflagger
 from flint.imager.wsclean import WSCleanCMD, wsclean_imager
 from flint.logging import logger
-from flint.masking import create_snr_mask_from_fits, extract_beam_mask_from_mosaic
+from flint.masking import (
+    create_snr_mask_from_fits,
+    create_snr_mask_wbutter_from_fits,
+    extract_beam_mask_from_mosaic,
+)
 from flint.ms import MS, preprocess_askap_ms, split_by_field
 from flint.naming import FITSMaskNames, processed_ms_format
 from flint.selfcal.casa import gaincal_applycal_ms
@@ -391,7 +395,55 @@ def task_create_linmos_mask_model(
         fits_bkg_path=linmos_bkg,
         fits_rms_path=linmos_rms,
         create_signal_fits=True,
-        min_snr=3,
+        min_snr=min_snr,
+    )
+
+    logger.info(f"Created {linmos_mask_names.mask_fits}")
+
+    return linmos_mask_names
+
+
+@task
+def task_create_linmos_mask_wbutter_model(
+    linmos_parset: LinmosCMD,
+    image_products: AegeanOutputs,
+    min_snr: Optional[float] = 5,
+) -> FITSMaskNames:
+    """Create a mask from a linmos image, with the intention of providing it as a clean mask
+    to an appropriate imager. This is derived using a simple signal to noise cut.
+
+    This will use a butterworth filter to first smooth the image before island thresdholds
+    are created. To account for the smooth a binary erosion operation is applied to the
+    resulting mask.
+
+    Args:
+        linmos_parset (LinmosCMD): Linmos command and associated meta-data
+        image_products (AegeanOutputs): Images of the RMS and BKG
+        min_snr (float, optional): The minimum S/N a pixel should be for it to be included in the clean mask. Defaults to 5.
+
+    Raises:
+        ValueError: Raised when ``image_products`` are not known
+
+    Returns:
+        FITSMaskNames: Clean mask where all pixels below a S/N are masked
+    """
+    if isinstance(image_products, AegeanOutputs):
+        linmos_image = linmos_parset.image_fits
+        linmos_rms = image_products.rms
+        linmos_bkg = image_products.bkg
+    else:
+        raise ValueError("Unsupported bkg/rms mode. ")
+
+    logger.info(f"Creating a clean mask for {linmos_image=}")
+    logger.info(f"Using {linmos_rms=}")
+    logger.info(f"Using {linmos_bkg=}")
+
+    linmos_mask_names = create_snr_mask_wbutter_from_fits(
+        fits_image_path=linmos_image,
+        fits_bkg_path=linmos_bkg,
+        fits_rms_path=linmos_rms,
+        create_signal_fits=True,
+        min_snr=min_snr,
     )
 
     logger.info(f"Created {linmos_mask_names.mask_fits}")

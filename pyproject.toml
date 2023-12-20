@@ -32,6 +32,7 @@ aegeantools = "2.3.0"
 pytest = "^7.4.0"
 radio-beam = "^0.3.4"
 reproject = "*"
+scikit-image = "*"
 
 [tool.poetry.group.dev.dependencies]
 black = "^23.3.0"
