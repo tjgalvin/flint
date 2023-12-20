@@ -88,6 +88,8 @@ def process_science_fields(
     run_aegean = False if aegean_container is None else run_aegean
     run_validation = reference_catalogue_directory is not None
 
+    # TODO: These checks and directory creation should be done outside the flow,
+    # and should be cd'd into.
     assert (
         science_path.exists() and science_path.is_dir()
     ), f"{str(science_path)} does not exist or is not a folder. "
@@ -205,7 +207,6 @@ def process_science_fields(
         "minuv_l": 235,
         "weight": "briggs -0.5",
         "auto_mask": 5,
-        "auto_threshold": 3,
         "multiscale": True,
         "local_rms_window": 55,
         "multiscale_scales": (0, 15, 30, 40, 50, 60, 70, 120, 240, 480),
