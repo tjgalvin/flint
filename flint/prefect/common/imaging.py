@@ -207,7 +207,7 @@ def task_wsclean_imager(
     )
 
     if name_suffix:
-        update_wsclean_options["name"] = f"{ms.name}.{name_suffix}"
+        update_wsclean_options["name"] = f"{ms.path.name}.{name_suffix}"
 
     if fits_mask:
         update_wsclean_options["fits_mask"] = fits_mask.mask_fits
