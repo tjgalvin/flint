@@ -207,6 +207,9 @@ def task_wsclean_imager(
     )
 
     if name_suffix:
+        # the mas.path.parent is included to ensure that the path (and the name)
+        # is absolute. Otherwise wsclean files will be written to the cwd, which
+        # might not be ideal if the flow has not cd into it.
         update_wsclean_options[
             "name"
         ] = f"{ms.path.parent / ms.path.name}.{name_suffix}"

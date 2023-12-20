@@ -2,12 +2,42 @@
 for general usage.
 """
 
+import os
 import shutil
 import subprocess
 from pathlib import Path
 from typing import List, Optional
 
 from flint.logging import logger
+
+
+def create_cd_into_directory(in_folder: Path) -> Path:
+    """Create a directory if it does not exist, and then
+    change the current workign directory into it. If the
+    input directory does not exist, then it and its parents
+    will be created.
+
+    Internally there is no handling of potential race conditions
+    should this function be called by multiple workers.
+
+    Args:
+        in_folder (Path): The directory to create and change into
+
+    Returns:
+        Path: The input directory after it has been created and changed into
+    """
+    in_folder = Path(in_folder)
+
+    if in_folder.exists():
+        logger.info(f"{in_folder} already exists. ")
+    else:
+        logger.info(f"Creating {in_folder}")
+        in_folder.mkdir(parents=True)
+
+    logger.info(f"Chaging working directory to {in_folder}")
+    os.chdir(path=in_folder)
+
+    return in_folder
 
 
 def zip_folder(in_path: Path, out_zip: Optional[Path] = None) -> Path:
