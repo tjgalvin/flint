@@ -212,7 +212,7 @@ def task_wsclean_imager(
         # might not be ideal if the flow has not cd into it.
         update_wsclean_options[
             "name"
-        ] = f"{ms.path.parent / ms.path.name}.{name_suffix}"
+        ] = f"{ms.path.parent / ms.path.stem}.{name_suffix}"
 
     if fits_mask:
         update_wsclean_options["fits_mask"] = fits_mask.mask_fits
