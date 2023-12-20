@@ -186,6 +186,7 @@ def task_wsclean_imager(
     wsclean_container: Path,
     update_wsclean_options: Optional[Dict[str, Any]] = None,
     fits_mask: Optional[FITSMaskNames] = None,
+    name_suffix: Optional[str] = None,
 ) -> WSCleanCMD:
     """Run the wsclean imager against an input measurement set
 
@@ -194,6 +195,7 @@ def task_wsclean_imager(
         wsclean_container (Path): Path to a singularity container with wsclean packages
         update_wsclean_options (Optional[Dict[str, Any]], optional): Options to update from the default wsclean options. Defaults to None.
         fits_mask (Optional[FITSMaskNames], optional): A path to a clean guard mask. Defaults to None.
+        name_suffix (Optional[str], optional): If this is specified the wsclean -name option will be the name of the measdurement set plus this suffix. Defaults to None.
 
     Returns:
         WSCleanCMD: A resulting wsclean command and resulting meta-data
@@ -203,6 +205,9 @@ def task_wsclean_imager(
     update_wsclean_options = (
         {} if update_wsclean_options is None else update_wsclean_options
     )
+
+    if name_suffix:
+        update_wsclean_options["name"] = f"{ms.name}.{name_suffix}"
 
     if fits_mask:
         update_wsclean_options["fits_mask"] = fits_mask.mask_fits

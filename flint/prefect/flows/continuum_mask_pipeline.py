@@ -157,7 +157,8 @@ def process_science_fields(
         "size": 8000,
         "minuv_l": 235,
         "weight": "briggs -0.5",
-        "auto_mask": 5,
+        "auto_mask": 7,
+        "auto_threshold": 3,
         "multiscale": True,
         "local_rms_window": 55,
         "multiscale_scales": (0, 15, 30, 40, 50, 60, 70, 120, 240, 480),
@@ -167,6 +168,55 @@ def process_science_fields(
         in_ms=apply_solutions_cmds,
         wsclean_container=wsclean_container,
         update_wsclean_options=unmapped(wsclean_init),
+        name_suffix="initial",
+    )
+
+    task_run_bane_and_aegean.map(
+        image=wsclean_cmds, aegean_container=unmapped(aegean_container)
+    )
+
+    beam_shape = task_get_common_beam.submit(wsclean_cmds=wsclean_cmds, cutoff=150.0)
+    conv_images = task_convolve_image.map(
+        wsclean_cmd=wsclean_cmds, beam_shape=unmapped(beam_shape), cutoff=150.0
+    )
+    parset = task_linmos_images.submit(
+        images=conv_images,
+        container=yandasoft_container,
+        suffix_str="initial",
+        holofile=holofile,
+    )
+
+    aegean_outputs = task_run_bane_and_aegean.submit(
+        image=parset, aegean_container=unmapped(aegean_container)
+    )
+
+    linmos_mask = _create_linmos_mask(
+        linmos_parset=parset,
+        aegean_outputs=aegean_outputs,
+        butterworth_filter=butterworth_filter,
+    )
+
+    beam_masks = task_extract_beam_mask_image.map(
+        linmos_mask_names=unmapped(linmos_mask), wsclean_cmd=wsclean_cmds
+    )
+
+    wsclean_init = {
+        "size": 8000,
+        "minuv_l": 235,
+        "weight": "briggs -0.5",
+        "auto_mask": 5,
+        "auto_threshold": 3,
+        "multiscale": True,
+        "local_rms_window": 55,
+        "multiscale_scales": (0, 15, 30, 40, 50, 60, 70, 120, 240, 480),
+    }
+
+    wsclean_cmds = task_wsclean_imager.map(
+        in_ms=apply_solutions_cmds,
+        wsclean_container=wsclean_container,
+        update_wsclean_options=unmapped(wsclean_init),
+        name_suffix="noselfcal",
+        fits_mask=beam_masks,
     )
 
     task_run_bane_and_aegean.map(
