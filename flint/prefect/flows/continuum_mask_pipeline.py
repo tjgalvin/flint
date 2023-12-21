@@ -159,11 +159,12 @@ def process_science_fields(
         "size": 8000,
         "minuv_l": 235,
         "weight": "briggs -0.5",
-        "auto_mask": 7,
+        "auto_mask": 4,
         "auto_threshold": 3,
         "multiscale": True,
         "local_rms_window": 55,
         "multiscale_scales": (0, 15, 30, 40, 50, 60, 70, 120, 240, 480),
+        "multiscale_scale_bias": 0.85,
     }
 
     wsclean_cmds = task_wsclean_imager.map(
@@ -206,10 +207,11 @@ def process_science_fields(
         "size": 8000,
         "minuv_l": 235,
         "weight": "briggs -0.5",
-        "auto_mask": 5,
+        "auto_mask": 4,
         "multiscale": True,
         "local_rms_window": 55,
         "multiscale_scales": (0, 15, 30, 40, 50, 60, 70, 120, 240, 480),
+        "multiscale_scale_bias": 0.85,
     }
 
     wsclean_cmds = task_wsclean_imager.map(
@@ -265,6 +267,7 @@ def process_science_fields(
             "auto_mask": 2,
             "local_rms_window": 55,
             "multiscale_scales": (0, 15, 30, 40, 50, 60, 120, 240, 480),
+            "multiscale_scale_bias": 0.85,
         },
         2: {
             "size": 8000,
@@ -273,6 +276,7 @@ def process_science_fields(
             "auto_mask": 2.0,
             "local_rms_window": 55,
             "multiscale_scales": (0, 15, 30, 40, 50, 60, 120, 240, 480),
+            "multiscale_scale_bias": 0.85,
         },
     }
 
