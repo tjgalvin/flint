@@ -22,7 +22,8 @@ class AOFlaggerCommand(NamedTuple):
     """The command that will be executed"""
     ms_path: Path
     """The path to the MS that will be flagged. """
-
+    strategy_file: Optional[Path] = None 
+    """The path to the aoflagging stategy file to use"""
 
 def nan_zero_extreme_flag_ms(
     ms: Union[Path, MS],
@@ -133,7 +134,7 @@ def create_aoflagger_cmd(ms: MS) -> AOFlaggerCommand:
 
     cmd = f"aoflagger -column {ms.column} -strategy {flagging_strategy} -v {str(ms.path.absolute())}"
 
-    return AOFlaggerCommand(cmd=cmd, ms_path=ms.path)
+    return AOFlaggerCommand(cmd=cmd, ms_path=ms.path, strategy_file=Path(flagging_strategy))
 
 
 def run_aoflagger_cmd(aoflagger_cmd: AOFlaggerCommand, container: Path) -> None:
@@ -149,6 +150,9 @@ def run_aoflagger_cmd(aoflagger_cmd: AOFlaggerCommand, container: Path) -> None:
 
     bind_dirs = [aoflagger_cmd.ms_path.parent.absolute()]
     logger.debug(f"Bind directory for aoflagger: {bind_dirs}")
+
+    if aoflagger_cmd.strategy_file:
+        bind_dirs.append(aoflagger_cmd.strategy_file)
 
     run_singularity_command(
         image=container.absolute(), command=aoflagger_cmd.cmd, bind_dirs=bind_dirs
