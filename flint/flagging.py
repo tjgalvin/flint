@@ -5,6 +5,7 @@ from argparse import ArgumentParser
 from pathlib import Path
 from typing import Collection, NamedTuple, Optional, Union
 
+import pkg_resources
 import numpy as np
 from casacore.tables import table
 
@@ -127,7 +128,10 @@ def create_aoflagger_cmd(ms: MS) -> AOFlaggerCommand:
     if not check_column_in_ms(ms):
         raise MSError(f"Column {ms.column} not found in {ms.path}.")
 
-    cmd = f"aoflagger -column {ms.column} -v {str(ms.path.absolute())}"
+    flagging_strategy = pkg_resources.resource_filename("flint", "data/aoflagger/ATCA.lua")
+    logger.info(f"Flagging using the stategy file {flagging_strategy}")
+
+    cmd = f"aoflagger -column {ms.column} -strategy {flagging_strategy} -v {str(ms.path.absolute())}"
 
     return AOFlaggerCommand(cmd=cmd, ms_path=ms.path)
 

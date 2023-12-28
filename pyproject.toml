@@ -9,6 +9,7 @@ include = [
     {path = 'flint/data/model/1934-638.calibrate.txt'},
     {path = 'flint/data/source_counts/de_zotti_1p4.txt'},
     {path = 'flint/data/source_counts/SKADS_1p4GHz.fits'},
+    {path = 'flint/data/aoflagger/ATCA.lua'},
 ]
 
 [tool.poetry.dependencies]
