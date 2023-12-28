@@ -91,7 +91,7 @@ def task_flag_solutions(calibrate_cmd: CalibrateCommand) -> CalibrateCommand:
             )
 
     flagged_solutions_path = flag_aosolutions(
-        solutions_path=solution_path, ref_ant=0, flag_cut=3, plot_dir=plot_dir
+        solutions_path=solution_path, ref_ant=-1, flag_cut=3, plot_dir=plot_dir, smooth_solutions=True
     )
 
     return calibrate_cmd.with_options(
