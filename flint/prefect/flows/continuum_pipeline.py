@@ -80,7 +80,7 @@ def process_science_fields(
     # other calibration strategies get added
     # Scan the existing bandpass directory for the existing solutions
     calibrate_cmds = find_existing_solutions(
-        bandpass_directory=bandpass_path, use_preflagged=True, use_smoothed=False
+        bandpass_directory=bandpass_path, use_preflagged=True, use_smoothed=True
     )
 
     logger.info(f"Constructed the following {calibrate_cmds=}")
