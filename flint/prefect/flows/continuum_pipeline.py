@@ -124,7 +124,7 @@ def process_science_fields(
     wsclean_init = {
         "size": 7144,
         "minuv_l": 235,
-        "weight": "briggs 0.5",
+        "weight": "briggs -0.5",
         "auto_mask": 5,
         "multiscale": True,
         "local_rms_window": 55,
