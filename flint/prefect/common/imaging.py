@@ -5,7 +5,7 @@ imaging flows.
 """
 
 from pathlib import Path
-from typing import Any, Collection, Dict, List, Optional, Union
+from typing import Any, Collection, Dict, List, Optional, Union, TypeVar
 
 from prefect import task
 
@@ -15,10 +15,10 @@ from flint.calibrate.aocalibrate import (
     create_apply_solutions_cmd,
     select_aosolution_for_ms,
 )
-from flint.coadd.linmos import LinmosCMD, linmos_images
+from flint.coadd.linmos import LinmosCommand, linmos_images
 from flint.convol import BeamShape, convolve_images, get_common_beam
 from flint.flagging import flag_ms_aoflagger
-from flint.imager.wsclean import WSCleanCMD, wsclean_imager
+from flint.imager.wsclean import WSCleanCommand, wsclean_imager
 from flint.logging import logger
 from flint.masking import (
     create_snr_mask_from_fits,
@@ -43,6 +43,15 @@ task_create_apply_solutions_cmd = task(create_apply_solutions_cmd)
 # Tasks below are extracting componented from earlier stages, or are
 # otherwise doing something important
 
+FlagMS = TypeVar("FlagMS", MS, ApplySolutions)
+
+@task
+def task_flag_ms_aoflagger2(ms: FlagMS, container: Path, rounds: int = 1) -> FlagMS:
+    extracted_ms = ms.ms if isinstance(ms, ApplySolutions) else ms 
+    
+    extracted_ms = flag_ms_aoflagger(ms=extracted_ms, container=container, rounds=rounds)
+
+    return ms
 
 @task
 def task_bandpass_create_apply_solutions_cmd(
@@ -82,12 +91,12 @@ def task_extract_solution_path(calibrate_cmd: CalibrateCommand) -> Path:
 
 @task
 def task_run_bane_and_aegean(
-    image: Union[WSCleanCMD, LinmosCMD], aegean_container: Path
+    image: Union[WSCleanCommand, LinmosCommand], aegean_container: Path
 ) -> AegeanOutputs:
     """Run BANE and Aegean against a FITS image
 
     Args:
-        image (Union[WSCleanCMD, LinmosCMD]): The image that will be searched
+        image (Union[WSCleanCommand, LinmosCommand]): The image that will be searched
         aegean_container (Path): Path to a singularity container containing BANE and aegean
 
     Raises:
@@ -96,7 +105,7 @@ def task_run_bane_and_aegean(
     Returns:
         AegeanOutputs: Output BANE and aegean products, including the RMS and BKG images
     """
-    if isinstance(image, WSCleanCMD):
+    if isinstance(image, WSCleanCommand):
         assert image.imageset is not None, "Image set attribute unset. "
         image_paths = image.imageset.image
 
@@ -109,7 +118,7 @@ def task_run_bane_and_aegean(
         ), "More than one image found after filter for MFS only images. "
         # Get out the only path in the list.
         image_path = image_paths[0]
-    elif isinstance(image, LinmosCMD):
+    elif isinstance(image, LinmosCommand):
         logger.info("Will be running aegean on a linmos image")
 
         image_path = image.image_fits
@@ -125,11 +134,11 @@ def task_run_bane_and_aegean(
 
 
 @task
-def task_zip_ms(in_item: WSCleanCMD) -> Path:
+def task_zip_ms(in_item: WSCleanCommand) -> Path:
     """Zip a measurement set
 
     Args:
-        in_item (WSCleanCMD): The inpute item with a ``.ms`` attribute of type ``MS``.
+        in_item (WSCleanCommand): The inpute item with a ``.ms`` attribute of type ``MS``.
 
     Returns:
         Path: Output path of the zipped measurement set
@@ -144,7 +153,7 @@ def task_zip_ms(in_item: WSCleanCMD) -> Path:
 
 @task
 def task_gaincal_applycal_ms(
-    wsclean_cmd: WSCleanCMD,
+    wsclean_cmd: WSCleanCommand,
     round: int,
     update_gain_cal_options: Optional[Dict[str, Any]] = None,
     archive_input_ms: bool = False,
@@ -152,7 +161,7 @@ def task_gaincal_applycal_ms(
     """Perform self-calibration using CASA gaincal and applycal.
 
     Args:
-        wsclean_cmd (WSCleanCMD): A resulting wsclean output. This is used purely to extract the ``.ms`` attribute.
+        wsclean_cmd (WSCleanCommand): A resulting wsclean output. This is used purely to extract the ``.ms`` attribute.
         round (int): Counter indication which self-calibration round is being performed. A name is included based on this.
         update_gain_cal_options (Optional[Dict[str, Any]], optional): Options used to overwrite the default ``gaincal`` options. Defaults to None.
         archive_input_ms (bool, optional): If True the input measurement set is zipped. Defaults to False.
@@ -186,7 +195,7 @@ def task_wsclean_imager(
     wsclean_container: Path,
     update_wsclean_options: Optional[Dict[str, Any]] = None,
     fits_mask: Optional[FITSMaskNames] = None,
-) -> WSCleanCMD:
+) -> WSCleanCommand:
     """Run the wsclean imager against an input measurement set
 
     Args:
@@ -196,7 +205,7 @@ def task_wsclean_imager(
         fits_mask (Optional[FITSMaskNames], optional): A path to a clean guard mask. Defaults to None.
 
     Returns:
-        WSCleanCMD: A resulting wsclean command and resulting meta-data
+        WSCleanCommand: A resulting wsclean command and resulting meta-data
     """
     ms = in_ms if isinstance(in_ms, MS) else in_ms.ms
 
@@ -219,12 +228,12 @@ def task_wsclean_imager(
 
 @task
 def task_get_common_beam(
-    wsclean_cmds: Collection[WSCleanCMD], cutoff: float = 25
+    wsclean_cmds: Collection[WSCleanCommand], cutoff: float = 25
 ) -> BeamShape:
     """Compute a common beam size that all input images will be convoled to.
 
     Args:
-        wsclean_cmds (Collection[WSCleanCMD]): Input images whose restoring beam properties will be considered
+        wsclean_cmds (Collection[WSCleanCommand]): Input images whose restoring beam properties will be considered
         cutoff (float, optional): Major axis larger than this valur, in arcseconds, will be ignored. Defaults to 25.
 
     Returns:
@@ -250,12 +259,12 @@ def task_get_common_beam(
 
 @task
 def task_convolve_image(
-    wsclean_cmd: WSCleanCMD, beam_shape: BeamShape, cutoff: float = 60
+    wsclean_cmd: WSCleanCommand, beam_shape: BeamShape, cutoff: float = 60
 ) -> Collection[Path]:
     """Convolve images to a specified resolution
 
     Args:
-        wsclean_cmd (WSCleanCMD): Collection of output images from wsclean that will be convolved
+        wsclean_cmd (WSCleanCommand): Collection of output images from wsclean that will be convolved
         beam_shape (BeamShape): The shape images will be convolved to
         cutoff (float, optional): Maximum major beam axis an image is allowed to have before it will not be convolved. Defaults to 60.
 
@@ -300,7 +309,7 @@ def task_linmos_images(
     holofile: Optional[Path] = None,
     sbid: Optional[int] = None,
     parset_output_path: Optional[str] = None,
-) -> LinmosCMD:
+) -> LinmosCommand:
     """Run the yandasoft linmos task against a set of input images
 
     Args:
@@ -314,7 +323,7 @@ def task_linmos_images(
         parset_output_path (Optional[str], optional): Location to write the linmos parset file to. Defaults to None.
 
     Returns:
-        LinmosCMD: The linmos command and associated meta-data
+        LinmosCommand: The linmos command and associated meta-data
     """
     # TODO: Need to flatten images
     # TODO: Need a better way of getting field names
@@ -361,7 +370,7 @@ def task_linmos_images(
 
 @task
 def task_create_linmos_mask_model(
-    linmos_parset: LinmosCMD,
+    linmos_parset: LinmosCommand,
     image_products: AegeanOutputs,
     min_snr: Optional[float] = 3.5,
 ) -> FITSMaskNames:
@@ -369,7 +378,7 @@ def task_create_linmos_mask_model(
     to an appropriate imager. This is derived using a simple signal to noise cut.
 
     Args:
-        linmos_parset (LinmosCMD): Linmos command and associated meta-data
+        linmos_parset (LinmosCommand): Linmos command and associated meta-data
         image_products (AegeanOutputs): Images of the RMS and BKG
         min_snr (float, optional): The minimum S/N a pixel should be for it to be included in the clean mask.
 
@@ -405,7 +414,7 @@ def task_create_linmos_mask_model(
 
 @task
 def task_create_linmos_mask_wbutter_model(
-    linmos_parset: LinmosCMD,
+    linmos_parset: LinmosCommand,
     image_products: AegeanOutputs,
     min_snr: Optional[float] = 5,
 ) -> FITSMaskNames:
@@ -417,7 +426,7 @@ def task_create_linmos_mask_wbutter_model(
     resulting mask.
 
     Args:
-        linmos_parset (LinmosCMD): Linmos command and associated meta-data
+        linmos_parset (LinmosCommand): Linmos command and associated meta-data
         image_products (AegeanOutputs): Images of the RMS and BKG
         min_snr (float, optional): The minimum S/N a pixel should be for it to be included in the clean mask. Defaults to 5.
 
@@ -453,13 +462,13 @@ def task_create_linmos_mask_wbutter_model(
 
 @task
 def task_extract_beam_mask_image(
-    linmos_mask_names: FITSMaskNames, wsclean_cmd: WSCleanCMD
+    linmos_mask_names: FITSMaskNames, wsclean_cmd: WSCleanCommand
 ) -> FITSMaskNames:
     """Extract a clean mask for a beam from a larger clean mask (e.g. derived from a field)
 
     Args:
         linmos_mask_names (FITSMaskNames): Mask that will be drawn from to form a smaller clean mask (e.g. for a beam)
-        wsclean_cmd (WSCleanCMD): Wsclean command and meta-data. This is used to draw from the WCS to create an appropraite pixel-to-pixel mask
+        wsclean_cmd (WSCleanCommand): Wsclean command and meta-data. This is used to draw from the WCS to create an appropraite pixel-to-pixel mask
 
     Returns:
         FITSMaskNames: Clean mask for a image

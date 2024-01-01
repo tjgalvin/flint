@@ -20,6 +20,7 @@ from flint.prefect.common.imaging import (
     task_create_apply_solutions_cmd,
     task_create_validation_plot,
     task_flag_ms_aoflagger,
+    task_flag_ms_aoflagger2,
     task_gaincal_applycal_ms,
     task_get_common_beam,
     task_linmos_images,
@@ -100,16 +101,21 @@ def process_science_fields(
         instrument_column=unmapped("INSTRUMENT_DATA"),
         overwrite=True,
     )
-    flag_field_mss = task_flag_ms_aoflagger.map(
-        ms=preprocess_science_mss, container=flagger_container, rounds=1
-    )
+    # # TODO: Flag after applyng solutions
+    # flag_field_mss = task_flag_ms_aoflagger.map(
+    #     ms=preprocess_science_mss, container=flagger_container, rounds=1
+    # )
     solutions_paths = task_select_solution_for_ms.map(
-        calibrate_cmds=unmapped(calibrate_cmds), ms=flag_field_mss
+        calibrate_cmds=unmapped(calibrate_cmds), ms=preprocess_science_mss
     )
     apply_solutions_cmds = task_create_apply_solutions_cmd.map(
-        ms=flag_field_mss,
+        ms=preprocess_science_mss,
         solutions_file=solutions_paths,
         container=calibrate_container,
+    )
+
+    flagged_mss = task_flag_ms_aoflagger2.map(
+        ms=apply_solutions_cmds, container=flagger_container, rounds=1
     )
 
     if no_imaging:
@@ -123,7 +129,7 @@ def process_science_fields(
     wsclean_init = {
         "size": 7144,
         "minuv_l": 235,
-        "weight": "briggs -0.5",
+        "weight": "briggs 0.5",
         "auto_mask": 5,
         "multiscale": True,
         "local_rms_window": 55,
@@ -131,7 +137,7 @@ def process_science_fields(
     }
 
     wsclean_cmds = task_wsclean_imager.map(
-        in_ms=apply_solutions_cmds,
+        in_ms=flagged_mss,
         wsclean_container=wsclean_container,
         update_wsclean_options=unmapped(wsclean_init),
     )
@@ -144,7 +150,7 @@ def process_science_fields(
     conv_images = task_convolve_image.map(
         wsclean_cmd=wsclean_cmds, beam_shape=unmapped(beam_shape), cutoff=150.0
     )
-    if yandasoft_container is not None:
+    if yandasoft_container:
         parset = task_linmos_images.submit(
             images=conv_images,
             container=yandasoft_container,
@@ -170,15 +176,13 @@ def process_science_fields(
     gain_cal_rounds = {
         1: {"solint": "1200s", "uvrange": ">235lambda", "nspw": 1},
         2: {"solint": "60s", "uvrange": ">235lambda", "nspw": 1},
-        3: {"solint": "60s", "uvrange": ">235lambda", "nspw": 1},
-        4: {"calmode": "ap", "solint": "360s", "uvrange": ">200lambda"},
     }
     wsclean_rounds = {
         1: {
             "size": 7144,
             "multiscale": True,
             "minuv_l": 235,
-            "auto_mask": 5,
+            "auto_mask": 4,
             "local_rms_window": 55,
             "multiscale_scales": (0, 15, 30, 40, 50, 60, 70),
         },
@@ -189,13 +193,6 @@ def process_science_fields(
             "auto_mask": 4.0,
             "local_rms_window": 55,
             "multiscale_scales": (0, 15, 30, 40, 50, 60, 70),
-        },
-        3: {"multiscale": False, "minuv_l": 200, "auto_mask": 3.5},
-        4: {
-            "multiscale": False,
-            "local_rms_window": 125,
-            "minuv_l": 200,
-            "auto_mask": 3.5,
         },
     }
 

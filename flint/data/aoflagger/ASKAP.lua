@@ -31,7 +31,7 @@ function execute(input)
   -- flags on input will be flagged on output. If set to false, existing flags are ignored.
   local exclude_original_flags = false
   local frequency_resize_factor = 40.0 -- Amount of "extra" smoothing in frequency direction
-  local transient_threshold_factor = 40.0 -- decreasing this value makes detection of transient RFI more aggressive
+  local transient_threshold_factor = 1.0 -- decreasing this value makes detection of transient RFI more aggressive
  
   --
   -- End of generic settings
