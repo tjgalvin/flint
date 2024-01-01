@@ -34,7 +34,6 @@ from flint.validation import create_validation_plot
 
 # These are simple task wrapped functions and require no other modification
 task_preprocess_askap_ms = task(preprocess_askap_ms)
-task_flag_ms_aoflagger = task(flag_ms_aoflagger)
 task_split_by_field = task(split_by_field)
 task_select_solution_for_ms = task(select_aosolution_for_ms)
 task_create_apply_solutions_cmd = task(create_apply_solutions_cmd)
@@ -46,7 +45,7 @@ task_create_apply_solutions_cmd = task(create_apply_solutions_cmd)
 FlagMS = TypeVar("FlagMS", MS, ApplySolutions)
 
 @task
-def task_flag_ms_aoflagger2(ms: FlagMS, container: Path, rounds: int = 1) -> FlagMS:
+def task_flag_ms_aoflagger(ms: FlagMS, container: Path, rounds: int = 1) -> FlagMS:
     extracted_ms = ms.ms if isinstance(ms, ApplySolutions) else ms 
     
     extracted_ms = flag_ms_aoflagger(ms=extracted_ms, container=container, rounds=rounds)

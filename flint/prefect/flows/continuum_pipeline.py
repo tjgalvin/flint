@@ -20,7 +20,6 @@ from flint.prefect.common.imaging import (
     task_create_apply_solutions_cmd,
     task_create_validation_plot,
     task_flag_ms_aoflagger,
-    task_flag_ms_aoflagger2,
     task_gaincal_applycal_ms,
     task_get_common_beam,
     task_linmos_images,
@@ -101,10 +100,6 @@ def process_science_fields(
         instrument_column=unmapped("INSTRUMENT_DATA"),
         overwrite=True,
     )
-    # # TODO: Flag after applyng solutions
-    # flag_field_mss = task_flag_ms_aoflagger.map(
-    #     ms=preprocess_science_mss, container=flagger_container, rounds=1
-    # )
     solutions_paths = task_select_solution_for_ms.map(
         calibrate_cmds=unmapped(calibrate_cmds), ms=preprocess_science_mss
     )
@@ -114,7 +109,7 @@ def process_science_fields(
         container=calibrate_container,
     )
 
-    flagged_mss = task_flag_ms_aoflagger2.map(
+    flagged_mss = task_flag_ms_aoflagger.map(
         ms=apply_solutions_cmds, container=flagger_container, rounds=1
     )
 
