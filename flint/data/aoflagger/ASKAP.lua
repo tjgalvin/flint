@@ -21,7 +21,7 @@ function execute(input)
   -- { 'XY', 'YX' } to flag only XY and YX, or
   -- { 'I', 'Q' } to flag only on Stokes I and Q
   local flag_polarizations = input:get_polarizations()
-  
+
   local base_threshold = 1.0  -- lower means more sensitive detection
   -- How to flag complex values, options are: phase, amplitude, real, imaginary, complex
   -- May have multiple values to perform detection multiple times
@@ -49,7 +49,7 @@ function execute(input)
   local copy_of_input = input:copy()
 
   -- ASKAP dataset can have zeros. And because we should trust nothing
-  -- nans are also flagged. 
+  -- nans are also flagged.
   input:flag_nans()
   input:flag_zeros()
 
