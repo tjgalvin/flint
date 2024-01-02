@@ -217,6 +217,7 @@ def generate_linmos_parameter_set(
     linmos_names: LinmosNames,
     weight_list: Optional[str] = None,
     holofile: Optional[Path] = None,
+    cutoff: float = 0.001,
 ) -> Path:
     """Generate a parset file that will be used with the
     yandasoft linmos task.
@@ -227,6 +228,7 @@ def generate_linmos_parameter_set(
         linmos_names (LinmosNames): Names of the output image and weights that linmos will produces. The weight image will have a similar name. Defaults to "linmos_field".
         weight_list (str, optional): If not None, this string will be embedded into the yandasoft linmos parset as-is. It should represent the formatted string pointing to weight files, and should be equal length of the input images. If None it is internally generated. Defaults to None.
         holofile (Optional[Path], optional): Path to a FITS cube produced by the holography processing pipeline. Used by linmos to appropriate primary-beam correct the images. Defaults to None.
+        cutoff (float, optional): Pixels whose primary beam attenuation is below this cutoff value are blanked. Defaults to 0.001.
 
     Returns:
         Path: Path to the output parset file.
@@ -270,7 +272,7 @@ def generate_linmos_parameter_set(
         f"linmos.useweightslog    = true\n"
         f"linmos.weighttype       = Combined\n"
         f"linmos.weightstate      = Inherent\n"
-        f"linmos.cutoff           = 0.001\n"
+        f"linmos.cutoff           = {cutoff}\n"
     )
 
     # This requires an appropriate holography fits cube to
@@ -307,6 +309,7 @@ def linmos_images(
     weight_list: Optional[str] = None,
     holofile: Optional[Path] = None,
     container: Path = Path("yandasoft.sif"),
+    cutoff: float = 0.001,
 ) -> LinmosCommand:
     """Create a linmos parset file and execute it.
 
@@ -317,6 +320,7 @@ def linmos_images(
         weight_list (str, optional): If not None, this string will be embedded into the yandasoft linmos parset as-is. It should represent the formatted string pointing to weight files, and should be equal length of the input images. If None it is internally generated. Defaults to None.
         holofile (Optional[Path], optional): Path to a FITS cube produced by the holography processing pipeline. Used by linmos to appropriate primary-beam correct the images. Defaults to None.
         container (Path, optional): Path to the singularity container that has the yandasoft tools. Defaults to Path('yandasoft.sif').
+        cutoff (float, optional): Pixels whose primary beam attenuation is below this cutoff value are blanked. Defaults to 0.001.
 
     Returns:
         LinmosCommand: The linmos command executed and the associated parset file
@@ -334,6 +338,7 @@ def linmos_images(
         linmos_names=linmos_names,
         weight_list=weight_list,
         holofile=holofile,
+        cutoff=cutoff,
     )
 
     linmos_cmd_str = f"linmos -c {str(linmos_parset)}"
