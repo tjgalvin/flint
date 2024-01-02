@@ -12,7 +12,7 @@ from flint.naming import LinmosNames, create_linmos_names, extract_beam_from_nam
 from flint.sclient import run_singularity_command
 
 
-class LinmosCMD(NamedTuple):
+class LinmosCommand(NamedTuple):
     cmd: str
     """The yandasoft linmos task that will be executed"""
     parset: Path
@@ -307,7 +307,7 @@ def linmos_images(
     weight_list: Optional[str] = None,
     holofile: Optional[Path] = None,
     container: Path = Path("yandasoft.sif"),
-) -> LinmosCMD:
+) -> LinmosCommand:
     """Create a linmos parset file and execute it.
 
     Args:
@@ -319,7 +319,7 @@ def linmos_images(
         container (Path, optional): Path to the singularity container that has the yandasoft tools. Defaults to Path('yandasoft.sif').
 
     Returns:
-        LinmosCMD: The linmos command executed and the associated parset file
+        LinmosCommand: The linmos command executed and the associated parset file
     """
 
     assert (
@@ -345,7 +345,7 @@ def linmos_images(
         image=container, command=linmos_cmd_str, bind_dirs=bind_dirs
     )
 
-    linmos_cmd = LinmosCMD(
+    linmos_cmd = LinmosCommand(
         cmd=linmos_cmd_str,
         parset=linmos_parset,
         image_fits=linmos_names.image_fits.absolute(),

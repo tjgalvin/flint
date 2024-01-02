@@ -114,7 +114,7 @@ class WSCleanOptions(NamedTuple):
         return WSCleanOptions(**_dict)
 
 
-class WSCleanCMD(NamedTuple):
+class WSCleanCommand(NamedTuple):
     """Simple container for a wsclean command."""
 
     cmd: str
@@ -128,11 +128,11 @@ class WSCleanCMD(NamedTuple):
     cleanup: bool = True
     """Will clean up the dirty images/psfs/residuals/models when the imaging has completed"""
 
-    def with_options(self, **kwargs) -> WSCleanCMD:
+    def with_options(self, **kwargs) -> WSCleanCommand:
         _dict = self._asdict()
         _dict.update(**kwargs)
 
-        return WSCleanCMD(**_dict)
+        return WSCleanCommand(**_dict)
 
 
 def get_wsclean_output_names(
@@ -250,7 +250,7 @@ def delete_wsclean_outputs(
 
 def create_wsclean_cmd(
     ms: MS, wsclean_options: WSCleanOptions, container: Optional[Path] = None
-) -> WSCleanCMD:
+) -> WSCleanCommand:
     """Create a wsclean command from a WSCleanOptions container
 
     Args:
@@ -262,7 +262,7 @@ def create_wsclean_cmd(
         ValueError: Raised when a option has not been successfully processed
 
     Returns:
-        WSCleanCMD: The wsclean command to run
+        WSCleanCommand: The wsclean command to run
     """
     # Some wsclean options, if multiple values are provided, might need
     # to be join as a csv list. Others might want to be dumped in. Just
@@ -309,7 +309,7 @@ def create_wsclean_cmd(
 
     logger.info(f"Constructed wsclean command: {cmd=}")
     logger.info("Setting default model data column to 'MODEL_DATA'")
-    wsclean_cmd = WSCleanCMD(
+    wsclean_cmd = WSCleanCommand(
         cmd=cmd, options=wsclean_options, ms=ms.with_options(model_column="MODEL_DATA")
     )
 
@@ -319,16 +319,16 @@ def create_wsclean_cmd(
     return wsclean_cmd
 
 
-def run_wsclean_imager(wsclean_cmd: WSCleanCMD, container: Path) -> WSCleanCMD:
+def run_wsclean_imager(wsclean_cmd: WSCleanCommand, container: Path) -> WSCleanCommand:
     """Run a provided wsclean command. Optionally will clean up files,
     including the dirty beams, psfs and other assorted things.
 
     Args:
-        wsclean_cmd (WSCleanCMD): The command to run, and other properties (cleanup.)
+        wsclean_cmd (WSCleanCommand): The command to run, and other properties (cleanup.)
         container (Path): Path to the container with wsclean available in it
 
     Returns:
-        WSCleanCMD: The executed wsclean command with a populated imageset properter.
+        WSCleanCommand: The executed wsclean command with a populated imageset properter.
     """
 
     ms = wsclean_cmd.ms
@@ -372,7 +372,7 @@ def wsclean_imager(
     wsclean_container: Path,
     wsclean_options_path: Optional[Path] = None,
     update_wsclean_options: Optional[Dict[str, Any]] = None,
-) -> WSCleanCMD:
+) -> WSCleanCommand:
     """Create and run a wsclean imager command against a measurement set.
 
     Args:
@@ -381,7 +381,7 @@ def wsclean_imager(
         wsclean_options_path (Optional[Path], optional): Location of a wsclean set of options. Defaults to None.
 
     Returns:
-        WSCleanCMD: _description_
+        WSCleanCommand: _description_
     """
 
     # TODO: This should be expanded to support multiple measurement sets
@@ -427,7 +427,7 @@ def create_template_wsclean_options(
         WSCleanOptions: Template options to use for the wsclean fits header creation
     """
 
-    temmplate_options = WSCleanCMD(
+    temmplate_options = WSCleanCommand(
         size=input_wsclean_options.size,
         channels_out=1,
         nmiter=0,

@@ -1,11 +1,15 @@
 import numpy as np
+from scipy.ndimage import median_filter
 from scipy.signal import savgol_filter
 
 from flint.logging import logger
 
 
 def smooth_data(
-    data: np.ndarray, window_size: int, polynomial_order: int
+    data: np.ndarray,
+    window_size: int,
+    polynomial_order: int,
+    apply_median_filter: bool = True,
 ) -> np.ndarray:
     """Smooth a 1-dimensional dataset. Internally it uses a savgol filter as
     implemented in scipy.signal.savgol_filter. It is intended to be used to
@@ -16,10 +20,15 @@ def smooth_data(
     closest valid data points. Once the savgol filter has been applied these
     datapoints are then remasked with a NaN.
 
+    If ``median_filter`` is ``True`` then the raw data (without any interpolation)
+    will first be passed through a median boxcar filter with a window size of
+    ``window_size``.
+
     Args:
         data (np.ndarray): The 1-dimensional data to be smoothed.
         window_size (int): The size of the window function of the savgol filter. Passed directly to savgol.
         polynomial_order (int): The order of the polynomial of the savgol filter. Passed directly to savgol.
+        apply_median_filter (bool, optional): Apply a median filter to the data before applying the savgol filter using the same window size. Defaults to True.
 
     Returns:
         np.ndarray: Smoothed dataset
@@ -28,6 +37,9 @@ def smooth_data(
     # Make a copy so we do not mess around with the original numpy data
     # where ever it might be. Trust nothing you sea dog.
     data = data.copy()
+
+    if apply_median_filter:
+        data = median_filter(input=data, size=window_size)
 
     # Before we smooth we need to fill in channels that are flagged with nans.
     # For this we will apply a simply linear interpolation across the blanked
@@ -51,7 +63,10 @@ def smooth_data(
 
 
 def smooth_bandpass_complex_gains(
-    complex_gains: np.ndarray, window_size: int = 16, polynomial_order: int = 1
+    complex_gains: np.ndarray,
+    window_size: int = 16,
+    polynomial_order: int = 4,
+    apply_median_filter: bool = True,
 ) -> np.ndarray:
     """Smooth bandpass solutions by applying a savgol filter to the real and imaginary components
     of each of the antenna based polarisation solutions across channels.
@@ -63,10 +78,15 @@ def smooth_bandpass_complex_gains(
     The input bandpass data contained by ``complex_gains`` is expected to be in the form:
     > [ants, chans, pols]
 
+    If ``median_filter`` is ``True`` then the raw data (without any interpolation)
+    will first be passed through a median boxcar filter with a window size of
+    ``window_size``.
+
     Args:
         complex_gains (np.ndarray): Data to be smoothed.
         window_size (int, optional): The size of the window function of the savgol filter. Passed directly to savgol. Defaults to 16.
-        polynomial_order (int, optional): The order of the polynomial of the savgol filter. Passed directly to savgol. Defaults to 1.
+        polynomial_order (int, optional): The order of the polynomial of the savgol filter. Passed directly to savgol. Defaults to 4.
+        apply_median_filter (bool, optional): Apply a median filter to the data before applying the savgol filter using the same window size. Defaults to True.
 
     Returns:
         np.ndarray: Smoothed complex gains
@@ -93,11 +113,13 @@ def smooth_bandpass_complex_gains(
                 data=complex_gains[ant, :, pol].real,
                 window_size=window_size,
                 polynomial_order=polynomial_order,
+                apply_median_filter=apply_median_filter,
             )
             smoothed_complex_gains[ant, :, pol].imag = smooth_data(
                 data=complex_gains[ant, :, pol].imag,
                 window_size=window_size,
                 polynomial_order=polynomial_order,
+                apply_median_filter=apply_median_filter,
             )
 
     return smoothed_complex_gains
