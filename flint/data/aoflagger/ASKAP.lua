@@ -32,7 +32,7 @@ function execute(input)
   local exclude_original_flags = false
   local frequency_resize_factor = 40.0 -- Amount of "extra" smoothing in frequency direction
   local transient_threshold_factor = 1.0 -- decreasing this value makes detection of transient RFI more aggressive
- 
+
   --
   -- End of generic settings
   --
@@ -43,11 +43,11 @@ function execute(input)
     input:clear_mask()
   end
   -- For collecting statistics. Note that this is done after clear_mask(),
-  -- so that the statistics ignore any flags in the input data. 
+  -- so that the statistics ignore any flags in the input data.
   local copy_of_input = input:copy()
-  
+
   for ipol,polarization in ipairs(flag_polarizations) do
- 
+
     local pol_data = input:convert_to_polarization(polarization)
 
     for _,representation in ipairs(flag_representations) do
@@ -139,4 +139,3 @@ function execute(input)
   end
   input:flag_nans()
 end
-

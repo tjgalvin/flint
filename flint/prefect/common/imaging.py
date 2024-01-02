@@ -5,7 +5,7 @@ imaging flows.
 """
 
 from pathlib import Path
-from typing import Any, Collection, Dict, List, Optional, Union, TypeVar
+from typing import Any, Collection, Dict, List, Optional, TypeVar, Union
 
 from prefect import task
 
@@ -44,13 +44,17 @@ task_create_apply_solutions_cmd = task(create_apply_solutions_cmd)
 
 FlagMS = TypeVar("FlagMS", MS, ApplySolutions)
 
+
 @task
 def task_flag_ms_aoflagger(ms: FlagMS, container: Path, rounds: int = 1) -> FlagMS:
-    extracted_ms = ms.ms if isinstance(ms, ApplySolutions) else ms 
-    
-    extracted_ms = flag_ms_aoflagger(ms=extracted_ms, container=container, rounds=rounds)
+    extracted_ms = ms.ms if isinstance(ms, ApplySolutions) else ms
+
+    extracted_ms = flag_ms_aoflagger(
+        ms=extracted_ms, container=container, rounds=rounds
+    )
 
     return ms
+
 
 @task
 def task_bandpass_create_apply_solutions_cmd(

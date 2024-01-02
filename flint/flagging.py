@@ -5,8 +5,8 @@ from argparse import ArgumentParser
 from pathlib import Path
 from typing import Collection, NamedTuple, Optional, Union
 
-import pkg_resources
 import numpy as np
+import pkg_resources
 from casacore.tables import table
 
 from flint.exceptions import MSError
@@ -22,8 +22,9 @@ class AOFlaggerCommand(NamedTuple):
     """The command that will be executed"""
     ms_path: Path
     """The path to the MS that will be flagged. """
-    strategy_file: Optional[Path] = None 
+    strategy_file: Optional[Path] = None
     """The path to the aoflagging stategy file to use"""
+
 
 def nan_zero_extreme_flag_ms(
     ms: Union[Path, MS],
@@ -129,12 +130,16 @@ def create_aoflagger_cmd(ms: MS) -> AOFlaggerCommand:
     if not check_column_in_ms(ms):
         raise MSError(f"Column {ms.column} not found in {ms.path}.")
 
-    flagging_strategy = pkg_resources.resource_filename("flint", "data/aoflagger/ATCA.lua")
+    flagging_strategy = pkg_resources.resource_filename(
+        "flint", "data/aoflagger/ATCA.lua"
+    )
     logger.info(f"Flagging using the stategy file {flagging_strategy}")
 
     cmd = f"aoflagger -column {ms.column} -strategy {flagging_strategy} -v {str(ms.path.absolute())}"
 
-    return AOFlaggerCommand(cmd=cmd, ms_path=ms.path, strategy_file=Path(flagging_strategy))
+    return AOFlaggerCommand(
+        cmd=cmd, ms_path=ms.path, strategy_file=Path(flagging_strategy)
+    )
 
 
 def run_aoflagger_cmd(aoflagger_cmd: AOFlaggerCommand, container: Path) -> None:
