@@ -131,7 +131,7 @@ def create_aoflagger_cmd(ms: MS) -> AOFlaggerCommand:
         raise MSError(f"Column {ms.column} not found in {ms.path}.")
 
     flagging_strategy = pkg_resources.resource_filename(
-        "flint", "data/aoflagger/ATCA.lua"
+        "flint", "data/aoflagger/ASKAP.lua"
     )
     logger.info(f"Flagging using the stategy file {flagging_strategy}")
 

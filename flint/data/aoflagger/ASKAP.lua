@@ -2,9 +2,11 @@
  This is the default AOFlagger strategy, version 2020-05-26
  Author: André Offringa
 
- This strategy is made as generic / easy to tweak as possible, with the most important
-'tweaking' parameters available as variables at the beginning of function 'execute'.
-]]--
+This ASKAP strategy is taken from the default ATCA stradegy
+that is packaged in aoflagger. The main differences are:
+- ensuring that all input flags are carried forward
+- bumping up the extra frequency smoothing
+ ]]--
 
 aoflagger.require_min_version("3.0")
 
@@ -29,8 +31,8 @@ function execute(input)
   -- If the following variable is true, the strategy will consider existing flags
   -- as bad data. It will exclude flagged data from detection, and make sure that any existing
   -- flags on input will be flagged on output. If set to false, existing flags are ignored.
-  local exclude_original_flags = false
-  local frequency_resize_factor = 40.0 -- Amount of "extra" smoothing in frequency direction
+  local exclude_original_flags = true
+  local frequency_resize_factor = 5.0 -- Amount of "extra" smoothing in frequency direction
   local transient_threshold_factor = 1.0 -- decreasing this value makes detection of transient RFI more aggressive
 
   --
@@ -45,6 +47,11 @@ function execute(input)
   -- For collecting statistics. Note that this is done after clear_mask(),
   -- so that the statistics ignore any flags in the input data.
   local copy_of_input = input:copy()
+
+  -- ASKAP dataset can have zeros. And because we should trust nothing
+  -- nans are also flagged.
+  input:flag_nans()
+  input:flag_zeros()
 
   for ipol,polarization in ipairs(flag_polarizations) do
 
@@ -138,4 +145,5 @@ function execute(input)
     aoflagger.collect_statistics(input, copy_of_input)
   end
   input:flag_nans()
+  input:flag_zeros()
 end
