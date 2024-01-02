@@ -133,16 +133,16 @@ def process_science_fields(
         instrument_column=unmapped("INSTRUMENT_DATA"),
         overwrite=True,
     )
-    flag_field_mss = task_flag_ms_aoflagger.map(
-        ms=preprocess_science_mss, container=flagger_container, rounds=1
-    )
     solutions_paths = task_select_solution_for_ms.map(
-        calibrate_cmds=unmapped(calibrate_cmds), ms=flag_field_mss
+        calibrate_cmds=unmapped(calibrate_cmds), ms=preprocess_science_mss
     )
     apply_solutions_cmds = task_create_apply_solutions_cmd.map(
-        ms=flag_field_mss,
+        ms=preprocess_science_mss,
         solutions_file=solutions_paths,
         container=calibrate_container,
+    )
+    flagged_mss = task_flag_ms_aoflagger.map(
+        ms=apply_solutions_cmds, container=flagger_container, rounds=1
     )
 
     if no_imaging:
@@ -164,7 +164,7 @@ def process_science_fields(
     }
 
     wsclean_cmds = task_wsclean_imager.map(
-        in_ms=apply_solutions_cmds,
+        in_ms=flagged_mss,
         wsclean_container=wsclean_container,
         update_wsclean_options=unmapped(wsclean_init),
     )
