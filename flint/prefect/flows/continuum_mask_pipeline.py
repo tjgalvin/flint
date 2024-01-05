@@ -225,7 +225,7 @@ def process_science_fields(
             "auto_mask": 2.0,
             "local_rms_window": 110,
             "multiscale_scales": (0, 15, 30, 40, 50, 60, 120, 240, 480),
-             "multiscale_scale_bias": 0.75,,
+             "multiscale_scale_bias": 0.75,
             "threshold": 0.00006
         },
     }
