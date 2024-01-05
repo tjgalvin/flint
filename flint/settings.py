@@ -8,7 +8,12 @@ from typing import NamedTuple, Optional
 
 class Settings(NamedTuple):
     """Container that represents the flint related options that
-    might be used throughout components.
+    might be used throughout components related to the actual
+    pipeline.
+
+    In its present form this ``Settings`` class is not intended
+    to container properties on the data that is being processed,
+    rather how those data will be processed.
     """
 
     flagger_container: Path
