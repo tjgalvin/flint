@@ -75,10 +75,6 @@ def process_science_fields(
     split_science_mss = task_split_by_field.map(
         ms=science_mss, field=None, out_dir=unmapped(output_split_science_path)
     )
-
-    # The following line will block until the science
-    # fields are split out. Since there might be more
-    # than a single field in an SBID, we should do this
     flat_science_mss = task_flatten.submit(split_science_mss)
 
     preprocess_science_mss = task_preprocess_askap_ms.map(
