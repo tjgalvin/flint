@@ -5,10 +5,12 @@ set of flint processing related options.
 from pathlib import Path
 from typing import NamedTuple, Optional
 
+
 class Settings(NamedTuple):
     """Container that represents the flint related options that
-    might be used throughout components. 
+    might be used throughout components.
     """
+
     flagger_container: Path
     """Path to the singularity aoflagger container"""
     calibrate_container: Path
@@ -17,8 +19,10 @@ class Settings(NamedTuple):
     """The expected number of measurement set files to find"""
     wsclean_container: Optional[Path] = None
     """Path to the singularity wsclean container"""
-    yandasoft_container: Optional[Path] = None,=
+    yandasoft_container: Optional[Path] = None
     """Path to the singularity yandasoft container"""
+    holofile: Optional[Path] = None
+    """Path to the holography FITS cube that will be used when co-adding beams"""
     rounds: int = 2
     """Number of required rouds of self-calibration to perform"""
     zip_ms: bool = False

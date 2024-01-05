@@ -14,7 +14,7 @@ imaging round.
 """
 from argparse import ArgumentParser
 from pathlib import Path
-from typing import Any, Optional, Union
+from typing import Any, Union
 
 from prefect import flow, unmapped
 
@@ -22,6 +22,7 @@ from flint.calibrate.aocalibrate import find_existing_solutions
 from flint.logging import logger
 from flint.ms import MS
 from flint.naming import get_sbid_from_path
+from flint.settings import Settings
 from flint.prefect.clusters import get_dask_runner
 from flint.prefect.common.imaging import (
     task_convolve_image,
@@ -71,22 +72,10 @@ def process_science_fields(
     science_path: Path,
     bandpass_path: Path,
     split_path: Path,
-    calibrate_container: Path,
-    flagger_container: Path,
-    holofile: Optional[Path] = None,
-    expected_ms: int = 36,
-    wsclean_container: Optional[Path] = None,
-    rounds: Optional[int] = 2,
-    yandasoft_container: Optional[Path] = None,
-    zip_ms: bool = False,
-    run_aegean: bool = False,
-    aegean_container: Optional[Path] = None,
-    no_imaging: bool = False,
-    reference_catalogue_directory: Optional[Path] = None,
-    butterworth_filter: bool = True,
+    settings: Settings,
 ) -> None:
-    run_aegean = False if aegean_container is None else run_aegean
-    run_validation = reference_catalogue_directory is not None
+    run_aegean = False if settings.aegean_container is None else settings.run_aegean
+    run_validation = settings.reference_catalogue_directory is not None
 
     assert (
         science_path.exists() and science_path.is_dir()
@@ -95,8 +84,8 @@ def process_science_fields(
         [MS.cast(ms_path) for ms_path in sorted(science_path.glob("*.ms"))]
     )
     assert (
-        len(science_mss) == expected_ms
-    ), f"Expected to find {expected_ms} in {str(science_path)}, found {len(science_mss)}."
+        len(science_mss) == settings.expected_ms
+    ), f"Expected to find {settings.expected_ms} in {str(science_path)}, found {len(science_mss)}."
 
     science_folder_name = science_path.name
 
@@ -139,17 +128,19 @@ def process_science_fields(
     apply_solutions_cmds = task_create_apply_solutions_cmd.map(
         ms=preprocess_science_mss,
         solutions_file=solutions_paths,
-        container=calibrate_container,
+        container=settings.calibrate_container,
     )
     flagged_mss = task_flag_ms_aoflagger.map(
-        ms=apply_solutions_cmds, container=flagger_container, rounds=1
+        ms=apply_solutions_cmds, container=settings.flagger_container, rounds=1
     )
 
-    if no_imaging:
-        logger.info(f"No imaging will be performed, as requested bu {no_imaging=}")
+    if settings.no_imaging:
+        logger.info(
+            f"No imaging will be performed, as requested bu {settings.no_imaging=}"
+        )
         return
 
-    if wsclean_container is None:
+    if settings.wsclean_container is None:
         logger.info("No wsclean container provided. Rerutning. ")
         return
 
@@ -166,12 +157,12 @@ def process_science_fields(
 
     wsclean_cmds = task_wsclean_imager.map(
         in_ms=flagged_mss,
-        wsclean_container=wsclean_container,
+        wsclean_container=settings.wsclean_container,
         update_wsclean_options=unmapped(wsclean_init),
     )
 
     task_run_bane_and_aegean.map(
-        image=wsclean_cmds, aegean_container=unmapped(aegean_container)
+        image=wsclean_cmds, aegean_container=unmapped(settings.aegean_container)
     )
 
     beam_shape = task_get_common_beam.submit(wsclean_cmds=wsclean_cmds, cutoff=150.0)
@@ -180,26 +171,26 @@ def process_science_fields(
     )
     parset = task_linmos_images.submit(
         images=conv_images,
-        container=yandasoft_container,
+        container=settings.yandasoft_container,
         suffix_str="noselfcal",
-        holofile=holofile,
+        holofile=settings.holofile,
     )
 
     aegean_outputs = task_run_bane_and_aegean.submit(
-        image=parset, aegean_container=unmapped(aegean_container)
+        image=parset, aegean_container=unmapped(settings.aegean_container)
     )
 
     linmos_mask = _create_linmos_mask(
         linmos_parset=parset,
         aegean_outputs=aegean_outputs,
-        butterworth_filter=butterworth_filter,
+        butterworth_filter=settings.butterworth_filter,
     )
 
     beam_masks = task_extract_beam_mask_image.map(
         linmos_mask_names=unmapped(linmos_mask), wsclean_cmd=wsclean_cmds
     )
 
-    if rounds is None:
+    if settings.rounds is None:
         logger.info("No self-calibration will be performed. Returning")
         return
 
@@ -216,7 +207,7 @@ def process_science_fields(
             "local_rms_window": 110,
             "multiscale_scales": (0, 15, 30, 40, 50, 60, 120, 240, 480),
             "multiscale_scale_bias": 0.75,
-            "threshold": 0.00006
+            "threshold": 0.00006,
         },
         2: {
             "size": 10000,
@@ -225,12 +216,12 @@ def process_science_fields(
             "auto_mask": 2.0,
             "local_rms_window": 110,
             "multiscale_scales": (0, 15, 30, 40, 50, 60, 120, 240, 480),
-             "multiscale_scale_bias": 0.75,
-            "threshold": 0.00006
+            "multiscale_scale_bias": 0.75,
+            "threshold": 0.00006,
         },
     }
 
-    for round in range(1, rounds + 1):
+    for round in range(1, settings.rounds + 1):
         gain_cal_options = gain_cal_rounds.get(round, None)
         wsclean_options = wsclean_rounds.get(round, None)
 
@@ -238,23 +229,23 @@ def process_science_fields(
             wsclean_cmd=wsclean_cmds,
             round=round,
             update_gain_cal_options=unmapped(gain_cal_options),
-            archive_input_ms=zip_ms,
+            archive_input_ms=settings.zip_ms,
         )
 
         flag_mss = task_flag_ms_aoflagger.map(
-            ms=cal_mss, container=flagger_container, rounds=1
+            ms=cal_mss, container=settings.flagger_container, rounds=1
         )
         wsclean_cmds = task_wsclean_imager.map(
             in_ms=flag_mss,
-            wsclean_container=wsclean_container,
+            wsclean_container=settings.wsclean_container,
             update_wsclean_options=unmapped(wsclean_options),
             fits_mask=beam_masks,
         )
 
         # Do source finding on the last round of self-cal'ed images
-        if round == rounds and run_aegean:
+        if round == settings.rounds and run_aegean:
             task_run_bane_and_aegean.map(
-                image=wsclean_cmds, aegean_container=unmapped(aegean_container)
+                image=wsclean_cmds, aegean_container=unmapped(settings.aegean_container)
             )
 
         beam_shape = task_get_common_beam.submit(
@@ -263,27 +254,27 @@ def process_science_fields(
         conv_images = task_convolve_image.map(
             wsclean_cmd=wsclean_cmds, beam_shape=unmapped(beam_shape), cutoff=150.0
         )
-        if yandasoft_container is None:
+        if settings.yandasoft_container is None:
             logger.info("No yandasoft container supplied, not linmosing. ")
             continue
 
         parset = task_linmos_images.submit(
             images=conv_images,
-            container=yandasoft_container,
+            container=settings.yandasoft_container,
             suffix_str=f"round{round}",
-            holofile=holofile,
+            holofile=settings.holofile,
         )
 
         aegean_outputs = task_run_bane_and_aegean.submit(
-            image=parset, aegean_container=unmapped(aegean_container)
+            image=parset, aegean_container=unmapped(settings.aegean_container)
         )
 
         # Use the mask from the first round
-        if round < rounds:
+        if round < settings.rounds:
             linmos_mask = _create_linmos_mask(
                 linmos_parset=parset,
                 aegean_outputs=aegean_outputs,
-                butterworth_filter=butterworth_filter,
+                butterworth_filter=settings.butterworth_filter,
             )
 
             beam_masks = task_extract_beam_mask_image.map(
@@ -293,11 +284,11 @@ def process_science_fields(
         if run_validation:
             task_create_validation_plot.submit(
                 aegean_outputs=aegean_outputs,
-                reference_catalogue_directory=reference_catalogue_directory,
+                reference_catalogue_directory=settings.reference_catalogue_directory,
             )
 
         # zip up the final measurement set, which is not included in the above loop
-        if round == rounds and zip_ms:
+        if round == settings.rounds and settings.zip_ms:
             task_zip_ms.map(in_item=wsclean_cmds)
 
 
@@ -306,19 +297,7 @@ def setup_run_process_science_field(
     science_path: Path,
     bandpass_path: Path,
     split_path: Path,
-    flagger_container: Path,
-    calibrate_container: Path,
-    holofile: Optional[Path] = None,
-    expected_ms: int = 36,
-    wsclean_container: Optional[Path] = None,
-    yandasoft_container: Optional[Path] = None,
-    rounds: int = 2,
-    zip_ms: bool = False,
-    run_aegean: bool = False,
-    aegean_container: Optional[Path] = None,
-    no_imaging: bool = False,
-    reference_catalogue_directory: Optional[Path] = None,
-    butterworth_filter: bool = False,
+    settings: Settings,
 ) -> None:
     assert (
         bandpass_path.exists() and bandpass_path.is_dir()
@@ -335,19 +314,7 @@ def setup_run_process_science_field(
         science_path=science_path,
         bandpass_path=bandpass_path,
         split_path=split_path,
-        flagger_container=flagger_container,
-        calibrate_container=calibrate_container,
-        holofile=holofile,
-        expected_ms=expected_ms,
-        wsclean_container=wsclean_container,
-        yandasoft_container=yandasoft_container,
-        rounds=rounds,
-        zip_ms=zip_ms,
-        run_aegean=run_aegean,
-        aegean_container=aegean_container,
-        no_imaging=no_imaging,
-        reference_catalogue_directory=reference_catalogue_directory,
-        butterworth_filter=butterworth_filter,
+        settings=settings,
     )
 
 
@@ -467,11 +434,7 @@ def cli() -> None:
 
     args = parser.parse_args()
 
-    setup_run_process_science_field(
-        cluster_config=args.cluster_config,
-        science_path=args.science_path,
-        bandpass_path=args.calibrated_bandpass_path,
-        split_path=args.split_path,
+    settings = Settings(
         flagger_container=args.flagger_container,
         calibrate_container=args.calibrate_container,
         holofile=args.holofile,
@@ -485,6 +448,14 @@ def cli() -> None:
         no_imaging=args.no_imaging,
         reference_catalogue_directory=args.reference_catalogue_directory,
         butterworth_filter=args.butterworth_filter,
+    )
+
+    setup_run_process_science_field(
+        cluster_config=args.cluster_config,
+        science_path=args.science_path,
+        bandpass_path=args.calibrated_bandpass_path,
+        split_path=args.split_path,
+        settings=settings,
     )
 
 
