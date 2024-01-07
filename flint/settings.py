@@ -14,6 +14,9 @@ class Settings(NamedTuple):
     In its present form this ``Settings`` class is not intended
     to container properties on the data that is being processed,
     rather how those data will be processed.
+
+    These settins are not meant to be adjustable throughout
+    rounds of self-calibration.
     """
 
     flagger_container: Path
