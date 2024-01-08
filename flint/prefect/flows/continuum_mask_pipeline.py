@@ -22,7 +22,6 @@ from flint.calibrate.aocalibrate import find_existing_solutions
 from flint.logging import logger
 from flint.ms import MS
 from flint.naming import get_sbid_from_path
-from flint.settings import FieldOptions
 from flint.prefect.clusters import get_dask_runner
 from flint.prefect.common.imaging import (
     task_convolve_image,
@@ -43,6 +42,7 @@ from flint.prefect.common.imaging import (
     task_zip_ms,
 )
 from flint.prefect.common.utils import task_flatten
+from flint.settings import FieldOptions
 
 
 def _create_linmos_mask(
@@ -74,7 +74,9 @@ def process_science_fields(
     split_path: Path,
     field_options: FieldOptions,
 ) -> None:
-    run_aegean = False if field_options.aegean_container is None else field_options.run_aegean
+    run_aegean = (
+        False if field_options.aegean_container is None else field_options.run_aegean
+    )
     run_validation = field_options.reference_catalogue_directory is not None
 
     assert (
@@ -142,14 +144,16 @@ def process_science_fields(
         return
 
     wsclean_init = {
-        "size": 10000,
+        "size": 9000,
         "minuv_l": 235,
-        "weight": "briggs -0.5",
-        "auto_mask": 5,
+        "weight": "briggs -1.0",
+        "auto_mask": 4,
         "multiscale": True,
         "local_rms_window": 55,
-        "multiscale_scales": (0, 15, 30, 40, 50, 60, 70, 120, 240, 480),
+        "multiscale_scales": (0, 15, 30, 40, 50, 60),
         "multiscale_scale_bias": 0.75,
+        "niter": 750000 * 3,
+        "channels_out": 8,
     }
 
     wsclean_cmds = task_wsclean_imager.map(
@@ -197,24 +201,30 @@ def process_science_fields(
     }
     wsclean_rounds = {
         1: {
-            "size": 10000,
+            "size": 9000,
             "multiscale": True,
             "minuv_l": 235,
-            "auto_mask": 2,
+            "weight": "briggs -1.0",
+            "auto_mask": 4,
             "local_rms_window": 110,
-            "multiscale_scales": (0, 15, 30, 40, 50, 60, 120, 240, 480),
+            "multiscale_scales": (0, 15, 30, 40, 50, 60),
             "multiscale_scale_bias": 0.75,
             "threshold": 0.00006,
+            "niter": 750000 * 3,
+            "channels_out": 8,
         },
         2: {
-            "size": 10000,
+            "size": 9000,
             "multiscale": True,
             "minuv_l": 235,
+            "weight": "briggs -1.0",
             "auto_mask": 2.0,
             "local_rms_window": 110,
-            "multiscale_scales": (0, 15, 30, 40, 50, 60, 120, 240, 480),
+            "multiscale_scales": (0, 15, 30, 40, 50, 60),
             "multiscale_scale_bias": 0.75,
             "threshold": 0.00006,
+            "niter": 750000 * 3,
+            "channels_out": 8,
         },
     }
 
@@ -242,8 +252,10 @@ def process_science_fields(
         # Do source finding on the last round of self-cal'ed images
         if round == field_options.rounds and run_aegean:
             task_run_bane_and_aegean.map(
-                image=wsclean_cmds, aegean_container=unmapped(field_options.aegean_container)
+                image=wsclean_cmds,
+                aegean_container=unmapped(field_options.aegean_container),
             )
+            task_zip_ms.map(in_item=wsclean_cmds)
 
         beam_shape = task_get_common_beam.submit(
             wsclean_cmds=wsclean_cmds, cutoff=150.0
@@ -283,10 +295,6 @@ def process_science_fields(
                 aegean_outputs=aegean_outputs,
                 reference_catalogue_directory=field_options.reference_catalogue_directory,
             )
-
-        # zip up the final measurement set, which is not included in the above loop
-        if round == field_options.rounds and field_options.zip_ms:
-            task_zip_ms.map(in_item=wsclean_cmds)
 
 
 def setup_run_process_science_field(

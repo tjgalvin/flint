@@ -75,7 +75,7 @@ class WSCleanOptions(NamedTuple):
         400,
     )
     """Scales used for multi-scale deconvolution"""
-    fit_spectral_pol: int = 3
+    fit_spectral_pol: int = 2
     """Number of spectral terms to include during sub-band subtractin"""
     weight: str = "briggs -0.5"
     """Robustness of the weighting used"""
