@@ -45,3 +45,5 @@ class FieldOptions(NamedTuple):
     """Path to the directory container the refernce catalogues, used to generate valiation plots"""
     butterworth_filter: bool = False
     """Whether a Butterworth filter should be used when constructing the clean mask"""
+    linmos_residuals: bool = False
+    """Linmos the cleaning residuals together into a field image"""
