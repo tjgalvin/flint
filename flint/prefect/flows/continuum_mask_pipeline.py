@@ -294,7 +294,7 @@ def setup_run_process_science_field(
     science_path: Path,
     bandpass_path: Path,
     split_path: Path,
-    settings: FieldOptions,
+    field_options: FieldOptions,
 ) -> None:
     assert (
         bandpass_path.exists() and bandpass_path.is_dir()
@@ -311,7 +311,7 @@ def setup_run_process_science_field(
         science_path=science_path,
         bandpass_path=bandpass_path,
         split_path=split_path,
-        settings=settings,
+        field_options=field_options,
     )
 
 
