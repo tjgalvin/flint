@@ -15,7 +15,7 @@ from flint.logging import logger
 from flint.ms import MS
 from flint.naming import get_sbid_from_path
 from flint.prefect.clusters import get_dask_runner
-from flint.settings import Settings
+from flint.settings import FieldOptions
 from flint.prefect.common.imaging import (
     task_convolve_image,
     task_create_apply_solutions_cmd,
@@ -36,10 +36,10 @@ from flint.prefect.common.utils import task_flatten
 
 @flow(name="Flint Continuum Pipeline")
 def process_science_fields(
-    science_path: Path, bandpass_path: Path, split_path: Path, settings: Settings
+    science_path: Path, bandpass_path: Path, split_path: Path, field_options: FieldOptions
 ) -> None:
-    run_aegean = False if settings.aegean_container is None else settings.run_aegean
-    run_validation = settings.reference_catalogue_directory is not None
+    run_aegean = False if field_options.aegean_container is None else field_options.run_aegean
+    run_validation = field_options.reference_catalogue_directory is not None
 
     assert (
         science_path.exists() and science_path.is_dir()
@@ -48,8 +48,8 @@ def process_science_fields(
         [MS.cast(ms_path) for ms_path in sorted(science_path.glob("*.ms"))]
     )
     assert (
-        len(science_mss) == settings.expected_ms
-    ), f"Expected to find {settings.expected_ms} in {str(science_path)}, found {len(science_mss)}."
+        len(science_mss) == field_options.expected_ms
+    ), f"Expected to find {field_options.expected_ms} in {str(science_path)}, found {len(science_mss)}."
 
     science_folder_name = science_path.name
 
@@ -89,20 +89,20 @@ def process_science_fields(
     apply_solutions_cmds = task_create_apply_solutions_cmd.map(
         ms=preprocess_science_mss,
         solutions_file=solutions_paths,
-        container=settings.calibrate_container,
+        container=field_options.calibrate_container,
     )
 
     flagged_mss = task_flag_ms_aoflagger.map(
-        ms=apply_solutions_cmds, container=settings.flagger_container, rounds=1
+        ms=apply_solutions_cmds, container=field_options.flagger_container, rounds=1
     )
 
-    if settings.no_imaging:
+    if field_options.no_imaging:
         logger.info(
-            f"No imaging will be performed, as requested bu {settings.no_imaging=}"
+            f"No imaging will be performed, as requested bu {field_options.no_imaging=}"
         )
         return
 
-    if settings.wsclean_container is None:
+    if field_options.wsclean_container is None:
         logger.info("No wsclean container provided. Rerutning. ")
         return
 
@@ -118,38 +118,38 @@ def process_science_fields(
 
     wsclean_cmds = task_wsclean_imager.map(
         in_ms=flagged_mss,
-        wsclean_container=settings.wsclean_container,
+        wsclean_container=field_options.wsclean_container,
         update_wsclean_options=unmapped(wsclean_init),
     )
     if run_aegean:
         task_run_bane_and_aegean.map(
-            image=wsclean_cmds, aegean_container=unmapped(settings.aegean_container)
+            image=wsclean_cmds, aegean_container=unmapped(field_options.aegean_container)
         )
 
     beam_shape = task_get_common_beam.submit(wsclean_cmds=wsclean_cmds, cutoff=150.0)
     conv_images = task_convolve_image.map(
         wsclean_cmd=wsclean_cmds, beam_shape=unmapped(beam_shape), cutoff=150.0
     )
-    if settings.yandasoft_container:
+    if field_options.yandasoft_container:
         parset = task_linmos_images.submit(
             images=conv_images,
-            container=settings.yandasoft_container,
+            container=field_options.yandasoft_container,
             suffix_str="noselfcal",
-            holofile=settings.holofile,
+            holofile=field_options.holofile,
         )
 
         if run_aegean:
             aegean_outputs = task_run_bane_and_aegean.submit(
-                image=parset, aegean_container=unmapped(settings.aegean_container)
+                image=parset, aegean_container=unmapped(field_options.aegean_container)
             )
 
             if run_validation:
                 task_create_validation_plot.submit(
                     aegean_outputs=aegean_outputs,
-                    reference_catalogue_directory=settings.reference_catalogue_directory,
+                    reference_catalogue_directory=field_options.reference_catalogue_directory,
                 )
 
-    if settings.rounds is None:
+    if field_options.rounds is None:
         logger.info("No self-calibration will be performed. Returning")
         return
 
@@ -176,7 +176,7 @@ def process_science_fields(
         },
     }
 
-    for round in range(1, settings.rounds + 1):
+    for round in range(1, field_options.rounds + 1):
         gain_cal_options = gain_cal_rounds.get(round, None)
         wsclean_options = wsclean_rounds.get(round, None)
 
@@ -184,22 +184,22 @@ def process_science_fields(
             wsclean_cmd=wsclean_cmds,
             round=round,
             update_gain_cal_options=unmapped(gain_cal_options),
-            archive_input_ms=settings.zip_ms,
+            archive_input_ms=field_options.zip_ms,
         )
 
         flag_mss = task_flag_ms_aoflagger.map(
-            ms=cal_mss, container=settings.flagger_container, rounds=1
+            ms=cal_mss, container=field_options.flagger_container, rounds=1
         )
         wsclean_cmds = task_wsclean_imager.map(
             in_ms=flag_mss,
-            wsclean_container=settings.wsclean_container,
+            wsclean_container=field_options.wsclean_container,
             update_wsclean_options=unmapped(wsclean_options),
         )
 
         # Do source finding on the last round of self-cal'ed images
-        if round == settings.rounds and run_aegean:
+        if round == field_options.rounds and run_aegean:
             task_run_bane_and_aegean.map(
-                image=wsclean_cmds, aegean_container=unmapped(settings.aegean_container)
+                image=wsclean_cmds, aegean_container=unmapped(field_options.aegean_container)
             )
 
         beam_shape = task_get_common_beam.submit(
@@ -208,30 +208,30 @@ def process_science_fields(
         conv_images = task_convolve_image.map(
             wsclean_cmd=wsclean_cmds, beam_shape=unmapped(beam_shape), cutoff=150.0
         )
-        if settings.yandasoft_container is None:
+        if field_options.yandasoft_container is None:
             logger.info("No yandasoft container supplied, not linmosing. ")
             continue
 
         parset = task_linmos_images.submit(
             images=conv_images,
-            container=settings.yandasoft_container,
+            container=field_options.yandasoft_container,
             suffix_str=f"round{round}",
-            holofile=settings.holofile,
+            holofile=field_options.holofile,
         )
 
         if run_aegean:
             aegean_outputs = task_run_bane_and_aegean.submit(
-                image=parset, aegean_container=unmapped(settings.aegean_container)
+                image=parset, aegean_container=unmapped(field_options.aegean_container)
             )
 
             if run_validation:
                 task_create_validation_plot.submit(
                     aegean_outputs=aegean_outputs,
-                    reference_catalogue_directory=settings.reference_catalogue_directory,
+                    reference_catalogue_directory=field_options.reference_catalogue_directory,
                 )
 
     # zip up the final measurement set, which is not included in the above loop
-    if settings.zip_ms:
+    if field_options.zip_ms:
         task_zip_ms.map(in_item=wsclean_cmds, wait_for=wsclean_cmds)
 
 
@@ -240,7 +240,7 @@ def setup_run_process_science_field(
     science_path: Path,
     bandpass_path: Path,
     split_path: Path,
-    settings: Settings,
+    settings: FieldOptions,
 ) -> None:
     assert (
         bandpass_path.exists() and bandpass_path.is_dir()
@@ -370,7 +370,7 @@ def cli() -> None:
 
     args = parser.parse_args()
 
-    settings = Settings(
+    settings = FieldOptions(
         flagger_container=args.flagger_container,
         calibrate_container=args.calibrate_container,
         holofile=args.holofile,
