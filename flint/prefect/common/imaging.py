@@ -218,13 +218,7 @@ def task_wsclean_imager(
 
     if fits_mask:
         update_wsclean_options["fits_mask"] = fits_mask.mask_fits
-        update_wsclean_options["auto_mask"] = 2
-        update_wsclean_options["auto_threshold"] = 0.5
-        update_wsclean_options["force_mask_rounds"] = 10
-        update_wsclean_options["local_rms_window"] = 55
-        update_wsclean_options["niter"] = 750000 * 3
-
-
+        
     logger.info(f"wsclean inager {ms=}")
     return wsclean_imager(
         ms=ms,
