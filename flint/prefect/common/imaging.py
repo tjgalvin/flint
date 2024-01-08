@@ -218,7 +218,7 @@ def task_wsclean_imager(
 
     if fits_mask:
         update_wsclean_options["fits_mask"] = fits_mask.mask_fits
-        
+
     logger.info(f"wsclean inager {ms=}")
     return wsclean_imager(
         ms=ms,
@@ -260,7 +260,10 @@ def task_get_common_beam(
 
 @task
 def task_convolve_image(
-    wsclean_cmd: WSCleanCommand, beam_shape: BeamShape, cutoff: float = 60
+    wsclean_cmd: WSCleanCommand,
+    beam_shape: BeamShape,
+    cutoff: float = 60,
+    mode: str = "image",
 ) -> Collection[Path]:
     """Convolve images to a specified resolution
 
@@ -275,7 +278,14 @@ def task_convolve_image(
     assert (
         wsclean_cmd.imageset is not None
     ), f"{wsclean_cmd.ms} has no attached imageset."
-    image_paths: Collection[Path] = wsclean_cmd.imageset.image
+
+    supported_modes = ("image", "residual")
+    assert (
+        mode in supported_modes
+    ), f"{mode=} is not supported. Known modes are {supported_modes}"
+
+    logger.info(f"EWxtracting {mode}")
+    image_paths: Collection[Path] = wsclean_cmd.imageset.__dict__.get(mode)
 
     logger.info(f"Will convolve {image_paths}")
 
@@ -454,7 +464,7 @@ def task_create_linmos_mask_wbutter_model(
         fits_rms_path=linmos_rms,
         create_signal_fits=True,
         min_snr=min_snr,
-        connectivity_shape=(2,2)
+        connectivity_shape=(2, 2),
     )
 
     logger.info(f"Created {linmos_mask_names.mask_fits}")

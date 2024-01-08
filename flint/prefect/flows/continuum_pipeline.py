@@ -50,6 +50,7 @@ def process_science_fields(
     aegean_container: Optional[Path] = None,
     no_imaging: bool = False,
     reference_catalogue_directory: Optional[Path] = None,
+    linmos_residuals: bool = False,
 ) -> None:
     run_aegean = False if aegean_container is None else run_aegean
     run_validation = reference_catalogue_directory is not None
@@ -164,6 +165,21 @@ def process_science_fields(
                     reference_catalogue_directory=reference_catalogue_directory,
                 )
 
+        if linmos_residuals:
+            residual_conv_images = task_convolve_image.map(
+                wsclean_cmd=wsclean_cmds,
+                beam_shape=unmapped(beam_shape),
+                cutoff=150.0,
+                mode="residual",
+            )
+            parset = task_linmos_images.submit(
+                images=residual_conv_images,
+                container=yandasoft_container,
+                suffix_str="residual.noselfcal",
+                holofile=holofile,
+                name="task_linmos_residual_images",
+            )
+
     if rounds is None:
         logger.info("No self-calibration will be performed. Returning")
         return
@@ -268,6 +284,7 @@ def setup_run_process_science_field(
     aegean_container: Optional[Path] = None,
     no_imaging: bool = False,
     reference_catalogue_directory: Optional[Path] = None,
+    linmos_residuals: bool = False,
 ) -> None:
     assert (
         bandpass_path.exists() and bandpass_path.is_dir()
@@ -295,6 +312,7 @@ def setup_run_process_science_field(
         aegean_container=aegean_container,
         no_imaging=no_imaging,
         reference_catalogue_directory=reference_catalogue_directory,
+        linmos_residuals=linmos_residuals,
     )
 
 
@@ -394,6 +412,12 @@ def get_parser() -> ArgumentParser:
         default=None,
         help="Path to the directory containing the ICFS, NVSS and SUMSS referenece catalogues. These are required for validaiton plots. ",
     )
+    parser.add_argument(
+        "--linmos-residuals",
+        action="store_true",
+        default=False,
+        help="Co-add the per-beam cleaning residuals into a field image",
+    )
 
     return parser
 
@@ -425,6 +449,7 @@ def cli() -> None:
         aegean_container=args.aegean_container,
         no_imaging=args.no_imaging,
         reference_catalogue_directory=args.reference_catalogue_directory,
+        linmos_residuals=args.linmos_residuals,
     )
 
 
