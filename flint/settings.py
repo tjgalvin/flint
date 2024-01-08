@@ -1,5 +1,5 @@
-"""This is a container that will attempt to centralise the 
-set of flint processing related options. 
+"""This is a container that will attempt to centralise the
+set of flint processing related options.
 """
 
 from pathlib import Path

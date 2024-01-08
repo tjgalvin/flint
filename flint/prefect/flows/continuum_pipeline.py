@@ -15,7 +15,6 @@ from flint.logging import logger
 from flint.ms import MS
 from flint.naming import get_sbid_from_path
 from flint.prefect.clusters import get_dask_runner
-from flint.settings import FieldOptions
 from flint.prefect.common.imaging import (
     task_convolve_image,
     task_create_apply_solutions_cmd,
@@ -32,13 +31,19 @@ from flint.prefect.common.imaging import (
     task_zip_ms,
 )
 from flint.prefect.common.utils import task_flatten
+from flint.settings import FieldOptions
 
 
 @flow(name="Flint Continuum Pipeline")
 def process_science_fields(
-    science_path: Path, bandpass_path: Path, split_path: Path, field_options: FieldOptions
+    science_path: Path,
+    bandpass_path: Path,
+    split_path: Path,
+    field_options: FieldOptions,
 ) -> None:
-    run_aegean = False if field_options.aegean_container is None else field_options.run_aegean
+    run_aegean = (
+        False if field_options.aegean_container is None else field_options.run_aegean
+    )
     run_validation = field_options.reference_catalogue_directory is not None
 
     assert (
@@ -123,7 +128,8 @@ def process_science_fields(
     )
     if run_aegean:
         task_run_bane_and_aegean.map(
-            image=wsclean_cmds, aegean_container=unmapped(field_options.aegean_container)
+            image=wsclean_cmds,
+            aegean_container=unmapped(field_options.aegean_container),
         )
 
     beam_shape = task_get_common_beam.submit(wsclean_cmds=wsclean_cmds, cutoff=150.0)
@@ -199,7 +205,8 @@ def process_science_fields(
         # Do source finding on the last round of self-cal'ed images
         if round == field_options.rounds and run_aegean:
             task_run_bane_and_aegean.map(
-                image=wsclean_cmds, aegean_container=unmapped(field_options.aegean_container)
+                image=wsclean_cmds,
+                aegean_container=unmapped(field_options.aegean_container),
             )
 
         beam_shape = task_get_common_beam.submit(
