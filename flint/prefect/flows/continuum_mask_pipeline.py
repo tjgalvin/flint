@@ -145,7 +145,7 @@ def process_science_fields(
         "size": 10000,
         "minuv_l": 235,
         "weight": "briggs -0.5",
-        "auto_mask": 4,
+        "auto_mask": 5,
         "multiscale": True,
         "local_rms_window": 55,
         "multiscale_scales": (0, 15, 30, 40, 50, 60, 70, 120, 240, 480),
