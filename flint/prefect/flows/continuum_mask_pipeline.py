@@ -22,8 +22,10 @@ from flint.calibrate.aocalibrate import find_existing_solutions
 from flint.logging import logger
 from flint.ms import MS
 from flint.naming import get_sbid_from_path
+from flint.options import FieldOptions
 from flint.prefect.clusters import get_dask_runner
 from flint.prefect.common.imaging import (
+    _convolve_linmos_residuals,
     task_convolve_image,
     task_create_apply_solutions_cmd,
     task_create_linmos_mask_model,
@@ -40,10 +42,8 @@ from flint.prefect.common.imaging import (
     task_split_by_field,
     task_wsclean_imager,
     task_zip_ms,
-    _convolve_linmos_residuals
 )
 from flint.prefect.common.utils import task_flatten
-from flint.options import FieldOptions
 
 
 def _create_linmos_mask(
@@ -179,8 +179,11 @@ def process_science_fields(
     )
 
     if field_options.linmos_residuals:
-        _convolve_linmos_residuals(wsclean_cmds=wsclean_cmds, beam_shape=beam_shape, field_options=field_options)
-        
+        _convolve_linmos_residuals(
+            wsclean_cmds=wsclean_cmds,
+            beam_shape=beam_shape,
+            field_options=field_options,
+        )
 
     aegean_outputs = task_run_bane_and_aegean.submit(
         image=parset, aegean_container=unmapped(field_options.aegean_container)
@@ -234,8 +237,8 @@ def process_science_fields(
     }
 
     for round in range(1, field_options.rounds + 1):
-        final_round = round == field_options.rounds 
-        
+        final_round = round == field_options.rounds
+
         gain_cal_options = gain_cal_rounds.get(round, None)
         wsclean_options = wsclean_rounds.get(round, None)
 
@@ -286,8 +289,11 @@ def process_science_fields(
         )
 
         if final_round and field_options.linmos_residuals:
-            _convolve_linmos_residuals(wsclean_cmds=wsclean_cmds, beam_shape=beam_shape, field_options=field_options)
-        
+            _convolve_linmos_residuals(
+                wsclean_cmds=wsclean_cmds,
+                beam_shape=beam_shape,
+                field_options=field_options,
+            )
 
         # Use the mask from the first round
         if round < field_options.rounds:

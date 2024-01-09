@@ -27,11 +27,11 @@ from flint.masking import (
 )
 from flint.ms import MS, preprocess_askap_ms, split_by_field
 from flint.naming import FITSMaskNames, processed_ms_format
+from flint.options import FieldOptions
 from flint.selfcal.casa import gaincal_applycal_ms
 from flint.source_finding.aegean import AegeanOutputs, run_bane_and_aegean
 from flint.utils import zip_folder
 from flint.validation import create_validation_plot
-from flint.options import FieldOptions
 
 # These are simple task wrapped functions and require no other modification
 task_preprocess_askap_ms = task(preprocess_askap_ms)
