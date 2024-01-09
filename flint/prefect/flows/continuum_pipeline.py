@@ -29,6 +29,7 @@ from flint.prefect.common.imaging import (
     task_split_by_field,
     task_wsclean_imager,
     task_zip_ms,
+    _convolve_linmos_residuals
 )
 from flint.prefect.common.utils import task_flatten
 from flint.options import FieldOptions
@@ -158,19 +159,8 @@ def process_science_fields(
                 )
 
         if field_options.linmos_residuals:
-            residual_conv_images = task_convolve_image.map(
-                wsclean_cmd=wsclean_cmds,
-                beam_shape=unmapped(beam_shape),
-                cutoff=150.0,
-                mode="residual",
-            )
-            parset = task_linmos_images.submit(
-                images=residual_conv_images,
-                container=field_options.yandasoft_container,
-                suffix_str="residual.noselfcal",
-                holofile=field_options.holofile,
-            )
-
+            _convolve_linmos_residuals(wsclean_cmds=wsclean_cmds, beam_shape=beam_shape, field_options=field_options)
+            
     if field_options.rounds is None:
         logger.info("No self-calibration will be performed. Returning")
         return
@@ -199,6 +189,8 @@ def process_science_fields(
     }
 
     for round in range(1, field_options.rounds + 1):
+        final_round = round == field_options.rounds 
+        
         gain_cal_options = gain_cal_rounds.get(round, None)
         wsclean_options = wsclean_rounds.get(round, None)
 
@@ -242,6 +234,9 @@ def process_science_fields(
             holofile=field_options.holofile,
         )
 
+        if final_round and field_options.linmos_residuals:
+            _convolve_linmos_residuals(wsclean_cmds=wsclean_cmds, beam_shape=beam_shape, field_options=field_options)
+        
         if run_aegean:
             aegean_outputs = task_run_bane_and_aegean.submit(
                 image=parset, aegean_container=unmapped(field_options.aegean_container)

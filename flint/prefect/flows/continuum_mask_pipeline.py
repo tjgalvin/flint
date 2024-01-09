@@ -40,6 +40,7 @@ from flint.prefect.common.imaging import (
     task_split_by_field,
     task_wsclean_imager,
     task_zip_ms,
+    _convolve_linmos_residuals
 )
 from flint.prefect.common.utils import task_flatten
 from flint.options import FieldOptions
@@ -177,6 +178,10 @@ def process_science_fields(
         holofile=field_options.holofile,
     )
 
+    if field_options.linmos_residuals:
+        _convolve_linmos_residuals(wsclean_cmds=wsclean_cmds, beam_shape=beam_shape, field_options=field_options)
+        
+
     aegean_outputs = task_run_bane_and_aegean.submit(
         image=parset, aegean_container=unmapped(field_options.aegean_container)
     )
@@ -229,6 +234,8 @@ def process_science_fields(
     }
 
     for round in range(1, field_options.rounds + 1):
+        final_round = round == field_options.rounds 
+        
         gain_cal_options = gain_cal_rounds.get(round, None)
         wsclean_options = wsclean_rounds.get(round, None)
 
@@ -250,7 +257,7 @@ def process_science_fields(
         )
 
         # Do source finding on the last round of self-cal'ed images
-        if round == field_options.rounds and run_aegean:
+        if final_round and run_aegean:
             task_run_bane_and_aegean.map(
                 image=wsclean_cmds,
                 aegean_container=unmapped(field_options.aegean_container),
@@ -277,6 +284,10 @@ def process_science_fields(
         aegean_outputs = task_run_bane_and_aegean.submit(
             image=parset, aegean_container=unmapped(field_options.aegean_container)
         )
+
+        if final_round and field_options.linmos_residuals:
+            _convolve_linmos_residuals(wsclean_cmds=wsclean_cmds, beam_shape=beam_shape, field_options=field_options)
+        
 
         # Use the mask from the first round
         if round < field_options.rounds:
@@ -425,6 +436,12 @@ def get_parser() -> ArgumentParser:
         action="store_true",
         help="Apply a butterworth filter when creating a clean mask from the larger linmos image. This may help capture more extended diffuse emission. ",
     )
+    parser.add_argument(
+        "--linmos-residuals",
+        action="store_true",
+        default=False,
+        help="Co-add the per-beam cleaning residuals into a field image",
+    )
 
     return parser
 
@@ -453,6 +470,7 @@ def cli() -> None:
         no_imaging=args.no_imaging,
         reference_catalogue_directory=args.reference_catalogue_directory,
         butterworth_filter=args.butterworth_filter,
+        linmos_residuals=args.linmos_residuals,
     )
 
     setup_run_process_science_field(

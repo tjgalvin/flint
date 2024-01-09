@@ -7,7 +7,7 @@ imaging flows.
 from pathlib import Path
 from typing import Any, Collection, Dict, List, Optional, TypeVar, Union
 
-from prefect import task
+from prefect import task, unmapped
 
 from flint.calibrate.aocalibrate import (
     ApplySolutions,
@@ -31,6 +31,7 @@ from flint.selfcal.casa import gaincal_applycal_ms
 from flint.source_finding.aegean import AegeanOutputs, run_bane_and_aegean
 from flint.utils import zip_folder
 from flint.validation import create_validation_plot
+from flint.options import FieldOptions
 
 # These are simple task wrapped functions and require no other modification
 task_preprocess_askap_ms = task(preprocess_askap_ms)
@@ -273,7 +274,7 @@ def task_convolve_image(
         cutoff (float, optional): Maximum major beam axis an image is allowed to have before it will not be convolved. Defaults to 60.
 
     Returns:
-        Collection[Path]: Path to the output images that have been convolved. 
+        Collection[Path]: Path to the output images that have been convolved.
     """
     assert (
         wsclean_cmd.imageset is not None
@@ -286,16 +287,18 @@ def task_convolve_image(
 
     logger.info(f"Extracting {mode}")
     image_paths: Collection[Path] = (
-        wsclean_cmd.imageset.image if mode == "image" else  wsclean_cmd.imageset.residual
+        wsclean_cmd.imageset.image if mode == "image" else wsclean_cmd.imageset.residual
     )
-    
+
     # It is possible depending on how aggressively cleaning image products are deleted that these
     # some cleaning products (e.g. residuals) do not exist. There are a number of ways one could consider
     # handling this. The pirate in me feels like less is more, so an error will be enough. Keeping
-    # things simple and avoiding the problem is probably the better way of dealing with this 
-    # situation. In time this would mean that we inspect and handle conflicting pipeline options. 
-    assert image_paths is not None, f"{image_paths=} for {mode=} and {wsclean_cmd.imageset=}"
-    
+    # things simple and avoiding the problem is probably the better way of dealing with this
+    # situation. In time this would mean that we inspect and handle conflicting pipeline options.
+    assert (
+        image_paths is not None
+    ), f"{image_paths=} for {mode=} and {wsclean_cmd.imageset=}"
+
     logger.info(f"Will convolve {image_paths}")
 
     # experience has shown that astropy units do not always work correctly
@@ -386,6 +389,38 @@ def task_linmos_images(
     )
 
     return linmos_cmd
+
+
+def _convolve_linmos_residuals(
+    wsclean_cmds: Collection[WSCleanCommand],
+    beam_shape: BeamShape,
+    field_options: FieldOptions,
+) -> LinmosCommand:
+    """An internal function that launches the convolution to a common resolution
+    and subsequent linmos of the wsclean residual images. 
+
+    Args:
+        wsclean_cmds (Collection[WSCleanCommand]): Collection of wsclean imaging results, with residual images described in the attached ``ImageSet``
+        beam_shape (BeamShape): The beam shape that residual images will be convolved to
+        field_options (FieldOptions): Options related to the processing of the field
+
+    Returns:
+        LinmosCommand: Resulting linmos command parset
+    """
+    residual_conv_images = task_convolve_image.map(
+        wsclean_cmd=wsclean_cmds,
+        beam_shape=unmapped(beam_shape),
+        cutoff=150.0,
+        mode="residual",
+    )
+    parset = task_linmos_images.submit(
+        images=residual_conv_images,
+        container=field_options.yandasoft_container,
+        suffix_str="residual.noselfcal",
+        holofile=field_options.holofile,
+    )
+
+    return parset
 
 
 @task
