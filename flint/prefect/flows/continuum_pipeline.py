@@ -14,8 +14,10 @@ from flint.calibrate.aocalibrate import find_existing_solutions
 from flint.logging import logger
 from flint.ms import MS
 from flint.naming import get_sbid_from_path
+from flint.options import FieldOptions
 from flint.prefect.clusters import get_dask_runner
 from flint.prefect.common.imaging import (
+    _convolve_linmos_residuals,
     task_convolve_image,
     task_create_apply_solutions_cmd,
     task_create_validation_plot,
@@ -31,7 +33,6 @@ from flint.prefect.common.imaging import (
     task_zip_ms,
 )
 from flint.prefect.common.utils import task_flatten
-from flint.settings import FieldOptions
 
 
 @flow(name="Flint Continuum Pipeline")
@@ -65,6 +66,8 @@ def process_science_fields(
     if not output_split_science_path.exists():
         logger.info(f"Creating {str(output_split_science_path)}")
         output_split_science_path.mkdir(parents=True)
+
+    logger.info(f"{field_options=}")
 
     logger.info(f"Found the following raw measurement sets: {science_mss}")
 
@@ -112,7 +115,7 @@ def process_science_fields(
         return
 
     wsclean_init = {
-        "size": 7144,
+        "size": 4144,
         "minuv_l": 235,
         "weight": "briggs -0.5",
         "auto_mask": 5,
@@ -155,6 +158,13 @@ def process_science_fields(
                     reference_catalogue_directory=field_options.reference_catalogue_directory,
                 )
 
+        if field_options.linmos_residuals:
+            _convolve_linmos_residuals(
+                wsclean_cmds=wsclean_cmds,
+                beam_shape=beam_shape,
+                field_options=field_options,
+            )
+
     if field_options.rounds is None:
         logger.info("No self-calibration will be performed. Returning")
         return
@@ -183,6 +193,8 @@ def process_science_fields(
     }
 
     for round in range(1, field_options.rounds + 1):
+        final_round = round == field_options.rounds
+
         gain_cal_options = gain_cal_rounds.get(round, None)
         wsclean_options = wsclean_rounds.get(round, None)
 
@@ -225,6 +237,13 @@ def process_science_fields(
             suffix_str=f"round{round}",
             holofile=field_options.holofile,
         )
+
+        if final_round and field_options.linmos_residuals:
+            _convolve_linmos_residuals(
+                wsclean_cmds=wsclean_cmds,
+                beam_shape=beam_shape,
+                field_options=field_options,
+            )
 
         if run_aegean:
             aegean_outputs = task_run_bane_and_aegean.submit(
@@ -363,6 +382,12 @@ def get_parser() -> ArgumentParser:
         default=None,
         help="Path to the directory containing the ICFS, NVSS and SUMSS referenece catalogues. These are required for validaiton plots. ",
     )
+    parser.add_argument(
+        "--linmos-residuals",
+        action="store_true",
+        default=False,
+        help="Co-add the per-beam cleaning residuals into a field image",
+    )
 
     return parser
 
@@ -377,7 +402,7 @@ def cli() -> None:
 
     args = parser.parse_args()
 
-    settings = FieldOptions(
+    field_options = FieldOptions(
         flagger_container=args.flagger_container,
         calibrate_container=args.calibrate_container,
         holofile=args.holofile,
@@ -390,6 +415,7 @@ def cli() -> None:
         aegean_container=args.aegean_container,
         no_imaging=args.no_imaging,
         reference_catalogue_directory=args.reference_catalogue_directory,
+        linmos_residuals=args.linmos_residuals,
     )
 
     setup_run_process_science_field(
@@ -397,7 +423,7 @@ def cli() -> None:
         science_path=args.science_path,
         bandpass_path=args.calibrated_bandpass_path,
         split_path=args.split_path,
-        settings=settings,
+        field_options=field_options,
     )
 
 

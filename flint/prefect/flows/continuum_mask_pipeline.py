@@ -22,8 +22,10 @@ from flint.calibrate.aocalibrate import find_existing_solutions
 from flint.logging import logger
 from flint.ms import MS
 from flint.naming import get_sbid_from_path
+from flint.options import FieldOptions
 from flint.prefect.clusters import get_dask_runner
 from flint.prefect.common.imaging import (
+    _convolve_linmos_residuals,
     task_convolve_image,
     task_create_apply_solutions_cmd,
     task_create_linmos_mask_model,
@@ -42,7 +44,6 @@ from flint.prefect.common.imaging import (
     task_zip_ms,
 )
 from flint.prefect.common.utils import task_flatten
-from flint.settings import FieldOptions
 
 
 def _create_linmos_mask(
@@ -177,6 +178,13 @@ def process_science_fields(
         holofile=field_options.holofile,
     )
 
+    if field_options.linmos_residuals:
+        _convolve_linmos_residuals(
+            wsclean_cmds=wsclean_cmds,
+            beam_shape=beam_shape,
+            field_options=field_options,
+        )
+
     aegean_outputs = task_run_bane_and_aegean.submit(
         image=parset, aegean_container=unmapped(field_options.aegean_container)
     )
@@ -229,6 +237,8 @@ def process_science_fields(
     }
 
     for round in range(1, field_options.rounds + 1):
+        final_round = round == field_options.rounds
+
         gain_cal_options = gain_cal_rounds.get(round, None)
         wsclean_options = wsclean_rounds.get(round, None)
 
@@ -250,7 +260,7 @@ def process_science_fields(
         )
 
         # Do source finding on the last round of self-cal'ed images
-        if round == field_options.rounds and run_aegean:
+        if final_round and run_aegean:
             task_run_bane_and_aegean.map(
                 image=wsclean_cmds,
                 aegean_container=unmapped(field_options.aegean_container),
@@ -277,6 +287,13 @@ def process_science_fields(
         aegean_outputs = task_run_bane_and_aegean.submit(
             image=parset, aegean_container=unmapped(field_options.aegean_container)
         )
+
+        if final_round and field_options.linmos_residuals:
+            _convolve_linmos_residuals(
+                wsclean_cmds=wsclean_cmds,
+                beam_shape=beam_shape,
+                field_options=field_options,
+            )
 
         # Use the mask from the first round
         if round < field_options.rounds:
@@ -425,6 +442,12 @@ def get_parser() -> ArgumentParser:
         action="store_true",
         help="Apply a butterworth filter when creating a clean mask from the larger linmos image. This may help capture more extended diffuse emission. ",
     )
+    parser.add_argument(
+        "--linmos-residuals",
+        action="store_true",
+        default=False,
+        help="Co-add the per-beam cleaning residuals into a field image",
+    )
 
     return parser
 
@@ -439,7 +462,7 @@ def cli() -> None:
 
     args = parser.parse_args()
 
-    settings = FieldOptions(
+    field_options = FieldOptions(
         flagger_container=args.flagger_container,
         calibrate_container=args.calibrate_container,
         holofile=args.holofile,
@@ -453,6 +476,7 @@ def cli() -> None:
         no_imaging=args.no_imaging,
         reference_catalogue_directory=args.reference_catalogue_directory,
         butterworth_filter=args.butterworth_filter,
+        linmos_residuals=args.linmos_residuals,
     )
 
     setup_run_process_science_field(
@@ -460,7 +484,7 @@ def cli() -> None:
         science_path=args.science_path,
         bandpass_path=args.calibrated_bandpass_path,
         split_path=args.split_path,
-        settings=settings,
+        field_options=field_options,
     )
 
 
