@@ -361,7 +361,7 @@ def run_wsclean_imager(wsclean_cmd: WSCleanCommand, container: Path) -> WSCleanC
         prefix=prefix,
         subbands=wsclean_cmd.options.channels_out,
         verify_exists=True,
-        output_types="image",
+        output_types=("image", "residual")
     )
 
     logger.info(f"Found {imageset.image=}")

@@ -66,6 +66,8 @@ def process_science_fields(
         logger.info(f"Creating {str(output_split_science_path)}")
         output_split_science_path.mkdir(parents=True)
 
+    logger.info(f"{field_options=}")
+
     logger.info(f"Found the following raw measurement sets: {science_mss}")
 
     # TODO: This will likely need to be expanded should any
@@ -112,7 +114,7 @@ def process_science_fields(
         return
 
     wsclean_init = {
-        "size": 7144,
+        "size": 4144,
         "minuv_l": 235,
         "weight": "briggs -0.5",
         "auto_mask": 5,
@@ -167,7 +169,6 @@ def process_science_fields(
                 container=field_options.yandasoft_container,
                 suffix_str="residual.noselfcal",
                 holofile=field_options.holofile,
-                name="task_linmos_residual_images",
             )
 
     if field_options.rounds is None:

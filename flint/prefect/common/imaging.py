@@ -273,7 +273,7 @@ def task_convolve_image(
         cutoff (float, optional): Maximum major beam axis an image is allowed to have before it will not be convolved. Defaults to 60.
 
     Returns:
-        Collection[Path]: Path to the output images that have been convolved
+        Collection[Path]: Path to the output images that have been convolved. 
     """
     assert (
         wsclean_cmd.imageset is not None
@@ -284,9 +284,18 @@ def task_convolve_image(
         mode in supported_modes
     ), f"{mode=} is not supported. Known modes are {supported_modes}"
 
-    logger.info(f"EWxtracting {mode}")
-    image_paths: Collection[Path] = wsclean_cmd.imageset.__dict__.get(mode)
-
+    logger.info(f"Extracting {mode}")
+    image_paths: Collection[Path] = (
+        wsclean_cmd.imageset.image if mode == "image" else  wsclean_cmd.imageset.residual
+    )
+    
+    # It is possible depending on how aggressively cleaning image products are deleted that these
+    # some cleaning products (e.g. residuals) do not exist. There are a number of ways one could consider
+    # handling this. The pirate in me feels like less is more, so an error will be enough. Keeping
+    # things simple and avoiding the problem is probably the better way of dealing with this 
+    # situation. In time this would mean that we inspect and handle conflicting pipeline options. 
+    assert image_paths is not None, f"{image_paths=} for {mode=} and {wsclean_cmd.imageset=}"
+    
     logger.info(f"Will convolve {image_paths}")
 
     # experience has shown that astropy units do not always work correctly
