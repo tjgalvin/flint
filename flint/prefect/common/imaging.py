@@ -397,7 +397,7 @@ def _convolve_linmos_residuals(
     field_options: FieldOptions,
 ) -> LinmosCommand:
     """An internal function that launches the convolution to a common resolution
-    and subsequent linmos of the wsclean residual images. 
+    and subsequent linmos of the wsclean residual images.
 
     Args:
         wsclean_cmds (Collection[WSCleanCommand]): Collection of wsclean imaging results, with residual images described in the attached ``ImageSet``
