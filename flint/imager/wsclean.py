@@ -384,7 +384,7 @@ def run_wsclean_imager(wsclean_cmd: WSCleanCommand, container: Path) -> WSCleanC
         check_exists_when_adding=True,
     )
 
-    logger.info(f"Found {imageset.image=}")
+    logger.info(f"Constructed {imageset=}")
 
     return wsclean_cmd.with_options(imageset=imageset)
 
