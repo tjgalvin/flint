@@ -395,6 +395,7 @@ def _convolve_linmos_residuals(
     wsclean_cmds: Collection[WSCleanCommand],
     beam_shape: BeamShape,
     field_options: FieldOptions,
+    linmos_suffix_str: str
 ) -> LinmosCommand:
     """An internal function that launches the convolution to a common resolution
     and subsequent linmos of the wsclean residual images.
@@ -403,6 +404,7 @@ def _convolve_linmos_residuals(
         wsclean_cmds (Collection[WSCleanCommand]): Collection of wsclean imaging results, with residual images described in the attached ``ImageSet``
         beam_shape (BeamShape): The beam shape that residual images will be convolved to
         field_options (FieldOptions): Options related to the processing of the field
+        linmos_suffix_str (str): The suffix string passed to the linmos parset name
 
     Returns:
         LinmosCommand: Resulting linmos command parset
@@ -416,7 +418,7 @@ def _convolve_linmos_residuals(
     parset = task_linmos_images.submit(
         images=residual_conv_images,
         container=field_options.yandasoft_container,
-        suffix_str="residual.noselfcal",
+        suffix_str=linmos_suffix_str,
         holofile=field_options.holofile,
     )
 
