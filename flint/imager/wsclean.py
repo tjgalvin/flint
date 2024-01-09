@@ -150,16 +150,16 @@ def get_wsclean_output_names(
         "model",
         "psf",
     ),
-    check_exists_when_adding: bool = False
+    check_exists_when_adding: bool = False,
 ) -> ImageSet:
     """Attempt to generate the file names and paths that would be
     created by an imaging run of wsclean. This is done using a the
-    known (expected) naming format of modern wsclean versions. 
-    
-    Checks can be made to ensure a file exists before adding it 
+    known (expected) naming format of modern wsclean versions.
+
+    Checks can be made to ensure a file exists before adding it
     to the output ``ImageSet``. This might be important as some
     wsclean image products might be deleted in order to preserve
-    disk space. 
+    disk space.
 
     Args:
         prefix (str): The prefix of the imaging run (the -name option in wsclean call)
@@ -168,7 +168,7 @@ def get_wsclean_output_names(
         verify_exists (bool, optional): Ensures that each generated path corresponds to an actual file. Defaults to False.
         include_mfs (bool, optional): Include the MFS images produced by wsclean. Defaults to True.
         output_types (Union[str,Collection[str]]): Include files of this type, including image, dirty, residual, model, psf. Defaults to  ('image','dirty','residual','model', 'psf').
-        check_exists_when_adding (bool, optional): Only add a generated file if it exists. Although related to the ``verify_exists``, when this optional is ``True`` files will silently be ignored if they are not found. if this and ``verify_exists`` are both ``True`` then no errors on missing files will be raised. Defaults to False. 
+        check_exists_when_adding (bool, optional): Only add a generated file if it exists. Although related to the ``verify_exists``, when this optional is ``True`` files will silently be ignored if they are not found. if this and ``verify_exists`` are both ``True`` then no errors on missing files will be raised. Defaults to False.
 
     Raises:
         FileExistsError: Raised when a file does not exist and verify_exists is True.
@@ -207,8 +207,8 @@ def get_wsclean_output_names(
 
                 if check_exists_when_adding and not Path(path_str).exists():
                     logger.debug(f"{path_str} does not existing. Not adding. ")
-                    continue 
-                
+                    continue
+
                 paths.append(Path(path_str))
 
         images[image_type] = paths
@@ -223,7 +223,6 @@ def get_wsclean_output_names(
             psf_images = [psf_image for psf_image in psf_images if psf_image.exists()]
 
         images["psf"] = psf_images
-
 
     if verify_exists:
         paths_no_exists: List[Path] = []
@@ -382,7 +381,7 @@ def run_wsclean_imager(wsclean_cmd: WSCleanCommand, container: Path) -> WSCleanC
         subbands=wsclean_cmd.options.channels_out,
         verify_exists=True,
         output_types=("image", "residual"),
-        check_exists_when_adding=True
+        check_exists_when_adding=True,
     )
 
     logger.info(f"Found {imageset.image=}")
