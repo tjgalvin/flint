@@ -8,7 +8,7 @@ from flint.imager.wsclean import get_wsclean_output_names, ImageSet
 
 def test_wsclean_output_named_raises():
     with pytest.raises(FileExistsError):
-        image_set = get_wsclean_output_names(prefix="JackSparrow", subbands=4, verify_exists=True) 
+        _ = get_wsclean_output_names(prefix="JackSparrow", subbands=4, verify_exists=True) 
 
 def test_wsclean_output_named_check_when_adding():
     image_set = get_wsclean_output_names(
