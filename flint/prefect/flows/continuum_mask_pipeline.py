@@ -14,7 +14,7 @@ imaging round.
 """
 from argparse import ArgumentParser
 from pathlib import Path
-from typing import Any, Optional, Union
+from typing import Any, Union
 
 from prefect import flow, unmapped
 
@@ -22,8 +22,10 @@ from flint.calibrate.aocalibrate import find_existing_solutions
 from flint.logging import logger
 from flint.ms import MS
 from flint.naming import get_sbid_from_path
+from flint.options import FieldOptions
 from flint.prefect.clusters import get_dask_runner
 from flint.prefect.common.imaging import (
+    _convolve_linmos_residuals,
     task_convolve_image,
     task_create_apply_solutions_cmd,
     task_create_linmos_mask_model,
@@ -71,22 +73,12 @@ def process_science_fields(
     science_path: Path,
     bandpass_path: Path,
     split_path: Path,
-    calibrate_container: Path,
-    flagger_container: Path,
-    holofile: Optional[Path] = None,
-    expected_ms: int = 36,
-    wsclean_container: Optional[Path] = None,
-    rounds: Optional[int] = 2,
-    yandasoft_container: Optional[Path] = None,
-    zip_ms: bool = False,
-    run_aegean: bool = False,
-    aegean_container: Optional[Path] = None,
-    no_imaging: bool = False,
-    reference_catalogue_directory: Optional[Path] = None,
-    butterworth_filter: bool = True,
+    field_options: FieldOptions,
 ) -> None:
-    run_aegean = False if aegean_container is None else run_aegean
-    run_validation = reference_catalogue_directory is not None
+    run_aegean = (
+        False if field_options.aegean_container is None else field_options.run_aegean
+    )
+    run_validation = field_options.reference_catalogue_directory is not None
 
     assert (
         science_path.exists() and science_path.is_dir()
@@ -95,8 +87,8 @@ def process_science_fields(
         [MS.cast(ms_path) for ms_path in sorted(science_path.glob("*.ms"))]
     )
     assert (
-        len(science_mss) == expected_ms
-    ), f"Expected to find {expected_ms} in {str(science_path)}, found {len(science_mss)}."
+        len(science_mss) == field_options.expected_ms
+    ), f"Expected to find {field_options.expected_ms} in {str(science_path)}, found {len(science_mss)}."
 
     science_folder_name = science_path.name
 
@@ -122,9 +114,6 @@ def process_science_fields(
     split_science_mss = task_split_by_field.map(
         ms=science_mss, field=None, out_dir=unmapped(output_split_science_path)
     )
-    # The following line will block until the science
-    # fields are split out. Since there might be more
-    # than a single field in an SBID, we should do this
     flat_science_mss = task_flatten.submit(split_science_mss)
 
     preprocess_science_mss = task_preprocess_askap_ms.map(
@@ -139,17 +128,19 @@ def process_science_fields(
     apply_solutions_cmds = task_create_apply_solutions_cmd.map(
         ms=preprocess_science_mss,
         solutions_file=solutions_paths,
-        container=calibrate_container,
+        container=field_options.calibrate_container,
     )
     flagged_mss = task_flag_ms_aoflagger.map(
-        ms=apply_solutions_cmds, container=flagger_container, rounds=1
+        ms=apply_solutions_cmds, container=field_options.flagger_container, rounds=1
     )
 
-    if no_imaging:
-        logger.info(f"No imaging will be performed, as requested bu {no_imaging=}")
+    if field_options.no_imaging:
+        logger.info(
+            f"No imaging will be performed, as requested bu {field_options.no_imaging=}"
+        )
         return
 
-    if wsclean_container is None:
+    if field_options.wsclean_container is None:
         logger.info("No wsclean container provided. Rerutning. ")
         return
 
@@ -162,18 +153,18 @@ def process_science_fields(
         "local_rms_window": 55,
         "multiscale_scales": (0, 15, 30, 40, 50, 60),
         "multiscale_scale_bias": 0.75,
-        "niter":750000*3,
-        "channels_out": 8
+        "niter": 750000 * 3,
+        "channels_out": 8,
     }
 
     wsclean_cmds = task_wsclean_imager.map(
         in_ms=flagged_mss,
-        wsclean_container=wsclean_container,
+        wsclean_container=field_options.wsclean_container,
         update_wsclean_options=unmapped(wsclean_init),
     )
 
     task_run_bane_and_aegean.map(
-        image=wsclean_cmds, aegean_container=unmapped(aegean_container)
+        image=wsclean_cmds, aegean_container=unmapped(field_options.aegean_container)
     )
 
     beam_shape = task_get_common_beam.submit(wsclean_cmds=wsclean_cmds, cutoff=150.0)
@@ -182,26 +173,33 @@ def process_science_fields(
     )
     parset = task_linmos_images.submit(
         images=conv_images,
-        container=yandasoft_container,
+        container=field_options.yandasoft_container,
         suffix_str="noselfcal",
-        holofile=holofile,
+        holofile=field_options.holofile,
     )
 
+    if field_options.linmos_residuals:
+        _convolve_linmos_residuals(
+            wsclean_cmds=wsclean_cmds,
+            beam_shape=beam_shape,
+            field_options=field_options,
+        )
+
     aegean_outputs = task_run_bane_and_aegean.submit(
-        image=parset, aegean_container=unmapped(aegean_container)
+        image=parset, aegean_container=unmapped(field_options.aegean_container)
     )
 
     linmos_mask = _create_linmos_mask(
         linmos_parset=parset,
         aegean_outputs=aegean_outputs,
-        butterworth_filter=butterworth_filter,
+        butterworth_filter=field_options.butterworth_filter,
     )
 
     beam_masks = task_extract_beam_mask_image.map(
         linmos_mask_names=unmapped(linmos_mask), wsclean_cmd=wsclean_cmds
     )
 
-    if rounds is None:
+    if field_options.rounds is None:
         logger.info("No self-calibration will be performed. Returning")
         return
 
@@ -220,8 +218,8 @@ def process_science_fields(
             "multiscale_scales": (0, 15, 30, 40, 50, 60),
             "multiscale_scale_bias": 0.75,
             "threshold": 0.00006,
-            "niter":750000*3,
-            "channels_out": 8
+            "niter": 750000 * 3,
+            "channels_out": 8,
         },
         2: {
             "size": 9000,
@@ -231,14 +229,16 @@ def process_science_fields(
             "auto_mask": 2.0,
             "local_rms_window": 110,
             "multiscale_scales": (0, 15, 30, 40, 50, 60),
-             "multiscale_scale_bias": 0.75,
+            "multiscale_scale_bias": 0.75,
             "threshold": 0.00006,
-            "niter":750000*3,
-            "channels_out": 8
+            "niter": 750000 * 3,
+            "channels_out": 8,
         },
     }
 
-    for round in range(1, rounds + 1):
+    for round in range(1, field_options.rounds + 1):
+        final_round = round == field_options.rounds
+
         gain_cal_options = gain_cal_rounds.get(round, None)
         wsclean_options = wsclean_rounds.get(round, None)
 
@@ -246,26 +246,26 @@ def process_science_fields(
             wsclean_cmd=wsclean_cmds,
             round=round,
             update_gain_cal_options=unmapped(gain_cal_options),
-            archive_input_ms=zip_ms,
+            archive_input_ms=field_options.zip_ms,
         )
 
         flag_mss = task_flag_ms_aoflagger.map(
-            ms=cal_mss, container=flagger_container, rounds=1
+            ms=cal_mss, container=field_options.flagger_container, rounds=1
         )
         wsclean_cmds = task_wsclean_imager.map(
             in_ms=flag_mss,
-            wsclean_container=wsclean_container,
+            wsclean_container=field_options.wsclean_container,
             update_wsclean_options=unmapped(wsclean_options),
             fits_mask=beam_masks,
         )
 
         # Do source finding on the last round of self-cal'ed images
-        if round == rounds and run_aegean:
+        if final_round and run_aegean:
             task_run_bane_and_aegean.map(
-                image=wsclean_cmds, aegean_container=unmapped(aegean_container)
+                image=wsclean_cmds,
+                aegean_container=unmapped(field_options.aegean_container),
             )
             task_zip_ms.map(in_item=wsclean_cmds)
-            
 
         beam_shape = task_get_common_beam.submit(
             wsclean_cmds=wsclean_cmds, cutoff=150.0
@@ -273,27 +273,34 @@ def process_science_fields(
         conv_images = task_convolve_image.map(
             wsclean_cmd=wsclean_cmds, beam_shape=unmapped(beam_shape), cutoff=150.0
         )
-        if yandasoft_container is None:
+        if field_options.yandasoft_container is None:
             logger.info("No yandasoft container supplied, not linmosing. ")
             continue
 
         parset = task_linmos_images.submit(
             images=conv_images,
-            container=yandasoft_container,
+            container=field_options.yandasoft_container,
             suffix_str=f"round{round}",
-            holofile=holofile,
+            holofile=field_options.holofile,
         )
 
         aegean_outputs = task_run_bane_and_aegean.submit(
-            image=parset, aegean_container=unmapped(aegean_container)
+            image=parset, aegean_container=unmapped(field_options.aegean_container)
         )
 
+        if final_round and field_options.linmos_residuals:
+            _convolve_linmos_residuals(
+                wsclean_cmds=wsclean_cmds,
+                beam_shape=beam_shape,
+                field_options=field_options,
+            )
+
         # Use the mask from the first round
-        if round < rounds:
+        if round < field_options.rounds:
             linmos_mask = _create_linmos_mask(
                 linmos_parset=parset,
                 aegean_outputs=aegean_outputs,
-                butterworth_filter=butterworth_filter,
+                butterworth_filter=field_options.butterworth_filter,
             )
 
             beam_masks = task_extract_beam_mask_image.map(
@@ -303,9 +310,8 @@ def process_science_fields(
         if run_validation:
             task_create_validation_plot.submit(
                 aegean_outputs=aegean_outputs,
-                reference_catalogue_directory=reference_catalogue_directory,
+                reference_catalogue_directory=field_options.reference_catalogue_directory,
             )
-
 
 
 def setup_run_process_science_field(
@@ -313,19 +319,7 @@ def setup_run_process_science_field(
     science_path: Path,
     bandpass_path: Path,
     split_path: Path,
-    flagger_container: Path,
-    calibrate_container: Path,
-    holofile: Optional[Path] = None,
-    expected_ms: int = 36,
-    wsclean_container: Optional[Path] = None,
-    yandasoft_container: Optional[Path] = None,
-    rounds: int = 2,
-    zip_ms: bool = False,
-    run_aegean: bool = False,
-    aegean_container: Optional[Path] = None,
-    no_imaging: bool = False,
-    reference_catalogue_directory: Optional[Path] = None,
-    butterworth_filter: bool = False,
+    field_options: FieldOptions,
 ) -> None:
     assert (
         bandpass_path.exists() and bandpass_path.is_dir()
@@ -342,19 +336,7 @@ def setup_run_process_science_field(
         science_path=science_path,
         bandpass_path=bandpass_path,
         split_path=split_path,
-        flagger_container=flagger_container,
-        calibrate_container=calibrate_container,
-        holofile=holofile,
-        expected_ms=expected_ms,
-        wsclean_container=wsclean_container,
-        yandasoft_container=yandasoft_container,
-        rounds=rounds,
-        zip_ms=zip_ms,
-        run_aegean=run_aegean,
-        aegean_container=aegean_container,
-        no_imaging=no_imaging,
-        reference_catalogue_directory=reference_catalogue_directory,
-        butterworth_filter=butterworth_filter,
+        field_options=field_options,
     )
 
 
@@ -460,6 +442,12 @@ def get_parser() -> ArgumentParser:
         action="store_true",
         help="Apply a butterworth filter when creating a clean mask from the larger linmos image. This may help capture more extended diffuse emission. ",
     )
+    parser.add_argument(
+        "--linmos-residuals",
+        action="store_true",
+        default=False,
+        help="Co-add the per-beam cleaning residuals into a field image",
+    )
 
     return parser
 
@@ -474,11 +462,7 @@ def cli() -> None:
 
     args = parser.parse_args()
 
-    setup_run_process_science_field(
-        cluster_config=args.cluster_config,
-        science_path=args.science_path,
-        bandpass_path=args.calibrated_bandpass_path,
-        split_path=args.split_path,
+    field_options = FieldOptions(
         flagger_container=args.flagger_container,
         calibrate_container=args.calibrate_container,
         holofile=args.holofile,
@@ -492,6 +476,15 @@ def cli() -> None:
         no_imaging=args.no_imaging,
         reference_catalogue_directory=args.reference_catalogue_directory,
         butterworth_filter=args.butterworth_filter,
+        linmos_residuals=args.linmos_residuals,
+    )
+
+    setup_run_process_science_field(
+        cluster_config=args.cluster_config,
+        science_path=args.science_path,
+        bandpass_path=args.calibrated_bandpass_path,
+        split_path=args.split_path,
+        field_options=field_options,
     )
 
 
