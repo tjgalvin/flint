@@ -5,6 +5,39 @@ from scipy.signal import savgol_filter
 from flint.logging import logger
 
 
+def divide_bandpass_by_ref_ant(complex_gains: np.ndarray, ref_ant: int) -> np.ndarray:
+    """Divide the bandpass compelx gains (solved for initially by something like
+    calibrate) by a nominated reference antenna. In the case of ``calibrate``
+    there is no implicit reference antenna.
+
+    The input complex gains should be in the form:
+    >> (ant, channel, pol)
+
+    Internally this function will construct a phasor:
+    >> phasor = G_{ref_ant} / abs(G_{ref_ant})
+
+    which is applied to all antennas in ``complex_gains``.
+
+    Args:
+        complex_gains (np.ndarray): The complex gains that will be normalised
+        ref_ant (int): The desired reference antenna to use
+
+    Returns:
+        np.ndarray: The normalised bandpass solutions
+    """
+    assert (
+        len(complex_gains.shape) == 3
+    ), f"The shape of the input complex gains should be of rank 3 in form (ant, chan, pol). Received {complex_gains.shape}"
+
+    logger.info(f"Dividing bandpass solutions using reference antenna={ref_ant}")
+    ref_ant_solutions = complex_gains[ref_ant]
+    ref_ant_phasor = ref_ant_solutions / np.abs(ref_ant_solutions)
+
+    complex_gains = complex_gains / ref_ant_phasor[None, :, :]
+
+    return complex_gains
+
+
 def smooth_data(
     data: np.ndarray,
     window_size: int,
