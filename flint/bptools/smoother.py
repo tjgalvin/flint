@@ -29,7 +29,12 @@ def divide_bandpass_by_ref_ant(complex_gains: np.ndarray, ref_ant: int) -> np.nd
         len(complex_gains.shape) == 3
     ), f"The shape of the input complex gains should be of rank 3 in form (ant, chan, pol). Received {complex_gains.shape}"
 
-    logger.info(f"Dividing bandpass solutions using reference antenna={ref_ant}")
+    logger.info(f"Dividing bandpass gain solutions using reference antenna={ref_ant}")
+
+    # Make a copy of the data to avoid editing it whereever else it might be.
+    # Trust nothing you pirate.
+    complex_gains = complex_gains.copy()
+
     ref_ant_solutions = complex_gains[ref_ant]
     ref_ant_phasor = ref_ant_solutions / np.abs(ref_ant_solutions)
 
