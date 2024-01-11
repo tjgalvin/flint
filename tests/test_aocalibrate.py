@@ -12,7 +12,12 @@ from flint.bptools.smoother import (
     smooth_data,
     smooth_bandpass_complex_gains,
 )
-from flint.calibrate.aocalibrate import AOSolutions, plot_solutions, select_refant
+from flint.calibrate.aocalibrate import (
+    AOSolutions,
+    flag_aosolutions,
+    plot_solutions,
+    select_refant,
+)
 
 
 @pytest.fixture
@@ -28,6 +33,28 @@ def ao_sols(tmpdir):
     shutil.copyfile(ao_sols, out_ao_sols)
 
     return out_ao_sols
+
+
+@pytest.fixture
+def ao_sols_known_bad(tmpdir):
+    # The file contains a binary solutions file that failed previously.
+    # It was fixed by testing for all nans in the `flint.bptools.smoother.smooth_data`
+    # function.
+    ao_sols = Path(
+        pkg_resources.resource_filename(
+            "flint", "data/tests/SB38969.B1934-638.beam35.aocalibrate.bin"
+        )
+    )
+
+    out_ao_sols = Path(tmpdir) / ao_sols.name
+
+    shutil.copyfile(ao_sols, out_ao_sols)
+
+    return out_ao_sols
+
+
+def test_known_bad_sols(ao_sols_known_bad):
+    flag_aosolutions(solutions_path=ao_sols_known_bad, plot_solutions=False)
 
 
 def test_load_aosols(ao_sols):
