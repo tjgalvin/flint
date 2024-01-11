@@ -28,6 +28,7 @@ from flint.masking import (
 from flint.ms import MS, preprocess_askap_ms, split_by_field
 from flint.naming import FITSMaskNames, processed_ms_format
 from flint.options import FieldOptions
+from flint.prefect.common.utils import upload_image_as_artifact
 from flint.selfcal.casa import gaincal_applycal_ms
 from flint.source_finding.aegean import AegeanOutputs, run_bane_and_aegean
 from flint.utils import zip_folder
@@ -542,13 +543,16 @@ def task_extract_beam_mask_image(
 
 @task
 def task_create_validation_plot(
-    aegean_outputs: AegeanOutputs, reference_catalogue_directory: Path
+    aegean_outputs: AegeanOutputs,
+    reference_catalogue_directory: Path,
+    upload_artifact: bool = True,
 ) -> Path:
     """Create a multi-panel figure highlighting the RMS, flux scale and astrometry of a field
 
     Args:
         aegean_outputs (AegeanOutputs): Output aegean products
         reference_catalogue_directory (Path): Directory containing NVSS, SUMSS and ICRS reference catalogues. These catalogues are reconginised internally and have expected names.
+        upload_artifact (bool, optional): If True the validation plot will be uploaded to the prefect service as an artifact. Defaults to True.
 
     Returns:
         Path: Path to the output figure created
@@ -557,9 +561,16 @@ def task_create_validation_plot(
 
     logger.info(f"Will create {output_figure_path=}")
 
-    return create_validation_plot(
+    plot_path = create_validation_plot(
         rms_image_path=aegean_outputs.rms,
         source_catalogue_path=aegean_outputs.comp,
         output_path=output_figure_path,
         reference_catalogue_directory=reference_catalogue_directory,
     )
+
+    if upload_artifact:
+        upload_image_as_artifact(
+            image_path=plot_path, descrition=f"Validation plot {str(plot_path)}"
+        )
+
+    return plot_path
