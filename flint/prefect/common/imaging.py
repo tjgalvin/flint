@@ -553,7 +553,7 @@ def task_create_validation_plot(
     Returns:
         Path: Path to the output figure created
     """
-    output_figure_path = aegean_outputs.comp.with_suffix(".validation.png")
+    output_figure_path = aegean_outputs.comp.parent
 
     logger.info(f"Will create {output_figure_path=}")
 
