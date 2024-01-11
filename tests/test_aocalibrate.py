@@ -7,7 +7,11 @@ import numpy as np
 import pkg_resources
 import pytest
 
-from flint.bptools.smoother import divide_bandpass_by_ref_ant
+from flint.bptools.smoother import (
+    divide_bandpass_by_ref_ant,
+    smooth_data,
+    smooth_bandpass_complex_gains,
+)
 from flint.calibrate.aocalibrate import AOSolutions, plot_solutions, select_refant
 
 
@@ -38,6 +42,41 @@ def test_aosols_bandpass_plot(ao_sols):
     # This is just a dumb test to make sure the function runs
     plot_solutions(solutions=ao_sols, ref_ant=0)
     plot_solutions(solutions=ao_sols, ref_ant=None)
+
+
+def test_aosols_all_nans_smooth_data(ao_sols):
+    ao = AOSolutions.load(ao_sols)
+    ao.bandpass[0, 20, :, :] = np.nan
+    assert np.all(~np.isfinite(ao.bandpass[0, 20, :, 0]))
+
+    smoothed = smooth_data(
+        data=ao.bandpass[0, 20, :, 0].real, window_size=16, polynomial_order=4
+    )
+    assert np.all(~np.isfinite(smoothed))
+
+
+def test_smooth_bandpass_complex_gains_nans(ao_sols):
+    ao = AOSolutions.load(ao_sols)
+    ao.bandpass[0, 20, :, :] = np.nan
+    assert np.all(~np.isfinite(ao.bandpass[0, 20, :, 0]))
+
+    smoothed = smooth_bandpass_complex_gains(
+        complex_gains=ao.bandpass[0], window_size=16, polynomial_order=4
+    )
+    assert np.all(~np.isfinite(smoothed[20, :, 0]))
+
+
+def test_smooth_bandpass_complex_gains_nans_with_refant(ao_sols):
+    ao = AOSolutions.load(ao_sols)
+    ao.bandpass[0, 20, :, :] = np.nan
+    assert np.all(~np.isfinite(ao.bandpass[0, 20, :, 0]))
+
+    ref = divide_bandpass_by_ref_ant(complex_gains=ao.bandpass[0], ref_ant=0)
+
+    smoothed = smooth_bandpass_complex_gains(
+        complex_gains=ref, window_size=16, polynomial_order=4
+    )
+    assert np.all(~np.isfinite(smoothed[20, :, 0]))
 
 
 def test_aosols_bandpass_ref_nu_rank_error(ao_sols):
