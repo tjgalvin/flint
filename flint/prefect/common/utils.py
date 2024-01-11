@@ -1,12 +1,51 @@
 """Common prefect related utilities that can be used between flows.
 """
+from uuid import UUID
 from typing import Any, List, TypeVar
+from pathlib import Path
+import base64
 
 from prefect import task
+from prefect.artifacts import create_markdown_artifact
 
 from flint.logging import logger
 
 T = TypeVar("T")
+
+SUPPORTED_IMAGE_TYPES = ("png",)
+
+
+def upload_image_as_artifact(image_path: Path) -> UUID:
+    """Create and submit a markdown artifact tracked by prefect for an
+    input image. Currently supporting png formatted images.
+
+    The input image is converted to a base64 encoding, and embedded directly
+    within the markdown string. Therefore, be mindful of the image size as this
+    is tracked in the postgres database.
+
+    Args:
+        image_path (Path): Path to the image to upload
+
+    Returns:
+        UUID: Generated UUID of the registered artifact
+    """
+    image_type = image_path.suffix.replace(".", "")
+    assert image_path.exists(), f"{image_path} does not exist"
+    assert (
+        image_type in SUPPORTED_IMAGE_TYPES
+    ), f"{image_path} has type {image_type}, and is not supported. Supported types are {SUPPORTED_IMAGE_TYPES}"
+
+    with open(image_path, "rb") as open_image:
+        logger.info(f"Encoding {image_path} in base64")
+        image_base64 = base64.b64encode(open_image.read()).decode()
+
+    logger.info("Creating markdown tag")
+    markdown = f"![{image_path.stem}](data:image/{image_type};base64,{image_base64})"
+
+    logger.info("Registering artifact")
+    image_uuid = create_markdown_artifact(markdown=markdown)
+
+    return image_uuid
 
 
 @task
