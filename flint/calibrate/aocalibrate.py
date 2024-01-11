@@ -16,7 +16,10 @@ from flint.bptools.preflagger import (
     flag_outlier_phase,
     flags_over_threshold,
 )
-from flint.bptools.smoother import smooth_bandpass_complex_gains
+from flint.bptools.smoother import (
+    divide_bandpass_by_ref_ant,
+    smooth_bandpass_complex_gains,
+)
 from flint.exceptions import PhaseOutlierFitError
 from flint.logging import logger
 from flint.ms import MS, consistent_ms, get_beam_from_ms
@@ -815,7 +818,10 @@ def flag_aosolutions(
     if smooth_solutions:
         logger.info("Smoothing the bandpass solutions. ")
         for time in range(solutions.nsol):
-            bandpass[time] = smooth_bandpass_complex_gains(complex_gains=bandpass[time])
+            complex_gains = divide_bandpass_by_ref_ant(
+                complex_gains=bandpass[time], ref_ant=ref_ant
+            )
+            bandpass[time] = smooth_bandpass_complex_gains(complex_gains=complex_gains)
 
         out_solutions_path = get_aocalibrate_output_path(
             ms_path=solutions_path, include_preflagger=True, include_smoother=True

@@ -163,7 +163,7 @@ def process_science_fields(
                 wsclean_cmds=wsclean_cmds,
                 beam_shape=beam_shape,
                 field_options=field_options,
-                linmos_suffix_str="residual.noselfcal"
+                linmos_suffix_str="residual.noselfcal",
             )
 
     if field_options.rounds is None:
@@ -244,7 +244,7 @@ def process_science_fields(
                 wsclean_cmds=wsclean_cmds,
                 beam_shape=beam_shape,
                 field_options=field_options,
-                linmos_suffix_str=f"residual.round{round}"
+                linmos_suffix_str=f"residual.round{round}",
             )
 
         if run_aegean:
