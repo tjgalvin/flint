@@ -9,8 +9,8 @@ import pytest
 
 from flint.bptools.smoother import (
     divide_bandpass_by_ref_ant,
-    smooth_data,
     smooth_bandpass_complex_gains,
+    smooth_data,
 )
 from flint.calibrate.aocalibrate import (
     AOSolutions,
