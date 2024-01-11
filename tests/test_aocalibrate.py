@@ -76,8 +76,9 @@ def test_ref_ant_selection(ao_sols):
 def test_ref_ant_selection_with_assert(ao_sols):
     ao = AOSolutions.load(path=ao_sols)
 
+    # This ref ant selection function expects a rank of 4
     with pytest.raises(AssertionError) as ae:
-        select_refant(bandpass=ao.bandpass)
+        select_refant(bandpass=ao.bandpass[0])
 
 
 # TODO: Need to write more tests for the smoothing and other things
