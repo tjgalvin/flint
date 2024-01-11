@@ -10,16 +10,23 @@ import astropy.units as u
 import matplotlib.pyplot as plt
 import numpy as np
 import pkg_resources
-from astropy.coordinates import SkyCoord
+from astropy.coordinates import AltAz, EarthLocation, SkyCoord
 from astropy.io import fits
 from astropy.table import Table
+from astropy.time import Time
 from astropy.wcs import WCS
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
 from scipy import stats
 
 from flint.logging import logger
-from flint.ms import MS, MSSummary, describe_ms
+from flint.ms import (
+    MS,
+    MSSummary,
+    describe_ms,
+    get_telescope_location_from_ms,
+    get_times_from_ms,
+)
 from flint.naming import ProcessedNameComponents, processed_ms_format
 
 F_SMALL = 7
@@ -169,6 +176,16 @@ class RMSImageInfo(NamedTuple):
     """The WCS of the image"""
     centre: SkyCoord
     """The centre of the image"""
+    median: float
+    """The median value of the image"""
+    minimum: float
+    """The minimum value of the image"""
+    maximum: float
+    """The maximum value of the image"""
+    std: float
+    """The standard deviation of the image"""
+    mode: float
+    """The mode of the image"""
 
 
 class SourceCounts(NamedTuple):
@@ -339,6 +356,11 @@ def get_rms_image_info(rms_path: Path) -> RMSImageInfo:
         area=area,
         wcs=wcs,
         centre=centre_sky,
+        median=np.nanmedian(rms_data),
+        minimum=np.nanmin(rms_data),
+        maximum=np.nanmax(rms_data),
+        std=np.nanstd(rms_data),
+        mode=stats.mode(rms_data, axis=None).mode[0],
     )
 
     return rms_image_info
@@ -853,7 +875,14 @@ def plot_psf(fig: Figure, ax: Axes, rms_info: RMSImageInfo) -> Axes:
     return ax
 
 
-def plot_field_info(fig: Figure, ax: Axes, ms_info: ProcessedNameComponents) -> Axes:
+def plot_field_info(
+    fig: Figure,
+    ax: Axes,
+    ms_info: ProcessedNameComponents,
+    rms_info: RMSImageInfo,
+    ms_path: Path,
+    askap_table: Table,
+) -> Axes:
     # TODO: Add the field information to the plot
     # Namely:
     # - Field name
@@ -868,6 +897,13 @@ def plot_field_info(fig: Figure, ax: Axes, ms_info: ProcessedNameComponents) -> 
     # - Median rms
     # - Number of sources
     # - Processing date
+    ms_times = get_times_from_ms(ms_path)
+    telescope = get_telescope_location_from_ms(ms_path)
+    centre = rms_info.centre.icrs
+    centre_altaz = centre.transform_to(AltAz(obstime=ms_times, location=telescope))
+    hour_angles = centre_altaz.az.to(u.hourangle)
+    elevations = centre_altaz.alt.to(u.deg)
+
     ax.text(
         0.1,
         0.8,
@@ -879,19 +915,19 @@ def plot_field_info(fig: Figure, ax: Axes, ms_info: ProcessedNameComponents) -> 
         0.0,
         0.0,
         f"""
-    - J2000 RA / Dec    : {""}
-    - Galactic l / b    : {""}
+    - J2000 RA / Dec    : {rms_info.centre.icrs.to_string(style='hmsdms')}
+    - Galactic l / b    : {rms_info.centre.galactic.to_string(style='decimal')}
     - SBID              : {ms_info.sbid}
     - CAL_SBID          : {""}
-    - Start time        : {""}
-    - Integration time  : {""}
-    - Hour angle range  : {""}
-    - Elevation range   : {""}
+    - Start time        : {ms_times[0].utc.fits}
+    - Integration time  : {ms_times.ptp().sec * u.second:latex_inline}
+    - Hour angle range  : {hour_angles.min():latex_inline} - {hour_angles.max():latex_inline}
+    - Elevation range   : {elevations.min():latex_inline} - {elevations.max():latex_inline}
 
-    - Median rms        : {""}
-    - Components        : {""}
+    - Median rms        : {rms_info.median}
+    - Components        : {len(askap_table)}
 
-    - Processing date   : {""}
+    - Processing date   : {Time.now().fits}
         """,
         family="monospace",
         fontdict={"fontsize": F_MED},
@@ -963,18 +999,19 @@ def make_field_stats_table(
 ) -> Table:
     # Columns are:
     # FLD_NAME,SBID,NPIXV,MINIMUM,MAXIMUM,MED_RMS_uJy,MODE_RMS_uJy,STD_RMS_uJy,MIN_RMS_uJy,MAX_RMS_uJy
+    # TODO: Get the min / max from the image (not rms)
     stats_table = Table(
         {
             "FLD_NAME": [ms_name_components.field],
             "SBID": [ms_name_components.sbid],
             "NPIXV": [rms_info.no_valid_pixels],
-            "MINIMUM": [rms_info.data.min()],
-            "MAXIMUM": [rms_info.data.max()],
-            "MED_RMS_uJy": [np.median(rms_info.data) * 1e6],
-            "MODE_RMS_uJy": [stats.mode(rms_info.data, axis=None).mode[0] * 1e6],
-            "STD_RMS_uJy": [np.std(rms_info.data) * 1e6],
-            "MIN_RMS_uJy": [np.min(rms_info.data) * 1e6],
-            "MAX_RMS_uJy": [np.max(rms_info.data) * 1e6],
+            "MINIMUM": [np.nan],
+            "MAXIMUM": [np.nan],
+            "MED_RMS_uJy": [rms_info.median * 1e6],
+            "MODE_RMS_uJy": [rms_info.mode * 1e6],
+            "STD_RMS_uJy": [rms_info.std * 1e6],
+            "MIN_RMS_uJy": [rms_info.minimum * 1e6],
+            "MAX_RMS_uJy": [rms_info.maximum * 1e6],
         }
     )
     # statistics_{SBID}-{FIELD_NAME}.csv
@@ -1234,6 +1271,9 @@ def create_validation_plot(
         fig=fig,
         ax=validator_layout.ax_legend,
         ms_info=ms_name_components,
+        rms_info=rms_info,
+        ms_path=processed_ms_paths[0],
+        askap_table=tables.askap,
     )
 
     fig.suptitle(

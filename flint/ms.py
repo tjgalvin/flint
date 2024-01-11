@@ -11,7 +11,9 @@ from pathlib import Path
 from shutil import rmtree
 from typing import List, NamedTuple, Optional, Union
 
+import astropy.units as u
 import numpy as np
+from astropy.coordinates import EarthLocation
 from astropy.time import Time
 from casacore.tables import table, taql
 from fixms.fix_ms_corrs import fix_ms_corrs
@@ -241,6 +243,24 @@ def get_times_from_ms(ms: Union[MS, Path]) -> Time:
         times = Time(tab.getcol("TIME") * u.s, format="mjd")
 
     return times
+
+
+def get_telescope_location_from_ms(ms: Union[MS, Path]) -> EarthLocation:
+    """Return the telescope location from an ASKAP Measurement set.
+
+    Args:
+        ms (Union[MS, Path]): Measurement set to inspect
+
+    Returns:
+        EarthLocation: The telescope location
+    """
+    ms = MS.cast(ms)
+    # Get the position of the observatory
+    with table(str(ms.mpath / "ANTENNA"), ack=False) as tab:
+        pos = EarthLocation.from_geocentric(
+            *tab.getcol("POSITION")[0] * u.m  # First antenna is fine
+        )
+    return pos
 
 
 def describe_ms(ms: Union[MS, Path], verbose: bool = True) -> MSSummary:
