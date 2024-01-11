@@ -15,7 +15,7 @@ T = TypeVar("T")
 SUPPORTED_IMAGE_TYPES = ("png",)
 
 
-def upload_image_as_artifact(image_path: Path) -> UUID:
+def upload_image_as_artifact(image_path: Path, description: Optional[str]=None) -> UUID:
     """Create and submit a markdown artifact tracked by prefect for an
     input image. Currently supporting png formatted images.
 
@@ -25,6 +25,7 @@ def upload_image_as_artifact(image_path: Path) -> UUID:
 
     Args:
         image_path (Path): Path to the image to upload
+        description (Optional[str], optional): A description passed to the markdown artifact. Defaults to None. 
 
     Returns:
         UUID: Generated UUID of the registered artifact
@@ -43,7 +44,7 @@ def upload_image_as_artifact(image_path: Path) -> UUID:
     markdown = f"![{image_path.stem}](data:image/{image_type};base64,{image_base64})"
 
     logger.info("Registering artifact")
-    image_uuid = create_markdown_artifact(markdown=markdown)
+    image_uuid = create_markdown_artifact(markdown=markdown, description=description)
 
     return image_uuid
 

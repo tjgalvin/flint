@@ -569,6 +569,9 @@ def task_create_validation_plot(
     )
 
     if upload_artifact:
-        upload_image_as_artifact(image_path=plot_path)
+        upload_image_as_artifact(
+            image_path=plot_path,
+            descrition=f"Validation plot {str(plot_path)}"
+        )
 
     return plot_path
