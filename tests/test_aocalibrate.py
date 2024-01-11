@@ -1,14 +1,14 @@
 """Some tests related to using aoccalibrate related things
 """
-from pathlib import Path
-import pytest
 import shutil
+from pathlib import Path
 
-import pkg_resources
 import numpy as np
+import pkg_resources
+import pytest
 
-from flint.calibrate.aocalibrate import AOSolutions, plot_solutions, select_refant
 from flint.bptools.smoother import divide_bandpass_by_ref_ant
+from flint.calibrate.aocalibrate import AOSolutions, plot_solutions, select_refant
 
 
 @pytest.fixture

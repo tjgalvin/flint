@@ -17,8 +17,8 @@ from flint.bptools.preflagger import (
     flags_over_threshold,
 )
 from flint.bptools.smoother import (
-    smooth_bandpass_complex_gains,
     divide_bandpass_by_ref_ant,
+    smooth_bandpass_complex_gains,
 )
 from flint.exceptions import PhaseOutlierFitError
 from flint.logging import logger
