@@ -1,9 +1,9 @@
 """Common prefect related utilities that can be used between flows.
 """
-from uuid import UUID
-from typing import Any, List, TypeVar
-from pathlib import Path
 import base64
+from pathlib import Path
+from typing import Any, List, TypeVar
+from uuid import UUID
 
 from prefect import task
 from prefect.artifacts import create_markdown_artifact
@@ -15,7 +15,9 @@ T = TypeVar("T")
 SUPPORTED_IMAGE_TYPES = ("png",)
 
 
-def upload_image_as_artifact(image_path: Path, description: Optional[str]=None) -> UUID:
+def upload_image_as_artifact(
+    image_path: Path, description: Optional[str] = None
+) -> UUID:
     """Create and submit a markdown artifact tracked by prefect for an
     input image. Currently supporting png formatted images.
 
@@ -25,7 +27,7 @@ def upload_image_as_artifact(image_path: Path, description: Optional[str]=None) 
 
     Args:
         image_path (Path): Path to the image to upload
-        description (Optional[str], optional): A description passed to the markdown artifact. Defaults to None. 
+        description (Optional[str], optional): A description passed to the markdown artifact. Defaults to None.
 
     Returns:
         UUID: Generated UUID of the registered artifact
