@@ -31,7 +31,7 @@ from flint.options import FieldOptions
 from flint.selfcal.casa import gaincal_applycal_ms
 from flint.source_finding.aegean import AegeanOutputs, run_bane_and_aegean
 from flint.utils import zip_folder
-from flint.validation import create_validation_plot
+from flint.validation import create_validation_plot, create_validation_tables
 
 # These are simple task wrapped functions and require no other modification
 task_preprocess_askap_ms = task(preprocess_askap_ms)
@@ -542,7 +542,9 @@ def task_extract_beam_mask_image(
 
 @task
 def task_create_validation_plot(
-    aegean_outputs: AegeanOutputs, reference_catalogue_directory: Path
+    processed_mss: List[MS],
+    aegean_outputs: AegeanOutputs,
+    reference_catalogue_directory: Path,
 ) -> Path:
     """Create a multi-panel figure highlighting the RMS, flux scale and astrometry of a field
 
@@ -553,13 +555,45 @@ def task_create_validation_plot(
     Returns:
         Path: Path to the output figure created
     """
-    output_figure_path = aegean_outputs.comp.parent
+    output_path = aegean_outputs.comp.parent
 
-    logger.info(f"Will create {output_figure_path=}")
+    logger.info(f"Will create validation plot in {output_path=}")
 
     return create_validation_plot(
+        processed_ms_paths=[ms.path for ms in processed_mss],
         rms_image_path=aegean_outputs.rms,
         source_catalogue_path=aegean_outputs.comp,
-        output_path=output_figure_path,
+        output_path=output_path,
+        reference_catalogue_directory=reference_catalogue_directory,
+    )
+
+
+@task
+def task_create_validation_tables(
+    processed_mss: List[MS],
+    aegean_outputs: AegeanOutputs,
+    reference_catalogue_directory: Path,
+) -> Path:
+    """Create a set of validation tables that can be used to assess the
+    correctness of an image and associated source catalogue.
+
+    Args:
+        processed_ms_paths (List[Path]): The processed MS files that were used to create the source catalogue
+        rms_image_path (Path): The RMS fits image the source catalogue was constructed against.
+        source_catalogue_path (Path): The source catalogue.
+        output_path (Path): The output path of the figure to create
+        reference_catalogue_directory (Path): The directory that contains the reference catalogues installed
+
+    Returns:
+        ValidationTables: The tables that were created
+    """
+    output_path = aegean_outputs.comp.parent
+
+    logger.info(f"Will create validation tables in {output_path=}")
+    return create_validation_tables(
+        processed_ms_paths=[ms.path for ms in processed_mss],
+        rms_image_path=aegean_outputs.rms,
+        source_catalogue_path=aegean_outputs.comp,
+        output_path=output_path,
         reference_catalogue_directory=reference_catalogue_directory,
     )

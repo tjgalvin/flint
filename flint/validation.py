@@ -1025,6 +1025,19 @@ def create_validation_tables(
     output_path: Path,
     reference_catalogue_directory: Path,
 ) -> ValidationTables:
+    """Create a set of validation tables that can be used to assess the
+    correctness of an image and associated source catalogue.
+
+    Args:
+        processed_ms_paths (List[Path]): The processed MS files that were used to create the source catalogue
+        rms_image_path (Path): The RMS fits image the source catalogue was constructed against.
+        source_catalogue_path (Path): The source catalogue.
+        output_path (Path): The output path of the figure to create
+        reference_catalogue_directory (Path): The directory that contains the reference catalogues installed
+
+    Returns:
+        ValidationTables: The tables that were created
+    """
     # Get refernce info from single MS
     ms_name_components = processed_ms_format(processed_ms_paths[0])
 
