@@ -7,6 +7,7 @@ imaging flows.
 from pathlib import Path
 from typing import Any, Collection, Dict, List, Optional, TypeVar, Union
 
+import pandas as pd
 from prefect import task, unmapped
 from prefect.artifacts import create_table_artifact
 
@@ -33,7 +34,12 @@ from flint.prefect.common.utils import upload_image_as_artifact
 from flint.selfcal.casa import gaincal_applycal_ms
 from flint.source_finding.aegean import AegeanOutputs, run_bane_and_aegean
 from flint.utils import zip_folder
-from flint.validation import create_validation_plot, create_validation_tables
+from flint.validation import (
+    ValidationTables,
+    XMatchTables,
+    create_validation_plot,
+    create_validation_tables,
+)
 
 # These are simple task wrapped functions and require no other modification
 task_preprocess_askap_ms = task(preprocess_askap_ms)
@@ -584,7 +590,8 @@ def task_create_validation_tables(
     processed_mss: List[MS],
     aegean_outputs: AegeanOutputs,
     reference_catalogue_directory: Path,
-) -> Path:
+    upload_artifacts: bool = True,
+) -> ValidationTables:
     """Create a set of validation tables that can be used to assess the
     correctness of an image and associated source catalogue.
 
@@ -601,10 +608,32 @@ def task_create_validation_tables(
     output_path = aegean_outputs.comp.parent
 
     logger.info(f"Will create validation tables in {output_path=}")
-    return create_validation_tables(
+    validation_tables = create_validation_tables(
         processed_ms_paths=[ms.path for ms in processed_mss],
         rms_image_path=aegean_outputs.rms,
         source_catalogue_path=aegean_outputs.comp,
         output_path=output_path,
         reference_catalogue_directory=reference_catalogue_directory,
     )
+
+    if upload_artifacts:
+        for table in validation_tables:
+            if isinstance(table, Path):
+                df = pd.read_csv(table)
+                df_dict = df.to_dict("records")
+                create_table_artifact(
+                    table=df_dict,
+                    description=f"{table.stem}",
+                )
+            elif isinstance(table, XMatchTables):
+                for subtable in table:
+                    if subtable is None:
+                        continue
+                    df = pd.read_csv(subtable)
+                    df_dict = df.to_dict("records")
+                    create_table_artifact(
+                        table=df_dict,
+                        description=f"{subtable.stem}",
+                    )
+
+    return validation_tables
