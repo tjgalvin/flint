@@ -2,7 +2,7 @@
 """
 import base64
 from pathlib import Path
-from typing import Any, List, TypeVar, Optional
+from typing import Any, List, Optional, TypeVar
 from uuid import UUID
 
 from prefect import task
