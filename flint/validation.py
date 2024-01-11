@@ -10,7 +10,7 @@ import astropy.units as u
 import matplotlib.pyplot as plt
 import numpy as np
 import pkg_resources
-from astropy.coordinates import AltAz, EarthLocation, SkyCoord
+from astropy.coordinates import AltAz, SkyCoord
 from astropy.io import fits
 from astropy.table import Table
 from astropy.time import Time
@@ -20,13 +20,7 @@ from matplotlib.figure import Figure
 from scipy import stats
 
 from flint.logging import logger
-from flint.ms import (
-    MS,
-    MSSummary,
-    describe_ms,
-    get_telescope_location_from_ms,
-    get_times_from_ms,
-)
+from flint.ms import describe_ms, get_telescope_location_from_ms, get_times_from_ms
 from flint.naming import ProcessedNameComponents, processed_ms_format
 
 F_SMALL = 7

@@ -21,7 +21,6 @@ from flint.prefect.common.imaging import (
     task_convolve_image,
     task_create_apply_solutions_cmd,
     task_create_validation_plot,
-    task_create_validation_tables,
     task_flag_ms_aoflagger,
     task_gaincal_applycal_ms,
     task_get_common_beam,
