@@ -1,7 +1,7 @@
 """Common prefect related utilities that can be used between flows.
 """
 from uuid import UUID
-from typing import Any, List, TypeVar
+from typing import Any, List, TypeVar, Optional
 from pathlib import Path
 import base64
 
