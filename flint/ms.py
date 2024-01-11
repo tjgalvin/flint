@@ -12,6 +12,7 @@ from shutil import rmtree
 from typing import List, NamedTuple, Optional, Union
 
 import numpy as np
+from astropy.time import Time
 from casacore.tables import table, taql
 from fixms.fix_ms_corrs import fix_ms_corrs
 from fixms.fix_ms_dir import fix_ms_dir
@@ -223,6 +224,23 @@ def get_freqs_from_ms(ms: Union[MS, Path]) -> np.ndarray:
     ), f"Frequency axis has dimensionality greater than one. Not expecting that. {len(freqs.shape)}"
 
     return freqs
+
+
+def get_times_from_ms(ms: Union[MS, Path]) -> Time:
+    """Return the observation times from an ASKAP Measurement set.
+
+    Args:
+        ms (Union[MS, Path]): Measurement set to inspect
+
+    Returns:
+        Time: The observation times
+    """
+    # Get the time of the observation
+    ms = MS.cast(ms)
+    with table(str(ms.mpath), ack=False) as tab:
+        times = Time(tab.getcol("TIME") * u.s, format="mjd")
+
+    return times
 
 
 def describe_ms(ms: Union[MS, Path], verbose: bool = True) -> MSSummary:
