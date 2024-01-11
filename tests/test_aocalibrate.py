@@ -7,7 +7,7 @@ import shutil
 import pkg_resources
 import numpy as np
 
-from flint.calibrate.aocalibrate import AOSolutions, plot_solutions
+from flint.calibrate.aocalibrate import AOSolutions, plot_solutions, select_refant
 from flint.bptools.smoother import divide_bandpass_by_ref_ant
 
 
@@ -63,6 +63,21 @@ def test_aosols_bandpass_ref_nu(ao_sols):
         ]
     )
     assert np.allclose(expected, complex_gains[0, :5, 0])
+
+
+def test_ref_ant_selection(ao_sols):
+    ao = AOSolutions.load(path=ao_sols)
+
+    ref_ant = select_refant(bandpass=ao.bandpass)
+
+    assert ref_ant == 0
+
+
+def test_ref_ant_selection_with_assert(ao_sols):
+    ao = AOSolutions.load(path=ao_sols)
+
+    with pytest.raises(AssertionError) as ae:
+        select_refant(bandpass=ao.bandpass)
 
 
 # TODO: Need to write more tests for the smoothing and other things
