@@ -54,7 +54,7 @@ def ao_sols_known_bad(tmpdir):
 
 
 def test_known_bad_sols(ao_sols_known_bad):
-    flag_aosolutions(solutions_path=ao_sols_known_bad, plot_solutions=False)
+    flag_aosolutions(solutions_path=ao_sols_known_bad, plot_solutions_throughout=False)
 
 
 def test_load_aosols(ao_sols):
