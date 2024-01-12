@@ -7,8 +7,17 @@ import numpy as np
 import pkg_resources
 import pytest
 
-from flint.bptools.smoother import divide_bandpass_by_ref_ant
-from flint.calibrate.aocalibrate import AOSolutions, plot_solutions, select_refant
+from flint.bptools.smoother import (
+    divide_bandpass_by_ref_ant,
+    smooth_bandpass_complex_gains,
+    smooth_data,
+)
+from flint.calibrate.aocalibrate import (
+    AOSolutions,
+    flag_aosolutions,
+    plot_solutions,
+    select_refant,
+)
 
 
 @pytest.fixture
@@ -26,6 +35,28 @@ def ao_sols(tmpdir):
     return out_ao_sols
 
 
+@pytest.fixture
+def ao_sols_known_bad(tmpdir):
+    # The file contains a binary solutions file that failed previously.
+    # It was fixed by testing for all nans in the `flint.bptools.smoother.smooth_data`
+    # function.
+    ao_sols = Path(
+        pkg_resources.resource_filename(
+            "flint", "data/tests/SB38969.B1934-638.beam35.aocalibrate.bin"
+        )
+    )
+
+    out_ao_sols = Path(tmpdir) / ao_sols.name
+
+    shutil.copyfile(ao_sols, out_ao_sols)
+
+    return out_ao_sols
+
+
+def test_known_bad_sols(ao_sols_known_bad):
+    flag_aosolutions(solutions_path=ao_sols_known_bad, plot_solutions_throughout=False)
+
+
 def test_load_aosols(ao_sols):
     ao = AOSolutions.load(path=ao_sols)
 
@@ -38,6 +69,41 @@ def test_aosols_bandpass_plot(ao_sols):
     # This is just a dumb test to make sure the function runs
     plot_solutions(solutions=ao_sols, ref_ant=0)
     plot_solutions(solutions=ao_sols, ref_ant=None)
+
+
+def test_aosols_all_nans_smooth_data(ao_sols):
+    ao = AOSolutions.load(ao_sols)
+    ao.bandpass[0, 20, :, :] = np.nan
+    assert np.all(~np.isfinite(ao.bandpass[0, 20, :, 0]))
+
+    smoothed = smooth_data(
+        data=ao.bandpass[0, 20, :, 0].real, window_size=16, polynomial_order=4
+    )
+    assert np.all(~np.isfinite(smoothed))
+
+
+def test_smooth_bandpass_complex_gains_nans(ao_sols):
+    ao = AOSolutions.load(ao_sols)
+    ao.bandpass[0, 20, :, :] = np.nan
+    assert np.all(~np.isfinite(ao.bandpass[0, 20, :, 0]))
+
+    smoothed = smooth_bandpass_complex_gains(
+        complex_gains=ao.bandpass[0], window_size=16, polynomial_order=4
+    )
+    assert np.all(~np.isfinite(smoothed[20, :, 0]))
+
+
+def test_smooth_bandpass_complex_gains_nans_with_refant(ao_sols):
+    ao = AOSolutions.load(ao_sols)
+    ao.bandpass[0, 20, :, :] = np.nan
+    assert np.all(~np.isfinite(ao.bandpass[0, 20, :, 0]))
+
+    ref = divide_bandpass_by_ref_ant(complex_gains=ao.bandpass[0], ref_ant=0)
+
+    smoothed = smooth_bandpass_complex_gains(
+        complex_gains=ref, window_size=16, polynomial_order=4
+    )
+    assert np.all(~np.isfinite(smoothed[20, :, 0]))
 
 
 def test_aosols_bandpass_ref_nu_rank_error(ao_sols):
