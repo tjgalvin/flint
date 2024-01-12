@@ -14,7 +14,12 @@ repos:
     hooks:
     -   id: isort
         args: ["--profile=black"]
-
+-   repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.1.12
+    hooks:
+    -   id: ruff
+        args: [ --fix ]
+    -   id: ruff-format
 ci:
     autofix_commit_msg: |
         [pre-commit.ci] auto fixes from pre-commit.com hooks
