@@ -668,6 +668,7 @@ def flag_aosolutions(
     flag_ant_xyyx_mean_gain: bool = False,
     zero_cross_terms: bool = False,
     smooth_solutions: bool = False,
+    plot_solutions_throughout: bool = True,
 ) -> Path:
     """Will open a previously solved ao-calibrate solutions file and flag additional channels and antennae.
 
@@ -686,6 +687,7 @@ def flag_aosolutions(
         flag_ant_xyyx_mean_gain (bool, optional): Whether to flag antennas based on the mean gain ratio of the XY and YX amplitude gains. Defaults to False.
         zero_cross_terms (bool, optional): Set the XY and YX terms of each Jones to be 0. Defaults to False.
         smooth_solutions (blool, optional): Smooth the complex gain solutions after flaggined. Defaults to False.
+        plot_solutions_throughout (bool, Optional): If True, the solutions will be plotted at different stages of processing. Defaults to True.
 
     Returns:
         Path: Path to the updated solutions file. This is out_solutions_path if provided, otherwise solutions_path
@@ -717,7 +719,6 @@ def flag_aosolutions(
         for pol in (0, 3):
             logger.info(f"Processing {pols[pol]} polarisation")
             ref_ant_gains = bandpass[time, ref_ant, :, pol]
-            # TODO: A better way of selecting the most appropriate reference antenna is needed.
             if np.sum(np.isfinite(ref_ant_gains)) == 0:
                 raise ValueError(f"The ref_ant={ref_ant} is completely bad. ")
 
@@ -813,7 +814,8 @@ def flag_aosolutions(
         ms_path=solutions_path, include_preflagger=True, include_smoother=False
     )
     solutions.save(output_path=out_solutions_path)
-    plot_solutions(solutions=out_solutions_path, ref_ant=ref_ant)
+    if plot_solutions_throughout:
+        plot_solutions(solutions=out_solutions_path, ref_ant=ref_ant)
 
     if smooth_solutions:
         logger.info("Smoothing the bandpass solutions. ")
@@ -827,7 +829,8 @@ def flag_aosolutions(
             ms_path=solutions_path, include_preflagger=True, include_smoother=True
         )
         solutions.save(output_path=out_solutions_path)
-        plot_solutions(solutions=out_solutions_path, ref_ant=None)
+        if plot_solutions_throughout:
+            plot_solutions(solutions=out_solutions_path, ref_ant=None)
 
     total_flagged = np.sum(~np.isfinite(bandpass)) / np.prod(bandpass.shape)
     if total_flagged > 0.8:

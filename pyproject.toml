@@ -10,6 +10,7 @@ include = [
     {path = 'flint/data/source_counts/de_zotti_1p4.txt'},
     {path = 'flint/data/source_counts/SKADS_1p4GHz.fits'},
     {path = 'flint/data/aoflagger/ATCA.lua'},
+    {path = 'flint/data/aoflagger/ASKAP.lua'},
     {path = 'flint/data/tests'},
 ]
 

@@ -76,6 +76,9 @@ def smooth_data(
     # where ever it might be. Trust nothing you sea dog.
     data = data.copy()
 
+    if np.all(~np.isfinite(data)):
+        return data
+
     if apply_median_filter:
         data = median_filter(input=data, size=window_size)
 
