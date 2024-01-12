@@ -251,7 +251,7 @@ def process_science_fields(
                 wsclean_cmds=wsclean_cmds,
                 beam_shape=beam_shape,
                 field_options=field_options,
-                linmos_suffix_str=f"residual.round{round}",
+                linmos_suffix_str=f"round{round}.residual",
             )
 
         if run_aegean:
