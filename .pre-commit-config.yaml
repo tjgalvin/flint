@@ -18,7 +18,6 @@ repos:
     rev: v0.1.12
     hooks:
     -   id: ruff
-        args: [ --fix ]
     -   id: ruff-format
 ci:
     autofix_commit_msg: |
