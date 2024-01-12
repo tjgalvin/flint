@@ -188,7 +188,7 @@ def cli() -> None:
         get_common_beam(image_paths=args.images, cutoff=args.cutoff)
     if args.mode == "convol":
         common_beam = get_common_beam(image_paths=args.images, cutoff=args.cutoff)
-        conv_paths = convolve_images(
+        _ = convolve_images(
             image_paths=args.images,
             beam_shape=common_beam,
             cutoff=args.cutoff,

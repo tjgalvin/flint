@@ -16,7 +16,6 @@ from astropy.table import Table
 from astropy.wcs import WCS
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
-from matplotlib.gridspec import GridSpec
 
 from flint.logging import logger
 

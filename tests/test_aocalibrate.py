@@ -44,7 +44,7 @@ def test_aosols_bandpass_ref_nu_rank_error(ao_sols):
     ao = AOSolutions.load(path=ao_sols)
 
     # This should raise an assertion error since the data shape is not right
-    with pytest.raises(AssertionError) as ae:
+    with pytest.raises(AssertionError) as _:
         divide_bandpass_by_ref_ant(complex_gains=ao.bandpass, ref_ant=0)
 
 
@@ -77,7 +77,7 @@ def test_ref_ant_selection_with_assert(ao_sols):
     ao = AOSolutions.load(path=ao_sols)
 
     # This ref ant selection function expects a rank of 4
-    with pytest.raises(AssertionError) as ae:
+    with pytest.raises(AssertionError) as _:
         select_refant(bandpass=ao.bandpass[0])
 
 
