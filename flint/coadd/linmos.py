@@ -240,8 +240,8 @@ def generate_linmos_parameter_set(
     logger.info(f"{len(img_str)} unique images from {len(images)} input collection. ")
     img_list: str = "[" + ",".join(img_str) + "]"
 
-    assert len(set(img_str)) == len(
-        images
+    assert (
+        len(set(img_str)) == len(images)
     ), "Some images were dropped from the linmos image string. Something is bad, walk the plank. "
 
     # If no weights_list has been provided (and therefore no optimal

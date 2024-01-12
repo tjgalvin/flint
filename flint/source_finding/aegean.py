@@ -119,7 +119,7 @@ def python_run_bane_and_aegean(image: Path, cores: int = 8) -> AegeanOutputs:
     # TODO: These options need to have an associated class
     logger.info("About to run aegean. ")
     source_finder = SourceFinder()
-    sf_results = source_finder.find_sources_in_image(
+    _ = source_finder.find_sources_in_image(
         filename=str(image),
         hdu_index=0,
         cube_index=0,

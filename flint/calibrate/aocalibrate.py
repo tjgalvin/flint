@@ -699,8 +699,8 @@ def flag_aosolutions(
         logger.info(f"Creating {str(plot_dir)}")
         try:
             plot_dir.mkdir(parents=True)
-        except:
-            logger.warn(f"Failed to create {str(plot_dir)}.")
+        except Exception as e:
+            logger.error(f"Failed to create {str(plot_dir)} {e}.")
 
     # Note that although the solutions variable (an instance of AOSolutions) is immutable,
     # which includes the reference to the numpy array, the _actual_ numpy array is! So,

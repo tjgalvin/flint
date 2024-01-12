@@ -5,16 +5,16 @@ repos:
     -   id: check-yaml
     -   id: end-of-file-fixer
     -   id: trailing-whitespace
--   repo: https://github.com/psf/black
-    rev: 23.12.1
-    hooks:
-    -   id: black
 -   repo: https://github.com/PyCQA/isort
     rev: 5.13.2
     hooks:
     -   id: isort
         args: ["--profile=black"]
-
+-   repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.1.12
+    hooks:
+    -   id: ruff
+    -   id: ruff-format
 ci:
     autofix_commit_msg: |
         [pre-commit.ci] auto fixes from pre-commit.com hooks

@@ -112,7 +112,7 @@ def processed_ms_format(in_name: Union[str, Path]) -> ProcessedNameComponents:
 
 
 def extract_components_from_name(
-    name: Union[str, Path]
+    name: Union[str, Path],
 ) -> Union[RawNameComponents, ProcessedNameComponents]:
     """Attempts to break down a file name of a recognised format into its principal compobnents.
     Presumably this is a measurement set or something derived from it (i.e. images).
@@ -201,8 +201,8 @@ def create_ms_name(
         try:
             sbid = get_sbid_from_path(path=ms_path)
             sbid_text = f"SB{sbid}"
-        except:
-            pass
+        except Exception as e:
+            logger.error(e)
     ms_name_list.append(sbid_text)
 
     if field:

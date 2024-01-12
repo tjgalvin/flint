@@ -25,7 +25,7 @@ def plot_solutions(solutions_path: Path, ref_ant: Optional[int] = 0) -> None:
     logger.info(f"Plotting {solutions_path}")
 
     ao_sols = AOSolutions.load(path=solutions_path)
-    plot_paths = ao_sols.plot_solutions(ref_ant=ref_ant)
+    _ = ao_sols.plot_solutions(ref_ant=ref_ant)
 
 
 def flag_bandpass_offset_pointings(ms: Union[MS, Path]) -> MS:
