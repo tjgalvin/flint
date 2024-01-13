@@ -569,7 +569,9 @@ def task_create_validation_plot(
 
     logger.info(f"Will create validation plot in {output_path=}")
 
-    processed_mss = [ms.ms if isinstance(ms, ApplySolutions) else ms for ms in processed_mss]
+    processed_mss = [
+        ms.ms if isinstance(ms, ApplySolutions) else ms for ms in processed_mss
+    ]
 
     plot_path = create_validation_plot(
         processed_ms_paths=[ms.path for ms in processed_mss],
@@ -609,7 +611,9 @@ def task_create_validation_tables(
     """
     output_path = aegean_outputs.comp.parent
 
-    processed_mss = [ms.ms if isinstance(ms, ApplySolutions) else ms for ms in processed_mss]
+    processed_mss = [
+        ms.ms if isinstance(ms, ApplySolutions) else ms for ms in processed_mss
+    ]
 
     logger.info(f"Will create validation tables in {output_path=}")
     validation_tables = create_validation_tables(
