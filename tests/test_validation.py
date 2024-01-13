@@ -1,6 +1,7 @@
 """Items related to test functions in the validation stage of flint
 """
 from pathlib import Path
+from typing import NamedTuple
 
 import numpy as np
 import pkg_resources
@@ -31,3 +32,22 @@ def test_rms_image_info(rms_path):
     assert np.isclose(0.00015135764, rms_info.minimum)
     assert np.isclose(0.0001518184, rms_info.maximum)
     assert np.isclose(1.1098655e-07, rms_info.std)
+
+def test_expected_namedtuple_get():
+    """This is a simple test to ensure the behavour of 
+    NamedTuple.__getattribute__ remains OK. This is currently
+    used in the validation plotting to iterate over known
+    surveys
+    """
+    class Example(NamedTuple):
+        a: int
+        b: str 
+        c: float 
+        
+    test = Example(a=1, b='123', c=1.23)
+    
+    assert test.__getattribute__('a') == 1
+    assert test.__getattribute__('b') == '123'
+    assert test.__getattribute__('c') == 1.23
+    
+
