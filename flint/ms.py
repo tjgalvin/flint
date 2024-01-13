@@ -42,8 +42,13 @@ class MS(NamedTuple):
         """Return the FIELD_ID for an elected field in a measurement set. See
         `flink.ms.get_field_id_for_field` for full details.
         """
-
+        # TODO: I think this should be removed. The young pirate in me was
+        # going to go in a different direction
         return get_field_id_for_field(ms=self, field_name=field_name)
+
+    @property
+    def ms(self) -> MS:
+        return self
 
     @classmethod
     def cast(cls, ms: Union[MS, Path]) -> MS:
