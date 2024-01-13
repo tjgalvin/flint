@@ -254,13 +254,19 @@ def process_science_fields(
                 linmos_suffix_str=f"round{round}.residual",
             )
 
-        if run_aegean:
+        if final_round and run_aegean:
             aegean_outputs = task_run_bane_and_aegean.submit(
                 image=parset, aegean_container=unmapped(field_options.aegean_container)
             )
 
             if run_validation:
                 task_create_validation_plot.submit(
+                    processed_mss=flag_mss,
+                    aegean_outputs=aegean_outputs,
+                    reference_catalogue_directory=field_options.reference_catalogue_directory,
+                )
+                task_create_validation_tables.submit(
+                    processed_mss=flag_mss,
                     aegean_outputs=aegean_outputs,
                     reference_catalogue_directory=field_options.reference_catalogue_directory,
                 )
