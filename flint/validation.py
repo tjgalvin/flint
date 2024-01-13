@@ -1075,6 +1075,9 @@ def create_validation_tables(
     ms_name_components = processed_ms_format(processed_ms_paths[0])
 
     # Do sanity checks
+    # TODO: This should be separated out into a separate function
+    # or location. Proably should be moved to something like a
+    # FieldContext
     for ms_path in processed_ms_paths:
         _ms_name_components = processed_ms_format(ms_path)
         assert ms_name_components.field == _ms_name_components.field, "Field mismatch"
@@ -1098,23 +1101,28 @@ def create_validation_tables(
     for survey in catalogues._fields:
         if survey == "askap":
             continue
-        if (
-            catalogues[catalogues.index(survey)] is None
-            or tables[tables.index(survey)] is None
-        ):
+
+        # The initial attempts to do something like
+        # tables[tables.index(survey)]
+        # was returning a `tuple.index(x): x not in tuple` error
+        # Do this once here and reuse
+        survey_catalogue = catalogues.__getattribute__(survey)
+        survey_table = tables.__getattribute__(survey)
+
+        if survey_catalogue is None or survey_table is None:
             continue
 
         match_result = match_nearest_neighbour(
             table1=tables.askap,
-            table2=tables[tables.index(survey)],
+            table2=survey_table,
             catalogue1=catalogues.askap,
-            catalogue2=catalogues[catalogues.index(survey)],
+            catalogue2=survey_catalogue,
         )
         xmatch_table, xmatch_file = make_xmatch_table(
             table1=tables.askap,
-            table2=tables[tables.index(survey)],
+            table2=survey_table,
             catalogue1=catalogues.askap,
-            catalogue2=catalogues[catalogues.index(survey)],
+            catalogue2=survey_catalogue,
             match_result=match_result,
             output_path=output_path,
         )
