@@ -981,7 +981,7 @@ def load_catalogues(
         ),
         Tables(
             askap=askap_table,
-            ierf=icrf_table,
+            icrf=icrf_table,
             sumss=sumss_table,
             nvss=nvss_table,
         ),
