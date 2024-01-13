@@ -42,6 +42,10 @@ class MS(NamedTuple):
 
         return get_field_id_for_field(ms=self, field_name=field_name)
 
+    @property
+    def ms(self) -> MS:
+        return self
+
     @classmethod
     def cast(cls, ms: Union[MS, Path]) -> MS:
         """Create a MS instance, if necessary, given eith a Path or MS.
