@@ -1,10 +1,10 @@
 """Items related to test functions in the validation stage of flint
 """
-import pytest
 from pathlib import Path
 
-import pkg_resources
 import numpy as np
+import pkg_resources
+import pytest
 
 from flint.validation import RMSImageInfo, get_rms_image_info
 

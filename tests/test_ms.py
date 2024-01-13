@@ -1,4 +1,4 @@
-"""Small tests for items related to measurement sets 
+"""Small tests for items related to measurement sets
 and the MS class
 """
 from pathlib import Path
