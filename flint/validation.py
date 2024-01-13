@@ -962,7 +962,7 @@ def load_catalogues(
         min_col="b",
         pa_col="pa",
     )
-    ierf_table, ierf_catalogue = load_known_catalogue(
+    icrf_table, icrf_catalogue = load_known_catalogue(
         name="ICRF", reference_catalogue_directory=reference_catalogue_directory
     )
     sumss_table, sumss_catalogue = load_known_catalogue(
@@ -975,13 +975,13 @@ def load_catalogues(
     return (
         Catalogues(
             askap=askap_cata,
-            ierf=ierf_catalogue,
+            icrf=icrf_catalogue,
             sumss=sumss_catalogue,
             nvss=nvss_catalogue,
         ),
         Tables(
             askap=askap_table,
-            ierf=ierf_table,
+            ierf=icrf_table,
             sumss=sumss_table,
             nvss=nvss_table,
         ),
