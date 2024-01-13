@@ -340,7 +340,9 @@ def get_rms_image_info(rms_path: Path) -> RMSImageInfo:
 
     wcs = WCS(rms_header)
     centre_pixel = np.array(rms_data.shape) / 2.0
-    centre_sky = wcs.pixel_to_world(centre_pixel[0], centre_pixel[1])
+    # The celestial deals with the radio image potentially having four dimensions
+    # (stokes, frequencyes, ra, dec)
+    centre_sky = wcs.celestial.pixel_to_world(centre_pixel[0], centre_pixel[1])
 
     rms_image_info = RMSImageInfo(
         path=rms_path,

@@ -116,7 +116,7 @@ def process_science_fields(
         return
 
     wsclean_init = {
-        "size": 7144,
+        "size": 4144,
         "minuv_l": 235,
         "weight": "briggs -0.5",
         "auto_mask": 5,
