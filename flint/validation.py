@@ -1097,7 +1097,7 @@ def create_validation_tables(
     )
 
     # Loop over all the catalogues and cross match them to the ASKAP catalogue
-    tables: Dict[str, Table] = {}
+    _tables: Dict[str, Table] = {}
     for survey in catalogues._fields:
         if survey == "askap":
             continue
@@ -1126,10 +1126,10 @@ def create_validation_tables(
             match_result=match_result,
             output_path=output_path,
         )
-        tables[survey] = xmatch_table
+        _tables[survey] = xmatch_table
 
     xmatch_tables = XMatchTables(
-        **tables,
+        **_tables,
     )
 
     stats_table = make_field_stats_table(
