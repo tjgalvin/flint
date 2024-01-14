@@ -818,7 +818,11 @@ def make_xmatch_table(
     """
     askap_flux = match_result.flux1
     # Some catalogues (like the ICFS) do not have a flux column
-    external_flux = match_result.flux2 if match_result.flux2 is not None else np.ones_like(match_result.idx2) * -1
+    external_flux = (
+        match_result.flux2
+        if match_result.flux2 is not None
+        else np.ones_like(match_result.idx2) * -1
+    )
 
     askap_flux_scaled = scale_flux_alpha(
         flux=askap_flux,
