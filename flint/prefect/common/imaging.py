@@ -583,7 +583,7 @@ def task_create_validation_plot(
 
     if upload_artifact:
         upload_image_as_artifact(
-            image_path=plot_path, descrition=f"Validation plot {str(plot_path)}"
+            image_path=plot_path, description=f"Validation plot {str(plot_path)}"
         )
 
     return plot_path
@@ -636,6 +636,8 @@ def task_create_validation_tables(
             elif isinstance(table, XMatchTables):
                 for subtable in table:
                     if subtable is None:
+                        continue
+                    if not isinstance(subtable, Path):
                         continue
                     df = pd.read_csv(subtable)
                     df_dict = df.to_dict("records")

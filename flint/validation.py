@@ -1307,7 +1307,7 @@ def create_validation_plot(
     )
     fig.savefig(str(output_file), dpi=300, bbox_inches="tight")
 
-    return output_path
+    return output_file
 
 
 def get_parser() -> ArgumentParser:
