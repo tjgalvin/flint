@@ -1193,6 +1193,8 @@ def create_validation_plot(
     Returns:
         Path: The output path of the figure
     """
+    logger.info("Creating validation plot")
+    
     # Get refernce info from single MS
     ms_name_components = processed_ms_format(processed_ms_paths[0])
 
@@ -1349,13 +1351,13 @@ def cli() -> None:
     parser = get_parser()
 
     args = parser.parse_args()
-    # create_validation_plot(
-    #     processed_ms_paths=args.processed_ms_paths,
-    #     rms_image_path=args.rms_image_path,
-    #     source_catalogue_path=args.source_catalogue_path,
-    #     output_path=args.output_path,
-    #     reference_catalogue_directory=args.reference_catalogue_directory,
-    # )
+    create_validation_plot(
+        processed_ms_paths=args.processed_ms_paths,
+        rms_image_path=args.rms_image_path,
+        source_catalogue_path=args.source_catalogue_path,
+        output_path=args.output_path,
+        reference_catalogue_directory=args.reference_catalogue_directory,
+    )
 
     create_validation_tables(
         processed_ms_paths=args.processed_ms_paths,
