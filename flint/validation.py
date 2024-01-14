@@ -207,13 +207,17 @@ class MatchResult(NamedTuple):
     name2: str
     """Name of the second survey"""
     pos1: SkyCoord
-    """Positions of sources in the first survey"""
+    """Sky-positions of sources in the first survey"""
     pos2: SkyCoord
-    """Positions of sources in the second survey"""
+    """Sky-positions of sources in the second survey"""
     freq1: float
     """Frequency in Hz of the first survey"""
     freq2: float
     """Frequency in Hz of the second survey"""
+    idx1: np.ndarray
+    """The indices of the matched sources from the original input table 1"""
+    idx2: np.ndarray
+    """The indices of the matched sources from the original input table 2"""
     flux1: Optional[np.ndarray] = None
     """Brightness in Jy of source in the first survey"""
     flux2: Optional[np.ndarray] = None
@@ -641,6 +645,8 @@ def match_nearest_neighbour(
         pos2=pos2[idx],
         freq1=catalogue1.freq,
         freq2=catalogue2.freq,
+        idx1=np.squeeze(np.argwhere(mask)),
+        idx2=idx,
         flux1=table1[catalogue1.flux_col].value[mask]
         if catalogue1.flux_col != "None"
         else None,
@@ -811,7 +817,8 @@ def make_xmatch_table(
         Tuple[Table, Path]: The table and the output path
     """
     askap_flux = match_result.flux1
-    external_flux = match_result.flux2
+    # Some catalogues (like the ICFS) do not have a flux column
+    external_flux = match_result.flux2 if match_result.flux2 is not None else np.ones_like(match_result.idx2) * -1
 
     askap_flux_scaled = scale_flux_alpha(
         flux=askap_flux,
@@ -821,15 +828,15 @@ def make_xmatch_table(
 
     xmatch_table = Table(
         {
-            "Component_ID": table1[catalogue1.name_col][match_result.pos1],
-            "RA": table1[catalogue1.ra_col][match_result.pos1],
-            "DEC": table1[catalogue1.dec_col][match_result.pos1],
-            "ASKAP_flux": table1[catalogue1.flux_col][match_result.pos1],
-            "ASKAP_flux_SNR": table1[catalogue1.flux_col][match_result.pos1]
-            / table1["local_rms"][match_result.pos1],
-            "RA_comp": table2[catalogue2.ra_col][match_result.pos2],
-            "DEC_comp": table2[catalogue2.dec_col][match_result.pos2],
-            "Comp_flux": table2[catalogue2.flux_col][match_result.pos2],
+            "Component_ID": table1[catalogue1.name_col][match_result.idx1],
+            "RA": table1[catalogue1.ra_col][match_result.idx1],
+            "DEC": table1[catalogue1.dec_col][match_result.idx1],
+            "ASKAP_flux": table1[catalogue1.flux_col][match_result.idx1],
+            "ASKAP_flux_SNR": table1[catalogue1.flux_col][match_result.idx1]
+            / table1["local_rms"][match_result.idx1],
+            "RA_comp": table2[catalogue2.ra_col][match_result.idx2],
+            "DEC_comp": table2[catalogue2.dec_col][match_result.idx2],
+            "Comp_flux": external_flux,
             "Flux_Ratio_AlphaCorr": askap_flux_scaled / external_flux,
             "Flux_Ratio_NOAlphaCorr": askap_flux / external_flux,
         }
@@ -992,7 +999,7 @@ def make_field_stats_table(
     ms_name_components: ProcessedNameComponents,
     rms_info: RMSImageInfo,
     output_path: Path,
-) -> Table:
+) -> Path:
     # Columns are:
     # FLD_NAME,SBID,NPIXV,MINIMUM,MAXIMUM,MED_RMS_uJy,MODE_RMS_uJy,STD_RMS_uJy,MIN_RMS_uJy,MAX_RMS_uJy
     # TODO: Get the min / max from the image (not rms)
@@ -1017,10 +1024,10 @@ def make_field_stats_table(
     )
     stats_table.write(outfile, format="csv", overwrite=True)
 
-    return stats_table
+    return outfile
 
 
-def make_psf_table(processed_ms_paths: List[Path], output_path: Path) -> Table:
+def make_psf_table(processed_ms_paths: List[Path], output_path: Path) -> Path:
     # Columns are:
     # BEAM_NUM,BEAM_TIME,RA_DEG,DEC_DEG,GAL_LONG,GAL_LAT,PSF_MAJOR,PSF_MINOR,PSF_ANGLE,VIS_TOTAL,VIS_FLAGGED
     all_ms_name_components = [
@@ -1048,7 +1055,7 @@ def make_psf_table(processed_ms_paths: List[Path], output_path: Path) -> Table:
     )
     psf_table.write(outfile, format="csv", overwrite=True)
 
-    return psf_table
+    return outfile
 
 
 def create_validation_tables(
@@ -1071,6 +1078,8 @@ def create_validation_tables(
     Returns:
         ValidationTables: The tables that were created
     """
+    logger.info("Creating validation tables")
+
     # Get refernce info from single MS
     ms_name_components = processed_ms_format(processed_ms_paths[0])
 
@@ -1145,8 +1154,8 @@ def create_validation_tables(
 
     return ValidationTables(
         xmatch_tables=xmatch_tables,
-        stats_table=stats_table,
-        psf_table=psf_table,
+        stats_table_path=stats_table,
+        psf_table_path=psf_table,
     )
 
 
@@ -1307,7 +1316,7 @@ def get_parser() -> ArgumentParser:
     parser.add_argument(
         "processed_ms_paths",
         nargs="+",
-        type=List[Path],
+        type=Path,
         help="Paths to the processed MeasurementSets.",
     )
     parser.add_argument(
@@ -1336,13 +1345,13 @@ def cli() -> None:
     parser = get_parser()
 
     args = parser.parse_args()
-    create_validation_plot(
-        processed_ms_paths=args.processed_ms_paths,
-        rms_image_path=args.rms_image_path,
-        source_catalogue_path=args.source_catalogue_path,
-        output_path=args.output_path,
-        reference_catalogue_directory=args.reference_catalogue_directory,
-    )
+    # create_validation_plot(
+    #     processed_ms_paths=args.processed_ms_paths,
+    #     rms_image_path=args.rms_image_path,
+    #     source_catalogue_path=args.source_catalogue_path,
+    #     output_path=args.output_path,
+    #     reference_catalogue_directory=args.reference_catalogue_directory,
+    # )
 
     create_validation_tables(
         processed_ms_paths=args.processed_ms_paths,

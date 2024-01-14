@@ -244,7 +244,7 @@ def get_times_from_ms(ms: Union[MS, Path]) -> Time:
     """
     # Get the time of the observation
     ms = MS.cast(ms)
-    with table(str(ms.mpath), ack=False) as tab:
+    with table(str(ms.path), ack=False) as tab:
         times = Time(tab.getcol("TIME") * u.s, format="mjd")
 
     return times
@@ -261,7 +261,7 @@ def get_telescope_location_from_ms(ms: Union[MS, Path]) -> EarthLocation:
     """
     ms = MS.cast(ms)
     # Get the position of the observatory
-    with table(str(ms.mpath / "ANTENNA"), ack=False) as tab:
+    with table(str(ms.path / "ANTENNA"), ack=False) as tab:
         pos = EarthLocation.from_geocentric(
             *tab.getcol("POSITION")[0] * u.m  # First antenna is fine
         )

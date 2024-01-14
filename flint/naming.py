@@ -51,7 +51,7 @@ def raw_ms_format(in_name: str) -> Union[None, RawNameComponents]:
 
     groups = results.groupdict()
 
-    logger.info(f"Matched groups are: {groups}")
+    logger.debug(f"Matched groups are: {groups}")
 
     return RawNameComponents(
         date=groups["date"], time=groups["time"], beam=groups["beam"], spw=groups["spw"]
@@ -100,7 +100,7 @@ def processed_ms_format(in_name: Union[str, Path]) -> ProcessedNameComponents:
 
     groups = results.groupdict()
 
-    logger.info(f"Matched groups are: {groups}")
+    logger.debug(f"Matched groups are: {groups}")
 
     return ProcessedNameComponents(
         sbid=groups["sbid"],
