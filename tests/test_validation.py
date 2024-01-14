@@ -7,10 +7,12 @@ import numpy as np
 import pkg_resources
 import pytest
 
-from flint.validation import RMSImageInfo, get_rms_image_info, get_parser
+from flint.validation import RMSImageInfo, get_parser, get_rms_image_info
+
 
 def test_get_parser():
     parser = get_parser()
+
 
 @pytest.fixture
 def rms_path(tmpdir):
