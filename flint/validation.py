@@ -763,12 +763,13 @@ def plot_flux_comparison(fig: Figure, ax: Axes, match_result: MatchResult) -> Ax
     spectral_index_scale = (match_result.freq2 / match_result.freq1) ** -0.8
 
     ax.loglog(flux1, flux2, "ok", ms=2)
-    ax.loglog(one2one, one2one, "-", c="r")
-    ax.loglog(one2one, one2one * spectral_index_scale, "--", c="r")
+    ax.loglog(one2one, one2one, "-", c="r", label='Raw')
+    ax.loglog(one2one, one2one * spectral_index_scale, "--", c="r", label='Scaled')
     ax.set(
         ylabel=f"{match_result.name2} Integrated Flux (Jy)",
         xlabel=f"{match_result.name1} Integrated Flux (Jy)",
     )
+    ax.legend()
 
     ax.grid()
 
@@ -913,7 +914,7 @@ def plot_field_info(
 
     ax.text(
         0.1,
-        0.8,
+        0.9,
         f"Field name: {''}",
         fontdict={"fontsize": F_LARGE},
         family="monospace",
@@ -922,19 +923,24 @@ def plot_field_info(
         0.0,
         0.0,
         f"""
-    - J2000 RA / Dec    : {rms_info.centre.icrs.to_string(style='hmsdms')}
+    - J2000 RA / Dec    : 
+              {rms_info.centre.icrs.to_string(style='hmsdms', precision=1)}
     - Galactic l / b    : {rms_info.centre.galactic.to_string(style='decimal')}
     - SBID              : {ms_info.sbid}
     - CAL_SBID          : {""}
-    - Start time        : {ms_times[0].utc.fits}
+    - Start time        : 
+              {ms_times[0].utc.fits}
     - Integration time  : {ms_times.ptp().sec * u.second:latex_inline}
-    - Hour angle range  : {hour_angles.min():latex_inline} - {hour_angles.max():latex_inline}
-    - Elevation range   : {elevations.min():latex_inline} - {elevations.max():latex_inline}
+    - Hour angle range  : 
+              {hour_angles.min().to_string(precision=2, format='latex_inline')} - {hour_angles.max().to_string(precision=2, format='latex_inline')}
+    - Elevation range   : 
+              {elevations.min().to_string(precision=2, format='latex_inline')} - {elevations.max().to_string(precision=2, format='latex_inline')}
 
-    - Median rms        : {rms_info.median}
+    - Median rms uJy    : {rms_info.median*1e6:.1f}
     - Components        : {len(askap_table)}
 
-    - Processing date   : {Time.now().fits}
+    - Processing date   : 
+              {Time.now().fits}
         """,
         family="monospace",
         fontdict={"fontsize": F_MED},
