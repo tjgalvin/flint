@@ -1201,7 +1201,7 @@ def create_validation_plot(
         Path: The output path of the figure
     """
     logger.info("Creating validation plot")
-    
+
     # Get refernce info from single MS
     ms_name_components = processed_ms_format(processed_ms_paths[0])
 
