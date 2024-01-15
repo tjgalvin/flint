@@ -103,19 +103,19 @@ class Tables(NamedTuple):
 class XMatchTables(NamedTuple):
     """Container for all the cross matched tables"""
 
-    nvss: Table
+    nvss: Path
     """NVSS catalogue"""
-    sumss: Table
+    sumss: Path
     """SUMSS catalogue"""
-    icrf: Table
+    icrf: Path
     """ICRF catalogue"""
-    racs_high: Optional[Table] = None
+    racs_high: Optional[Path] = None
     """RACS high catalogue"""
-    racs_mid: Optional[Table] = None
+    racs_mid: Optional[Path] = None
     """RACS mid catalogue"""
-    tgss: Optional[Table] = None
+    tgss: Optional[Path] = None
     """TGSS catalogue"""
-    vlass: Optional[Table] = None
+    vlass: Optional[Path] = None
     """VLASS catalogue"""
 
 
@@ -1058,6 +1058,7 @@ def make_psf_table(processed_ms_paths: List[Path], output_path: Path) -> Path:
             "VIS_FLAGGED": [ms_summary.flagged for ms_summary in ms_summaries],
         }
     )
+    psf_table.sort('BEAM_NUM')
     # beam_inf_{SBID}-{FIELD_NAME}.csv
     outfile = (
         output_path
@@ -1145,7 +1146,7 @@ def create_validation_tables(
             match_result=match_result,
             output_path=output_path,
         )
-        _tables[survey] = xmatch_table
+        _tables[survey] = xmatch_file
 
     xmatch_tables = XMatchTables(
         **_tables,
@@ -1365,7 +1366,7 @@ def cli() -> None:
         reference_catalogue_directory=args.reference_catalogue_directory,
     )
 
-    create_validation_tables(
+    validation_tables = create_validation_tables(
         processed_ms_paths=args.processed_ms_paths,
         rms_image_path=args.rms_image_path,
         source_catalogue_path=args.source_catalogue_path,
@@ -1373,6 +1374,7 @@ def cli() -> None:
         reference_catalogue_directory=args.reference_catalogue_directory,
     )
 
+    logger.info(f"\n{validation_tables}")
 
 if __name__ == "__main__":
     cli()
