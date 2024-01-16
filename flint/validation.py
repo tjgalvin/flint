@@ -425,13 +425,16 @@ def make_validator_axes_layout(fig: Figure, rms_path: Path) -> ValidatorLayout:
     return validator_layout
 
 
-def plot_rms_map(fig: Figure, ax: Axes, rms_path: Path) -> Axes:
+def plot_rms_map(
+    fig: Figure, ax: Axes, rms_path: Path, source_positions: Optionals[SkyCoord] = None
+) -> Axes:
     """Add the RMS image to the figure
 
     Args:
         fig (Figure): Figure that contains the axes object
         ax (Axes): The axes that will be plotted
         rms_path (Path): Location of the RMS image
+        source_positions (Optional[SkyCoord], optionals): Sources in the ASKAP catalogue to overlay onto the RMS image. Defaults to None.
 
     Returns:
         Axes: The axes object with the plotted RMS image
@@ -443,6 +446,15 @@ def plot_rms_map(fig: Figure, ax: Axes, rms_path: Path) -> Axes:
     im = ax.imshow(
         np.log10(rms_data * 1e6), vmin=2.0, vmax=3.0, origin="lower", cmap="YlOrRd"
     )
+
+    if source_positions:
+        ax.scatter(
+            source_positions.ra,
+            source_positions.dec,
+            marerk="o",
+            color="ref",
+            transform=ax.get_transform(),
+        )
 
     ax.grid(color="0.5", ls="solid")
     ax.set_xlabel("RA (J2000)")
@@ -928,8 +940,8 @@ def plot_field_info(
     - CAL_SBID          : {""}
     - Start time        : {ms_times[0].utc.fits}
     - Integration time  : {ms_times.ptp().sec * u.second:latex_inline}
-    - Hour angle range  : {hour_angles.min():latex_inline} - {hour_angles.max():latex_inline}
-    - Elevation range   : {elevations.min():latex_inline} - {elevations.max():latex_inline}
+    - Hour angle range  : {hour_angles.min().to_string(precision=2, format='latex_inline')} - {hour_angles.max().to_string(precision=2, format='latex_inline')}
+    - Elevation range   : {elevations.min().to_string(precision=2, format='latex_inline')} - {elevations.max().to_string(precision=2, format='latex_inline')}
 
     - Median rms        : {rms_info.median}
     - Components        : {len(askap_table)}
@@ -1244,7 +1256,17 @@ def create_validation_plot(
         skads=skads,
     )
 
-    plot_rms_map(fig=fig, ax=validator_layout.ax_rms, rms_path=rms_info.path)
+    askap_sources = SkyCoord(
+        tables.askap[catalogues.askap.ra_col],
+        tables.askap[catalogues.askap.dec_col],
+        unit="deg,deg",
+    )
+    plot_rms_map(
+        fig=fig,
+        ax=validator_layout.ax_rms,
+        rms_path=rms_info.path,
+        source_positions=askap_sources,
+    )
 
     plot_psf(fig=fig, ax=validator_layout.ax_psf, rms_info=rms_info)
 
