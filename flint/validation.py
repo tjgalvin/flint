@@ -453,9 +453,9 @@ def plot_rms_map(
             source_positions.dec,
             marker="o",
             edgecolor="black",
-            facecolor='none',
+            facecolor="none",
             s=2,
-            transform=ax.get_transform('fk5'),
+            transform=ax.get_transform("fk5"),
         )
 
     ax.grid(color="0.5", ls="solid")
