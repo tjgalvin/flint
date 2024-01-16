@@ -426,7 +426,7 @@ def make_validator_axes_layout(fig: Figure, rms_path: Path) -> ValidatorLayout:
 
 
 def plot_rms_map(
-    fig: Figure, ax: Axes, rms_path: Path, source_positions: Optionals[SkyCoord] = None
+    fig: Figure, ax: Axes, rms_path: Path, source_positions: Optional[SkyCoord] = None
 ) -> Axes:
     """Add the RMS image to the figure
 
@@ -451,9 +451,11 @@ def plot_rms_map(
         ax.scatter(
             source_positions.ra,
             source_positions.dec,
-            marerk="o",
-            color="ref",
-            transform=ax.get_transform(),
+            marker="o",
+            edgecolor="black",
+            facecolor='none',
+            s=2,
+            transform=ax.get_transform('fk5'),
         )
 
     ax.grid(color="0.5", ls="solid")
