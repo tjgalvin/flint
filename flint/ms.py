@@ -11,7 +11,10 @@ from pathlib import Path
 from shutil import rmtree
 from typing import List, NamedTuple, Optional, Union
 
+import astropy.units as u
 import numpy as np
+from astropy.coordinates import EarthLocation
+from astropy.time import Time
 from casacore.tables import table, taql
 from fixms.fix_ms_corrs import fix_ms_corrs
 from fixms.fix_ms_dir import fix_ms_dir
@@ -39,8 +42,13 @@ class MS(NamedTuple):
         """Return the FIELD_ID for an elected field in a measurement set. See
         `flink.ms.get_field_id_for_field` for full details.
         """
-
+        # TODO: I think this should be removed. The young pirate in me was
+        # going to go in a different direction
         return get_field_id_for_field(ms=self, field_name=field_name)
+
+    @property
+    def ms(self) -> MS:
+        return self
 
     @classmethod
     def cast(cls, ms: Union[MS, Path]) -> MS:
@@ -225,6 +233,41 @@ def get_freqs_from_ms(ms: Union[MS, Path]) -> np.ndarray:
     return freqs
 
 
+def get_times_from_ms(ms: Union[MS, Path]) -> Time:
+    """Return the observation times from an ASKAP Measurement set.
+
+    Args:
+        ms (Union[MS, Path]): Measurement set to inspect
+
+    Returns:
+        Time: The observation times
+    """
+    # Get the time of the observation
+    ms = MS.cast(ms)
+    with table(str(ms.path), ack=False) as tab:
+        times = Time(tab.getcol("TIME") * u.s, format="mjd")
+
+    return times
+
+
+def get_telescope_location_from_ms(ms: Union[MS, Path]) -> EarthLocation:
+    """Return the telescope location from an ASKAP Measurement set.
+
+    Args:
+        ms (Union[MS, Path]): Measurement set to inspect
+
+    Returns:
+        EarthLocation: The telescope location
+    """
+    ms = MS.cast(ms)
+    # Get the position of the observatory
+    with table(str(ms.path / "ANTENNA"), ack=False) as tab:
+        pos = EarthLocation.from_geocentric(
+            *tab.getcol("POSITION")[0] * u.m  # First antenna is fine
+        )
+    return pos
+
+
 def describe_ms(ms: Union[MS, Path], verbose: bool = True) -> MSSummary:
     """Print some basic information from the inpute measurement set.
 
@@ -242,8 +285,8 @@ def describe_ms(ms: Union[MS, Path], verbose: bool = True) -> MSSummary:
         colnames = tab.colnames()
 
         flags = tab.getcol("FLAG")
-        flagged = np.sum(flags is True)
-        unflagged = np.sum(flags is False)
+        flagged = np.sum(flags == True)  # Noqa: E712
+        unflagged = np.sum(flags == False)  # Noqa: E712
         total = np.prod(flags.shape)
 
         uniq_ants = sorted(list(set(tab.getcol("ANTENNA1"))))

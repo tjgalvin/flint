@@ -31,6 +31,7 @@ from flint.prefect.common.imaging import (
     task_create_linmos_mask_model,
     task_create_linmos_mask_wbutter_model,
     task_create_validation_plot,
+    task_create_validation_tables,
     task_extract_beam_mask_image,
     task_flag_ms_aoflagger,
     task_gaincal_applycal_ms,
@@ -309,6 +310,12 @@ def process_science_fields(
 
         if run_validation:
             task_create_validation_plot.submit(
+                processed_mss=flagged_mss,
+                aegean_outputs=aegean_outputs,
+                reference_catalogue_directory=field_options.reference_catalogue_directory,
+            )
+            task_create_validation_tables.submit(
+                processed_mss=flagged_mss,
                 aegean_outputs=aegean_outputs,
                 reference_catalogue_directory=field_options.reference_catalogue_directory,
             )

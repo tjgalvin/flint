@@ -21,6 +21,7 @@ from flint.prefect.common.imaging import (
     task_convolve_image,
     task_create_apply_solutions_cmd,
     task_create_validation_plot,
+    task_create_validation_tables,
     task_flag_ms_aoflagger,
     task_gaincal_applycal_ms,
     task_get_common_beam,
@@ -115,7 +116,7 @@ def process_science_fields(
         return
 
     wsclean_init = {
-        "size": 7144,
+        "size": 4144,
         "minuv_l": 235,
         "weight": "briggs -0.5",
         "auto_mask": 5,
@@ -145,6 +146,7 @@ def process_science_fields(
             container=field_options.yandasoft_container,
             suffix_str="noselfcal",
             holofile=field_options.holofile,
+            cutoff=0.05,
         )
 
         if run_aegean:
@@ -153,7 +155,13 @@ def process_science_fields(
             )
 
             if run_validation:
-                task_create_validation_plot.submit(
+                validation_plot = task_create_validation_plot.submit(
+                    processed_mss=flagged_mss,
+                    aegean_outputs=aegean_outputs,
+                    reference_catalogue_directory=field_options.reference_catalogue_directory,
+                )
+                validation_tables = task_create_validation_tables.submit(
+                    processed_mss=flagged_mss,
                     aegean_outputs=aegean_outputs,
                     reference_catalogue_directory=field_options.reference_catalogue_directory,
                 )
@@ -164,6 +172,7 @@ def process_science_fields(
                 beam_shape=beam_shape,
                 field_options=field_options,
                 linmos_suffix_str="residual.noselfcal",
+                cutoff=0.05,
             )
 
     if field_options.rounds is None:
@@ -204,6 +213,7 @@ def process_science_fields(
             round=round,
             update_gain_cal_options=unmapped(gain_cal_options),
             archive_input_ms=field_options.zip_ms,
+            wait_for=[validation_plot, validation_tables],
         )
 
         flag_mss = task_flag_ms_aoflagger.map(
@@ -237,6 +247,7 @@ def process_science_fields(
             container=field_options.yandasoft_container,
             suffix_str=f"round{round}",
             holofile=field_options.holofile,
+            cutoff=0.05,
         )
 
         if final_round and field_options.linmos_residuals:
@@ -244,23 +255,32 @@ def process_science_fields(
                 wsclean_cmds=wsclean_cmds,
                 beam_shape=beam_shape,
                 field_options=field_options,
-                linmos_suffix_str=f"residual.round{round}",
+                linmos_suffix_str=f"round{round}.residual",
+                cutoff=0.05,
             )
 
-        if run_aegean:
+        if final_round and run_aegean:
             aegean_outputs = task_run_bane_and_aegean.submit(
                 image=parset, aegean_container=unmapped(field_options.aegean_container)
             )
 
             if run_validation:
-                task_create_validation_plot.submit(
+                validation_plot = task_create_validation_plot.submit(
+                    processed_mss=flag_mss,
+                    aegean_outputs=aegean_outputs,
+                    reference_catalogue_directory=field_options.reference_catalogue_directory,
+                )
+                validation_tables = task_create_validation_tables.submit(
+                    processed_mss=flag_mss,
                     aegean_outputs=aegean_outputs,
                     reference_catalogue_directory=field_options.reference_catalogue_directory,
                 )
 
     # zip up the final measurement set, which is not included in the above loop
     if field_options.zip_ms:
-        task_zip_ms.map(in_item=wsclean_cmds, wait_for=wsclean_cmds)
+        task_zip_ms.map(
+            in_item=wsclean_cmds, wait_for=[validation_plot, validation_tables]
+        )
 
 
 def setup_run_process_science_field(

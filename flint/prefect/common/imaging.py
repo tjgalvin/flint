@@ -7,7 +7,9 @@ imaging flows.
 from pathlib import Path
 from typing import Any, Collection, Dict, List, Optional, TypeVar, Union
 
+import pandas as pd
 from prefect import task, unmapped
+from prefect.artifacts import create_table_artifact
 
 from flint.calibrate.aocalibrate import (
     ApplySolutions,
@@ -32,7 +34,12 @@ from flint.prefect.common.utils import upload_image_as_artifact
 from flint.selfcal.casa import gaincal_applycal_ms
 from flint.source_finding.aegean import AegeanOutputs, run_bane_and_aegean
 from flint.utils import zip_folder
-from flint.validation import create_validation_plot
+from flint.validation import (
+    ValidationTables,
+    XMatchTables,
+    create_validation_plot,
+    create_validation_tables,
+)
 
 # These are simple task wrapped functions and require no other modification
 task_preprocess_askap_ms = task(preprocess_askap_ms)
@@ -333,6 +340,7 @@ def task_linmos_images(
     holofile: Optional[Path] = None,
     sbid: Optional[int] = None,
     parset_output_path: Optional[str] = None,
+    cutoff: float = 0.05,
 ) -> LinmosCommand:
     """Run the yandasoft linmos task against a set of input images
 
@@ -345,6 +353,7 @@ def task_linmos_images(
         holofile (Optional[Path], optional): The FITS cube with the beam corrections derived from ASKAP holography. Defaults to None.
         sbid (Optional[int], optional): SBID of the data being imaged. Defaults to None.
         parset_output_path (Optional[str], optional): Location to write the linmos parset file to. Defaults to None.
+        cutoff (float, optional): The primary beam attenuation cutoff supplied to linmos when coadding. Defaults to 0.05.
 
     Returns:
         LinmosCommand: The linmos command and associated meta-data
@@ -387,6 +396,7 @@ def task_linmos_images(
         image_output_name=str(out_name),
         container=container,
         holofile=holofile,
+        cutoff=cutoff,
     )
 
     return linmos_cmd
@@ -397,6 +407,7 @@ def _convolve_linmos_residuals(
     beam_shape: BeamShape,
     field_options: FieldOptions,
     linmos_suffix_str: str,
+    cutoff: float = 0.05,
 ) -> LinmosCommand:
     """An internal function that launches the convolution to a common resolution
     and subsequent linmos of the wsclean residual images.
@@ -406,6 +417,7 @@ def _convolve_linmos_residuals(
         beam_shape (BeamShape): The beam shape that residual images will be convolved to
         field_options (FieldOptions): Options related to the processing of the field
         linmos_suffix_str (str): The suffix string passed to the linmos parset name
+        cutoff (float, optional): The primary beam attenuation cutoff supplied to linmos when coadding. Defaults to 0.05.
 
     Returns:
         LinmosCommand: Resulting linmos command parset
@@ -421,6 +433,7 @@ def _convolve_linmos_residuals(
         container=field_options.yandasoft_container,
         suffix_str=linmos_suffix_str,
         holofile=field_options.holofile,
+        cutoff=cutoff,
     )
 
     return parset
@@ -543,6 +556,7 @@ def task_extract_beam_mask_image(
 
 @task
 def task_create_validation_plot(
+    processed_mss: List[MS],
     aegean_outputs: AegeanOutputs,
     reference_catalogue_directory: Path,
     upload_artifact: bool = True,
@@ -557,20 +571,85 @@ def task_create_validation_plot(
     Returns:
         Path: Path to the output figure created
     """
-    output_figure_path = aegean_outputs.comp.with_suffix(".validation.png")
+    output_path = aegean_outputs.comp.parent
 
-    logger.info(f"Will create {output_figure_path=}")
+    logger.info(f"Will create validation plot in {output_path=}")
+
+    processed_mss = [
+        ms.ms if isinstance(ms, ApplySolutions) else ms for ms in processed_mss
+    ]
 
     plot_path = create_validation_plot(
+        processed_ms_paths=[ms.path for ms in processed_mss],
         rms_image_path=aegean_outputs.rms,
         source_catalogue_path=aegean_outputs.comp,
-        output_path=output_figure_path,
+        output_path=output_path,
         reference_catalogue_directory=reference_catalogue_directory,
     )
 
     if upload_artifact:
         upload_image_as_artifact(
-            image_path=plot_path, descrition=f"Validation plot {str(plot_path)}"
+            image_path=plot_path, description=f"Validation plot {str(plot_path)}"
         )
 
     return plot_path
+
+
+@task
+def task_create_validation_tables(
+    processed_mss: List[MS],
+    aegean_outputs: AegeanOutputs,
+    reference_catalogue_directory: Path,
+    upload_artifacts: bool = True,
+) -> ValidationTables:
+    """Create a set of validation tables that can be used to assess the
+    correctness of an image and associated source catalogue.
+
+    Args:
+        processed_ms_paths (List[Path]): The processed MS files that were used to create the source catalogue
+        rms_image_path (Path): The RMS fits image the source catalogue was constructed against.
+        source_catalogue_path (Path): The source catalogue.
+        output_path (Path): The output path of the figure to create
+        reference_catalogue_directory (Path): The directory that contains the reference catalogues installed
+
+    Returns:
+        ValidationTables: The tables that were created
+    """
+    output_path = aegean_outputs.comp.parent
+
+    processed_mss = [
+        ms.ms if isinstance(ms, ApplySolutions) else ms for ms in processed_mss
+    ]
+
+    logger.info(f"Will create validation tables in {output_path=}")
+    validation_tables = create_validation_tables(
+        processed_ms_paths=[ms.path for ms in processed_mss],
+        rms_image_path=aegean_outputs.rms,
+        source_catalogue_path=aegean_outputs.comp,
+        output_path=output_path,
+        reference_catalogue_directory=reference_catalogue_directory,
+    )
+
+    if upload_artifacts:
+        for table in validation_tables:
+            if isinstance(table, Path):
+                df = pd.read_csv(table)
+                df_dict = df.to_dict("records")
+                create_table_artifact(
+                    table=df_dict,
+                    description=f"{table.stem}",
+                )
+            elif isinstance(table, XMatchTables):
+                for subtable in table:
+                    if subtable is None:
+                        continue
+                    if not isinstance(subtable, Path):
+                        continue
+                    df = pd.read_csv(subtable)
+                    df_dict = df.to_dict("records")
+                    create_table_artifact(
+                        table=df_dict,
+                        description=f"{subtable.stem}",
+                    )
+
+    return validation_tables
