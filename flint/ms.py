@@ -285,8 +285,8 @@ def describe_ms(ms: Union[MS, Path], verbose: bool = True) -> MSSummary:
         colnames = tab.colnames()
 
         flags = tab.getcol("FLAG")
-        flagged = np.sum(flags is True)
-        unflagged = np.sum(flags is False)
+        flagged = np.sum(flags == True) # Noqa: E712
+        unflagged = np.sum(flags == False) # Noqa: E712
         total = np.prod(flags.shape)
 
         uniq_ants = sorted(list(set(tab.getcol("ANTENNA1"))))
