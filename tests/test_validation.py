@@ -11,7 +11,7 @@ from flint.validation import RMSImageInfo, get_parser, get_rms_image_info
 
 
 def test_get_parser():
-    parser = get_parser()
+    get_parser()
 
 
 @pytest.fixture
