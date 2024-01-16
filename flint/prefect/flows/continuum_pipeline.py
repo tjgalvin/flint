@@ -211,7 +211,7 @@ def process_science_fields(
             round=round,
             update_gain_cal_options=unmapped(gain_cal_options),
             archive_input_ms=field_options.zip_ms,
-            wait_for = [validation_plot, validation_tables]
+            wait_for=[validation_plot, validation_tables],
         )
 
         flag_mss = task_flag_ms_aoflagger.map(
@@ -274,7 +274,9 @@ def process_science_fields(
 
     # zip up the final measurement set, which is not included in the above loop
     if field_options.zip_ms:
-        task_zip_ms.map(in_item=wsclean_cmds, wait_for=[validation_plot, validation_tables])
+        task_zip_ms.map(
+            in_item=wsclean_cmds, wait_for=[validation_plot, validation_tables]
+        )
 
 
 def setup_run_process_science_field(

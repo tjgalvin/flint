@@ -425,13 +425,16 @@ def make_validator_axes_layout(fig: Figure, rms_path: Path) -> ValidatorLayout:
     return validator_layout
 
 
-def plot_rms_map(fig: Figure, ax: Axes, rms_path: Path) -> Axes:
+def plot_rms_map(
+    fig: Figure, ax: Axes, rms_path: Path, source_positions: Optionals[SkyCoord] = None
+) -> Axes:
     """Add the RMS image to the figure
 
     Args:
         fig (Figure): Figure that contains the axes object
         ax (Axes): The axes that will be plotted
         rms_path (Path): Location of the RMS image
+        source_positions (Optional[SkyCoord], optionals): Sources in the ASKAP catalogue to overlay onto the RMS image. Defaults to None.
 
     Returns:
         Axes: The axes object with the plotted RMS image
@@ -443,6 +446,15 @@ def plot_rms_map(fig: Figure, ax: Axes, rms_path: Path) -> Axes:
     im = ax.imshow(
         np.log10(rms_data * 1e6), vmin=2.0, vmax=3.0, origin="lower", cmap="YlOrRd"
     )
+
+    if source_positions:
+        ax.scatter(
+            source_positions.ra,
+            source_positions.dec,
+            marerk="o",
+            color="ref",
+            transform=ax.get_transform(),
+        )
 
     ax.grid(color="0.5", ls="solid")
     ax.set_xlabel("RA (J2000)")
@@ -763,8 +775,8 @@ def plot_flux_comparison(fig: Figure, ax: Axes, match_result: MatchResult) -> Ax
     spectral_index_scale = (match_result.freq2 / match_result.freq1) ** -0.8
 
     ax.loglog(flux1, flux2, "ok", ms=2)
-    ax.loglog(one2one, one2one, "-", c="r", label='Raw')
-    ax.loglog(one2one, one2one * spectral_index_scale, "--", c="r", label='Scaled')
+    ax.loglog(one2one, one2one, "-", c="r", label="Raw")
+    ax.loglog(one2one, one2one * spectral_index_scale, "--", c="r", label="Scaled")
     ax.set(
         ylabel=f"{match_result.name2} Integrated Flux (Jy)",
         xlabel=f"{match_result.name1} Integrated Flux (Jy)",
@@ -923,23 +935,23 @@ def plot_field_info(
         0.0,
         0.0,
         f"""
-    - J2000 RA / Dec    : 
+    - J2000 RA / Dec    :
               {rms_info.centre.icrs.to_string(style='hmsdms', precision=1)}
     - Galactic l / b    : {rms_info.centre.galactic.to_string(style='decimal')}
     - SBID              : {ms_info.sbid}
     - CAL_SBID          : {""}
-    - Start time        : 
+    - Start time        :
               {ms_times[0].utc.fits}
     - Integration time  : {ms_times.ptp().sec * u.second:latex_inline}
-    - Hour angle range  : 
+    - Hour angle range  :
               {hour_angles.min().to_string(precision=2, format='latex_inline')} - {hour_angles.max().to_string(precision=2, format='latex_inline')}
-    - Elevation range   : 
+    - Elevation range   :
               {elevations.min().to_string(precision=2, format='latex_inline')} - {elevations.max().to_string(precision=2, format='latex_inline')}
 
     - Median rms uJy    : {rms_info.median*1e6:.1f}
     - Components        : {len(askap_table)}
 
-    - Processing date   : 
+    - Processing date   :
               {Time.now().fits}
         """,
         family="monospace",
@@ -1058,7 +1070,7 @@ def make_psf_table(processed_ms_paths: List[Path], output_path: Path) -> Path:
             "VIS_FLAGGED": [ms_summary.flagged for ms_summary in ms_summaries],
         }
     )
-    psf_table.sort('BEAM_NUM')
+    psf_table.sort("BEAM_NUM")
     # beam_inf_{SBID}-{FIELD_NAME}.csv
     outfile = (
         output_path
@@ -1251,7 +1263,17 @@ def create_validation_plot(
         skads=skads,
     )
 
-    plot_rms_map(fig=fig, ax=validator_layout.ax_rms, rms_path=rms_info.path)
+    askap_sources = SkyCoord(
+        tables.askap[catalogues.askap.ra_col],
+        tables.askap[catalogues.askap.dec_col],
+        unit="deg,deg",
+    )
+    plot_rms_map(
+        fig=fig,
+        ax=validator_layout.ax_rms,
+        rms_path=rms_info.path,
+        source_positions=askap_sources,
+    )
 
     plot_psf(fig=fig, ax=validator_layout.ax_psf, rms_info=rms_info)
 
@@ -1375,6 +1397,7 @@ def cli() -> None:
     )
 
     logger.info(f"\n{validation_tables}")
+
 
 if __name__ == "__main__":
     cli()
