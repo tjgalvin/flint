@@ -171,7 +171,7 @@ def process_science_fields(
                 wsclean_cmds=wsclean_cmds,
                 beam_shape=beam_shape,
                 field_options=field_options,
-                linmos_suffix_str="residual.noselfcal",,
+                linmos_suffix_str="residual.noselfcal",
                 cutoff=0.05
             )
 
@@ -246,7 +246,7 @@ def process_science_fields(
             images=conv_images,
             container=field_options.yandasoft_container,
             suffix_str=f"round{round}",
-            holofile=field_options.holofile,,
+            holofile=field_options.holofile,
             cutoff=0.05
         )
 
