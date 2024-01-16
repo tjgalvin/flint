@@ -76,7 +76,7 @@ def process_science_fields(
     # other calibration strategies get added
     # Scan the existing bandpass directory for the existing solutions
     calibrate_cmds = find_existing_solutions(
-        bandpass_directory=bandpass_path, use_preflagged=True, use_smoothed=True
+        bandpass_directory=bandpass_path, use_preflagged=True, use_smoothed=False
     )
 
     logger.info(f"Constructed the following {calibrate_cmds=}")
@@ -154,12 +154,12 @@ def process_science_fields(
             )
 
             if run_validation:
-                task_create_validation_plot.submit(
+                validation_plot = task_create_validation_plot.submit(
                     processed_mss=flagged_mss,
                     aegean_outputs=aegean_outputs,
                     reference_catalogue_directory=field_options.reference_catalogue_directory,
                 )
-                task_create_validation_tables.submit(
+                validation_tables = task_create_validation_tables.submit(
                     processed_mss=flagged_mss,
                     aegean_outputs=aegean_outputs,
                     reference_catalogue_directory=field_options.reference_catalogue_directory,
@@ -211,6 +211,7 @@ def process_science_fields(
             round=round,
             update_gain_cal_options=unmapped(gain_cal_options),
             archive_input_ms=field_options.zip_ms,
+            wait_for=[validation_plot, validation_tables],
         )
 
         flag_mss = task_flag_ms_aoflagger.map(
@@ -260,12 +261,12 @@ def process_science_fields(
             )
 
             if run_validation:
-                task_create_validation_plot.submit(
+                validation_plot = task_create_validation_plot.submit(
                     processed_mss=flag_mss,
                     aegean_outputs=aegean_outputs,
                     reference_catalogue_directory=field_options.reference_catalogue_directory,
                 )
-                task_create_validation_tables.submit(
+                validation_tables = task_create_validation_tables.submit(
                     processed_mss=flag_mss,
                     aegean_outputs=aegean_outputs,
                     reference_catalogue_directory=field_options.reference_catalogue_directory,
@@ -273,7 +274,9 @@ def process_science_fields(
 
     # zip up the final measurement set, which is not included in the above loop
     if field_options.zip_ms:
-        task_zip_ms.map(in_item=wsclean_cmds, wait_for=wsclean_cmds)
+        task_zip_ms.map(
+            in_item=wsclean_cmds, wait_for=[validation_plot, validation_tables]
+        )
 
 
 def setup_run_process_science_field(
