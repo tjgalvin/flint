@@ -340,6 +340,7 @@ def task_linmos_images(
     holofile: Optional[Path] = None,
     sbid: Optional[int] = None,
     parset_output_path: Optional[str] = None,
+    cutoff: float=0.05
 ) -> LinmosCommand:
     """Run the yandasoft linmos task against a set of input images
 
@@ -352,6 +353,7 @@ def task_linmos_images(
         holofile (Optional[Path], optional): The FITS cube with the beam corrections derived from ASKAP holography. Defaults to None.
         sbid (Optional[int], optional): SBID of the data being imaged. Defaults to None.
         parset_output_path (Optional[str], optional): Location to write the linmos parset file to. Defaults to None.
+        cutoff (float, optional): The primary beam attenuation cutoff supplied to linmos when coadding. Defaults to 0.05. 
 
     Returns:
         LinmosCommand: The linmos command and associated meta-data
@@ -394,6 +396,7 @@ def task_linmos_images(
         image_output_name=str(out_name),
         container=container,
         holofile=holofile,
+        cutoff=cutoff
     )
 
     return linmos_cmd
@@ -404,6 +407,7 @@ def _convolve_linmos_residuals(
     beam_shape: BeamShape,
     field_options: FieldOptions,
     linmos_suffix_str: str,
+    cutoff: float=0.05
 ) -> LinmosCommand:
     """An internal function that launches the convolution to a common resolution
     and subsequent linmos of the wsclean residual images.
@@ -413,7 +417,8 @@ def _convolve_linmos_residuals(
         beam_shape (BeamShape): The beam shape that residual images will be convolved to
         field_options (FieldOptions): Options related to the processing of the field
         linmos_suffix_str (str): The suffix string passed to the linmos parset name
-
+        cutoff (float, optional): The primary beam attenuation cutoff supplied to linmos when coadding. Defaults to 0.05. 
+        
     Returns:
         LinmosCommand: Resulting linmos command parset
     """
@@ -428,6 +433,7 @@ def _convolve_linmos_residuals(
         container=field_options.yandasoft_container,
         suffix_str=linmos_suffix_str,
         holofile=field_options.holofile,
+        cutoff=cutoff
     )
 
     return parset

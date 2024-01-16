@@ -146,6 +146,7 @@ def process_science_fields(
             container=field_options.yandasoft_container,
             suffix_str="noselfcal",
             holofile=field_options.holofile,
+            cutoff=0.05
         )
 
         if run_aegean:
@@ -170,7 +171,8 @@ def process_science_fields(
                 wsclean_cmds=wsclean_cmds,
                 beam_shape=beam_shape,
                 field_options=field_options,
-                linmos_suffix_str="residual.noselfcal",
+                linmos_suffix_str="residual.noselfcal",,
+                cutoff=0.05
             )
 
     if field_options.rounds is None:
@@ -244,7 +246,8 @@ def process_science_fields(
             images=conv_images,
             container=field_options.yandasoft_container,
             suffix_str=f"round{round}",
-            holofile=field_options.holofile,
+            holofile=field_options.holofile,,
+            cutoff=0.05
         )
 
         if final_round and field_options.linmos_residuals:
@@ -253,6 +256,7 @@ def process_science_fields(
                 beam_shape=beam_shape,
                 field_options=field_options,
                 linmos_suffix_str=f"round{round}.residual",
+                cutoff=0.05
             )
 
         if final_round and run_aegean:
