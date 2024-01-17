@@ -3,17 +3,20 @@
 from pathlib import Path
 from typing import NamedTuple
 
+import matplotlib.pyplot as plt
 import numpy as np
 import pkg_resources
 import pytest
+from astropy.table import Table
 
 from flint.validation import (
     RMSImageInfo,
     SourceCounts,
     calculate_area_correction_per_flux,
-    get_source_counts,
     get_parser,
     get_rms_image_info,
+    get_source_counts,
+    plot_source_counts,
 )
 
 
@@ -30,6 +33,27 @@ def rms_path(tmpdir):
     )
 
     return rms_path
+
+
+@pytest.fixture
+def comp_path(tmpdir):
+    comp_path = Path(
+        pkg_resources.resource_filename(
+            "flint", "data/tests/SB38959.RACS_1357-18.noselfcal.linmos_comp.fits"
+        )
+    )
+
+    return comp_path
+
+
+def test_plot_source_counts(comp_path, rms_path):
+    """Just a simple test to make sure there are no immediate matplotlib api errors.
+    Not testing for actual plotting results."""
+    fig, ax = plt.subplots(1, 1)
+    comp_table = Table.read(comp_path)
+    rms_info = get_rms_image_info(rms_path=rms_path)
+
+    plot_source_counts(catalogue=comp_table, rms_info=rms_info, ax=ax)
 
 
 def test_source_counts():
