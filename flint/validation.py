@@ -514,12 +514,13 @@ def calculate_area_correction_per_flux(
 
     # Filter out the data
     rms_data = fits.getdata(rms_image_path)
-    rms_data = rms_data[np.isfinite(rms_data)]
+    rms_data = rms_data[np.isfinite(rms_data)].flatten()
 
     # Calculate the cumulative distribution and normalise it to 0..1
-    rms_hist, rms_bins = np.histogram(rms_data.flatten(), bins=500)
+    rms_hist, rms_bins = np.histogram(rms_data, bins=500)
     rms_cdf = np.cumsum(rms_hist)
     rms_cdf = rms_cdf / rms_cdf[-1]
+    assert np.isclose(rms_cdf[-1], 1), "Normalisation of the RMS CDF failed"
 
     # Calculate the bin centers of the histogram / CDF
     rms_bin_centre = 0.5 * (rms_bins[1:] + rms_bins[:-1])

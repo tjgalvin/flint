@@ -7,7 +7,12 @@ import numpy as np
 import pkg_resources
 import pytest
 
-from flint.validation import RMSImageInfo, get_parser, get_rms_image_info
+from flint.validation import (
+    RMSImageInfo,
+    get_parser,
+    get_rms_image_info,
+    calculate_area_correction_per_flux,
+)
 
 
 def test_get_parser():
@@ -23,6 +28,22 @@ def rms_path(tmpdir):
     )
 
     return rms_path
+
+
+def test_calculate_area_correction(rms_path):
+    """This is not an entirely robust check as the rms image is only
+    10 x 15 pixels. More testing for errors in the calling."""
+
+    flux_bin_centres = np.arange(0.00004, 0.01, 0.0001)
+
+    area_frac = calculate_area_correction_per_flux(
+        rms_image_path=rms_path, flux_bin_centre=flux_bin_centres, sigma=3
+    )
+
+    test = np.ones(100)
+    test[:5] = 0.0
+
+    assert np.allclose(test, area_frac)
 
 
 def test_rms_image_info(rms_path):
