@@ -642,7 +642,10 @@ def plot_source_counts(
         label="Raw Component Catalogue",
     )
 
-    if source_counts.area_fraction:
+    # Since area_fraction could be a numpy array we have to
+    # exlicitly test to ensure it is not None, otherwise it
+    # is ambigious
+    if source_counts.area_fraction is not None:
         ax.errorbar(
             source_counts.bin_center * 1e3,
             source_counts.euclid_counts / source_counts.area_fraction,
