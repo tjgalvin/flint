@@ -628,7 +628,9 @@ def plot_source_counts(
 
     fluxes = catalogue["int_flux"]
 
-    source_counts = get_source_counts(fluxes=fluxes, area=rms_info.area)
+    source_counts = get_source_counts(
+        fluxes=fluxes, area=rms_info.area, rms_image_path=rms_info.path
+    )
 
     ax.errorbar(
         source_counts.bin_center * 1e3,
