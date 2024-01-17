@@ -9,9 +9,9 @@ import pytest
 
 from flint.validation import (
     RMSImageInfo,
+    calculate_area_correction_per_flux,
     get_parser,
     get_rms_image_info,
-    calculate_area_correction_per_flux,
 )
 
 
