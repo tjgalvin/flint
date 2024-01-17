@@ -362,7 +362,7 @@ def get_rms_image_info(rms_path: Path) -> RMSImageInfo:
         minimum=np.nanmin(rms_data),
         maximum=np.nanmax(rms_data),
         std=np.nanstd(rms_data),
-        mode=stats.mode(rms_data, axis=None).mode[0],
+        mode=stats.mode(rms_data.flatten()).mode[0],
     )
 
     return rms_image_info
