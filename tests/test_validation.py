@@ -7,8 +7,6 @@ import numpy as np
 import pkg_resources
 import pytest
 
-import matplotlib.pyplot as plt
-
 from flint.validation import (
     RMSImageInfo,
     SourceCounts,
