@@ -197,6 +197,8 @@ class SourceCounts(NamedTuple):
     """Euclidean normalised source counts"""
     euclid_counts_err: np.ndarray
     """Rough estimate of error on the euclidean normalised source counts"""
+    area_fraction: Optional[np.ndarray] = None
+    """The fraction of the image that was above a sigma level per flux bin. This may be used as a rough term to scale the Euclidean Normalised source counts. This is not intended to be a robust way of correcting the source counts - just quick"""
 
 
 class MatchResult(NamedTuple):
@@ -490,12 +492,58 @@ def plot_rms_map(
     return ax
 
 
+def calculate_area_correction_per_flux(
+    rms_image_path: Path, flux_bin_centre: np.ndarray, sigma: float = 5
+) -> np.ndarray:
+    """This derives a rough correction to the area term when caluclating
+    the source counts. This is not intended to correct for completness,
+    although they are closely related.
+
+    The RMS image is read in and a CDF is calculated. This is used to
+    return a scaling term that indicates what fraction a flux-bin was
+    `sigma` times the RMS, which could be used to scale the area.
+
+    Args:
+        rms_image_path (Path): RMS image that will be use to calculate the area corretion
+        flux_bin_centre (np.ndarray): Fluxes to calculate the area fraction at
+        sigma (float, optional): Mutliplicate term indicating what sigma level source finding cropped at. Defaults to 5.
+
+    Returns:
+        np.ndarray: Fraction of the image that was available for source finding at a flux density
+    """
+
+    # Filter out the data
+    rms_data = fits.getdata(rms_image_path)
+    rms_data = rms_data[np.isfinite(rms_data)].flatten()
+
+    # Calculate the cumulative distribution and normalise it to 0..1
+    rms_hist, rms_bins = np.histogram(rms_data, bins=500)
+    rms_cdf = np.cumsum(rms_hist)
+    rms_cdf = rms_cdf / rms_cdf[-1]
+    assert np.isclose(rms_cdf[-1], 1), "Normalisation of the RMS CDF failed"
+
+    # Calculate the bin centers of the histogram / CDF
+    rms_bin_centre = 0.5 * (rms_bins[1:] + rms_bins[:-1])
+
+    # Now calculate the area available per flux bin that is available
+    # for source finding. Since the source finding is often performed
+    # with some flux / rms cut, the area available is a multiple of
+    # the rms. The scaling term here is a generic value that most
+    # pirates use.
+    area_fraction_per_bin = np.interp(
+        flux_bin_centre, rms_bin_centre * sigma, rms_cdf, left=0.0, right=1.0
+    )
+
+    return area_fraction_per_bin
+
+
 def get_source_counts(
     fluxes: np.ndarray,
     area: float,
     minlogf: float = -4,
     maxlogf: float = 2,
     Nbins: int = 81,
+    rms_image_path: Optional[Path] = None,
 ) -> SourceCounts:
     """Derive source counts for a set of fluxes and known area
 
@@ -505,6 +553,7 @@ def get_source_counts(
         minlogf (float, optional): The minimum bin edge, in Jy. Defaults to -4.
         maxlogf (float, optional): The maximum bin edgem, in Jy. Defaults to 2.
         Nbins (int, optional): Number of bins to include in the source counts. Defaults to 81.
+        rms_image_path (Optional[Path], optional): Path to the RMS image. If not None, it is used to calculate a rough area correction. Defaults to None.
 
     Returns:
         SourceCounts: Source counts and their properties
@@ -516,17 +565,25 @@ def get_source_counts(
     logf = np.linspace(minlogf, maxlogf, Nbins)
     f = np.power(10.0, logf)
 
-    area_sky_total = 360.0 * 360.0 / np.pi
-    solid_angle = 4 * np.pi * area / area_sky_total
-
     counts, bins = np.histogram(fluxes, f)
     binsmid = 0.5 * ((bins[:-1]) + (bins[1:]))
     ds = bins[1:] - bins[:-1]
+
+    area_sky_total = 360.0 * 360.0 / np.pi
+    solid_angle = 4 * np.pi * area / area_sky_total
 
     counts_err = np.array(np.sqrt(counts), dtype=int)
 
     scount = np.power(binsmid, 2.5) * counts / (ds * solid_angle)
     scount_err = np.power(binsmid, 2.5) * 1.0 * counts_err / (ds * solid_angle)
+
+    area_fraction = (
+        calculate_area_correction_per_flux(
+            rms_image_path=rms_image_path, flux_bin_centre=binsmid, sigma=5
+        )
+        if rms_image_path
+        else None
+    )
 
     source_counts = SourceCounts(
         bins=bins,
@@ -535,6 +592,7 @@ def get_source_counts(
         counts_per_bin_err=counts_err,
         euclid_counts=scount,
         euclid_counts_err=scount_err,
+        area_fraction=area_fraction,
     )
 
     return source_counts
@@ -571,7 +629,9 @@ def plot_source_counts(
 
     fluxes = catalogue["int_flux"]
 
-    source_counts = get_source_counts(fluxes=fluxes, area=rms_info.area)
+    source_counts = get_source_counts(
+        fluxes=fluxes, area=rms_info.area, rms_image_path=rms_info.path
+    )
 
     ax.errorbar(
         source_counts.bin_center * 1e3,
@@ -579,8 +639,18 @@ def plot_source_counts(
         yerr=source_counts.euclid_counts_err,
         fmt=".",
         color="darkred",
-        label=f"Raw Component Catalogue - {len(fluxes)} sources",
+        label="Raw Component Catalogue",
     )
+
+    if source_counts.area_fraction:
+        ax.errorbar(
+            source_counts.bin_center * 1e3,
+            source_counts.euclid_counts / source_counts.area_fraction,
+            yerr=source_counts.euclid_counts_err / source_counts.area_fraction,
+            fmt="x",
+            color="darkred",
+            label="Area Corrected Catalogue",
+        )
 
     if dezotti is not None and freq is not None:
         spectral_index_scale = (freq / 1.4e9) ** -0.8
@@ -612,6 +682,7 @@ def plot_source_counts(
     ax.set_yscale("log")
     ax.set_xlabel("Flux Density (mJy)")
     ax.set_ylabel(r"$\frac{dN}{dS} S^{\frac{5}{2}}$ (Jy$^{\frac{3}{2}}$ sr$^{-1}$)")
+    ax.title(f"{len(fluxes)} sources")
     ax.set_xlim(0.2, 1.0e4)
     ax.set_ylim(5.0e-2, 1.0e4)
     ax.grid()
