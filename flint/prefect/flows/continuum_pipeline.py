@@ -76,7 +76,9 @@ def process_science_fields(
     # other calibration strategies get added
     # Scan the existing bandpass directory for the existing solutions
     calibrate_cmds = find_existing_solutions(
-        bandpass_directory=bandpass_path, use_preflagged=True, use_smoothed=True
+        bandpass_directory=bandpass_path,
+        use_preflagged=field_options.use_preflagger,
+        use_smoothed=field_options.use_smoothed,
     )
 
     logger.info(f"Constructed the following {calibrate_cmds=}")
@@ -136,9 +138,13 @@ def process_science_fields(
             aegean_container=unmapped(field_options.aegean_container),
         )
 
-    beam_shape = task_get_common_beam.submit(wsclean_cmds=wsclean_cmds, cutoff=150.0)
+    beam_shape = task_get_common_beam.submit(
+        wsclean_cmds=wsclean_cmds, cutoff=field_options.beam_cutoff
+    )
     conv_images = task_convolve_image.map(
-        wsclean_cmd=wsclean_cmds, beam_shape=unmapped(beam_shape), cutoff=150.0
+        wsclean_cmd=wsclean_cmds,
+        beam_shape=unmapped(beam_shape),
+        cutoff=field_options.beam_cutoff,
     )
     if field_options.yandasoft_container:
         parset = task_linmos_images.submit(
@@ -146,7 +152,7 @@ def process_science_fields(
             container=field_options.yandasoft_container,
             suffix_str="noselfcal",
             holofile=field_options.holofile,
-            cutoff=0.10,
+            cutoff=field_options.pb_cutoff,
         )
 
         if run_aegean:
@@ -172,7 +178,7 @@ def process_science_fields(
                 beam_shape=beam_shape,
                 field_options=field_options,
                 linmos_suffix_str="residual.noselfcal",
-                cutoff=0.10,
+                cutoff=field_options.pb_cutoff,
             )
 
     if field_options.rounds is None:
@@ -233,10 +239,12 @@ def process_science_fields(
             )
 
         beam_shape = task_get_common_beam.submit(
-            wsclean_cmds=wsclean_cmds, cutoff=150.0
+            wsclean_cmds=wsclean_cmds, cutoff=field_options.beam_cutoff
         )
         conv_images = task_convolve_image.map(
-            wsclean_cmd=wsclean_cmds, beam_shape=unmapped(beam_shape), cutoff=150.0
+            wsclean_cmd=wsclean_cmds,
+            beam_shape=unmapped(beam_shape),
+            cutoff=field_options.beam_cutoff,
         )
         if field_options.yandasoft_container is None:
             logger.info("No yandasoft container supplied, not linmosing. ")
@@ -247,7 +255,7 @@ def process_science_fields(
             container=field_options.yandasoft_container,
             suffix_str=f"round{round}",
             holofile=field_options.holofile,
-            cutoff=0.10,
+            cutoff=field_options.pb_cutoff,
         )
 
         if final_round and field_options.linmos_residuals:
@@ -256,7 +264,7 @@ def process_science_fields(
                 beam_shape=beam_shape,
                 field_options=field_options,
                 linmos_suffix_str=f"round{round}.residual",
-                cutoff=0.10,
+                cutoff=field_options.pb_cutoff,
             )
 
         if final_round and run_aegean:
@@ -410,6 +418,30 @@ def get_parser() -> ArgumentParser:
         default=False,
         help="Co-add the per-beam cleaning residuals into a field image",
     )
+    parser.add_argument(
+        "--beam-cutoff",
+        type=float,
+        default=150,
+        help="Cutoff in arcseconds that is used to flagged synthesised beams were deriving a common resolution to smooth to when forming the linmos images",
+    )
+    parser.add_argument(
+        "--pb-cutoff",
+        type=float,
+        default=0.1,
+        help="Primary beam attentuation cutoff to use during linmos",
+    )
+    parser.add_argument(
+        "--use-preflagger",
+        action="store_true",
+        default=False,
+        help="Whether to use (or search for solutions with) the preflagger operations applied to the bandpass gain solutions",
+    )
+    parser.add_argument(
+        "--use-smoothed",
+        action="store_true",
+        default=False,
+        help="Whether to use (or search for solutions with) the smoothing operations applied to the bandpass gain solutions",
+    )
 
     return parser
 
@@ -438,6 +470,10 @@ def cli() -> None:
         no_imaging=args.no_imaging,
         reference_catalogue_directory=args.reference_catalogue_directory,
         linmos_residuals=args.linmos_residuals,
+        beam_cutoff=args.beam_cutoff,
+        pb_cutoff=args.pb_cutoff,
+        use_preflagger=args.use_preflagger,
+        use_smoothed=args.use_smoothed,
     )
 
     setup_run_process_science_field(

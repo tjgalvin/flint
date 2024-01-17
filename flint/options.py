@@ -47,3 +47,11 @@ class FieldOptions(NamedTuple):
     """Whether a Butterworth filter should be used when constructing the clean mask"""
     linmos_residuals: bool = False
     """Linmos the cleaning residuals together into a field image"""
+    beam_cutoff: float = 150
+    """Cutoff in arcseconds to use when calculating the common beam to convol to"""
+    pb_cutoff: float = 0.1
+    """Primary beam attentuation cutoff to use during linmos"""
+    use_preflagger: bool = True
+    """Whether to apply (or search for solutions with) bandpass solutions that have gone through the preflagging operations"""
+    use_smoothed: bool = True
+    """Whether to apply (or search for solutions with) a bandpass smoothing operation applied"""
