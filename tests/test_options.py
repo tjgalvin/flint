@@ -11,20 +11,20 @@ from flint.prefect.flows.continuum_pipeline import get_parser
 def test_create_field_options():
     parser = get_parser()
     args = parser.parse_args(
-        """/scratch3/gal16b/askap_sbids/112334/ 
-        /scratch3/gal16b/askap_sbids/111/ 
-        --holofile /scratch3/projects/spiceracs/RACS_Low2_Holography/akpb.iquv.square_6x6.63.887MHz.SB39549.cube.fits 
-        --calibrate-container /scratch3/gal16b/containers/calibrate.sif 
-        --flagger-container /scratch3/gal16b/containers/aoflagger.sif  
-        --wsclean-container /scratch3/projects/spiceracs/singularity_images/wsclean_force_mask.sif  
-        --yandasoft-container /scratch3/gal16b/containers/yandasoft.sif 
-        --cluster-config /scratch3/gal16b/split/petrichor.yaml 
-        --selfcal-rounds 2 
-        --split-path $(pwd) 
-        --zip-ms 
-        --run-aegean 
-        --aegean-container '/scratch3/gal16b/containers/aegean.sif' 
-        --reference-catalogue-directory '/scratch3/gal16b/reference_catalogues/' 
+        """/scratch3/gal16b/askap_sbids/112334/
+        /scratch3/gal16b/askap_sbids/111/
+        --holofile /scratch3/projects/spiceracs/RACS_Low2_Holography/akpb.iquv.square_6x6.63.887MHz.SB39549.cube.fits
+        --calibrate-container /scratch3/gal16b/containers/calibrate.sif
+        --flagger-container /scratch3/gal16b/containers/aoflagger.sif
+        --wsclean-container /scratch3/projects/spiceracs/singularity_images/wsclean_force_mask.sif
+        --yandasoft-container /scratch3/gal16b/containers/yandasoft.sif
+        --cluster-config /scratch3/gal16b/split/petrichor.yaml
+        --selfcal-rounds 2
+        --split-path $(pwd)
+        --zip-ms
+        --run-aegean
+        --aegean-container '/scratch3/gal16b/containers/aegean.sif'
+        --reference-catalogue-directory '/scratch3/gal16b/reference_catalogues/'
         --linmos-residuals
     """.split()
     )
@@ -61,19 +61,19 @@ def test_create_field_options():
 def test_create_field_options2():
     parser = get_parser()
     args = parser.parse_args(
-        """/scratch3/gal16b/askap_sbids/112334/ 
-        /scratch3/gal16b/askap_sbids/111/ 
-        --holofile /scratch3/projects/spiceracs/RACS_Low2_Holography/akpb.iquv.square_6x6.63.887MHz.SB39549.cube.fits 
-        --calibrate-container /scratch3/gal16b/containers/calibrate.sif 
-        --flagger-container /scratch3/gal16b/containers/aoflagger.sif  
-        --wsclean-container /scratch3/projects/spiceracs/singularity_images/wsclean_force_mask.sif  
-        --yandasoft-container /scratch3/gal16b/containers/yandasoft.sif 
-        --cluster-config /scratch3/gal16b/split/petrichor.yaml 
-        --selfcal-rounds 2 
-        --split-path $(pwd) 
-        --run-aegean 
-        --aegean-container '/scratch3/gal16b/containers/aegean.sif' 
-        --reference-catalogue-directory '/scratch3/gal16b/reference_catalogues/' 
+        """/scratch3/gal16b/askap_sbids/112334/
+        /scratch3/gal16b/askap_sbids/111/
+        --holofile /scratch3/projects/spiceracs/RACS_Low2_Holography/akpb.iquv.square_6x6.63.887MHz.SB39549.cube.fits
+        --calibrate-container /scratch3/gal16b/containers/calibrate.sif
+        --flagger-container /scratch3/gal16b/containers/aoflagger.sif
+        --wsclean-container /scratch3/projects/spiceracs/singularity_images/wsclean_force_mask.sif
+        --yandasoft-container /scratch3/gal16b/containers/yandasoft.sif
+        --cluster-config /scratch3/gal16b/split/petrichor.yaml
+        --selfcal-rounds 2
+        --split-path $(pwd)
+        --run-aegean
+        --aegean-container '/scratch3/gal16b/containers/aegean.sif'
+        --reference-catalogue-directory '/scratch3/gal16b/reference_catalogues/'
         --use-preflagger
         --use-smoothed
     """.split()
