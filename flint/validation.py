@@ -197,6 +197,8 @@ class SourceCounts(NamedTuple):
     """Euclidean normalised source counts"""
     euclid_counts_err: np.ndarray
     """Rough estimate of error on the euclidean normalised source counts"""
+    area: float
+    """The area in square degrees that the sources cover, i.e. image footprint sky-area"""
     area_fraction: Optional[np.ndarray] = None
     """The fraction of the image that was above a sigma level per flux bin. This may be used as a rough term to scale the Euclidean Normalised source counts. This is not intended to be a robust way of correcting the source counts - just quick"""
 
@@ -592,6 +594,7 @@ def get_source_counts(
         counts_per_bin_err=counts_err,
         euclid_counts=scount,
         euclid_counts_err=scount_err,
+        area=area,
         area_fraction=area_fraction,
     )
 

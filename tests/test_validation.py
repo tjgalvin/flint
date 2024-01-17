@@ -7,9 +7,13 @@ import numpy as np
 import pkg_resources
 import pytest
 
+import matplotlib.pyplot as plt
+
 from flint.validation import (
     RMSImageInfo,
+    SourceCounts,
     calculate_area_correction_per_flux,
+    get_source_counts,
     get_parser,
     get_rms_image_info,
 )
@@ -28,6 +32,25 @@ def rms_path(tmpdir):
     )
 
     return rms_path
+
+
+def test_source_counts():
+    fluxes = np.linspace(0.00003, 0.01, 10000)
+
+    source_counts = get_source_counts(fluxes=fluxes, area=10)
+
+    assert isinstance(source_counts, SourceCounts)
+    assert source_counts.area == 10.0
+
+
+def test_source_counts_with_rms(rms_path):
+    fluxes = np.linspace(0.00003, 0.01, 10000)
+
+    source_counts = get_source_counts(fluxes=fluxes, area=10, rms_image_path=rms_path)
+
+    assert isinstance(source_counts, SourceCounts)
+    assert source_counts.area == 10.0
+    assert isinstance(source_counts.area_fraction, np.ndarray)
 
 
 def test_calculate_area_correction(rms_path):
