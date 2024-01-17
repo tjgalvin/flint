@@ -688,7 +688,7 @@ def plot_source_counts(
     ax.set_yscale("log")
     ax.set_xlabel("Flux Density (mJy)")
     ax.set_ylabel(r"$\frac{dN}{dS} S^{\frac{5}{2}}$ (Jy$^{\frac{3}{2}}$ sr$^{-1}$)")
-    ax.title(f"{len(fluxes)} sources")
+    ax.set_title(f"{len(fluxes)} sources")
     ax.set_xlim(0.2, 1.0e4)
     ax.set_ylim(5.0e-2, 1.0e4)
     ax.grid()
