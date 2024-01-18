@@ -182,6 +182,16 @@ def plot_solutions(
                 if any(np.isfinite(amps_yy))
                 else -1
             )
+            min_amp_xx = (
+                np.nanmin(amps_xx[np.isfinite(amps_xx)])
+                if any(np.isfinite(amps_xx))
+                else -1
+            )
+            min_amp_yy = (
+                np.nanmin(amps_yy[np.isfinite(amps_yy)])
+                if any(np.isfinite(amps_yy))
+                else -1
+            )
             ax_a, ax_p = axes_amp[y, x], axes_phase[y, x]
             ax_a = axes_amp[y, x]
             ax_r = axes_ratio[y, x]
@@ -209,8 +219,8 @@ def plot_solutions(
 
             ax_a.set(
                 ylim=(
-                    max(max_amp_xx, max_amp_yy) * 0.8,
-                    max(max_amp_xx, max_amp_yy) * 1.2,
+                    min(min_amp_xx, min_amp_yy) * 0.9,
+                    max(max_amp_xx, max_amp_yy) * 1.1,
                 )
             )
             ax_a.axhline(1, color="black", linestyle="--", linewidth=0.5)
@@ -239,6 +249,7 @@ def plot_solutions(
             ax_p.set(ylim=(-200, 200))
             ax_p.set_title(f"ak{ant:02d}", fontsize=8)
             fill_between_flags(ax_p, ~np.isfinite(phase_yy) | ~np.isfinite(phase_xx))
+
     fig_amp.legend()
     fig_phase.legend()
     fig_ratio.legend()
