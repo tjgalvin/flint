@@ -505,7 +505,7 @@ def create_calibrate_cmd(
     cmd = (
         f"calibrate "
         f"-datacolumn {ms.column} "
-        f"-minuv 200 "
+        f"-minuv 600 "
         f"-m {str(calibrate_model)} "
         f"{str(ms.path)} "
         f"{str(solution_path)} "
