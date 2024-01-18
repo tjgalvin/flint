@@ -20,7 +20,7 @@ from matplotlib.figure import Figure
 from scipy import stats
 
 from flint.logging import logger
-from flint.ms import describe_ms, get_telescope_location_from_ms, get_times_from_ms
+from flint.ms import MSSummary, describe_ms, ensure_consistent_ms
 from flint.naming import ProcessedNameComponents, processed_ms_format
 
 F_SMALL = 7
@@ -977,9 +977,8 @@ def plot_psf(fig: Figure, ax: Axes, rms_info: RMSImageInfo) -> Axes:
 def plot_field_info(
     fig: Figure,
     ax: Axes,
-    ms_info: ProcessedNameComponents,
     rms_info: RMSImageInfo,
-    ms_path: Path,
+    ms_summary: MSSummary,
     askap_table: Table,
 ) -> Axes:
     # TODO: Add the field information to the plot
@@ -996,12 +995,13 @@ def plot_field_info(
     # - Median rms
     # - Number of sources
     # - Processing date
-    ms_times = get_times_from_ms(ms_path)
-    telescope = get_telescope_location_from_ms(ms_path)
+    ms_times = ms_summary.times
+    telescope = ms_summary.location
     centre = rms_info.centre.icrs
     centre_altaz = centre.transform_to(AltAz(obstime=ms_times, location=telescope))
     hour_angles = centre_altaz.az.to(u.hourangle)
     elevations = centre_altaz.alt.to(u.deg)
+    ms_info = ms_summary.name_components
 
     ax.text(
         0.1,
@@ -1161,7 +1161,7 @@ def make_psf_table(processed_ms_paths: List[Path], output_path: Path) -> Path:
 
 
 def create_validation_tables(
-    processed_ms_paths: List[Path],
+    processed_ms_paths: List[Union[Path, MSSummary]],
     rms_image_path: Path,
     source_catalogue_path: Path,
     output_path: Path,
@@ -1171,7 +1171,7 @@ def create_validation_tables(
     correctness of an image and associated source catalogue.
 
     Args:
-        processed_ms_paths (List[Path]): The processed MS files that were used to create the source catalogue
+        processed_ms_paths (List[Union[Path,MSSummary]]): The measurement sets processed for these data. If Paths they should describe a directory to a measurement set.
         rms_image_path (Path): The RMS fits image the source catalogue was constructed against.
         source_catalogue_path (Path): The source catalogue.
         output_path (Path): The output path of the figure to create
@@ -1181,6 +1181,12 @@ def create_validation_tables(
         ValidationTables: The tables that were created
     """
     logger.info("Creating validation tables")
+
+    ms_summary: List[MSSummary] = [
+        m if isinstance(m, MSSummary) else describe_ms(ms=m) for m in processed_ms_paths
+    ]
+    ensure_consistent_ms(ms_summary=ms_summary)
+    ms_name_components = ms_summary[0].name_components
 
     # Get refernce info from single MS
     ms_name_components = processed_ms_format(processed_ms_paths[0])
@@ -1262,7 +1268,7 @@ def create_validation_tables(
 
 
 def create_validation_plot(
-    processed_ms_paths: List[Path],
+    processed_ms_paths: List[Union[Path, MSSummary]],
     rms_image_path: Path,
     source_catalogue_path: Path,
     output_path: Path,
@@ -1283,6 +1289,7 @@ def create_validation_plot(
     searching for the reference ICRF, NVSS and SUMSS cataloues.
 
     Args:
+        processed_ms_paths (List[Union[Path,MSSummary]]): The measurement sets processed for these data. If Paths they should describe a directory to a measurement set.
         rms_image_path (Path): The RMS fits image the source catalogue was constructed against.
         source_catalogue_path (Path): The source catalogue.
         output_path (Path): The output path of the figure to create
@@ -1293,17 +1300,11 @@ def create_validation_plot(
     """
     logger.info("Creating validation plot")
 
-    # Get refernce info from single MS
-    ms_name_components = processed_ms_format(processed_ms_paths[0])
-
-    # Do sanity checks
-    for ms_path in processed_ms_paths:
-        _ms_name_components = processed_ms_format(ms_path)
-        assert ms_name_components.field == _ms_name_components.field, "Field mismatch"
-        assert ms_name_components.sbid == _ms_name_components.sbid, "SBID mismatch"
-        assert (
-            ms_name_components.round == _ms_name_components.round
-        ), "Self-cal round mismatch"
+    ms_summary: List[MSSummary] = [
+        m if isinstance(m, MSSummary) else describe_ms(ms=m) for m in processed_ms_paths
+    ]
+    ensure_consistent_ms(ms_summary=ms_summary)
+    ms_name_components = ms_summary[0].name_components
 
     rms_info = get_rms_image_info(rms_path=rms_image_path)
 
@@ -1397,9 +1398,8 @@ def create_validation_plot(
     plot_field_info(
         fig=fig,
         ax=validator_layout.ax_legend,
-        ms_info=ms_name_components,
         rms_info=rms_info,
-        ms_path=processed_ms_paths[0],
+        ms_summary=ms_summary[0],
         askap_table=tables.askap,
     )
 

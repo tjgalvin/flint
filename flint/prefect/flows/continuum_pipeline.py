@@ -22,6 +22,7 @@ from flint.prefect.common.imaging import (
     task_create_apply_solutions_cmd,
     task_create_validation_plot,
     task_create_validation_tables,
+    task_describe_ms,
     task_flag_ms_aoflagger,
     task_gaincal_applycal_ms,
     task_get_common_beam,
@@ -107,6 +108,8 @@ def process_science_fields(
         ms=apply_solutions_cmds, container=field_options.flagger_container, rounds=1
     )
 
+    ms_summaries = task_describe_ms.map(ms=flagged_mss)
+
     if field_options.no_imaging:
         logger.info(
             f"No imaging will be performed, as requested bu {field_options.no_imaging=}"
@@ -162,12 +165,12 @@ def process_science_fields(
 
             if run_validation:
                 validation_plot = task_create_validation_plot.submit(
-                    processed_mss=flagged_mss,
+                    processed_mss=ms_summaries,
                     aegean_outputs=aegean_outputs,
                     reference_catalogue_directory=field_options.reference_catalogue_directory,
                 )
                 validation_tables = task_create_validation_tables.submit(
-                    processed_mss=flagged_mss,
+                    processed_mss=ms_summaries,
                     aegean_outputs=aegean_outputs,
                     reference_catalogue_directory=field_options.reference_catalogue_directory,
                 )
@@ -219,7 +222,6 @@ def process_science_fields(
             round=round,
             update_gain_cal_options=unmapped(gain_cal_options),
             archive_input_ms=field_options.zip_ms,
-            wait_for=[validation_plot, validation_tables],
         )
 
         flag_mss = task_flag_ms_aoflagger.map(
@@ -273,13 +275,14 @@ def process_science_fields(
             )
 
             if run_validation:
+                ms_summaries = task_describe_ms.map(ms=flag_mss)
                 validation_plot = task_create_validation_plot.submit(
-                    processed_mss=flag_mss,
+                    processed_mss=ms_summaries,
                     aegean_outputs=aegean_outputs,
                     reference_catalogue_directory=field_options.reference_catalogue_directory,
                 )
                 validation_tables = task_create_validation_tables.submit(
-                    processed_mss=flag_mss,
+                    processed_mss=ms_summaries,
                     aegean_outputs=aegean_outputs,
                     reference_catalogue_directory=field_options.reference_catalogue_directory,
                 )

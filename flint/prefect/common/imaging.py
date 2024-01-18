@@ -27,7 +27,7 @@ from flint.masking import (
     create_snr_mask_wbutter_from_fits,
     extract_beam_mask_from_mosaic,
 )
-from flint.ms import MS, preprocess_askap_ms, split_by_field
+from flint.ms import MS, MSSummary, describe_ms, preprocess_askap_ms, split_by_field
 from flint.naming import FITSMaskNames, processed_ms_format
 from flint.options import FieldOptions
 from flint.prefect.common.utils import upload_image_as_artifact
@@ -47,11 +47,26 @@ task_split_by_field = task(split_by_field)
 task_select_solution_for_ms = task(select_aosolution_for_ms)
 task_create_apply_solutions_cmd = task(create_apply_solutions_cmd)
 
-
 # Tasks below are extracting componented from earlier stages, or are
 # otherwise doing something important
 
 FlagMS = TypeVar("FlagMS", MS, ApplySolutions)
+
+
+@task
+def task_describe_ms(ms: Union[Path, MS, ApplySolutions]) -> MSSummary:
+    """Create a set of MSSummary objects from an input set of measurement
+    sets
+
+    Args:
+        ms (Union[Path, MS, ApplySolutions]): The measurement set to create a summary of
+
+    Returns:
+        MSSummary: Description of the measurement set
+    """
+    ms = ms.ms if not isinstance(ms, Path) else MS.cast(ms=ms)
+
+    return describe_ms(ms=ms)
 
 
 @task
@@ -556,7 +571,7 @@ def task_extract_beam_mask_image(
 
 @task
 def task_create_validation_plot(
-    processed_mss: List[MS],
+    processed_mss: List[MSSummary],
     aegean_outputs: AegeanOutputs,
     reference_catalogue_directory: Path,
     upload_artifact: bool = True,
@@ -564,6 +579,7 @@ def task_create_validation_plot(
     """Create a multi-panel figure highlighting the RMS, flux scale and astrometry of a field
 
     Args:
+        processed_mss (List[MSSummary]): A set of the measurement summary instances describing the data the produced to items being validated
         aegean_outputs (AegeanOutputs): Output aegean products
         reference_catalogue_directory (Path): Directory containing NVSS, SUMSS and ICRS reference catalogues. These catalogues are reconginised internally and have expected names.
         upload_artifact (bool, optional): If True the validation plot will be uploaded to the prefect service as an artifact. Defaults to True.
@@ -580,7 +596,7 @@ def task_create_validation_plot(
     ]
 
     plot_path = create_validation_plot(
-        processed_ms_paths=[ms.path for ms in processed_mss],
+        processed_ms_paths=processed_mss,
         rms_image_path=aegean_outputs.rms,
         source_catalogue_path=aegean_outputs.comp,
         output_path=output_path,
@@ -597,7 +613,7 @@ def task_create_validation_plot(
 
 @task
 def task_create_validation_tables(
-    processed_mss: List[MS],
+    processed_mss: List[MSSummary],
     aegean_outputs: AegeanOutputs,
     reference_catalogue_directory: Path,
     upload_artifacts: bool = True,
@@ -606,7 +622,7 @@ def task_create_validation_tables(
     correctness of an image and associated source catalogue.
 
     Args:
-        processed_ms_paths (List[Path]): The processed MS files that were used to create the source catalogue
+        processed_mss (List[MSSummary]): A set of the measurement summary instances describing the data the produced to items being validated
         rms_image_path (Path): The RMS fits image the source catalogue was constructed against.
         source_catalogue_path (Path): The source catalogue.
         output_path (Path): The output path of the figure to create
@@ -617,13 +633,9 @@ def task_create_validation_tables(
     """
     output_path = aegean_outputs.comp.parent
 
-    processed_mss = [
-        ms.ms if isinstance(ms, ApplySolutions) else ms for ms in processed_mss
-    ]
-
     logger.info(f"Will create validation tables in {output_path=}")
     validation_tables = create_validation_tables(
-        processed_ms_paths=[ms.path for ms in processed_mss],
+        processed_ms_paths=processed_mss,
         rms_image_path=aegean_outputs.rms,
         source_catalogue_path=aegean_outputs.comp,
         output_path=output_path,

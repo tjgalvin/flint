@@ -9,7 +9,7 @@ from contextlib import contextmanager
 from os import PathLike
 from pathlib import Path
 from shutil import rmtree
-from typing import List, NamedTuple, Optional, Union
+from typing import List, Collection, NamedTuple, Optional, Union
 
 import astropy.units as u
 import numpy as np
@@ -20,7 +20,7 @@ from fixms.fix_ms_corrs import fix_ms_corrs
 from fixms.fix_ms_dir import fix_ms_dir
 
 from flint.logging import logger
-from flint.naming import create_ms_name
+from flint.naming import create_ms_name, ProcessedNameComponents, processed_ms_format
 from flint.utils import rsync_copy_directory
 
 
@@ -91,13 +91,12 @@ class MSSummary(NamedTuple):
     """Collection of unique antennas"""
     beam: int
     """The ASKAP beam number of the measurement set"""
-
-
-# TODO: Some common MS validation functions?
-# - list / number of fields
-# - new name function (using names / beams)
-# - check to see if fix_ms_dir / fix_ms_corrs
-# - delete column/rename column
+    times: Time
+    """The times that scans were taken"""
+    location: EarthLocation
+    """Location of the telescope"""
+    name_components: Optional[ProcessedNameComponents] = None
+    """The processed name components extracted from a processed measurement set"""
 
 
 @contextmanager
@@ -268,18 +267,23 @@ def get_telescope_location_from_ms(ms: Union[MS, Path]) -> EarthLocation:
     return pos
 
 
-def describe_ms(ms: Union[MS, Path], verbose: bool = True) -> MSSummary:
+def describe_ms(ms: Union[MS, Path], verbose: bool = False) -> MSSummary:
     """Print some basic information from the inpute measurement set.
 
     Args:
         ms (Union[MS,Path]): Measurement set to inspect
-        verbose (bool, optional): Log MS options to the flint logger
+        verbose (bool, optional): Log MS options to the flint logger. Defaults to False.
 
     Returns:
         MSSummary: Brief overview of the MS.
 
     """
     ms = MS(path=ms) if isinstance(ms, Path) else ms
+
+    times = get_times_from_ms(ms=ms)
+    location = get_telescope_location_from_ms(ms=ms)
+    beam_no = get_beam_from_ms(ms=ms)
+    ms_name_components = processed_ms_format(in_name=ms.path)
 
     with table(str(ms.path), readonly=True, ack=False) as tab:
         colnames = tab.colnames()
@@ -293,8 +297,6 @@ def describe_ms(ms: Union[MS, Path], verbose: bool = True) -> MSSummary:
 
     with table(f"{ms.path}/FIELD", readonly=True, ack=False) as tab:
         uniq_fields = list(set(tab.getcol("NAME")))
-
-    beam_no = get_beam_from_ms(ms=ms)
 
     if verbose:
         logger.info(f"Inspecting {ms.path}.")
@@ -310,7 +312,21 @@ def describe_ms(ms: Union[MS, Path], verbose: bool = True) -> MSSummary:
         fields=uniq_fields,
         ants=uniq_ants,
         beam=beam_no,
+        times=times,
+        location=location,
+        name_components=ms_name_components,
     )
+
+
+def ensure_consistent_ms(ms_summary: Collection[MSSummary]) -> None:
+    """Consolidated checks to ensure that sets of measurement sets represented
+    in a set of MSSummary instances are consistent
+
+    Args:
+        ms_summary (Collection[MSSummary]): The set of measurement sets to inspect
+    """
+    assert len(set([m.name_components.sbid for m in ms_summary])) == 1
+    assert len(set([m.name_components.round for m in ms_summary])) == 1
 
 
 def split_by_field(
