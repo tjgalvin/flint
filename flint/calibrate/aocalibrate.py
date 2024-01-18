@@ -153,8 +153,9 @@ def plot_solutions(
         nrows += 1
     logger.debug(f"Plotting {plot_sol=} with {ncolumns=} {nrows=}")
 
-    fig_amp, axes_amp = plt.subplots(nrows, ncolumns, figsize=(14, 7))
-    fig_phase, axes_phase = plt.subplots(nrows, ncolumns, figsize=(14, 7))
+    fig_amp, axes_amp = plt.subplots(nrows, ncolumns, figsize=(15, 9))
+    fig_ratio, axes_ratio = plt.subplots(nrows, ncolumns, figsize=(15, 9))
+    fig_phase, axes_phase = plt.subplots(nrows, ncolumns, figsize=(15, 9))
 
     for y in range(nrows):
         for x in range(ncolumns):
@@ -164,6 +165,8 @@ def plot_solutions(
             amps_yy = amplitudes[ant, :, 3]
             phase_xx = phases[ant, :, 0]
             phase_yy = phases[ant, :, 3]
+
+            ratio = amps_xx / amps_yy
 
             if any([np.sum(~np.isfinite(amps)) == 0 for amps in (amps_xx, amps_yy)]):
                 logger.warn(f"No valid data for {ant=}")
@@ -179,25 +182,84 @@ def plot_solutions(
                 if any(np.isfinite(amps_yy))
                 else -1
             )
-
-            max_amp = np.nanmax([max_amp_xx, max_amp_yy])
+            min_amp_xx = (
+                np.nanmin(amps_xx[np.isfinite(amps_xx)])
+                if any(np.isfinite(amps_xx))
+                else -1
+            )
+            min_amp_yy = (
+                np.nanmin(amps_yy[np.isfinite(amps_yy)])
+                if any(np.isfinite(amps_yy))
+                else -1
+            )
             ax_a, ax_p = axes_amp[y, x], axes_phase[y, x]
-            ax_a.plot(channels, amps_xx, marker=None, color="blue")
-            ax_a.plot(channels, amps_yy, marker=None, color="red")
-            ax_a.set(ylim=(0, 1.2 * max_amp))
+            ax_a = axes_amp[y, x]
+            ax_r = axes_ratio[y, x]
+            ax_a.plot(
+                channels,
+                amps_xx,
+                marker=None,
+                color="tab:blue",
+                label="X" if y == 0 and x == 0 else None,
+            )
+            ax_a.plot(
+                channels,
+                amps_yy,
+                marker=None,
+                color="tab:red",
+                label="Y" if y == 0 and x == 0 else None,
+            )
+            ax_r.plot(
+                channels,
+                ratio,
+                marker=None,
+                color="tab:green",
+                label="X/Y" if y == 0 and x == 0 else None,
+            )
+
+            ax_a.set(
+                ylim=(
+                    min(min_amp_xx, min_amp_yy) * 0.9,
+                    max(max_amp_xx, max_amp_yy) * 1.1,
+                )
+            )
+            ax_a.axhline(1, color="black", linestyle="--", linewidth=0.5)
             ax_a.set_title(f"ant{ant:02d}", fontsize=8)
             fill_between_flags(ax_a, ~np.isfinite(amps_yy) | ~np.isfinite(amps_xx))
 
-            ax_p.plot(channels, phase_xx, marker=None, color="blue")
-            ax_p.plot(channels, phase_yy, marker=None, color="red")
+            ax_r.set(ylim=(0.8, 1.2))
+            ax_r.axhline(1, color="black", linestyle="--", linewidth=0.5)
+            ax_r.set_title(f"ant{ant:02d}", fontsize=8)
+            fill_between_flags(ax_r, ~np.isfinite(amps_yy) | ~np.isfinite(amps_xx))
+
+            ax_p.plot(
+                channels,
+                phase_xx,
+                marker=None,
+                color="tab:blue",
+                label="X" if y == 0 and x == 0 else None,
+            )
+            ax_p.plot(
+                channels,
+                phase_yy,
+                marker=None,
+                color="tab:red",
+                label="Y" if y == 0 and x == 0 else None,
+            )
             ax_p.set(ylim=(-200, 200))
             ax_p.set_title(f"ak{ant:02d}", fontsize=8)
             fill_between_flags(ax_p, ~np.isfinite(phase_yy) | ~np.isfinite(phase_xx))
 
+    fig_amp.legend()
+    fig_phase.legend()
+    fig_ratio.legend()
+
     fig_amp.suptitle(f"{ao_sols.path.name} - Amplitudes")
     fig_phase.suptitle(f"{ao_sols.path.name} - Phases")
+    fig_ratio.suptitle(f"{ao_sols.path.name} - Amplitude Ratios")
 
     fig_amp.tight_layout()
+    fig_ratio.tight_layout()
     fig_phase.tight_layout()
 
     out_amp = f"{str(solutions_path.with_suffix('.amplitude.pdf'))}"
@@ -208,7 +270,11 @@ def plot_solutions(
     logger.info(f"Saving {out_phase}.")
     fig_phase.savefig(out_phase)
 
-    return [Path(out_amp), Path(out_phase)]
+    out_ratio = f"{str(solutions_path.with_suffix('.ratio.pdf'))}"
+    logger.info(f"Saving {out_ratio}.")
+    fig_ratio.savefig(out_ratio)
+
+    return [Path(out_amp), Path(out_phase), Path(out_ratio)]
 
 
 def save_aosolutions_file(aosolutions: AOSolutions, output_path: Path) -> Path:
