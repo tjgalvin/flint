@@ -206,11 +206,18 @@ def plot_solutions(
                 color="tab:green",
                 label="X/Y" if y == 0 and x == 0 else None,
             )
-            for ax in (ax_a, ax_r):
-                ax.set(ylim=(0.8, 1.2))
-                ax.axhline(1, color="black", linestyle="--", linewidth=0.5)
-                ax.set_title(f"ant{ant:02d}", fontsize=8)
-                fill_between_flags(ax, ~np.isfinite(amps_yy) | ~np.isfinite(amps_xx))
+
+            ax_a.set(
+                ylim=(max(max_amp_xx, max_amp_yy)*0.8, max(max_amp_xx, max_amp_yy) * 1.2)
+            )
+            ax_a.axhline(1, color="black", linestyle="--", linewidth=0.5)
+            ax_a.set_title(f"ant{ant:02d}", fontsize=8)
+            fill_between_flags(ax_a, ~np.isfinite(amps_yy) | ~np.isfinite(amps_xx))
+
+            ax_r.set(ylim=(0.8, 1.2))
+            ax_r.axhline(1, color="black", linestyle="--", linewidth=0.5)
+            ax_r.set_title(f"ant{ant:02d}", fontsize=8)
+            fill_between_flags(ax, ~np.isfinite(amps_yy) | ~np.isfinite(amps_xx))
 
             ax_p.plot(
                 channels,
