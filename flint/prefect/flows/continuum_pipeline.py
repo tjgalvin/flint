@@ -164,12 +164,12 @@ def process_science_fields(
             )
 
             if run_validation:
-                validation_plot = task_create_validation_plot.submit(
+                task_create_validation_plot.submit(
                     processed_mss=ms_summaries,
                     aegean_outputs=aegean_outputs,
                     reference_catalogue_directory=field_options.reference_catalogue_directory,
                 )
-                validation_tables = task_create_validation_tables.submit(
+                task_create_validation_tables.submit(
                     processed_mss=ms_summaries,
                     aegean_outputs=aegean_outputs,
                     reference_catalogue_directory=field_options.reference_catalogue_directory,
@@ -252,6 +252,13 @@ def process_science_fields(
             logger.info("No yandasoft container supplied, not linmosing. ")
             continue
 
+        if final_round:
+            ms_summaries = task_describe_ms.map(ms=flag_mss)
+
+            # zip up the final measurement set, which is not included in the above loop
+            if field_options.zip_ms:
+                task_zip_ms.map(in_item=wsclean_cmds, wait_for=ms_summaries)
+
         parset = task_linmos_images.submit(
             images=conv_images,
             container=field_options.yandasoft_container,
@@ -260,38 +267,33 @@ def process_science_fields(
             cutoff=field_options.pb_cutoff,
         )
 
-        if final_round and field_options.linmos_residuals:
-            _convolve_linmos_residuals(
-                wsclean_cmds=wsclean_cmds,
-                beam_shape=beam_shape,
-                field_options=field_options,
-                linmos_suffix_str=f"round{round}.residual",
-                cutoff=field_options.pb_cutoff,
-            )
-
-        if final_round and run_aegean:
-            aegean_outputs = task_run_bane_and_aegean.submit(
-                image=parset, aegean_container=unmapped(field_options.aegean_container)
-            )
-
-            if run_validation:
-                ms_summaries = task_describe_ms.map(ms=flag_mss)
-                validation_plot = task_create_validation_plot.submit(
-                    processed_mss=ms_summaries,
-                    aegean_outputs=aegean_outputs,
-                    reference_catalogue_directory=field_options.reference_catalogue_directory,
-                )
-                validation_tables = task_create_validation_tables.submit(
-                    processed_mss=ms_summaries,
-                    aegean_outputs=aegean_outputs,
-                    reference_catalogue_directory=field_options.reference_catalogue_directory,
+        if final_round:
+            if field_options.linmos_residuals:
+                _convolve_linmos_residuals(
+                    wsclean_cmds=wsclean_cmds,
+                    beam_shape=beam_shape,
+                    field_options=field_options,
+                    linmos_suffix_str=f"round{round}.residual",
+                    cutoff=field_options.pb_cutoff,
                 )
 
-    # zip up the final measurement set, which is not included in the above loop
-    if field_options.zip_ms:
-        task_zip_ms.map(
-            in_item=wsclean_cmds, wait_for=[validation_plot, validation_tables]
-        )
+            if run_aegean:
+                aegean_outputs = task_run_bane_and_aegean.submit(
+                    image=parset,
+                    aegean_container=unmapped(field_options.aegean_container),
+                )
+
+                if run_validation:
+                    task_create_validation_plot.submit(
+                        processed_mss=ms_summaries,
+                        aegean_outputs=aegean_outputs,
+                        reference_catalogue_directory=field_options.reference_catalogue_directory,
+                    )
+                    task_create_validation_tables.submit(
+                        processed_mss=ms_summaries,
+                        aegean_outputs=aegean_outputs,
+                        reference_catalogue_directory=field_options.reference_catalogue_directory,
+                    )
 
 
 def setup_run_process_science_field(
