@@ -208,7 +208,10 @@ def plot_solutions(
             )
 
             ax_a.set(
-                ylim=(max(max_amp_xx, max_amp_yy)*0.8, max(max_amp_xx, max_amp_yy) * 1.2)
+                ylim=(
+                    max(max_amp_xx, max_amp_yy) * 0.8,
+                    max(max_amp_xx, max_amp_yy) * 1.2,
+                )
             )
             ax_a.axhline(1, color="black", linestyle="--", linewidth=0.5)
             ax_a.set_title(f"ant{ant:02d}", fontsize=8)
@@ -217,7 +220,7 @@ def plot_solutions(
             ax_r.set(ylim=(0.8, 1.2))
             ax_r.axhline(1, color="black", linestyle="--", linewidth=0.5)
             ax_r.set_title(f"ant{ant:02d}", fontsize=8)
-            fill_between_flags(ax, ~np.isfinite(amps_yy) | ~np.isfinite(amps_xx))
+            fill_between_flags(ax_r, ~np.isfinite(amps_yy) | ~np.isfinite(amps_xx))
 
             ax_p.plot(
                 channels,
