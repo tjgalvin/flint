@@ -401,7 +401,6 @@ def create_calibrate_cmd(
     calibrate_model: Path,
     solution_path: Optional[Path] = None,
     container: Optional[Path] = None,
-    **kwargs,
 ) -> CalibrateCommand:
     """Generate a typical ao calibrate command. Any extra keyword arguments
     are passed through as additional options to the `calibrate` program.
@@ -437,14 +436,11 @@ def create_calibrate_cmd(
             ms_path=ms.path, include_preflagger=False, include_smoother=False
         )
 
-    calibrate_kwargs: str = " ".join([f"-{key} {item}" for key, item in kwargs.items()])
-
     cmd = (
         f"calibrate "
         f"-datacolumn {ms.column} "
         f"-minuv 200 "
         f"-m {str(calibrate_model)} "
-        f"{calibrate_kwargs} "
         f"{str(ms.path)} "
         f"{str(solution_path)} "
     )
