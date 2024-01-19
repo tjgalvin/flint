@@ -15,6 +15,7 @@ from flint.bptools.smoother import (
 from flint.calibrate.aocalibrate import (
     AOSolutions,
     CalibrateOptions,
+    FlaggedAOSolution,
     calibrate_options_to_command,
     flag_aosolutions,
     plot_solutions,
@@ -120,6 +121,26 @@ def ao_sols_known_bad(tmpdir):
 
 def test_known_bad_sols(ao_sols_known_bad):
     flag_aosolutions(solutions_path=ao_sols_known_bad, plot_solutions_throughout=False)
+
+
+def test_flagged_aosols(ao_sols_known_bad):
+    flagged_sols = flag_aosolutions(
+        solutions_path=ao_sols_known_bad,
+        plot_solutions_throughout=True,
+        smooth_solutions=True,
+    )
+    assert isinstance(flagged_sols, FlaggedAOSolution)
+    assert len(flagged_sols.plots) == 6
+    assert isinstance(flagged_sols.path, Path)
+
+    flagged_sols = flag_aosolutions(
+        solutions_path=ao_sols_known_bad,
+        plot_solutions_throughout=True,
+        smooth_solutions=False,
+    )
+    assert isinstance(flagged_sols, FlaggedAOSolution)
+    assert len(flagged_sols.plots) == 3
+    assert isinstance(flagged_sols.path, Path)
 
 
 def test_load_aosols(ao_sols):

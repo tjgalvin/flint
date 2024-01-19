@@ -799,6 +799,15 @@ def select_refant(bandpass: np.ndarray) -> int:
     return max_ant[0][0]
 
 
+class FlaggedAOSolution(NamedTuple):
+    """Hold the final set of flagged solutions and generated plots"""
+
+    path: Path
+    """Path to the final set of flagged solutions"""
+    plots: Collection[Path]
+    """Contains paths to the plots generated throughout the flagging and smoothing procedure"""
+
+
 def flag_aosolutions(
     solutions_path: Path,
     ref_ant: Optional[int] = -1,
@@ -809,7 +818,7 @@ def flag_aosolutions(
     zero_cross_terms: bool = False,
     smooth_solutions: bool = False,
     plot_solutions_throughout: bool = True,
-) -> Path:
+) -> FlaggedAOSolution:
     """Will open a previously solved ao-calibrate solutions file and flag additional channels and antennae.
 
     There are currently two main stages. The first will attempt to search for channels where the the phase of the
@@ -830,8 +839,10 @@ def flag_aosolutions(
         plot_solutions_throughout (bool, Optional): If True, the solutions will be plotted at different stages of processing. Defaults to True.
 
     Returns:
-        Path: Path to the updated solutions file. This is out_solutions_path if provided, otherwise solutions_path
+        FlaggedAOSolution: Path to the updated solutions file, intermediate solution files and plots along the way
     """
+    # TODO: This should be broken down into separate stages. Way too large of a function.
+
     solutions = AOSolutions.load(path=solutions_path)
     title = solutions_path.name
 
@@ -843,6 +854,8 @@ def flag_aosolutions(
             plot_dir.mkdir(parents=True)
         except Exception as e:
             logger.error(f"Failed to create {str(plot_dir)} {e}.")
+
+    plots: List[Path] = []
 
     # Note that although the solutions variable (an instance of AOSolutions) is immutable,
     # which includes the reference to the numpy array, the _actual_ numpy array is! So,
@@ -955,7 +968,8 @@ def flag_aosolutions(
     )
     solutions.save(output_path=out_solutions_path)
     if plot_solutions_throughout:
-        plot_solutions(solutions=out_solutions_path, ref_ant=ref_ant)
+        output_plots = plot_solutions(solutions=out_solutions_path, ref_ant=ref_ant)
+        plots.extend(output_plots)
 
     if smooth_solutions:
         logger.info("Smoothing the bandpass solutions. ")
@@ -970,7 +984,8 @@ def flag_aosolutions(
         )
         solutions.save(output_path=out_solutions_path)
         if plot_solutions_throughout:
-            plot_solutions(solutions=out_solutions_path, ref_ant=None)
+            output_plots = plot_solutions(solutions=out_solutions_path, ref_ant=None)
+            plots.extend(output_plots)
 
     total_flagged = np.sum(~np.isfinite(bandpass)) / np.prod(bandpass.shape)
     if total_flagged > 0.8:
@@ -982,7 +997,9 @@ def flag_aosolutions(
         logger.critical(msg)
         raise ValueError(msg)
 
-    return out_solutions_path
+    flagged_aosolutions = FlaggedAOSolution(path=out_solutions_path, plots=tuple(plots))
+
+    return flagged_aosolutions
 
 
 def get_parser() -> ArgumentParser:
