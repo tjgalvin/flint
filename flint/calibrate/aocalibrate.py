@@ -579,7 +579,7 @@ def create_calibrate_cmd(
         )
 
     calibrate_options = CalibrateOptions(
-        datacolumn=ms.column, model=calibrate_model, minuv=600
+        datacolumn=ms.column, m=calibrate_model, minuv=600
     )
     if update_calibrate_options:
         calibrate_options = calibrate_options.with_options(**update_calibrate_options)
