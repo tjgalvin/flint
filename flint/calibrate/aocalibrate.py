@@ -299,15 +299,15 @@ def plot_solutions(
     fig_ratio.tight_layout()
     fig_phase.tight_layout()
 
-    out_amp = f"{str(solutions_path.with_suffix('.amplitude.pdf'))}"
+    out_amp = f"{str(solutions_path.with_suffix('.amplitude.png'))}"
     logger.info(f"Saving {out_amp}.")
     fig_amp.savefig(out_amp)
 
-    out_phase = f"{str(solutions_path.with_suffix('.phase.pdf'))}"
+    out_phase = f"{str(solutions_path.with_suffix('.phase.png'))}"
     logger.info(f"Saving {out_phase}.")
     fig_phase.savefig(out_phase)
 
-    out_ratio = f"{str(solutions_path.with_suffix('.ratio.pdf'))}"
+    out_ratio = f"{str(solutions_path.with_suffix('.ratio.png'))}"
     logger.info(f"Saving {out_ratio}.")
     fig_ratio.savefig(out_ratio)
 
