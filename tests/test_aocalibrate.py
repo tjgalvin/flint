@@ -24,7 +24,7 @@ from flint.calibrate.aocalibrate import (
 
 
 def test_calibrate_options_to_command():
-    default_cal = CalibrateOptions(datacolumn="DATA", model=Path("/example/1934.model"))
+    default_cal = CalibrateOptions(datacolumn="DATA", m=Path("/example/1934.model"))
     ex_ms_path = Path("/example/data.ms")
     ex_solutions_path = Path("/example/sols.calibrate")
 
@@ -36,14 +36,14 @@ def test_calibrate_options_to_command():
 
     assert (
         cmd
-        == "calibrate -datacolumn DATA -model /example/1934.model -i 100 /example/data.ms /example/sols.calibrate"
+        == "calibrate -datacolumn DATA -m /example/1934.model -i 100 /example/data.ms /example/sols.calibrate"
     )
 
 
 def test_calibrate_options_to_command2():
     default_cal = CalibrateOptions(
         datacolumn="DATA",
-        model=Path("/example/1934.model"),
+        m=Path("/example/1934.model"),
         i=40,
         p=(Path("amps.plot"), Path("phase.plot")),
     )
@@ -58,14 +58,14 @@ def test_calibrate_options_to_command2():
 
     assert (
         cmd
-        == "calibrate -datacolumn DATA -model /example/1934.model -i 40 -p amps.plot phase.plot /example/data.ms /example/sols.calibrate"
+        == "calibrate -datacolumn DATA -m /example/1934.model -i 40 -p amps.plot phase.plot /example/data.ms /example/sols.calibrate"
     )
 
 
 def test_calibrate_options_to_command3():
     default_cal = CalibrateOptions(
         datacolumn="DATA",
-        model=Path("/example/1934.model"),
+        m=Path("/example/1934.model"),
         i=40,
         p=(Path("amps.plot"), Path("phase.plot")),
         maxuv=5000,
@@ -82,7 +82,7 @@ def test_calibrate_options_to_command3():
 
     assert (
         cmd
-        == "calibrate -datacolumn DATA -model /example/1934.model -minuv 300 -maxuv 5000 -i 40 -p amps.plot phase.plot /example/data.ms /example/sols.calibrate"
+        == "calibrate -datacolumn DATA -m /example/1934.model -minuv 300 -maxuv 5000 -i 40 -p amps.plot phase.plot /example/data.ms /example/sols.calibrate"
     )
 
 

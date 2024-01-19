@@ -47,7 +47,7 @@ class CalibrateOptions(NamedTuple):
 
     datacolumn: str
     """The name of the datacolumn that will be calibrates"""
-    model: Path
+    m: Path
     """The path to the model file used to calibtate"""
     minuv: Optional[float] = None
     """The minimum distance in meters that is"""
