@@ -6,14 +6,14 @@ import struct
 from argparse import ArgumentParser
 from pathlib import Path
 from typing import (
-    Collection,
-    Tuple,
-    Dict,
     Any,
+    Collection,
+    Dict,
     Iterable,
     List,
     NamedTuple,
     Optional,
+    Tuple,
     Union,
 )
 
