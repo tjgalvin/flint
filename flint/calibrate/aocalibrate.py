@@ -5,7 +5,17 @@ from __future__ import annotations  # used to keep mypy/pylance happy in AOSolut
 import struct
 from argparse import ArgumentParser
 from pathlib import Path
-from typing import Collection, Iterable, List, NamedTuple, Optional, Union
+from typing import (
+    Collection,
+    Tuple,
+    Dict,
+    Any,
+    Iterable,
+    List,
+    NamedTuple,
+    Optional,
+    Union,
+)
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -26,6 +36,33 @@ from flint.ms import MS, consistent_ms, get_beam_from_ms
 from flint.naming import get_aocalibrate_output_path
 from flint.plot_utils import fill_between_flags
 from flint.sclient import run_singularity_command
+
+
+class CalibrateOptions(NamedTuple):
+    """Structure used to represent options into the `calibrate` program
+
+    These attributes have the same names as options into the `calibrate`
+    command.
+    """
+
+    datacolumn: str
+    """The name of the datacolumn that will be calibrates"""
+    model: Path
+    """The path to the model file used to calibtate"""
+    minuv: Optional[float] = None
+    """The minimum distance in meters that is"""
+    maxuv: Optional[float] = None
+    """The maximum distance in meters that is"""
+    i: Optional[int] = 100
+    """The number of iterations that may be performed"""
+    p: Optional[Tuple[Path, Path]] = None
+    """Plot output names for the amplitude gain and phases"""
+
+    def with_options(self, **kwargs) -> CalibrateOptions:
+        options = self._asdict()
+        options.update(**kwargs)
+
+        return CalibrateOptions(**options)
 
 
 class CalibrateCommand(NamedTuple):
@@ -462,11 +499,49 @@ def select_aosolution_for_ms(
     return sol_file
 
 
+def calibrate_options_to_command(
+    calibrate_options: CalibrateOptions, ms_path: Path, solutions_path: Path
+) -> str:
+    """Generate a `calibrate` command given an input option set
+
+    Args:
+        calibrate_options (CalibrateOptions): The set of `calibrate` options to use
+        ms (Path): Path to the measurement set that will be calibrated
+        solutions_path (Path): Output path of the solutions file
+
+    Returns:
+        str: The command string to execute
+    """
+    cmd = "calibrate "
+
+    unknowns: List[Tuple[Any, Any]] = []
+
+    for key, value in calibrate_options._asdict().items():
+        if value is None:
+            continue
+        elif isinstance(value, (str, Path, int, float)):
+            cmd += f"-{key} {str(value)} "
+        elif isinstance(value, (tuple, list)):
+            values = " ".join([str(v) for v in value])
+            cmd += f"-{key} {values} "
+        else:
+            unknowns.append((key, value))
+
+    assert (
+        len(unknowns) == 0
+    ), f"Uknown types when generating calibrate command: {unknowns}"
+
+    cmd += f"{str(ms_path)} {str(solutions_path)}"
+
+    return cmd
+
+
 def create_calibrate_cmd(
     ms: Union[Path, MS],
     calibrate_model: Path,
     solution_path: Optional[Path] = None,
     container: Optional[Path] = None,
+    update_calibrate_options: Optional[Dict[str, Any]] = None,
 ) -> CalibrateCommand:
     """Generate a typical ao calibrate command. Any extra keyword arguments
     are passed through as additional options to the `calibrate` program.
@@ -476,6 +551,7 @@ def create_calibrate_cmd(
         calibrate_model (Path): Path to a generated calibrate sky-model
         solution_path (Path, optional): The output path of the calibrate solutions file. If None, a default suffix of "calibrate.bin" is used. Defaults to None.
         container (Optional[Path], optional): If a path to a container is supplied the calibrate command is executed immediatedly. Defaults to None.
+        update_calibrate_options (Optional[Dict[str, Any]], optional): Additional options to update the generated CalibrateOptions with. Keys should be attributes of CalibrationOptions. Defaults ot None.
 
     Raises:
         FileNotFoundError: Raised when calibrate_model can not be found.
@@ -502,15 +578,17 @@ def create_calibrate_cmd(
             ms_path=ms.path, include_preflagger=False, include_smoother=False
         )
 
-    cmd = (
-        f"calibrate "
-        f"-datacolumn {ms.column} "
-        f"-minuv 600 "
-        f"-m {str(calibrate_model)} "
-        f"{str(ms.path)} "
-        f"{str(solution_path)} "
+    calibrate_options = CalibrateOptions(
+        datacolumn=ms.column, model=calibrate_model, minuv=600
     )
+    if update_calibrate_options:
+        calibrate_options = calibrate_options.with_options(**update_calibrate_options)
 
+    cmd = calibrate_options_to_command(
+        calibrate_options=calibrate_options,
+        ms_path=ms.path,
+        solutions_path=solution_path,
+    )
     logger.debug(f"Constructed calibrate command is {cmd=}")
 
     calibrate_cmd = CalibrateCommand(

@@ -14,10 +14,75 @@ from flint.bptools.smoother import (
 )
 from flint.calibrate.aocalibrate import (
     AOSolutions,
+    CalibrateOptions,
+    calibrate_options_to_command,
     flag_aosolutions,
     plot_solutions,
     select_refant,
 )
+
+
+def test_calibrate_options_to_command():
+    default_cal = CalibrateOptions(datacolumn="DATA", model=Path("/example/1934.model"))
+    ex_ms_path = Path("/example/data.ms")
+    ex_solutions_path = Path("/example/sols.calibrate")
+
+    cmd = calibrate_options_to_command(
+        calibrate_options=default_cal,
+        ms_path=ex_ms_path,
+        solutions_path=ex_solutions_path,
+    )
+
+    assert (
+        cmd
+        == "calibrate -datacolumn DATA -model /example/1934.model -i 100 /example/data.ms /example/sols.calibrate"
+    )
+
+
+def test_calibrate_options_to_command2():
+    default_cal = CalibrateOptions(
+        datacolumn="DATA",
+        model=Path("/example/1934.model"),
+        i=40,
+        p=(Path("amps.plot"), Path("phase.plot")),
+    )
+    ex_ms_path = Path("/example/data.ms")
+    ex_solutions_path = Path("/example/sols.calibrate")
+
+    cmd = calibrate_options_to_command(
+        calibrate_options=default_cal,
+        ms_path=ex_ms_path,
+        solutions_path=ex_solutions_path,
+    )
+
+    assert (
+        cmd
+        == "calibrate -datacolumn DATA -model /example/1934.model -i 40 -p amps.plot phase.plot /example/data.ms /example/sols.calibrate"
+    )
+
+
+def test_calibrate_options_to_command3():
+    default_cal = CalibrateOptions(
+        datacolumn="DATA",
+        model=Path("/example/1934.model"),
+        i=40,
+        p=(Path("amps.plot"), Path("phase.plot")),
+        maxuv=5000,
+        minuv=300,
+    )
+    ex_ms_path = Path("/example/data.ms")
+    ex_solutions_path = Path("/example/sols.calibrate")
+
+    cmd = calibrate_options_to_command(
+        calibrate_options=default_cal,
+        ms_path=ex_ms_path,
+        solutions_path=ex_solutions_path,
+    )
+
+    assert (
+        cmd
+        == "calibrate -datacolumn DATA -model /example/1934.model -minuv 300 -maxuv 5000 -i 40 -p amps.plot phase.plot /example/data.ms /example/sols.calibrate"
+    )
 
 
 @pytest.fixture
