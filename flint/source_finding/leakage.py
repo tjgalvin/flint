@@ -1,4 +1,9 @@
+"""Simple leakage extraction.
+"""
+
 import numpy as np
+
+from argparse import ArgumentParser
 
 from pathlib import Path
 from typing import NamedTuple, Tuple
@@ -311,5 +316,92 @@ def extract_leakage(
 
 
 
+def get_args():
 
+    description_ = """
+Extact polarization leakage at Stokes I locations.
+Many of the default column names assume an Aegean-output source list.
+"""
+
+    ps = ArgumentParser(description="Extact polarization leakage at Stokes I locations.")
+    ps.add_argument("catalogue", 
+        type=str, 
+        help="Stokes I source catalogue."
+    )
+    ps.add_argument("image", 
+        type=str, 
+        help="Stokes [V,Q,U] image."
+    )
+    ps.add_argument("-p" ,"--pol",
+        default="v",
+        type=str,
+        choices=["v", "q", "u", "V", "Q", "U"],
+        help="Polarization to extract leakage for. [Default 'v']"
+    )
+    ps.add_argument("-m", "--multiplier",
+        default=1.,
+        type=float,
+        help="Value to multiply catalogue flux densities by. Note for Selavy this should be set to 1e-3 as Selavy by default reports in mJy. [Default 1.]"
+    )
+    ps.add_argument("-s", "--snr",
+        default=5.,
+        type=float,
+        help="SNR ratio of sources to extract leakage from. [Default 5.]"
+    )
+    ps.add_argument("-z", "--exclusion_zone", "--zone",
+        dest="zone",
+        default=-1.,
+        type=float,
+        help=" Exclude sources with neighbours within this value in arcsec. Negative numbers imply no neighbours are excluded. [Default -1]"
+    )
+    ps.add_argument("--ra_key", 
+        default="ra", 
+        type=str,
+        help="RA column name. [Default 'ra'']"
+    )
+    ps.add_argument("--dec_key",
+        default="dec",
+        type=str,
+        help="DEC column name. [Default 'dec']"
+    )
+    ps.add_argument("--int_flux_key",
+        default="int_flux",
+        type=str,
+        help="Name of integrated flux density column in catalogue. [Default 'int_flux]"
+    )
+    ps.add_argument("--peak_flux_key",
+        default="peak_flux",
+        type=str,
+        help="Name of peak flux column in catalogue. [Default 'peak_flux']"
+    )
+    ps.add_argument("--local_rms_key",
+        default="local_rms",
+        type=str,
+        help="Name of local rms column in catalogue. [Default 'local_rms']"
+    )
+    
+    return ps.parse_args()
+
+
+
+def cli():
+
+    args = get_args()
+    extract_leakage(
+        catalogue_i=args.catalogue,
+        image_p=args.image,
+        ra_key=args.ra_key,
+        dec_key=args.dec_key,
+        int_flux_key=args.int_flux_key,
+        peak_flux_key=args.peak_flux_key,
+        local_rms_key=args.local_rms_key,
+        multiplier=args.multiplier,
+        snr=args.snr,
+        pol=args.pol,
+        exclusion_zone=args.zone
+    )
+
+
+if __name__ == "__main__":
+    cli()
 
