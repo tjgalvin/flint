@@ -119,8 +119,8 @@ def process_science_fields(
 
     wsclean_init = {
         "size": 7144,
-        "minuv_l": 235,
-        "weight": "briggs -0.5",
+        "minuv_m": 235,
+        "weight": "briggs -1.0",
         "auto_mask": 5,
         "multiscale": True,
         "local_rms_window": 55,
@@ -186,22 +186,24 @@ def process_science_fields(
         return
 
     gain_cal_rounds = {
-        1: {"solint": "1200s", "uvrange": ">235lambda", "nspw": 1},
-        2: {"solint": "60s", "uvrange": ">235lambda", "nspw": 1},
+        1: {"solint": "1200s", "uvrange": ">235m", "nspw": 1},
+        2: {"solint": "60s", "uvrange": ">235m", "nspw": 1},
     }
     wsclean_rounds = {
         1: {
             "size": 7144,
+            "weight": "briggs -1.0",
             "multiscale": True,
-            "minuv_l": 235,
+            "minuv_m": 235,
             "auto_mask": 4,
             "local_rms_window": 55,
             "multiscale_scales": (0, 15, 30, 40, 50, 60, 70, 120, 240, 480),
         },
         2: {
             "size": 7144,
+            "weight": "briggs -1.0",
             "multiscale": True,
-            "minuv_l": 235,
+            "minuv_m": 235,
             "auto_mask": 4.0,
             "local_rms_window": 55,
             "multiscale_scales": (0, 15, 30, 40, 50, 60, 70, 120, 240, 480),
@@ -221,12 +223,8 @@ def process_science_fields(
             archive_input_ms=field_options.zip_ms,
             wait_for=[validation_plot, validation_tables],
         )
-
-        flag_mss = task_flag_ms_aoflagger.map(
-            ms=cal_mss, container=field_options.flagger_container, rounds=1
-        )
         wsclean_cmds = task_wsclean_imager.map(
-            in_ms=flag_mss,
+            in_ms=cal_mss,
             wsclean_container=field_options.wsclean_container,
             update_wsclean_options=unmapped(wsclean_options),
         )
