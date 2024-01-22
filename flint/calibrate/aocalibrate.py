@@ -865,7 +865,7 @@ def flag_aosolutions(
     plots: List[Path] = []
 
     if plot_solutions_throughout:
-        output_plots = plot_solutions(solutions=out_solutions_path, ref_ant=ref_ant)
+        output_plots = plot_solutions(solutions=solutions_path, ref_ant=ref_ant)
         plots.extend(output_plots)
 
     for time in range(solutions.nsol):

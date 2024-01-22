@@ -130,7 +130,7 @@ def test_flagged_aosols(ao_sols_known_bad):
         smooth_solutions=True,
     )
     assert isinstance(flagged_sols, FlaggedAOSolution)
-    assert len(flagged_sols.plots) == 6
+    assert len(flagged_sols.plots) == 9
     assert isinstance(flagged_sols.path, Path)
 
     flagged_sols = flag_aosolutions(
@@ -139,7 +139,7 @@ def test_flagged_aosols(ao_sols_known_bad):
         smooth_solutions=False,
     )
     assert isinstance(flagged_sols, FlaggedAOSolution)
-    assert len(flagged_sols.plots) == 3
+    assert len(flagged_sols.plots) == 6
     assert isinstance(flagged_sols.path, Path)
 
 
