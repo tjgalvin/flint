@@ -28,6 +28,7 @@ from flint.logging import logger
 from flint.ms import MS, preprocess_askap_ms, split_by_field
 from flint.naming import get_sbid_from_path
 from flint.prefect.clusters import get_dask_runner
+from flint.prefect.common.utils import upload_image_as_artifact
 from flint.sky_model import get_1934_model
 
 # These are generic functions that are wrapped. Their inputs are fairly standard
@@ -90,7 +91,7 @@ def task_flag_solutions(calibrate_cmd: CalibrateCommand) -> CalibrateCommand:
                 "Creating the directory failed. Likely already exists. Race conditions, me-hearty."
             )
 
-    flagged_solutions_path = flag_aosolutions(
+    flagged_solutions = flag_aosolutions(
         solutions_path=solution_path,
         ref_ant=-1,
         flag_cut=3,
@@ -98,8 +99,11 @@ def task_flag_solutions(calibrate_cmd: CalibrateCommand) -> CalibrateCommand:
         smooth_solutions=True,
     )
 
+    for image_path in flagged_solutions.plots:
+        upload_image_as_artifact(image_path=image_path, description=image_path.name)
+
     return calibrate_cmd.with_options(
-        solution_path=flagged_solutions_path, preflagged=True
+        solution_path=flagged_solutions.path, preflagged=True
     )
 
 

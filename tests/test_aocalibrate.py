@@ -14,10 +14,76 @@ from flint.bptools.smoother import (
 )
 from flint.calibrate.aocalibrate import (
     AOSolutions,
+    CalibrateOptions,
+    FlaggedAOSolution,
+    calibrate_options_to_command,
     flag_aosolutions,
     plot_solutions,
     select_refant,
 )
+
+
+def test_calibrate_options_to_command():
+    default_cal = CalibrateOptions(datacolumn="DATA", m=Path("/example/1934.model"))
+    ex_ms_path = Path("/example/data.ms")
+    ex_solutions_path = Path("/example/sols.calibrate")
+
+    cmd = calibrate_options_to_command(
+        calibrate_options=default_cal,
+        ms_path=ex_ms_path,
+        solutions_path=ex_solutions_path,
+    )
+
+    assert (
+        cmd
+        == "calibrate -datacolumn DATA -m /example/1934.model -i 100 /example/data.ms /example/sols.calibrate"
+    )
+
+
+def test_calibrate_options_to_command2():
+    default_cal = CalibrateOptions(
+        datacolumn="DATA",
+        m=Path("/example/1934.model"),
+        i=40,
+        p=(Path("amps.plot"), Path("phase.plot")),
+    )
+    ex_ms_path = Path("/example/data.ms")
+    ex_solutions_path = Path("/example/sols.calibrate")
+
+    cmd = calibrate_options_to_command(
+        calibrate_options=default_cal,
+        ms_path=ex_ms_path,
+        solutions_path=ex_solutions_path,
+    )
+
+    assert (
+        cmd
+        == "calibrate -datacolumn DATA -m /example/1934.model -i 40 -p amps.plot phase.plot /example/data.ms /example/sols.calibrate"
+    )
+
+
+def test_calibrate_options_to_command3():
+    default_cal = CalibrateOptions(
+        datacolumn="DATA",
+        m=Path("/example/1934.model"),
+        i=40,
+        p=(Path("amps.plot"), Path("phase.plot")),
+        maxuv=5000,
+        minuv=300,
+    )
+    ex_ms_path = Path("/example/data.ms")
+    ex_solutions_path = Path("/example/sols.calibrate")
+
+    cmd = calibrate_options_to_command(
+        calibrate_options=default_cal,
+        ms_path=ex_ms_path,
+        solutions_path=ex_solutions_path,
+    )
+
+    assert (
+        cmd
+        == "calibrate -datacolumn DATA -m /example/1934.model -minuv 300 -maxuv 5000 -i 40 -p amps.plot phase.plot /example/data.ms /example/sols.calibrate"
+    )
 
 
 @pytest.fixture
@@ -55,6 +121,26 @@ def ao_sols_known_bad(tmpdir):
 
 def test_known_bad_sols(ao_sols_known_bad):
     flag_aosolutions(solutions_path=ao_sols_known_bad, plot_solutions_throughout=False)
+
+
+def test_flagged_aosols(ao_sols_known_bad):
+    flagged_sols = flag_aosolutions(
+        solutions_path=ao_sols_known_bad,
+        plot_solutions_throughout=True,
+        smooth_solutions=True,
+    )
+    assert isinstance(flagged_sols, FlaggedAOSolution)
+    assert len(flagged_sols.plots) == 9
+    assert isinstance(flagged_sols.path, Path)
+
+    flagged_sols = flag_aosolutions(
+        solutions_path=ao_sols_known_bad,
+        plot_solutions_throughout=True,
+        smooth_solutions=False,
+    )
+    assert isinstance(flagged_sols, FlaggedAOSolution)
+    assert len(flagged_sols.plots) == 6
+    assert isinstance(flagged_sols.path, Path)
 
 
 def test_load_aosols(ao_sols):

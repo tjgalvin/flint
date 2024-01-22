@@ -401,6 +401,7 @@ def wsclean_imager(
         ms (Union[Path,MS]): Path to the measurement set that will be imaged
         wsclean_container (Path): Path to the container with wsclean installed
         wsclean_options_path (Optional[Path], optional): Location of a wsclean set of options. Defaults to None.
+        update_wsclean_options (Optional[Dict[str, Any]], optional): Additional options to update the generated WscleanOptions with. Keys should be attributes of WscleanOptions. Defaults ot None.
 
     Returns:
         WSCleanCommand: _description_

@@ -5,7 +5,17 @@ from __future__ import annotations  # used to keep mypy/pylance happy in AOSolut
 import struct
 from argparse import ArgumentParser
 from pathlib import Path
-from typing import Collection, Iterable, List, NamedTuple, Optional, Union
+from typing import (
+    Any,
+    Collection,
+    Dict,
+    Iterable,
+    List,
+    NamedTuple,
+    Optional,
+    Tuple,
+    Union,
+)
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -26,6 +36,33 @@ from flint.ms import MS, consistent_ms, get_beam_from_ms
 from flint.naming import get_aocalibrate_output_path
 from flint.plot_utils import fill_between_flags
 from flint.sclient import run_singularity_command
+
+
+class CalibrateOptions(NamedTuple):
+    """Structure used to represent options into the `calibrate` program
+
+    These attributes have the same names as options into the `calibrate`
+    command.
+    """
+
+    datacolumn: str
+    """The name of the datacolumn that will be calibrates"""
+    m: Path
+    """The path to the model file used to calibtate"""
+    minuv: Optional[float] = None
+    """The minimum distance in meters that is"""
+    maxuv: Optional[float] = None
+    """The maximum distance in meters that is"""
+    i: Optional[int] = 100
+    """The number of iterations that may be performed"""
+    p: Optional[Tuple[Path, Path]] = None
+    """Plot output names for the amplitude gain and phases"""
+
+    def with_options(self, **kwargs) -> CalibrateOptions:
+        options = self._asdict()
+        options.update(**kwargs)
+
+        return CalibrateOptions(**options)
 
 
 class CalibrateCommand(NamedTuple):
@@ -262,15 +299,15 @@ def plot_solutions(
     fig_ratio.tight_layout()
     fig_phase.tight_layout()
 
-    out_amp = f"{str(solutions_path.with_suffix('.amplitude.pdf'))}"
+    out_amp = f"{str(solutions_path.with_suffix('.amplitude.png'))}"
     logger.info(f"Saving {out_amp}.")
     fig_amp.savefig(out_amp)
 
-    out_phase = f"{str(solutions_path.with_suffix('.phase.pdf'))}"
+    out_phase = f"{str(solutions_path.with_suffix('.phase.png'))}"
     logger.info(f"Saving {out_phase}.")
     fig_phase.savefig(out_phase)
 
-    out_ratio = f"{str(solutions_path.with_suffix('.ratio.pdf'))}"
+    out_ratio = f"{str(solutions_path.with_suffix('.ratio.png'))}"
     logger.info(f"Saving {out_ratio}.")
     fig_ratio.savefig(out_ratio)
 
@@ -462,11 +499,49 @@ def select_aosolution_for_ms(
     return sol_file
 
 
+def calibrate_options_to_command(
+    calibrate_options: CalibrateOptions, ms_path: Path, solutions_path: Path
+) -> str:
+    """Generate a `calibrate` command given an input option set
+
+    Args:
+        calibrate_options (CalibrateOptions): The set of `calibrate` options to use
+        ms (Path): Path to the measurement set that will be calibrated
+        solutions_path (Path): Output path of the solutions file
+
+    Returns:
+        str: The command string to execute
+    """
+    cmd = "calibrate "
+
+    unknowns: List[Tuple[Any, Any]] = []
+
+    for key, value in calibrate_options._asdict().items():
+        if value is None:
+            continue
+        elif isinstance(value, (str, Path, int, float)):
+            cmd += f"-{key} {str(value)} "
+        elif isinstance(value, (tuple, list)):
+            values = " ".join([str(v) for v in value])
+            cmd += f"-{key} {values} "
+        else:
+            unknowns.append((key, value))
+
+    assert (
+        len(unknowns) == 0
+    ), f"Uknown types when generating calibrate command: {unknowns}"
+
+    cmd += f"{str(ms_path)} {str(solutions_path)}"
+
+    return cmd
+
+
 def create_calibrate_cmd(
     ms: Union[Path, MS],
     calibrate_model: Path,
     solution_path: Optional[Path] = None,
     container: Optional[Path] = None,
+    update_calibrate_options: Optional[Dict[str, Any]] = None,
 ) -> CalibrateCommand:
     """Generate a typical ao calibrate command. Any extra keyword arguments
     are passed through as additional options to the `calibrate` program.
@@ -476,6 +551,7 @@ def create_calibrate_cmd(
         calibrate_model (Path): Path to a generated calibrate sky-model
         solution_path (Path, optional): The output path of the calibrate solutions file. If None, a default suffix of "calibrate.bin" is used. Defaults to None.
         container (Optional[Path], optional): If a path to a container is supplied the calibrate command is executed immediatedly. Defaults to None.
+        update_calibrate_options (Optional[Dict[str, Any]], optional): Additional options to update the generated CalibrateOptions with. Keys should be attributes of CalibrationOptions. Defaults ot None.
 
     Raises:
         FileNotFoundError: Raised when calibrate_model can not be found.
@@ -502,15 +578,17 @@ def create_calibrate_cmd(
             ms_path=ms.path, include_preflagger=False, include_smoother=False
         )
 
-    cmd = (
-        f"calibrate "
-        f"-datacolumn {ms.column} "
-        f"-minuv 600 "
-        f"-m {str(calibrate_model)} "
-        f"{str(ms.path)} "
-        f"{str(solution_path)} "
+    calibrate_options = CalibrateOptions(
+        datacolumn=ms.column, m=calibrate_model, minuv=600
     )
+    if update_calibrate_options:
+        calibrate_options = calibrate_options.with_options(**update_calibrate_options)
 
+    cmd = calibrate_options_to_command(
+        calibrate_options=calibrate_options,
+        ms_path=ms.path,
+        solutions_path=solution_path,
+    )
     logger.debug(f"Constructed calibrate command is {cmd=}")
 
     calibrate_cmd = CalibrateCommand(
@@ -721,17 +799,24 @@ def select_refant(bandpass: np.ndarray) -> int:
     return max_ant[0][0]
 
 
+class FlaggedAOSolution(NamedTuple):
+    """Hold the final set of flagged solutions and generated plots"""
+
+    path: Path
+    """Path to the final set of flagged solutions"""
+    plots: Collection[Path]
+    """Contains paths to the plots generated throughout the flagging and smoothing procedure"""
+
+
 def flag_aosolutions(
     solutions_path: Path,
     ref_ant: Optional[int] = -1,
     flag_cut: float = 3,
     plot_dir: Optional[Path] = None,
     out_solutions_path: Optional[Path] = None,
-    flag_ant_xyyx_mean_gain: bool = False,
-    zero_cross_terms: bool = False,
     smooth_solutions: bool = False,
     plot_solutions_throughout: bool = True,
-) -> Path:
+) -> FlaggedAOSolution:
     """Will open a previously solved ao-calibrate solutions file and flag additional channels and antennae.
 
     There are currently two main stages. The first will attempt to search for channels where the the phase of the
@@ -746,14 +831,14 @@ def flag_aosolutions(
         flag_cut (float, optional): Significance of a phase-outlier from the mean (or median) before it should be flagged. Defaults to 3.
         plot_dir (Optional[Path], optional): Where diagnostic flagging plots should be written. If None, no plots will be produced. Defaults to None.
         out_solutions_path (Optional[Path], optional): The output path of the flagged solutions file. If None, the solutions_path provided is used. Defaults to None.
-        flag_ant_xyyx_mean_gain (bool, optional): Whether to flag antennas based on the mean gain ratio of the XY and YX amplitude gains. Defaults to False.
-        zero_cross_terms (bool, optional): Set the XY and YX terms of each Jones to be 0. Defaults to False.
         smooth_solutions (blool, optional): Smooth the complex gain solutions after flaggined. Defaults to False.
         plot_solutions_throughout (bool, Optional): If True, the solutions will be plotted at different stages of processing. Defaults to True.
 
     Returns:
-        Path: Path to the updated solutions file. This is out_solutions_path if provided, otherwise solutions_path
+        FlaggedAOSolution: Path to the updated solutions file, intermediate solution files and plots along the way
     """
+    # TODO: This should be broken down into separate stages. Way too large of a function.
+
     solutions = AOSolutions.load(path=solutions_path)
     title = solutions_path.name
 
@@ -776,6 +861,12 @@ def flag_aosolutions(
     if ref_ant < 0:
         ref_ant = select_refant(bandpass=solutions.bandpass)
         logger.info(f"Overwriting reference antenna selection, using {ref_ant=}")
+
+    plots: List[Path] = []
+
+    if plot_solutions_throughout:
+        output_plots = plot_solutions(solutions=solutions_path, ref_ant=ref_ant)
+        plots.extend(output_plots)
 
     for time in range(solutions.nsol):
         for pol in (0, 3):
@@ -853,23 +944,6 @@ def flag_aosolutions(
                 logger.info(f"{ant=} failed mean amplitude gain test. Flagging {ant=}.")
                 bandpass[time, ant, :, :] = np.nan
 
-            if flag_ant_xyyx_mean_gain and flag_mean_xxyy_amplitude_ratio(
-                xx_complex_gains=ant_gains[:, 1], yy_complex_gains=ant_gains[:, 2]
-            ):
-                logger.info(
-                    f"{ant=} failed mean amplitude gain test based on XY/YX. Flagging {ant=}."
-                )
-                bandpass[time, ant, :, :] = np.nan
-
-    if zero_cross_terms:
-        logger.info("Zeroing XY and YX terms. ")
-        # Without constraints on the polarised sky aocalibrate is not able to constrain these terms.
-        # It seems that during its optimisation it is essentially adding noise since there is no
-        # informaiton to constain.
-        for pol in (1, 2):
-            # Nan multiplied by another is nan
-            bandpass[..., pol] *= 0
-
     # To this point operations carried out to the bandpass were to the mutable array reference
     # so there is no need to create a new solutions instace
     out_solutions_path = get_aocalibrate_output_path(
@@ -877,7 +951,8 @@ def flag_aosolutions(
     )
     solutions.save(output_path=out_solutions_path)
     if plot_solutions_throughout:
-        plot_solutions(solutions=out_solutions_path, ref_ant=ref_ant)
+        output_plots = plot_solutions(solutions=out_solutions_path, ref_ant=ref_ant)
+        plots.extend(output_plots)
 
     if smooth_solutions:
         logger.info("Smoothing the bandpass solutions. ")
@@ -892,7 +967,8 @@ def flag_aosolutions(
         )
         solutions.save(output_path=out_solutions_path)
         if plot_solutions_throughout:
-            plot_solutions(solutions=out_solutions_path, ref_ant=None)
+            output_plots = plot_solutions(solutions=out_solutions_path, ref_ant=None)
+            plots.extend(output_plots)
 
     total_flagged = np.sum(~np.isfinite(bandpass)) / np.prod(bandpass.shape)
     if total_flagged > 0.8:
@@ -904,7 +980,9 @@ def flag_aosolutions(
         logger.critical(msg)
         raise ValueError(msg)
 
-    return out_solutions_path
+    flagged_aosolutions = FlaggedAOSolution(path=out_solutions_path, plots=tuple(plots))
+
+    return flagged_aosolutions
 
 
 def get_parser() -> ArgumentParser:
