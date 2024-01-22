@@ -851,12 +851,6 @@ def flag_aosolutions(
         except Exception as e:
             logger.error(f"Failed to create {str(plot_dir)} {e}.")
 
-    plots: List[Path] = []
-
-    if plot_solutions_throughout:
-        output_plots = plot_solutions(solutions=out_solutions_path, ref_ant=ref_ant)
-        plots.extend(output_plots)
-
     # Note that although the solutions variable (an instance of AOSolutions) is immutable,
     # which includes the reference to the numpy array, the _actual_ numpy array is! So,
     # copying the bandpass below is as we are updating the actual array, which will be
@@ -867,6 +861,12 @@ def flag_aosolutions(
     if ref_ant < 0:
         ref_ant = select_refant(bandpass=solutions.bandpass)
         logger.info(f"Overwriting reference antenna selection, using {ref_ant=}")
+
+    plots: List[Path] = []
+
+    if plot_solutions_throughout:
+        output_plots = plot_solutions(solutions=out_solutions_path, ref_ant=ref_ant)
+        plots.extend(output_plots)
 
     for time in range(solutions.nsol):
         for pol in (0, 3):
