@@ -314,9 +314,7 @@ Extact polarization leakage at Stokes I locations.
 Many of the default column names assume an Aegean-output source list.
 """
 
-    ps = ArgumentParser(
-        description=description_
-    )
+    ps = ArgumentParser(description=description_)
     ps.add_argument("catalogue", type=str, help="Stokes I source catalogue.")
     ps.add_argument("image", type=str, help="Stokes [V,Q,U] image.")
     ps.add_argument(
