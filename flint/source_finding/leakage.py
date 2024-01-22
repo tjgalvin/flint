@@ -3,7 +3,7 @@
 
 from argparse import ArgumentParser
 from pathlib import Path
-from typing import NamedTuple, Tuple
+from typing import Tuple
 
 import numpy as np
 from astropy import units as u
@@ -315,7 +315,7 @@ Many of the default column names assume an Aegean-output source list.
 """
 
     ps = ArgumentParser(
-        description="Extact polarization leakage at Stokes I locations."
+        description=description_
     )
     ps.add_argument("catalogue", type=str, help="Stokes I source catalogue.")
     ps.add_argument("image", type=str, help="Stokes [V,Q,U] image.")
