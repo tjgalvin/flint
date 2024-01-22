@@ -119,7 +119,7 @@ def process_science_fields(
 
     wsclean_init = {
         "size": 7144,
-        "minuv_m": 235,
+        "minuvw_m": 235,
         "weight": "briggs -1.0",
         "auto_mask": 5,
         "multiscale": True,
@@ -194,7 +194,7 @@ def process_science_fields(
             "size": 7144,
             "weight": "briggs -1.0",
             "multiscale": True,
-            "minuv_m": 235,
+            "minuvw_m": 235,
             "auto_mask": 4,
             "local_rms_window": 55,
             "multiscale_scales": (0, 15, 30, 40, 50, 60, 70, 120, 240, 480),
@@ -203,7 +203,7 @@ def process_science_fields(
             "size": 7144,
             "weight": "briggs -1.0",
             "multiscale": True,
-            "minuv_m": 235,
+            "minuvw_m": 235,
             "auto_mask": 4.0,
             "local_rms_window": 55,
             "multiscale_scales": (0, 15, 30, 40, 50, 60, 70, 120, 240, 480),
