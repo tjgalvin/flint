@@ -272,12 +272,12 @@ def process_science_fields(
 
             if run_validation:
                 validation_plot = task_create_validation_plot.submit(
-                    processed_mss=flag_mss,
+                    processed_mss=cal_mss,
                     aegean_outputs=aegean_outputs,
                     reference_catalogue_directory=field_options.reference_catalogue_directory,
                 )
                 validation_tables = task_create_validation_tables.submit(
-                    processed_mss=flag_mss,
+                    processed_mss=cal_mss,
                     aegean_outputs=aegean_outputs,
                     reference_catalogue_directory=field_options.reference_catalogue_directory,
                 )
