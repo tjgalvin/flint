@@ -853,6 +853,10 @@ def flag_aosolutions(
 
     plots: List[Path] = []
 
+    if plot_solutions_throughout:
+        output_plots = plot_solutions(solutions=out_solutions_path, ref_ant=ref_ant)
+        plots.extend(output_plots)
+
     # Note that although the solutions variable (an instance of AOSolutions) is immutable,
     # which includes the reference to the numpy array, the _actual_ numpy array is! So,
     # copying the bandpass below is as we are updating the actual array, which will be
