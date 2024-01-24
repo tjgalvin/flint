@@ -226,6 +226,7 @@ def calibrate_bandpass_flow(
         flagger_container=flagger_container,
         model_path=model_path,
         source_name_prefix=source_name_prefix,
+        skip_rotation=True,
     )
 
     return output_split_bandpass_path
