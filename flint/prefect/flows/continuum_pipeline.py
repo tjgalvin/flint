@@ -85,7 +85,10 @@ def process_science_fields(
     logger.info(f"Constructed the following {calibrate_cmds=}")
 
     split_science_mss = task_split_by_field.map(
-        ms=science_mss, field=None, out_dir=unmapped(output_split_science_path)
+        ms=science_mss,
+        field=None,
+        out_dir=unmapped(output_split_science_path),
+        column=unmapped("DATA"),
     )
     flat_science_mss = task_flatten.submit(split_science_mss)
 
