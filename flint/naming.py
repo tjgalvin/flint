@@ -46,7 +46,7 @@ def raw_ms_format(in_name: str) -> Union[None, RawNameComponents]:
     results = regex.match(in_name)
 
     if results is None:
-        logger.info(f"No results to {in_name} found")
+        logger.debug(f"No raw_ms_format results to {in_name} found")
         return None
 
     groups = results.groupdict()
@@ -95,7 +95,7 @@ def processed_ms_format(in_name: Union[str, Path]) -> ProcessedNameComponents:
     results = regex.match(in_name)
 
     if results is None:
-        logger.info(f"No results to {in_name} found")
+        logger.debug(f"No processed_ms_format results to {in_name} found")
         return None
 
     groups = results.groupdict()

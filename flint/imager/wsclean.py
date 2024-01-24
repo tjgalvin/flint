@@ -50,7 +50,7 @@ class WSCleanOptions(NamedTuple):
     """How deep the construct clean mask is during each cycle"""
     auto_threshold: float = 0.5
     """How deep to clean once initial clean threshold reached"""
-    threshold: Optional[float] = 0.0
+    threshold: Optional[float] = None
     """Threshold in Jy to stop cleaning"""
     channels_out: int = 4
     """Number of output channels"""
