@@ -377,7 +377,9 @@ def split_by_field(
             logger.info(f"Writing {str(out_path)} for {split_name}")
             sub_ms.copy(str(out_path), deep=True)
 
-            out_mss.append(MS(path=out_path, beam=get_beam_from_ms(out_path)))
+            out_mss.append(
+                MS(path=out_path, beam=get_beam_from_ms(out_path), column="DATA")
+            )
 
     return out_mss
 
