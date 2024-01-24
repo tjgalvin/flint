@@ -498,7 +498,7 @@ def rename_column_in_ms(
     """
     ms = MS.cast(ms=ms)
 
-    with table(tablename=str(ms.path)) as tab:
+    with table(tablename=str(ms.path), readonly=False, ack=False) as tab:
         colnames = tab.colnames()
         assert (
             original_column_name in colnames
