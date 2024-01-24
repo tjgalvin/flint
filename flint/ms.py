@@ -55,8 +55,15 @@ class MS(NamedTuple):
     def cast(cls, ms: Union[MS, Path]) -> MS:
         """Create a MS instance, if necessary, given eith a Path or MS.
 
+        If the input is neither a MS instance or Path, the object will
+        be checked to see if it has a `.ms` attribute. If it does then
+        this will be used.
+
         Args:
             ms (Union[MS, Path]): The input type to consider
+
+        Raises:
+            MSError: Raised when the input ms can not be cast to an MS instance
 
         Returns:
             MS: A normalised MS
@@ -66,7 +73,7 @@ class MS(NamedTuple):
             pass
         elif isinstance(ms, Path):
             ms = MS(path=ms)
-        elif "ms" in dir(ms):
+        elif "ms" in dir(ms) and isinstance(ms.ms, MS):
             ms = ms.ms
         else:
             raise MSError("Unable to convert to MS object. ")
