@@ -27,6 +27,7 @@ from flint.prefect.common.imaging import (
     task_get_common_beam,
     task_linmos_images,
     task_preprocess_askap_ms,
+    task_rename_column_in_ms,
     task_run_bane_and_aegean,
     task_select_solution_for_ms,
     task_split_by_field,
@@ -96,11 +97,15 @@ def process_science_fields(
         solutions_file=solutions_paths,
         container=field_options.calibrate_container,
     )
-
-    preprocess_science_mss = task_preprocess_askap_ms.map(
+    column_rename_mss = task_rename_column_in_ms.map(
         ms=apply_solutions_cmds,
+        original_column_name=unmapped("DATA"),
+        new_column_name=unmapped("INSTRUMENT_DATA"),
+    )
+    preprocess_science_mss = task_preprocess_askap_ms.map(
+        ms=column_rename_mss,
         data_column=unmapped("CORRECTED_DATA"),
-        instrument_column=unmapped("INSTRUMENT_DATA"),
+        instrument_column=unmapped("DATA"),
         overwrite=True,
     )
 

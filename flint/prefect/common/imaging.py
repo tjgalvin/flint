@@ -27,7 +27,7 @@ from flint.masking import (
     create_snr_mask_wbutter_from_fits,
     extract_beam_mask_from_mosaic,
 )
-from flint.ms import MS, preprocess_askap_ms, split_by_field
+from flint.ms import MS, preprocess_askap_ms, rename_column_in_ms, split_by_field
 from flint.naming import FITSMaskNames, processed_ms_format
 from flint.options import FieldOptions
 from flint.prefect.common.utils import upload_image_as_artifact
@@ -46,7 +46,7 @@ task_preprocess_askap_ms = task(preprocess_askap_ms)
 task_split_by_field = task(split_by_field)
 task_select_solution_for_ms = task(select_aosolution_for_ms)
 task_create_apply_solutions_cmd = task(create_apply_solutions_cmd)
-
+task_rename_column_in_ms = task(rename_column_in_ms)
 
 # Tasks below are extracting componented from earlier stages, or are
 # otherwise doing something important

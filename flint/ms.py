@@ -330,7 +330,10 @@ def describe_ms(ms: Union[MS, Path], verbose: bool = True) -> MSSummary:
 
 
 def split_by_field(
-    ms: Union[MS, Path], field: Optional[str] = None, out_dir: Optional[Path] = None
+    ms: Union[MS, Path],
+    field: Optional[str] = None,
+    out_dir: Optional[Path] = None,
+    column: Optional[str] = None,
 ) -> List[MS]:
     """Attempt to split an input measurement set up by the unique FIELDs recorded
 
@@ -339,6 +342,7 @@ def split_by_field(
         field (Optional[str], optional): Desired field to extract. If None, all are split. Defaults to None.
         out_dir (Optional[Path], optional): Output directory to write the fresh MSs to. If None, write to same directory as
         parent MS. Defaults to None.
+        column (Optional[str], optional): If not None, set the column attribute of the output MS instance to this. Defaults to None.
 
     Returns:
         List[MS]: The output MSs split by their field name.
@@ -378,7 +382,7 @@ def split_by_field(
             sub_ms.copy(str(out_path), deep=True)
 
             out_mss.append(
-                MS(path=out_path, beam=get_beam_from_ms(out_path), column="DATA")
+                MS(path=out_path, beam=get_beam_from_ms(out_path), column=column)
             )
 
     return out_mss
@@ -472,6 +476,43 @@ def consistent_ms(ms1: MS, ms2: MS) -> bool:
         logger.info(f"{str(ms1.path)} not compatibale with {str(ms2.path)}, {reasons=}")
 
     return result
+
+
+def rename_column_in_ms(
+    ms: MS,
+    original_column_name: str,
+    new_column_name: str,
+    update_tracked_column: bool = False,
+) -> MS:
+    """Rename a column in a measurement set. Optionally update the tracked
+    `data` column attribute of the input measurement set.
+
+    Args:
+        ms (MS): Measurement set with the column to rename
+        original_column_name (str): The name of the column that will be changed
+        new_column_name (str): The new name of the column set in `original_column_name`
+        update_tracked_column (bool, optional): Whether the `data` attribute of `ms` will be updated to `new_column_name`. Defaults to False.
+
+    Returns:
+        MS: The measurement set operated on
+    """
+    ms = MS.cast(ms=ms)
+
+    with table(tablename=str(ms.path)) as tab:
+        colnames = tab.colnames()
+        assert (
+            original_column_name in colnames
+        ), f"{original_column_name=} missing from {ms}"
+        assert (
+            new_column_name not in colnames
+        ), f"{new_column_name=} already exists in {ms}"
+
+        tab.renamecol(oldname=original_column_name, newname=new_column_name)
+
+    if update_tracked_column:
+        ms = ms.with_options(column=new_column_name)
+
+    return ms
 
 
 def preprocess_askap_ms(
