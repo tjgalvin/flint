@@ -19,6 +19,7 @@ from casacore.tables import table, taql
 from fixms.fix_ms_corrs import fix_ms_corrs
 from fixms.fix_ms_dir import fix_ms_dir
 
+from flint.exceptions import MSError
 from flint.logging import logger
 from flint.naming import create_ms_name
 from flint.utils import rsync_copy_directory
@@ -60,7 +61,15 @@ class MS(NamedTuple):
         Returns:
             MS: A normalised MS
         """
-        ms = ms if isinstance(ms, MS) else MS(path=ms)
+        if isinstance(ms, MS):
+            # Nothing to do
+            pass
+        elif isinstance(ms, Path):
+            ms = MS(path=ms)
+        elif "ms" in dir(ms):
+            ms = ms.ms
+        else:
+            raise MSError("Unable to convert to MS object. ")
 
         return ms
 

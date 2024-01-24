@@ -88,23 +88,24 @@ def process_science_fields(
     )
     flat_science_mss = task_flatten.submit(split_science_mss)
 
-    preprocess_science_mss = task_preprocess_askap_ms.map(
-        ms=flat_science_mss,
-        data_column=unmapped("DATA"),
-        instrument_column=unmapped("INSTRUMENT_DATA"),
-        overwrite=True,
-    )
     solutions_paths = task_select_solution_for_ms.map(
-        calibrate_cmds=unmapped(calibrate_cmds), ms=preprocess_science_mss
+        calibrate_cmds=unmapped(calibrate_cmds), ms=flat_science_mss
     )
     apply_solutions_cmds = task_create_apply_solutions_cmd.map(
-        ms=preprocess_science_mss,
+        ms=flat_science_mss,
         solutions_file=solutions_paths,
         container=field_options.calibrate_container,
     )
 
+    preprocess_science_mss = task_preprocess_askap_ms.map(
+        ms=apply_solutions_cmds,
+        data_column=unmapped("CORRECTED_DATA"),
+        instrument_column=unmapped("INSTRUMENT_DATA"),
+        overwrite=True,
+    )
+
     flagged_mss = task_flag_ms_aoflagger.map(
-        ms=apply_solutions_cmds, container=field_options.flagger_container, rounds=1
+        ms=preprocess_science_mss, container=field_options.flagger_container, rounds=1
     )
 
     if field_options.no_imaging:
