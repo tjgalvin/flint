@@ -1,12 +1,13 @@
 """Small tests for items related to measurement sets
 and the MS class
 """
-import pytest
 from pathlib import Path
 
+import pytest
+
+from flint.calibrate.aocalibrate import ApplySolutions
 from flint.exceptions import MSError
 from flint.ms import MS
-from flint.calibrate.aocalibrate import ApplySolutions
 
 
 def test_ms_self_attribute():
