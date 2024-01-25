@@ -522,7 +522,7 @@ def preprocess_askap_ms(
     instrument_column: str = "INSTRUMENT_DATA",
     overwrite: bool = True,
     skip_rotation: bool = False,
-    fix_stokes_factor: bool = True,
+    fix_stokes_factor: bool = False,
 ) -> MS:
     """The ASKAP MS stores its data in a way that is not immediatedly accessible
     to other astronomical software, like wsclean or casa. For each measurement set
@@ -543,7 +543,7 @@ def preprocess_askap_ms(
         instrument_column (str, optional): The name of the column that will hold the original `data_column` data. Defaults to 'INSTRUMENT_DATA'
         overwrite (bool, optional): If the `instrument_column` and `data_column` both exist and `overwrite=True` the `data_column` will be overwritten. Otherwise, a `ValueError` is raised. Defaults to True.
         skip_rotation (bool, optional): If true, the visibilities are not rotated Defaults to False.
-        fix_stokes_factor (bool, optional): Apply the stokes scaling factor (aruses in different definition of Stokes between Ynadasoft and other applications) when rotation visibilities. Defaults to True.
+        fix_stokes_factor (bool, optional): Apply the stokes scaling factor (aruses in different definition of Stokes between Ynadasoft and other applications) when rotation visibilities. This should be set to False is the bandpass solutions have already absorded this scaling term. Defaults to False.
 
     Returns:
         MS: An updated measurement set with the corrections applied.
