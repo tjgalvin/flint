@@ -19,6 +19,7 @@ from casacore.tables import table, taql
 from fixms.fix_ms_corrs import fix_ms_corrs
 from fixms.fix_ms_dir import fix_ms_dir
 
+from flint.exceptions import MSError
 from flint.logging import logger
 from flint.naming import create_ms_name
 from flint.utils import rsync_copy_directory
@@ -54,13 +55,28 @@ class MS(NamedTuple):
     def cast(cls, ms: Union[MS, Path]) -> MS:
         """Create a MS instance, if necessary, given eith a Path or MS.
 
+        If the input is neither a MS instance or Path, the object will
+        be checked to see if it has a `.ms` attribute. If it does then
+        this will be used.
+
         Args:
             ms (Union[MS, Path]): The input type to consider
+
+        Raises:
+            MSError: Raised when the input ms can not be cast to an MS instance
 
         Returns:
             MS: A normalised MS
         """
-        ms = ms if isinstance(ms, MS) else MS(path=ms)
+        if isinstance(ms, MS):
+            # Nothing to do
+            pass
+        elif isinstance(ms, Path):
+            ms = MS(path=ms)
+        elif "ms" in dir(ms) and isinstance(ms.ms, MS):
+            ms = ms.ms
+        else:
+            raise MSError("Unable to convert to MS object. ")
 
         return ms
 
@@ -314,7 +330,10 @@ def describe_ms(ms: Union[MS, Path], verbose: bool = True) -> MSSummary:
 
 
 def split_by_field(
-    ms: Union[MS, Path], field: Optional[str] = None, out_dir: Optional[Path] = None
+    ms: Union[MS, Path],
+    field: Optional[str] = None,
+    out_dir: Optional[Path] = None,
+    column: Optional[str] = None,
 ) -> List[MS]:
     """Attempt to split an input measurement set up by the unique FIELDs recorded
 
@@ -323,6 +342,7 @@ def split_by_field(
         field (Optional[str], optional): Desired field to extract. If None, all are split. Defaults to None.
         out_dir (Optional[Path], optional): Output directory to write the fresh MSs to. If None, write to same directory as
         parent MS. Defaults to None.
+        column (Optional[str], optional): If not None, set the column attribute of the output MS instance to this. Defaults to None.
 
     Returns:
         List[MS]: The output MSs split by their field name.
@@ -361,7 +381,9 @@ def split_by_field(
             logger.info(f"Writing {str(out_path)} for {split_name}")
             sub_ms.copy(str(out_path), deep=True)
 
-            out_mss.append(MS(path=out_path, beam=get_beam_from_ms(out_path)))
+            out_mss.append(
+                MS(path=out_path, beam=get_beam_from_ms(out_path), column=column)
+            )
 
     return out_mss
 
@@ -456,12 +478,51 @@ def consistent_ms(ms1: MS, ms2: MS) -> bool:
     return result
 
 
+def rename_column_in_ms(
+    ms: MS,
+    original_column_name: str,
+    new_column_name: str,
+    update_tracked_column: bool = False,
+) -> MS:
+    """Rename a column in a measurement set. Optionally update the tracked
+    `data` column attribute of the input measurement set.
+
+    Args:
+        ms (MS): Measurement set with the column to rename
+        original_column_name (str): The name of the column that will be changed
+        new_column_name (str): The new name of the column set in `original_column_name`
+        update_tracked_column (bool, optional): Whether the `data` attribute of `ms` will be updated to `new_column_name`. Defaults to False.
+
+    Returns:
+        MS: The measurement set operated on
+    """
+    ms = MS.cast(ms=ms)
+
+    with table(tablename=str(ms.path), readonly=False, ack=False) as tab:
+        colnames = tab.colnames()
+        assert (
+            original_column_name in colnames
+        ), f"{original_column_name=} missing from {ms}"
+        assert (
+            new_column_name not in colnames
+        ), f"{new_column_name=} already exists in {ms}"
+
+        logger.info(f"Renaming {original_column_name} to {new_column_name}")
+        tab.renamecol(oldname=original_column_name, newname=new_column_name)
+
+    if update_tracked_column:
+        ms = ms.with_options(column=new_column_name)
+
+    return ms
+
+
 def preprocess_askap_ms(
     ms: Union[MS, Path],
     data_column: str = "DATA",
     instrument_column: str = "INSTRUMENT_DATA",
     overwrite: bool = True,
     skip_rotation: bool = False,
+    fix_stokes_factor: bool = False,
 ) -> MS:
     """The ASKAP MS stores its data in a way that is not immediatedly accessible
     to other astronomical software, like wsclean or casa. For each measurement set
@@ -482,6 +543,7 @@ def preprocess_askap_ms(
         instrument_column (str, optional): The name of the column that will hold the original `data_column` data. Defaults to 'INSTRUMENT_DATA'
         overwrite (bool, optional): If the `instrument_column` and `data_column` both exist and `overwrite=True` the `data_column` will be overwritten. Otherwise, a `ValueError` is raised. Defaults to True.
         skip_rotation (bool, optional): If true, the visibilities are not rotated Defaults to False.
+        fix_stokes_factor (bool, optional): Apply the stokes scaling factor (aruses in different definition of Stokes between Ynadasoft and other applications) when rotation visibilities. This should be set to False is the bandpass solutions have already absorded this scaling term. Defaults to False.
 
     Returns:
         MS: An updated measurement set with the corrections applied.
@@ -522,15 +584,19 @@ def preprocess_askap_ms(
     if skip_rotation:
         # TODO: Should we copy the DATA to INSTRUMENT_DATA?
         logger.info("Skipping the rotation of the visibilities. ")
+        ms = ms.with_options(column=data_column)
         logger.info(f"Returning {ms=}.")
-        return ms.with_options(column=data_column)
+        return ms
 
     logger.info("Applying roation matrix to correlations. ")
     logger.info(
         f"Rotating visibilities for {ms.path} with data_column={instrument_column} amd corrected_data_column={data_column}"
     )
     fix_ms_corrs(
-        ms=ms.path, data_column=instrument_column, corrected_data_column=data_column
+        ms=ms.path,
+        data_column=instrument_column,
+        corrected_data_column=data_column,
+        fix_stokes_factor=fix_stokes_factor,
     )
 
     return ms.with_options(column=data_column)

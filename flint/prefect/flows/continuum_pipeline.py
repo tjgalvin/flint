@@ -27,6 +27,7 @@ from flint.prefect.common.imaging import (
     task_get_common_beam,
     task_linmos_images,
     task_preprocess_askap_ms,
+    task_rename_column_in_ms,
     task_run_bane_and_aegean,
     task_select_solution_for_ms,
     task_split_by_field,
@@ -64,9 +65,14 @@ def process_science_fields(
         Path(split_path / science_folder_name).absolute().resolve()
     )
 
-    if not output_split_science_path.exists():
-        logger.info(f"Creating {str(output_split_science_path)}")
-        output_split_science_path.mkdir(parents=True)
+    if output_split_science_path.exists():
+        logger.critical(
+            f"{output_split_science_path=} already exists. It should not. Exiting. "
+        )
+        raise ValueError("Output science directory already exists. ")
+
+    logger.info(f"Creating {str(output_split_science_path)}")
+    output_split_science_path.mkdir(parents=True)
 
     logger.info(f"{field_options=}")
 
@@ -84,27 +90,35 @@ def process_science_fields(
     logger.info(f"Constructed the following {calibrate_cmds=}")
 
     split_science_mss = task_split_by_field.map(
-        ms=science_mss, field=None, out_dir=unmapped(output_split_science_path)
+        ms=science_mss,
+        field=None,
+        out_dir=unmapped(output_split_science_path),
+        column=unmapped("DATA"),
     )
     flat_science_mss = task_flatten.submit(split_science_mss)
 
-    preprocess_science_mss = task_preprocess_askap_ms.map(
-        ms=flat_science_mss,
-        data_column=unmapped("DATA"),
-        instrument_column=unmapped("INSTRUMENT_DATA"),
-        overwrite=True,
-    )
     solutions_paths = task_select_solution_for_ms.map(
-        calibrate_cmds=unmapped(calibrate_cmds), ms=preprocess_science_mss
+        calibrate_cmds=unmapped(calibrate_cmds), ms=flat_science_mss
     )
     apply_solutions_cmds = task_create_apply_solutions_cmd.map(
-        ms=preprocess_science_mss,
+        ms=flat_science_mss,
         solutions_file=solutions_paths,
         container=field_options.calibrate_container,
     )
+    column_rename_mss = task_rename_column_in_ms.map(
+        ms=apply_solutions_cmds,
+        original_column_name=unmapped("DATA"),
+        new_column_name=unmapped("INSTRUMENT_DATA"),
+    )
+    preprocess_science_mss = task_preprocess_askap_ms.map(
+        ms=column_rename_mss,
+        data_column=unmapped("CORRECTED_DATA"),
+        instrument_column=unmapped("DATA"),
+        overwrite=True,
+    )
 
     flagged_mss = task_flag_ms_aoflagger.map(
-        ms=apply_solutions_cmds, container=field_options.flagger_container, rounds=1
+        ms=preprocess_science_mss, container=field_options.flagger_container, rounds=1
     )
 
     if field_options.no_imaging:
