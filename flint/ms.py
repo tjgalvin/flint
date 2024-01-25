@@ -507,6 +507,7 @@ def rename_column_in_ms(
             new_column_name not in colnames
         ), f"{new_column_name=} already exists in {ms}"
 
+        logger.info(f"Renaming {original_column_name} to {new_column_name}")
         tab.renamecol(oldname=original_column_name, newname=new_column_name)
 
     if update_tracked_column:
@@ -581,8 +582,9 @@ def preprocess_askap_ms(
     if skip_rotation:
         # TODO: Should we copy the DATA to INSTRUMENT_DATA?
         logger.info("Skipping the rotation of the visibilities. ")
+        ms = ms.with_options(column=data_column)
         logger.info(f"Returning {ms=}.")
-        return ms.with_options(column=data_column)
+        return ms
 
     logger.info("Applying roation matrix to correlations. ")
     logger.info(
