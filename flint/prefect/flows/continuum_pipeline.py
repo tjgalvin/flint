@@ -104,6 +104,7 @@ def process_science_fields(
         ms=apply_solutions_cmds,
         original_column_name=unmapped("DATA"),
         new_column_name=unmapped("INSTRUMENT_DATA"),
+        update_tracked_column=True,
     )
     preprocess_science_mss = task_preprocess_askap_ms.map(
         ms=column_rename_mss,
