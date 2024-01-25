@@ -65,9 +65,14 @@ def process_science_fields(
         Path(split_path / science_folder_name).absolute().resolve()
     )
 
-    if not output_split_science_path.exists():
-        logger.info(f"Creating {str(output_split_science_path)}")
-        output_split_science_path.mkdir(parents=True)
+    if output_split_science_path.exists():
+        logger.critical(
+            f"{output_split_science_path=} already exists. It should not. Exiting. "
+        )
+        raise ValueError("Output science directory already exists. ")
+
+    logger.info(f"Creating {str(output_split_science_path)}")
+    output_split_science_path.mkdir(parents=True)
 
     logger.info(f"{field_options=}")
 
@@ -104,7 +109,6 @@ def process_science_fields(
         ms=apply_solutions_cmds,
         original_column_name=unmapped("DATA"),
         new_column_name=unmapped("INSTRUMENT_DATA"),
-        update_tracked_column=True,
     )
     preprocess_science_mss = task_preprocess_askap_ms.map(
         ms=column_rename_mss,
