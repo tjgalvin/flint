@@ -736,7 +736,7 @@ def match_nearest_neighbour(
         pos2=pos2[idx],
         freq1=catalogue1.freq,
         freq2=catalogue2.freq,
-        idx1=np.squeeze(np.argwhere(mask)),
+        idx1=np.argwhere(mask)[:,0],
         idx2=idx,
         flux1=table1[catalogue1.flux_col].value[mask]
         if catalogue1.flux_col != "None"
@@ -1213,16 +1213,16 @@ def create_validation_tables(
         if survey == "askap":
             continue
 
-        logger.info(f"Processing {survey=}")
-
         # The index method of a named tuple is the same as tuple[i], where
         # i is an int. This is a round about way of getting the key name
         # from a named attributed stored in a parameter
         survey_catalogue = catalogues.__getattribute__(survey)
         survey_table = tables.__getattribute__(survey)
 
-        if survey_catalogue is None or survey_table is None:
+        if survey_catalogue is None:
             continue
+
+        logger.info(f"Processing {survey=}")
 
         match_result = match_nearest_neighbour(
             table1=tables.askap,
@@ -1230,6 +1230,7 @@ def create_validation_tables(
             catalogue1=catalogues.askap,
             catalogue2=survey_catalogue,
         )
+        
         xmatch_table, xmatch_file = make_xmatch_table(
             table1=tables.askap,
             table2=survey_table,
@@ -1460,13 +1461,13 @@ def cli() -> None:
     parser = get_parser()
 
     args = parser.parse_args()
-    create_validation_plot(
-        processed_ms_paths=args.processed_ms_paths,
-        rms_image_path=args.rms_image_path,
-        source_catalogue_path=args.source_catalogue_path,
-        output_path=args.output_path,
-        reference_catalogue_directory=args.reference_catalogue_directory,
-    )
+    # create_validation_plot(
+    #     processed_ms_paths=args.processed_ms_paths,
+    #     rms_image_path=args.rms_image_path,
+    #     source_catalogue_path=args.source_catalogue_path,
+    #     output_path=args.output_path,
+    #     reference_catalogue_directory=args.reference_catalogue_directory,
+    # )
 
     validation_tables = create_validation_tables(
         processed_ms_paths=args.processed_ms_paths,
