@@ -736,7 +736,7 @@ def match_nearest_neighbour(
         pos2=pos2[idx],
         freq1=catalogue1.freq,
         freq2=catalogue2.freq,
-        idx1=np.argwhere(mask)[:,0],
+        idx1=np.argwhere(mask)[:, 0],
         idx2=idx,
         flux1=table1[catalogue1.flux_col].value[mask]
         if catalogue1.flux_col != "None"
@@ -1230,7 +1230,7 @@ def create_validation_tables(
             catalogue1=catalogues.askap,
             catalogue2=survey_catalogue,
         )
-        
+
         xmatch_table, xmatch_file = make_xmatch_table(
             table1=tables.askap,
             table2=survey_table,
