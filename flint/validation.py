@@ -1461,13 +1461,13 @@ def cli() -> None:
     parser = get_parser()
 
     args = parser.parse_args()
-    # create_validation_plot(
-    #     processed_ms_paths=args.processed_ms_paths,
-    #     rms_image_path=args.rms_image_path,
-    #     source_catalogue_path=args.source_catalogue_path,
-    #     output_path=args.output_path,
-    #     reference_catalogue_directory=args.reference_catalogue_directory,
-    # )
+    create_validation_plot(
+        processed_ms_paths=args.processed_ms_paths,
+        rms_image_path=args.rms_image_path,
+        source_catalogue_path=args.source_catalogue_path,
+        output_path=args.output_path,
+        reference_catalogue_directory=args.reference_catalogue_directory,
+    )
 
     validation_tables = create_validation_tables(
         processed_ms_paths=args.processed_ms_paths,
