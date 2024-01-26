@@ -1213,10 +1213,11 @@ def create_validation_tables(
         if survey == "askap":
             continue
 
-        # The initial attempts to do something like
-        # tables[tables.index(survey)]
-        # was returning a `tuple.index(x): x not in tuple` error
-        # Do this once here and reuse
+        logger.info(f"Processing {survey=}")
+
+        # The index method of a named tuple is the same as tuple[i], where
+        # i is an int. This is a round about way of getting the key name
+        # from a named attributed stored in a parameter
         survey_catalogue = catalogues.__getattribute__(survey)
         survey_table = tables.__getattribute__(survey)
 
