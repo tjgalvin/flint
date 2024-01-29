@@ -1010,29 +1010,25 @@ def plot_field_info(
         fontdict={"fontsize": F_LARGE},
         family="monospace",
     )
+
+    field_text = (
+        f"- J2000 RA / Dec    : {rms_info.centre.icrs.to_string(style='hmsdms', precision=1)}"
+        f"- Galactic l / b    : {rms_info.centre.galactic.to_string(style='decimal')}"
+        f"- SBID              : {ms_info.sbid}"
+        f"- CAL_SBID          : {''}"
+        f"- Start time        : {ms_times[0].utc.fits}"
+        f"- Integration time  : {ms_times.ptp().sec * u.second:latex_inline}"
+        f"- Hour angle range  : {hour_angles.min().to_string(precision=2, format='latex_inline')} - {hour_angles.max().to_string(precision=2, format='latex_inline')}"
+        f"- Elevation range   : {elevations.min().to_string(precision=2, format='latex_inline')} - {elevations.max().to_string(precision=2, format='latex_inline')}"
+        f"- Median rms uJy    : {rms_info.median*1e6:.1f}"
+        f"- Components        : {len(askap_table)}"
+        f"- Processing date   : {Time.now().fits}"
+    )
+
     ax.text(
         0.0,
         0.0,
-        f"""
-    - J2000 RA / Dec    :
-              {rms_info.centre.icrs.to_string(style='hmsdms', precision=1)}
-    - Galactic l / b    : {rms_info.centre.galactic.to_string(style='decimal')}
-    - SBID              : {ms_info.sbid}
-    - CAL_SBID          : {""}
-    - Start time        :
-              {ms_times[0].utc.fits}
-    - Integration time  : {ms_times.ptp().sec * u.second:latex_inline}
-    - Hour angle range  :
-              {hour_angles.min().to_string(precision=2, format='latex_inline')} - {hour_angles.max().to_string(precision=2, format='latex_inline')}
-    - Elevation range   :
-              {elevations.min().to_string(precision=2, format='latex_inline')} - {elevations.max().to_string(precision=2, format='latex_inline')}
-
-    - Median rms uJy    : {rms_info.median*1e6:.1f}
-    - Components        : {len(askap_table)}
-
-    - Processing date   :
-              {Time.now().fits}
-        """,
+        field_text,
         family="monospace",
         fontdict={"fontsize": F_MED},
     )
