@@ -34,7 +34,6 @@ from flint.exceptions import PhaseOutlierFitError
 from flint.logging import logger
 from flint.ms import MS, consistent_ms, get_beam_from_ms
 from flint.naming import get_aocalibrate_output_path
-from flint.plot_utils import fill_between_flags
 from flint.sclient import run_singularity_command
 
 
@@ -148,6 +147,32 @@ class AOSolutions(NamedTuple):
         """
         # TODO: Change call signature to pass straight through
         return plot_solutions(solutions=self, ref_ant=ref_ant)
+
+
+def fill_between_flags(
+    ax: plt.Axes,
+    flags: np.ndarray,
+    values: Optional[np.ndarray] = None,
+    direction: str = "x",
+) -> None:
+    """Plot vertical or horizontal lines where data are flagged.
+
+    NOTE: This is pretty inefficent and not intended for regular use.
+
+    Args:
+        ax (plt.Axes): Axes object to plot lines on
+        flags (np.ndarray): Flags to consider. If `True`, plot.
+        values (Optional[np.ndarray], optional): The values to plot at. Useful if the position does not map to location. Defaults to None.
+        direction (str, optional): If `x` use axvline, if `y` use axhline. Defaults to "x".
+    """
+    values = values if values else np.arange(len(flags))
+
+    mask = np.argwhere(flags)
+    plot_vals = values[mask]
+    func = ax.axvline if direction == "x" else ax.axhline
+
+    for v in plot_vals:
+        func(v, color="black", alpha=0.3)
 
 
 def plot_solutions(
