@@ -35,7 +35,7 @@ from flint.prefect.common.imaging import (
     task_zip_ms,
 )
 from flint.prefect.common.utils import task_flatten, task_update_field_summary
-from flint.summary import FieldSummary, create_field_summary, add_rms_information
+from flint.summary import create_field_summary
 
 
 @flow(name="Flint Continuum Pipeline")
