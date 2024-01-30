@@ -297,7 +297,9 @@ def process_science_fields(
                 image=parset, aegean_container=unmapped(field_options.aegean_container)
             )
             field_summary = task_update_field_summary(
-                field_summary=field_summary, aegean_outputs=aegean_outputs, round=round
+                field_summary=field_summary,
+                aegean_outputs=aegean_outputs,
+                round=round,
             )
             if run_validation:
                 validation_plot = task_create_validation_plot.submit(

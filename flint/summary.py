@@ -42,13 +42,11 @@ class FieldSummary(NamedTuple):
     """Centre of the field, which is calculated from the centre of an image"""
     integration_time: Optional[int] = None
     """The integration time of the observation (seconds)"""
-    median_rms_ujy: Optional[float] = None
-    """The median rms of the field in uJy"""
     no_components: Optional[int] = None
     """Number of components found from the source finder"""
     holography_path: Optional[Path] = None
     """Path to the file used for holography"""
-    selfcal_round: Optional[int] = None
+    round: Optional[int] = None
     """The self-cal round"""
     location: Optional[EarthLocation] = None
     """The location of the telescope stored as (X,Y,Z) in meters"""
@@ -60,8 +58,6 @@ class FieldSummary(NamedTuple):
     """Computed elevations of the field"""
     median_rms: Optional[float] = None
     """The meanian RMS computed from an RMS image"""
-    round: Optional[int] = None
-    """The self-calibration round"""
 
     def with_options(self, **kwargs) -> FieldSummary:
         prop = self._asdict()
@@ -93,6 +89,16 @@ def add_rms_information(
     Returns:
         FieldSummary: Updated field summary object
     """
+    # NOTE: The only reason this pirate is using the RMS image here is
+    # because at the moment there is not a neat way to get the (rough)
+    # field center. Access in a meaningful way to the observatory database
+    # would be useful (like the metafits service for the MWA). Since
+    # the principal use of a FieldSummary is in the validation plot/table
+    # and the RMS / component catalogue is expected, this pirate can
+    # handle it. With some ale.
+    # TODO: Consider trying to take the mean position from the phase direction
+    # from all science MSs
+
     rms_image_path = aegean_outputs.rms
 
     rms_info = get_rms_image_info(rms_path=rms_image_path)
