@@ -7,9 +7,8 @@ from __future__ import (  # Used for mypy/pylance to like the return type of MS.
 from pathlib import Path
 from typing import NamedTuple, Optional, Union
 
-import numpy as np
 import astropy.units as u
-from astropy.coordinates import AltAz, EarthLocation, SkyCoord, Longitude, Latitude
+from astropy.coordinates import AltAz, EarthLocation, Latitude, Longitude, SkyCoord
 from astropy.table import Table
 from astropy.time import Time
 
@@ -27,7 +26,9 @@ class FieldSummary(NamedTuple):
     are zipped (or removed) throughout.
 
     There are known issues around serialising astropy units within a dask/prefect environment,
-    for example: https://github.com/astropy/astropy/issues/11317, Ye be warned.
+    for example: https://github.com/astropy/astropy/issues/11317,
+    This could become important if an instance of this object is exchaned
+    between many prefect or dask like delayed tasks. Ye be warned.
     """
 
     sbid: str
@@ -67,6 +68,26 @@ class FieldSummary(NamedTuple):
 def add_rms_information(
     field_summary: FieldSummary, aegean_outputs: AegeanOutputs
 ) -> FieldSummary:
+    """Add information derived from an RMS image and component catalogue
+    to an existing `FieldSummary` instance. Some properteries, such as
+    the center position, number of components etc, are taken directly
+    from source finder products.
+
+    On the center position -- there is not (at the moment) a simple
+    way of getting the center position of a field. So the image
+    itself is used to grab it.
+
+    Other properties that require components of a measurement set,
+    including the time and position, are also derived using existing
+    fields which are created when a new instance is made.
+
+    Args:
+        field_summary (FieldSummary): Existing field summary object to update
+        aegean_outputs (AegeanOutputs): Products of a source finding run
+
+    Returns:
+        FieldSummary: Updated field summary object
+    """
     rms_image_path = aegean_outputs.rms
 
     rms_info = get_rms_image_info(rms_path=rms_image_path)
@@ -96,6 +117,17 @@ def create_field_summary(
     holography_path: Optional[Path] = None,
     aegean_outputs: Optional[AegeanOutputs] = None,
 ) -> FieldSummary:
+    """Create a field summary object using a measurement set.
+
+    Args:
+        ms (Union[MS, Path]): Measurement set information will be pulled from
+        cal_sbid_path (Optional[Path], optional): Path to an example of a bandpass measurement set. Defaults to None.
+        holography_path (Optional[Path], optional): The holography fits cube used (or will be) to linmos. Defaults to None.
+        aegean_outputs (Optional[AegeanOutputs], optional): Should RMS / source information be added to the instance. Defaults to None.
+
+    Returns:
+        FieldSummary: _description_
+    """
     logger.info("Creating field summary object")
 
     ms = MS.cast(ms=ms)
@@ -126,10 +158,3 @@ def create_field_summary(
 
 def update_field_summary() -> FieldSummary:
     pass
-
-
-# ms_times = get_times_from_ms(ms=ms)
-#     telescope = get_telescope_location_from_ms(ms=ms)
-#     centre_altaz = centre.transform_to(AltAz(obstime=ms_times, location=telescope))
-#     hour_angles = centre_altaz.az.to(u.hourangle)
-#     elevations = centre_altaz.alt.to(u.deg)
