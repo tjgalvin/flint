@@ -34,7 +34,8 @@ from flint.prefect.common.imaging import (
     task_wsclean_imager,
     task_zip_ms,
 )
-from flint.prefect.common.utils import task_flatten
+from flint.prefect.common.utils import task_flatten, task_update_field_summary
+from flint.summary import FieldSummary, create_field_summary, add_rms_information
 
 
 @flow(name="Flint Continuum Pipeline")
@@ -88,6 +89,14 @@ def process_science_fields(
     )
 
     logger.info(f"Constructed the following {calibrate_cmds=}")
+
+    field_summary = create_field_summary(
+        ms=science_mss[0],
+        cal_sbid_path=bandpass_path,
+        holography_path=field_options.holofile,
+    )
+
+    logger.info(f"{field_summary=}")
 
     split_science_mss = task_split_by_field.map(
         ms=science_mss,
@@ -172,6 +181,10 @@ def process_science_fields(
         if run_aegean:
             aegean_outputs = task_run_bane_and_aegean.submit(
                 image=parset, aegean_container=unmapped(field_options.aegean_container)
+            )
+            field_summary = task_update_field_summary.submit(
+                field_summary=field_summary,
+                aegean_outputs=aegean_outputs,
             )
 
             if run_validation:
@@ -283,7 +296,9 @@ def process_science_fields(
             aegean_outputs = task_run_bane_and_aegean.submit(
                 image=parset, aegean_container=unmapped(field_options.aegean_container)
             )
-
+            field_summary = task_update_field_summary(
+                field_summary=field_summary, aegean_outputs=aegean_outputs, round=round
+            )
             if run_validation:
                 validation_plot = task_create_validation_plot.submit(
                     processed_mss=cal_mss,

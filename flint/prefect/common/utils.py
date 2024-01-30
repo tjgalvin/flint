@@ -9,6 +9,7 @@ from prefect import task
 from prefect.artifacts import create_markdown_artifact
 
 from flint.logging import logger
+from flint.summary import update_field_summary
 
 T = TypeVar("T")
 
@@ -49,6 +50,9 @@ def upload_image_as_artifact(
     image_uuid = create_markdown_artifact(markdown=markdown, description=description)
 
     return image_uuid
+
+
+task_update_field_summary = task(update_field_summary)
 
 
 @task

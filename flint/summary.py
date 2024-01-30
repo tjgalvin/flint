@@ -1,4 +1,4 @@
-"""Summary containers intended to hold general information obtained throughout a processing run
+"""Summary containers intended to hold general information obtained throughout a processing run. 
 """
 from __future__ import (  # Used for mypy/pylance to like the return type of MS.with_options
     annotations,
@@ -23,7 +23,10 @@ class FieldSummary(NamedTuple):
     """The main information about a processed field. This structure is
     intended to store critical components that might be accumulated throughout
     processing of a pipeline, and may be most useful when data-products
-    are zipped (or removed) throughout.
+    are zipped (or removed) throughout. Its intended usage is to hold key
+    components that might be used in stages like validation plotting. It is not
+    intended to become a catch-all to replace passing through items into
+    functions directly.
 
     There are known issues around serialising astropy units within a dask/prefect environment,
     for example: https://github.com/astropy/astropy/issues/11317,
@@ -57,6 +60,8 @@ class FieldSummary(NamedTuple):
     """Computed elevations of the field"""
     median_rms: Optional[float] = None
     """The meanian RMS computed from an RMS image"""
+    round: Optional[int] = None
+    """The self-calibration round"""
 
     def with_options(self, **kwargs) -> FieldSummary:
         prop = self._asdict()
@@ -111,6 +116,35 @@ def add_rms_information(
     return field_summary
 
 
+def update_field_summary(
+    field_summary: FieldSummary,
+    aegean_outputs: Optional[AegeanOutputs] = None,
+    **kwargs,
+) -> FieldSummary:
+    """Update an existing `FieldSummary` instance with additional information.
+
+    If special steps are required to be carried out based on a known input they will be.
+    Otherwise all additional keyword arguments are passed through to the `FieldSummary.with_options`.
+
+    Args:
+        field_summary (FieldSummary): Field summary object to update
+        aegean_outputs (Optional[AegeanOutputs], optional): Will add RMS and aegean related properties. Defaults to None.
+
+    Returns:
+        FieldSummary: An updated field summary objects
+    """
+
+    if aegean_outputs:
+        field_summary = add_rms_information(
+            field_summary=field_summary, aegean_outputs=aegean_outputs
+        )
+
+    field_summary = field_summary.with_options(**kwargs)
+
+    logger.info(f"Updated {field_summary=}")
+    return field_summary
+
+
 def create_field_summary(
     ms: Union[MS, Path],
     cal_sbid_path: Optional[Path] = None,
@@ -126,7 +160,7 @@ def create_field_summary(
         aegean_outputs (Optional[AegeanOutputs], optional): Should RMS / source information be added to the instance. Defaults to None.
 
     Returns:
-        FieldSummary: _description_
+        FieldSummary: A summary of a field
     """
     logger.info("Creating field summary object")
 
@@ -154,7 +188,3 @@ def create_field_summary(
         )
 
     return field_summary
-
-
-def update_field_summary() -> FieldSummary:
-    pass

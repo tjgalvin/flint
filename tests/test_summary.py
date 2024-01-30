@@ -8,7 +8,12 @@ from astropy.time import Time
 from astropy.coordinates import EarthLocation
 
 from flint.ms import get_times_from_ms, get_telescope_location_from_ms
-from flint.summary import FieldSummary, create_field_summary, add_rms_information
+from flint.summary import (
+    FieldSummary,
+    create_field_summary,
+    add_rms_information,
+    update_field_summary,
+)
 from flint.source_finding.aegean import AegeanOutputs
 
 
@@ -102,6 +107,28 @@ def test_field_summary_rms_info_creation(ms_example, aegean_outputs_example):
     assert isinstance(field_summary.location, EarthLocation)
     assert field_summary.integration_time == 19.90655994415036
     assert isinstance(field_summary.ms_times, Time)
+
+
+def test_field_summary_update(ms_example, aegean_outputs_example):
+    sbid_path = ms_example
+    cal_sbid_path = Path("/scratch3/gal16b/split/39433/SB39433.1934-638.beam0.ms")
+
+    field_summary = create_field_summary(ms=sbid_path, cal_sbid_path=cal_sbid_path)
+
+    assert isinstance(field_summary, FieldSummary)
+    assert field_summary.sbid == "39400"
+    assert field_summary.cal_sbid == "39433"
+    assert isinstance(field_summary.location, EarthLocation)
+    assert field_summary.integration_time == 19.90655994415036
+    assert isinstance(field_summary.ms_times, Time)
+    assert field_summary.round is None
+
+    field_summary = update_field_summary(
+        field_summary=field_summary, aegean_outputs=aegean_outputs_example, round=2
+    )
+    assert field_summary.no_components == 7225
+    assert np.isclose(field_summary.median_rms, 0.0001515522)
+    assert field_summary.round == 2
 
 
 def test_ms_example_times(ms_example):
