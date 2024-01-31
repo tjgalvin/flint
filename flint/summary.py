@@ -248,3 +248,6 @@ def create_field_summary(
         field_summary = add_ms_summaries(field_summary=field_summary, mss=mss)
 
     return field_summary
+
+
+# TODO: Write a BeamSummary class

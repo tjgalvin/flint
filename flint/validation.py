@@ -1000,7 +1000,7 @@ def plot_field_info(
     ax.text(
         0.1,
         0.9,
-        f"Field name: {''}",
+        f"Field name: {field_summary.field_name}",
         fontdict={"fontsize": F_LARGE},
         family="monospace",
     )
