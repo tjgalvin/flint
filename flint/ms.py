@@ -107,6 +107,8 @@ class MSSummary(NamedTuple):
     """Collection of unique antennas"""
     beam: int
     """The ASKAP beam number of the measurement set"""
+    path: Path
+    """Path to the measurement set that is being represented"""
 
 
 # TODO: Some common MS validation functions?
@@ -326,6 +328,7 @@ def describe_ms(ms: Union[MS, Path], verbose: bool = True) -> MSSummary:
         fields=uniq_fields,
         ants=uniq_ants,
         beam=beam_no,
+        path=ms.path,
     )
 
 
