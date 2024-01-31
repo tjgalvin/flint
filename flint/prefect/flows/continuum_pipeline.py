@@ -90,22 +90,23 @@ def process_science_fields(
 
     logger.info(f"Constructed the following {calibrate_cmds=}")
 
-    field_summary = create_field_summary(
-        ms=science_mss[0],
-        cal_sbid_path=bandpass_path,
-        holography_path=field_options.holofile,
-        mss=science_mss,
-    )
-
-    logger.info(f"{field_summary=}")
-
     split_science_mss = task_split_by_field.map(
         ms=science_mss,
         field=None,
         out_dir=unmapped(output_split_science_path),
         column=unmapped("DATA"),
     )
-    flat_science_mss = task_flatten.submit(split_science_mss)
+
+    # This will block until resolved
+    flat_science_mss = task_flatten.submit(split_science_mss).result()
+
+    field_summary = create_field_summary(
+        ms=flat_science_mss[0],
+        cal_sbid_path=bandpass_path,
+        holography_path=field_options.holofile,
+        mss=flat_science_mss,
+    )
+    logger.info(f"{field_summary=}")
 
     solutions_paths = task_select_solution_for_ms.map(
         calibrate_cmds=unmapped(calibrate_cmds), ms=flat_science_mss
