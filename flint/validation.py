@@ -1443,13 +1443,30 @@ def cli() -> None:
 
     args = parser.parse_args()
 
+    from astropy.io import fits
     from flint.summary import create_field_summary
     from flint.source_finding.aegean import AegeanOutputs
 
+    rms_image_path = args.rms_image_path
+
+    try:
+        rms_header = fits.getheader(rms_image_path)
+        rms_beam = (
+            rms_header["BMAJ"],
+            rms_header["BMIN"],
+            rms_header["BPA"],
+        )
+    except KeyError:
+        rms_beam = (1.0, 1.0, 1.0)
+        logger.warn(
+            f"Beam keywords not found in {rms_image_path=}. Setting to default {rms_beam}"
+        )
+
     aegean_outputs = AegeanOutputs(
-        bkg=args.rms_image_path,
-        rms=args.rms_image_path,
+        bkg=rms_image_path,
+        rms=rms_image_path,
         comp=args.reference_catalogue_path,
+        beam_shape=rms_beam,
     )
 
     field_summary = create_field_summary(

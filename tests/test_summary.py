@@ -30,7 +30,9 @@ def aegean_outputs_example():
         )
     )
 
-    aegean_outputs = AegeanOutputs(bkg=rms, rms=rms, comp=comp)
+    aegean_outputs = AegeanOutputs(
+        bkg=rms, rms=rms, comp=comp, beam_shape=(1.0, 1.0, 1.0)
+    )
 
     return aegean_outputs
 
