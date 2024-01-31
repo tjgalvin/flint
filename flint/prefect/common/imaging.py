@@ -577,7 +577,7 @@ def task_create_validation_plot(
     logger.info(f"Will create validation plot in {output_path=}")
 
     plot_path = create_validation_plot(
-        field_sumnmary=field_summary,
+        field_summary=field_summary,
         rms_image_path=aegean_outputs.rms,
         source_catalogue_path=aegean_outputs.comp,
         output_path=output_path,

@@ -1098,7 +1098,7 @@ def make_field_stats_table(
     # TODO: Get the min / max from the image (not rms)
     stats_table = Table(
         {
-            "FLD_NAME": [field_summary.field],
+            "FLD_NAME": [field_summary.field_name],
             "SBID": [field_summary.sbid],
             "NPIXV": [rms_info.no_valid_pixels],
             "MINIMUM": [np.nan],
@@ -1111,7 +1111,9 @@ def make_field_stats_table(
         }
     )
     # statistics_{SBID}-{FIELD_NAME}.csv
-    outfile = output_path / f"statistics_{field_summary.sbid}-{field_summary.field}.csv"
+    outfile = (
+        output_path / f"statistics_{field_summary.sbid}-{field_summary.field_name}.csv"
+    )
     stats_table.write(outfile, format="csv", overwrite=True)
 
     return outfile
@@ -1177,7 +1179,7 @@ def create_validation_tables(
 
     rms_info = get_rms_image_info(rms_path=rms_image_path)
 
-    askap_survey_name = f"{field_summary.sbid}-{field_summary.field}"
+    askap_survey_name = f"{field_summary.sbid}-{field_summary.field_name}"
 
     # Load in the catalogues
     catalogues, tables = load_catalogues(
@@ -1289,7 +1291,7 @@ def create_validation_plot(
     logger.info(f"Loading {skads_path=}")
     skads = Table.read(skads_path)
 
-    askap_survey_name = f"{field_summary.sbid}-{field_summary.field}"
+    askap_survey_name = f"{field_summary.sbid}-{field_summary.field_name}"
 
     # Load in the catalogues
     catalogues, tables = load_catalogues(
@@ -1376,7 +1378,7 @@ def create_validation_plot(
     )
 
     fig.suptitle(
-        rf"$\it{{Flint}}$ summary for Field: {field_summary.field} - SBID: {field_summary.sbid} - Round: {field_summary.round}",
+        rf"$\it{{Flint}}$ summary for Field: {field_summary.field_name} - SBID: {field_summary.sbid} - Round: {field_summary.round}",
         fontsize=F_HUGE,
     )
 
