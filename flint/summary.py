@@ -23,6 +23,7 @@ from flint.ms import (
 from flint.naming import get_sbid_from_path, processed_ms_format
 from flint.source_finding.aegean import AegeanOutputs
 from flint.utils import estimate_image_centre
+from flint.imager.wsclean import ImageSet
 
 
 class FieldSummary(NamedTuple):
@@ -250,4 +251,20 @@ def create_field_summary(
     return field_summary
 
 
-# TODO: Write a BeamSummary class
+class BeamSummary(NamedTuple):
+    """Structure intended to collect components from a measurement set
+    as it is being processed through a continuum imaging pipeline
+    """
+
+    summary: MSSummary
+    """A summary object of a measurement set"""
+    imageset: Optional[ImageSet] = None
+    """A set of images that have been created from the measurement set represented by `summary`"""
+    components: Optional[AegeanOutputs] = None
+    """The source finding components from the aegean source finder"""
+
+    def with_options(self, **kwargs) -> BeamSummary:
+        prop = self._asdict()
+        prop.update(**kwargs)
+
+        return BeamSummary(**prop)
