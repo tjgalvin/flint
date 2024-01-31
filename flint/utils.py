@@ -7,7 +7,26 @@ import subprocess
 from pathlib import Path
 from typing import List, Optional
 
+from astropy.io import fits
+from astropy.wcs import WCS
+from astropy.coordinates import SkyCoord
+import numpy as np
+
 from flint.logging import logger
+
+
+def estimate_image_centre(image_path: Path) -> SkyCoord:
+    with fits.open(image_path, memmap=True) as open_image:
+        image_header = open_image[0].header
+        image_shape = open_image[0].data.shape
+
+    wcs = WCS(image_header)
+    centre_pixel = np.array(image_shape) / 2.0
+    # The celestial deals with the radio image potentially having four dimensions
+    # (stokes, frequencyes, ra, dec)
+    centre_sky = wcs.celestial.pixel_to_world(centre_pixel[0], centre_pixel[1])
+
+    return centre_sky
 
 
 def zip_folder(in_path: Path, out_zip: Optional[Path] = None) -> Path:

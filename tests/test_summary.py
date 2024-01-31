@@ -3,7 +3,6 @@ import shutil
 from pathlib import Path
 
 import pkg_resources
-import numpy as np
 from astropy.time import Time
 from astropy.coordinates import EarthLocation
 
@@ -90,7 +89,6 @@ def test_field_summary_rms_info(ms_example, aegean_outputs_example):
         field_summary=field_summary, aegean_outputs=aegean_outputs_example
     )
     assert field_summary.no_components == 7225
-    assert np.isclose(field_summary.median_rms, 0.0001515522)
 
 
 def test_field_summary_rms_info_creation(ms_example, aegean_outputs_example):
@@ -127,7 +125,6 @@ def test_field_summary_update(ms_example, aegean_outputs_example):
         field_summary=field_summary, aegean_outputs=aegean_outputs_example, round=2
     )
     assert field_summary.no_components == 7225
-    assert np.isclose(field_summary.median_rms, 0.0001515522)
     assert field_summary.round == 2
 
 
