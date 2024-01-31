@@ -94,6 +94,7 @@ def process_science_fields(
         ms=science_mss[0],
         cal_sbid_path=bandpass_path,
         holography_path=field_options.holofile,
+        mss=science_mss,
     )
 
     logger.info(f"{field_summary=}")
@@ -189,12 +190,12 @@ def process_science_fields(
 
             if run_validation:
                 validation_plot = task_create_validation_plot.submit(
-                    processed_mss=flagged_mss,
+                    field_summary=field_summary,
                     aegean_outputs=aegean_outputs,
                     reference_catalogue_directory=field_options.reference_catalogue_directory,
                 )
                 validation_tables = task_create_validation_tables.submit(
-                    processed_mss=flagged_mss,
+                    field_summary=field_summary,
                     aegean_outputs=aegean_outputs,
                     reference_catalogue_directory=field_options.reference_catalogue_directory,
                 )
@@ -303,12 +304,12 @@ def process_science_fields(
             )
             if run_validation:
                 validation_plot = task_create_validation_plot.submit(
-                    processed_mss=cal_mss,
+                    field_summary=field_summary,
                     aegean_outputs=aegean_outputs,
                     reference_catalogue_directory=field_options.reference_catalogue_directory,
                 )
                 validation_tables = task_create_validation_tables.submit(
-                    processed_mss=cal_mss,
+                    field_summary=field_summary,
                     aegean_outputs=aegean_outputs,
                     reference_catalogue_directory=field_options.reference_catalogue_directory,
                 )
