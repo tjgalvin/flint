@@ -302,7 +302,7 @@ def process_science_fields(
             aegean_outputs = task_run_bane_and_aegean.submit(
                 image=parset, aegean_container=unmapped(field_options.aegean_container)
             )
-            field_summary = task_update_field_summary(
+            field_summary = task_update_field_summary.submit(
                 field_summary=field_summary,
                 aegean_outputs=aegean_outputs,
                 round=round,
