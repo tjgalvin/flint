@@ -76,7 +76,7 @@ class MS(NamedTuple):
         elif "ms" in dir(ms) and isinstance(ms.ms, MS):
             ms = ms.ms
         else:
-            raise MSError("Unable to convert to MS object. ")
+            raise MSError(f"Unable to convert {ms=} of {type(ms)} to MS object. ")
 
         return ms
 
