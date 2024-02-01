@@ -56,6 +56,28 @@ task_update_field_summary = task(update_field_summary)
 task_create_field_summary = task(create_field_summary)
 
 
+# Intended to represent objects with a .with_options() interface
+T = TypeVar("T")
+
+
+@task
+def task_update_with_options(input_object: T, **kwargs) -> T:
+    """Updated any object via its `.with_options()` interface.
+
+    All key-word arguments other than `input_object` are passed through
+    to that `input_object`s `.with_options()` method.
+
+    Args:
+        input_object (T): The object that has an `.with_options` method that will be updated
+
+    Returns:
+        T: The updated object
+    """
+    updated_object = input_object.with_options(**kwargs)
+
+    return updated_object
+
+
 @task
 def task_get_attributes(item: Any, attribute: str) -> Any:
     """Retrieve an attribute from an input instance of a class or structure.
