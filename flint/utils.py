@@ -15,6 +15,27 @@ import numpy as np
 from flint.logging import logger
 
 
+def estimate_skycoord_centre(sky_positions: SkyCoord) -> SkyCoord:
+    """Estimate the centre position of (RA, Dec) positions stored in a
+    input `SkyCoord`. Internally the mean of the cartesian (X,Y,Z) is
+    calculated, which is then transormed back to a sky position,.
+
+    Args:
+        sky_positions (SkyCoord): Set of input positions to consider
+
+    Returns:
+        SkyCoord: Centre position
+    """
+    xyz_positions = sky_positions.cartesian.xyz
+    xyz_mean_position = np.mean(xyz_positions, axis=1)
+
+    mean_position = SkyCoord(
+        *xyz_mean_position, representation_type="cartesian"
+    ).transform_to("fk5")
+
+    return mean_position
+
+
 def estimate_image_centre(image_path: Path) -> SkyCoord:
     with fits.open(image_path, memmap=True) as open_image:
         image_header = open_image[0].header
