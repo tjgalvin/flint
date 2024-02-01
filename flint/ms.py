@@ -34,6 +34,8 @@ class MS(NamedTuple):
     """Column that should be operated against"""
     beam: Optional[int] = None
     """The beam ID of the MS within an ASKAP field"""
+    spw: Optional[int] = None
+    """Intended to be used with ASKAP high-frequency resolution modes, where the MS is divided into SPWs"""
     field: Optional[str] = None
     """The field name  of the data"""
     model_column: Optional[str] = None
@@ -111,6 +113,8 @@ class MSSummary(NamedTuple):
     """Path to the measurement set that is being represented"""
     phase_dir: SkyCoord
     """The phase direction of the measurement set, which will be where the image will be centred"""
+    spw: Optional[int] = None
+    """Intended to be used with ASKAP high-frequency resolution modes, where the MS is divided into SPWs"""
 
 
 # TODO: Some common MS validation functions?
@@ -312,6 +316,8 @@ def get_telescope_location_from_ms(ms: Union[MS, Path]) -> EarthLocation:
     return pos
 
 
+# TODO: Inline with other changing conventions this should be
+# changed to `create_ms_summary`
 def describe_ms(ms: Union[MS, Path], verbose: bool = False) -> MSSummary:
     """Print some basic information from the inpute measurement set.
 

@@ -54,7 +54,7 @@ class FieldSummary(NamedTuple):
     """SBID of the bandpass calibrator"""
     field_name: str
     """The name of the field"""
-    ms_summaries: Optional[Tuple[MSSummary]] = None
+    ms_summaries: Optional[Tuple[MSSummary, ...]] = None
     """Summaries of measurement sets used in the processing of the filed"""
     centre: Optional[SkyCoord] = None
     """Centre of the field, which is calculated as the mean position of all phase directions of the `mss` measurement sets"""
@@ -272,3 +272,29 @@ class BeamSummary(NamedTuple):
         prop.update(**kwargs)
 
         return BeamSummary(**prop)
+
+
+def create_beam_summary(
+    ms: Union[MS, Path],
+    imageset: Optional[ImageSet] = None,
+    components: Optional[AegeanOutputs] = None,
+) -> BeamSummary:
+    """Create a summary of a beam
+
+    Args:
+        ms (Union[MS, Path]): The measurement set being considered
+        imageset (Optional[ImageSet], optional): Images produced from an imager. Defaults to None.
+        components (Optional[AegeanOutputs], optional): Source finding output components. Defaults to None.
+
+    Returns:
+        BeamSummary: Summary object of a beam
+    """
+    ms = MS.cast(ms=ms)
+    logger.info(f"Creating BeamSummary for {ms.path=}")
+
+    ms_summary = describe_ms(ms=ms)
+    beam_summary = BeamSummary(
+        ms_summary=ms_summary, imageset=imageset, components=components
+    )
+
+    return beam_summary

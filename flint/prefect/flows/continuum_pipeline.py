@@ -317,7 +317,7 @@ def process_science_fields(
                     field_summary=field_summary,
                     aegean_outputs=aegean_outputs,
                     reference_catalogue_directory=field_options.reference_catalogue_directory,
-                )  # noqa: F841
+                )
 
     # zip up the final measurement set, which is not included in the above loop
     if field_options.zip_ms:
