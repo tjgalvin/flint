@@ -124,7 +124,7 @@ def process_science_fields(
         ms=preprocess_science_mss, container=field_options.flagger_container, rounds=1
     )
 
-    field_summary = create_field_summary(
+    field_summary = create_field_summary.submit(
         mss=flagged_mss,
         cal_sbid_path=bandpass_path,
         holography_path=field_options.holofile,
