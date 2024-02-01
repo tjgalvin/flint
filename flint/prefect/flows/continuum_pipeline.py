@@ -252,7 +252,9 @@ def process_science_fields(
             round=round,
             update_gain_cal_options=unmapped(gain_cal_options),
             archive_input_ms=field_options.zip_ms,
-            # wait_for=[validation_plot, validation_tables],
+            wait_for=[
+                field_summary
+            ],  # To make sure field summary is created with unzipped MSs
         )
         wsclean_cmds = task_wsclean_imager.map(
             in_ms=cal_mss,
@@ -306,22 +308,20 @@ def process_science_fields(
                 round=round,
             )
             if run_validation:
-                validation_plot = task_create_validation_plot.submit(
+                validation_plot = task_create_validation_plot.submit(  # noqa: F841
                     field_summary=field_summary,
                     aegean_outputs=aegean_outputs,
                     reference_catalogue_directory=field_options.reference_catalogue_directory,
                 )
-                validation_tables = task_create_validation_tables.submit(
+                validation_tables = task_create_validation_tables.submit(  # noqa: F841
                     field_summary=field_summary,
                     aegean_outputs=aegean_outputs,
                     reference_catalogue_directory=field_options.reference_catalogue_directory,
-                )
+                )  # noqa: F841
 
     # zip up the final measurement set, which is not included in the above loop
     if field_options.zip_ms:
-        task_zip_ms.map(
-            in_item=wsclean_cmds, wait_for=[validation_plot, validation_tables]
-        )
+        task_zip_ms.map(in_item=wsclean_cmds)
 
 
 def setup_run_process_science_field(
