@@ -192,11 +192,10 @@ def update_field_summary(
 
 
 def create_field_summary(
-    ms: Union[MS, Path],
+    mss: Collection[Union[MS, Path]],
     cal_sbid_path: Optional[Path] = None,
     holography_path: Optional[Path] = None,
     aegean_outputs: Optional[AegeanOutputs] = None,
-    mss: Optional[Collection[MS]] = None,
 ) -> FieldSummary:
     """Create a field summary object using a measurement set.
 
@@ -217,7 +216,11 @@ def create_field_summary(
 
     logger.info("Creating field summary object")
 
-    ms = MS.cast(ms=ms)
+    mss = [MS.cast(ms=ms) for ms in mss]
+
+    # TODO: A check here to ensure all MSs are in a consistent format
+    # and are from the same field
+    ms = mss[0]
 
     ms_components = processed_ms_format(in_name=ms.path)
 
@@ -242,13 +245,12 @@ def create_field_summary(
         ms_times=Time([ms_times.min(), ms_times.max()]),
     )
 
+    field_summary = add_ms_summaries(field_summary=field_summary, mss=mss)
+
     if aegean_outputs:
         field_summary = add_rms_information(
             field_summary=field_summary, aegean_outputs=aegean_outputs
         )
-
-    if mss:
-        field_summary = add_ms_summaries(field_summary=field_summary, mss=mss)
 
     return field_summary
 

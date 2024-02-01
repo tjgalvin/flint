@@ -100,14 +100,6 @@ def process_science_fields(
     # This will block until resolved
     flat_science_mss = task_flatten.submit(split_science_mss).result()
 
-    field_summary = create_field_summary(
-        ms=flat_science_mss[0],
-        cal_sbid_path=bandpass_path,
-        holography_path=field_options.holofile,
-        mss=flat_science_mss,
-    )
-    logger.info(f"{field_summary=}")
-
     solutions_paths = task_select_solution_for_ms.map(
         calibrate_cmds=unmapped(calibrate_cmds), ms=flat_science_mss
     )
@@ -131,6 +123,13 @@ def process_science_fields(
     flagged_mss = task_flag_ms_aoflagger.map(
         ms=preprocess_science_mss, container=field_options.flagger_container, rounds=1
     )
+
+    field_summary = create_field_summary(
+        mss=flagged_mss,
+        cal_sbid_path=bandpass_path,
+        holography_path=field_options.holofile,
+    )
+    logger.info(f"{field_summary=}")
 
     if field_options.no_imaging:
         logger.info(
@@ -250,7 +249,7 @@ def process_science_fields(
             round=round,
             update_gain_cal_options=unmapped(gain_cal_options),
             archive_input_ms=field_options.zip_ms,
-            wait_for=[validation_plot, validation_tables],
+            # wait_for=[validation_plot, validation_tables],
         )
         wsclean_cmds = task_wsclean_imager.map(
             in_ms=cal_mss,

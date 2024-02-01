@@ -55,16 +55,16 @@ def ms_example(tmpdir):
 
 
 def test_field_summary(ms_example):
-    sbid_path = ms_example
     cal_sbid_path = Path("/scratch3/gal16b/split/39433/SB39433.1934-638.beam0.ms")
+    mss = [ms_example for _ in range(36)]
 
-    field_summary = create_field_summary(ms=sbid_path, cal_sbid_path=cal_sbid_path)
+    field_summary = create_field_summary(mss=mss, cal_sbid_path=cal_sbid_path)
 
     assert isinstance(field_summary, FieldSummary)
     assert field_summary.sbid == "39400"
     assert field_summary.cal_sbid == "39433"
 
-    field_summary = create_field_summary(ms=sbid_path)
+    field_summary = create_field_summary(mss=mss)
 
     assert isinstance(field_summary, FieldSummary)
     assert field_summary.sbid == "39400"
@@ -76,13 +76,11 @@ def test_field_summary(ms_example):
 
 
 def test_field_summary_with_mss(ms_example, aegean_outputs_example):
-    sbid_path = ms_example
     cal_sbid_path = Path("/scratch3/gal16b/split/39433/SB39433.1934-638.beam0.ms")
 
     mss = [ms_example for _ in range(36)]
 
     field_summary = create_field_summary(
-        ms=sbid_path,
         cal_sbid_path=cal_sbid_path,
         aegean_outputs=aegean_outputs_example,
         mss=mss,
@@ -99,10 +97,11 @@ def test_field_summary_with_mss(ms_example, aegean_outputs_example):
 
 
 def test_field_summary_rms_info(ms_example, aegean_outputs_example):
-    sbid_path = ms_example
     cal_sbid_path = Path("/scratch3/gal16b/split/39433/SB39433.1934-638.beam0.ms")
 
-    field_summary = create_field_summary(ms=sbid_path, cal_sbid_path=cal_sbid_path)
+    mss = [ms_example for _ in range(36)]
+
+    field_summary = create_field_summary(mss=mss, cal_sbid_path=cal_sbid_path)
 
     assert isinstance(field_summary, FieldSummary)
     assert field_summary.sbid == "39400"
@@ -118,11 +117,12 @@ def test_field_summary_rms_info(ms_example, aegean_outputs_example):
 
 
 def test_field_summary_rms_info_creation(ms_example, aegean_outputs_example):
-    sbid_path = ms_example
     cal_sbid_path = Path("/scratch3/gal16b/split/39433/SB39433.1934-638.beam0.ms")
 
+    mss = [ms_example for _ in range(36)]
+
     field_summary = create_field_summary(
-        ms=sbid_path, cal_sbid_path=cal_sbid_path, aegean_outputs=aegean_outputs_example
+        mss=mss, cal_sbid_path=cal_sbid_path, aegean_outputs=aegean_outputs_example
     )
 
     assert isinstance(field_summary, FieldSummary)
@@ -134,10 +134,11 @@ def test_field_summary_rms_info_creation(ms_example, aegean_outputs_example):
 
 
 def test_field_summary_update(ms_example, aegean_outputs_example):
-    sbid_path = ms_example
     cal_sbid_path = Path("/scratch3/gal16b/split/39433/SB39433.1934-638.beam0.ms")
 
-    field_summary = create_field_summary(ms=sbid_path, cal_sbid_path=cal_sbid_path)
+    mss = [ms_example for _ in range(36)]
+
+    field_summary = create_field_summary(mss=mss, cal_sbid_path=cal_sbid_path)
 
     assert isinstance(field_summary, FieldSummary)
     assert field_summary.sbid == "39400"
