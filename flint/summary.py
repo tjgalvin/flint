@@ -8,7 +8,14 @@ from pathlib import Path
 from typing import NamedTuple, Optional, Union, Tuple, Collection
 
 import astropy.units as u
-from astropy.coordinates import AltAz, EarthLocation, Latitude, Longitude, SkyCoord
+from astropy.coordinates import (
+    concatenate,
+    AltAz,
+    EarthLocation,
+    Latitude,
+    Longitude,
+    SkyCoord,
+)
 from astropy.table import Table
 from astropy.time import Time
 
@@ -22,7 +29,7 @@ from flint.ms import (
 )
 from flint.naming import get_sbid_from_path, processed_ms_format
 from flint.source_finding.aegean import AegeanOutputs
-from flint.utils import estimate_image_centre
+from flint.utils import estimate_skycoord_centre
 from flint.imager.wsclean import ImageSet
 
 
@@ -50,7 +57,7 @@ class FieldSummary(NamedTuple):
     ms_summaries: Optional[Tuple[MSSummary]] = None
     """Summaries of measurement sets used in the processing of the filed"""
     centre: Optional[SkyCoord] = None
-    """Centre of the field, which is calculated from the centre of an image"""
+    """Centre of the field, which is calculated as the mean position of all phase directions of the `mss` measurement sets"""
     integration_time: Optional[int] = None
     """The integration time of the observation (seconds)"""
     no_components: Optional[int] = None
@@ -83,6 +90,12 @@ def add_ms_summaries(
 ) -> Tuple[MSSummary]:
     """Obtain a MSSummary instance to add to a FieldSummary
 
+    Quantities derived from the field centre (hour angles, elevations) are
+    also calculated. The field centre position is estimated by taking the
+    mean position of all phase directions.
+
+    See `flint.utils.estimate_skycoord_centre`
+
     Args:
         field_summary (FieldSummary): Existing field summary object to update
         mss (Collection[MS]): Set of measurement sets to describe
@@ -92,8 +105,22 @@ def add_ms_summaries(
     """
 
     ms_summaries = tuple(map(describe_ms, mss))
+    centre = estimate_skycoord_centre(
+        sky_positions=concatenate([ms_summary.phase_dir for ms_summary in ms_summaries])
+    )
 
-    field_summary = field_summary.with_options(ms_summaries=ms_summaries)
+    telescope = field_summary.location
+    ms_times = field_summary.ms_times
+    centre_altaz = centre.transform_to(AltAz(obstime=ms_times, location=telescope))
+    hour_angles = centre_altaz.az.to(u.hourangle)
+    elevations = centre_altaz.alt.to(u.deg)
+
+    field_summary = field_summary.with_options(
+        ms_summaries=ms_summaries,
+        centre=centre,
+        hour_angles=hour_angles,
+        elevations=elevations,
+    )
 
     return field_summary
 
@@ -121,34 +148,9 @@ def add_rms_information(
     Returns:
         FieldSummary: Updated field summary object
     """
-    # NOTE: The only reason this pirate is using the RMS image here is
-    # because at the moment there is not a neat way to get the (rough)
-    # field center. Access in a meaningful way to the observatory database
-    # would be useful (like the metafits service for the MWA). Since
-    # the principal use of a FieldSummary is in the validation plot/table
-    # and the RMS / component catalogue is expected, this pirate can
-    # handle it. With some ale. It is not as simple as reading the position
-    # of the 18th beam as the beam numbers and their order differ depending
-    # on the footprint layout.
-    # TODO: Consider trying to take the mean position from the phase direction
-    # from all science MSs
-
-    rms_image_path = aegean_outputs.rms
-
-    centre = estimate_image_centre(image_path=rms_image_path).icrs
-
-    telescope = field_summary.location
-    ms_times = field_summary.ms_times
-    centre_altaz = centre.transform_to(AltAz(obstime=ms_times, location=telescope))
-    hour_angles = centre_altaz.az.to(u.hourangle)
-    elevations = centre_altaz.alt.to(u.deg)
-
     no_components = len(Table.read(aegean_outputs.comp))
 
     field_summary = field_summary.with_options(
-        centre=centre,
-        hour_angles=hour_angles,
-        elevations=elevations,
         no_components=no_components,
     )
 
