@@ -34,8 +34,11 @@ from flint.prefect.common.imaging import (
     task_wsclean_imager,
     task_zip_ms,
 )
-from flint.prefect.common.utils import task_flatten, task_update_field_summary
-from flint.summary import create_field_summary
+from flint.prefect.common.utils import (
+    task_flatten,
+    task_update_field_summary,
+    task_create_field_summary,
+)
 
 
 @flow(name="Flint Continuum Pipeline")
@@ -124,7 +127,7 @@ def process_science_fields(
         ms=preprocess_science_mss, container=field_options.flagger_container, rounds=1
     )
 
-    field_summary = create_field_summary.submit(
+    field_summary = task_create_field_summary.submit(
         mss=flagged_mss,
         cal_sbid_path=bandpass_path,
         holography_path=field_options.holofile,
