@@ -262,7 +262,7 @@ class BeamSummary(NamedTuple):
     as it is being processed through a continuum imaging pipeline
     """
 
-    summary: MSSummary
+    ms_summary: MSSummary
     """A summary object of a measurement set"""
     imageset: Optional[ImageSet] = None
     """A set of images that have been created from the measurement set represented by `summary`"""
@@ -293,12 +293,13 @@ def create_beam_summary(
     """
     ms = MS.cast(ms=ms)
     logger.info(f"Creating BeamSummary for {ms.path=}")
+    ms_summary = describe_ms(ms=ms)
 
     # TODO: Another example where a .cast type method could be useful
     # or where a standardised set of attributes with a HasImageSet type
-    imageset = imageset if isinstance(imageset, ImageSet) else imageset.imageset
+    if imageset:
+        imageset = imageset if isinstance(imageset, ImageSet) else imageset.imageset
 
-    ms_summary = describe_ms(ms=ms)
     beam_summary = BeamSummary(
         ms_summary=ms_summary, imageset=imageset, components=components
     )

@@ -13,6 +13,7 @@ from flint.summary import (
     create_field_summary,
     add_rms_information,
     update_field_summary,
+    create_beam_summary,
 )
 from flint.source_finding.aegean import AegeanOutputs
 
@@ -52,6 +53,12 @@ def ms_example(tmpdir):
     ms_path = Path(outpath) / "SB39400.RACS_0635-31.beam0.small.ms"
 
     return ms_path
+
+
+def test_create_beam_summary(ms_example, aegean_outputs_example):
+    beam_summary = create_beam_summary(ms=ms_example, components=aegean_outputs_example)
+
+    assert beam_summary.ms_summary.path == ms_example
 
 
 def test_field_summary(ms_example):
