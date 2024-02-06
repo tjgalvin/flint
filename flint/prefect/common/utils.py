@@ -9,7 +9,11 @@ from prefect import task
 from prefect.artifacts import create_markdown_artifact
 
 from flint.logging import logger
-from flint.summary import create_field_summary, update_field_summary
+from flint.summary import (
+    create_field_summary,
+    update_field_summary,
+    create_beam_summary,
+)
 
 T = TypeVar("T")
 
@@ -54,6 +58,7 @@ def upload_image_as_artifact(
 
 task_update_field_summary = task(update_field_summary)
 task_create_field_summary = task(create_field_summary)
+task_create_beam_summary = task(create_beam_summary)
 
 
 # Intended to represent objects with a .with_options() interface

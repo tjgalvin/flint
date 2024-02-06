@@ -30,7 +30,7 @@ from flint.ms import (
 from flint.naming import get_sbid_from_path, processed_ms_format
 from flint.source_finding.aegean import AegeanOutputs
 from flint.utils import estimate_skycoord_centre
-from flint.imager.wsclean import ImageSet
+from flint.imager.wsclean import ImageSet, WSCleanCommand
 
 
 class FieldSummary(NamedTuple):
@@ -76,6 +76,8 @@ class FieldSummary(NamedTuple):
     """Computed elevations of the field"""
     median_rms: Optional[float] = None
     """The meanian RMS computed from an RMS image"""
+    beam_summaries: Optional[Collection[BeamSummary]] = None
+    """Summary information from each beam. Contains MSSummary, ImageSet and other information."""
 
     def with_options(self, **kwargs) -> FieldSummary:
         prop = self._asdict()
@@ -276,7 +278,7 @@ class BeamSummary(NamedTuple):
 
 def create_beam_summary(
     ms: Union[MS, Path],
-    imageset: Optional[ImageSet] = None,
+    imageset: Optional[Union[ImageSet, WSCleanCommand]] = None,
     components: Optional[AegeanOutputs] = None,
 ) -> BeamSummary:
     """Create a summary of a beam
@@ -291,6 +293,10 @@ def create_beam_summary(
     """
     ms = MS.cast(ms=ms)
     logger.info(f"Creating BeamSummary for {ms.path=}")
+
+    # TODO: Another example where a .cast type method could be useful
+    # or where a standardised set of attributes with a HasImageSet type
+    imageset = imageset if isinstance(imageset, ImageSet) else imageset.imageset
 
     ms_summary = describe_ms(ms=ms)
     beam_summary = BeamSummary(

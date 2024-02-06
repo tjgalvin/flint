@@ -36,8 +36,10 @@ from flint.prefect.common.imaging import (
 )
 from flint.prefect.common.utils import (
     task_flatten,
+    task_create_beam_summary,
     task_update_field_summary,
     task_create_field_summary,
+    task_update_with_options,
 )
 
 
@@ -159,10 +161,17 @@ def process_science_fields(
         wsclean_container=field_options.wsclean_container,
         update_wsclean_options=unmapped(wsclean_init),
     )
+    beam_summaries = task_create_beam_summary.map(ms=flagged_mss, imageset=wsclean_cmds)
     if run_aegean:
-        task_run_bane_and_aegean.map(
+        beam_aegean_outputs = task_run_bane_and_aegean.map(
             image=wsclean_cmds,
             aegean_container=unmapped(field_options.aegean_container),
+        )
+        beam_summaries = task_update_with_options.map(
+            input_object=beam_summaries, component=beam_aegean_outputs
+        )
+        field_summary = task_update_with_options.submit(
+            input_object=field_summary, beam_summaries=beam_summaries
         )
 
     beam_shape = task_get_common_beam.submit(

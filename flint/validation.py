@@ -1011,6 +1011,7 @@ def plot_field_info(
             f"- Galactic l / b    : {rms_info.centre.galactic.to_string(style='decimal')}",
             f"- SBID              : {field_summary.sbid}",
             f"- CAL_SBID          : {field_summary.cal_sbid}",
+            f"- Holorgraphy file  : {field_summary.holography_path.name}",
             f"- Start time        : {field_summary.ms_times[0].utc.fits}",
             f"- Integration time  : {field_summary.integration_time * u.second:latex_inline}",
             f"- Hour angle range  : {hour_angles.min().to_string(precision=2, format='latex_inline')} - {hour_angles.max().to_string(precision=2, format='latex_inline')}",
