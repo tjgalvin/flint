@@ -31,6 +31,7 @@ from flint.naming import get_sbid_from_path, processed_ms_format
 from flint.source_finding.aegean import AegeanOutputs
 from flint.utils import estimate_skycoord_centre
 from flint.imager.wsclean import ImageSet, WSCleanCommand
+from flint.coadd.linmos import LinmosCommand
 
 
 class FieldSummary(NamedTuple):
@@ -78,6 +79,8 @@ class FieldSummary(NamedTuple):
     """The meanian RMS computed from an RMS image"""
     beam_summaries: Optional[Collection[BeamSummary]] = None
     """Summary information from each beam. Contains MSSummary, ImageSet and other information."""
+    linmos_image: Optional[Path] = None
+    """The path to the linmos image of all beams"""
 
     def with_options(self, **kwargs) -> FieldSummary:
         prop = self._asdict()
@@ -159,10 +162,34 @@ def add_rms_information(
     return field_summary
 
 
+def add_linmos_fits_image(
+    field_summary: FieldSummary, linmos_command: LinmosCommand
+) -> FieldSummary:
+    """Extract the path of the linmos fits image from the LinmosCommand
+    the co-added the field
+
+    Args:
+        field_summary (FieldSummary): Existing field summary to update
+        linmos_command (LinmosCommand): Instance of a completed linmos command that coadded a field
+
+    Returns:
+        FieldSummary: The updated field summary object with the linmos fits image added
+    """
+    assert isinstance(
+        linmos_command, LinmosCommand
+    ), f"{linmos_command=} is type {type(linmos_command)}, expected LinmosCommand"
+
+    image_fits = linmos_command.image_fits
+    field_summary = field_summary.with_options(linmos_image=image_fits)
+
+    return field_summary
+
+
 def update_field_summary(
     field_summary: FieldSummary,
     aegean_outputs: Optional[AegeanOutputs] = None,
     mss: Optional[Collection[MS]] = None,
+    linmos_command: Optional[LinmosCommand] = None,
     **kwargs,
 ) -> FieldSummary:
     """Update an existing `FieldSummary` instance with additional information.
@@ -174,6 +201,7 @@ def update_field_summary(
         field_summary (FieldSummary): Field summary object to update
         aegean_outputs (Optional[AegeanOutputs], optional): Will add RMS and aegean related properties. Defaults to None.
         mss (Optional[Collection[MS]], optionals): Set of measurement sets to describe
+        linmos_command (Optional[LinmosCommand], optional): The linmos command created when co-adding all beam images together
 
     Returns:
         FieldSummary: An updated field summary objects
@@ -186,6 +214,11 @@ def update_field_summary(
 
     if mss:
         field_summary = add_ms_summaries(field_summary=field_summary, mss=mss)
+
+    if linmos_command:
+        field_summary = add_linmos_fits_image(
+            field_summary=field_summary, linmos_command=linmos_command
+        )
 
     field_summary = field_summary.with_options(**kwargs)
 

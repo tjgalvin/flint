@@ -168,7 +168,7 @@ def process_science_fields(
             aegean_container=unmapped(field_options.aegean_container),
         )
         beam_summaries = task_update_with_options.map(
-            input_object=beam_summaries, component=beam_aegean_outputs
+            input_object=beam_summaries, components=beam_aegean_outputs
         )
         field_summary = task_update_with_options.submit(
             input_object=field_summary, beam_summaries=beam_summaries
@@ -198,6 +198,7 @@ def process_science_fields(
             field_summary = task_update_field_summary.submit(
                 field_summary=field_summary,
                 aegean_outputs=aegean_outputs,
+                linmos_command=parset,
             )
 
             if run_validation:

@@ -21,7 +21,7 @@ from scipy import stats
 
 from flint.logging import logger
 from flint.naming import processed_ms_format
-from flint.summary import FieldSummary
+from flint.summary import BeamSummary, FieldSummary
 from flint.utils import estimate_image_centre
 
 F_SMALL = 7
@@ -1097,13 +1097,22 @@ def make_field_stats_table(
     # Columns are:
     # FLD_NAME,SBID,NPIXV,MINIMUM,MAXIMUM,MED_RMS_uJy,MODE_RMS_uJy,STD_RMS_uJy,MIN_RMS_uJy,MAX_RMS_uJy
     # TODO: Get the min / max from the image (not rms)
+    assert (
+        field_summary.linmos_image is not None
+    ), "The linmos image in the provided field summary is emtpy. "
+
+    with fits.open(field_summary.linmos_image) as linmos_image:
+        image_data = linmos_image[0].data
+        min_image_data = np.min(image_data)
+        max_image_data = np.max(image_data)
+
     stats_table = Table(
         {
             "FLD_NAME": [field_summary.field_name],
             "SBID": [field_summary.sbid],
             "NPIXV": [rms_info.no_valid_pixels],
-            "MINIMUM": [np.nan],
-            "MAXIMUM": [np.nan],
+            "MINIMUM": [min_image_data],
+            "MAXIMUM": [max_image_data],
             "MED_RMS_uJy": [rms_info.median * 1e6],
             "MODE_RMS_uJy": [rms_info.mode * 1e6],
             "STD_RMS_uJy": [rms_info.std * 1e6],
@@ -1120,37 +1129,91 @@ def make_field_stats_table(
     return outfile
 
 
+class PSFTableRow(NamedTuple):
+    """Something that is only used to internally
+    represent the PSF information of a beam image.
+    Currently no reason to use this.
+    """
+
+    beam_number: int
+    vis_total: int
+    vis_flagged: int
+    image_name: str
+    bmaj: float
+    bmin: float
+    bpa: float
+    ra: float
+    dec: float
+    l: float  # noqa: E741
+    b: float
+
+
+def _make_beam_psf_row(beam_summary: BeamSummary) -> PSFTableRow:
+    """Collects the information required of a single beam image
+    and measurement set for entry into the PSF table.
+
+    Not intended for usage other than int he creation of the PSF table.
+
+    Args:
+        beam_summary (BeamSummary): The input set of collected properties
+
+    Returns:
+        PSFTableRow: Extracted information
+    """
+
+    name_components = processed_ms_format(in_name=beam_summary.ms_summary.path)
+    vis_total = beam_summary.ms_summary.flagged + beam_summary.ms_summary.unflagged
+    vis_flagged = beam_summary.ms_summary.flagged
+
+    image_file = beam_summary.imageset.image[-1]
+    with fits.open(image_file) as image:
+        bmaj = image[0].header["BMAJ"]
+        bmin = image[0].header["BMIN"]
+        bpa = image[0].header["BPA"]
+
+    coord = estimate_image_centre(image_path=image_file)
+
+    return PSFTableRow(
+        beam_number=name_components.beam,
+        vis_flagged=vis_flagged,
+        vis_total=vis_total,
+        image_name=image_file.name,
+        bmaj=bmaj,
+        bmin=bmin,
+        bpa=bpa,
+        ra=coord.ra.deg,
+        dec=coord.dec.deg,
+        l=coord.galactic.l.deg,
+        b=coord.galactic.b.deg,
+    )
+
+
 def make_psf_table(field_summary: FieldSummary, output_path: Path) -> Path:
     # TODO: This will likely need changes to the
     # FieldSummary structure to handle holding MSSummary objects
     # Columns are:
     # BEAM_NUM,BEAM_TIME,RA_DEG,DEC_DEG,GAL_LONG,GAL_LAT,PSF_MAJOR,PSF_MINOR,PSF_ANGLE,VIS_TOTAL,VIS_FLAGGED
 
-    processed_ms_paths = [ms.path for ms in field_summary.ms_summaries]
-    all_ms_name_components = [
-        processed_ms_format(ms_path) for ms_path in processed_ms_paths
+    psf_table_rows = [
+        _make_beam_psf_row(beam_summary=beam_summary)
+        for beam_summary in field_summary.beam_summaries
     ]
-    ms_summaries = field_summary.ms_summaries
-
-    # TODO: Get per-beam PSF information
 
     psf_table = Table(
         {
-            "BEAM_NUM": [
-                ms_name_components.beam for ms_name_components in all_ms_name_components
-            ],
-            "VIS_TOTAL": [
-                ms_summary.unflagged + ms_summary.flagged for ms_summary in ms_summaries
-            ],
-            "VIS_FLAGGED": [ms_summary.flagged for ms_summary in ms_summaries],
+            "BEAM_NUM": [row.beam for row in psf_table_rows],
+            "VIS_TOTAL": [row.vis_total for row in psf_table_rows],
+            "VIS_FLAGGED": [row.vis_total for row in psf_table_rows],
+            "IMAGE_NAME": [row.name for row in psf_table_rows],
+            "PSF_MAJOR": [row.bmaj for row in psf_table_rows],
+            "PSF_MINOR": [row.bmin for row in psf_table_rows],
+            "PSF_ANGLE": [row.bpa for row in psf_table_rows],
         }
     )
+
     psf_table.sort("BEAM_NUM")
     # beam_inf_{SBID}-{FIELD_NAME}.csv
-    outfile = (
-        output_path
-        / f"beam_inf_{all_ms_name_components[0].sbid}-{all_ms_name_components[0].field}.csv"
-    )
+    outfile = output_path / f"beam_inf_{field_summary.sbid}-{field_summary.field}.csv"
     psf_table.write(outfile, format="csv", overwrite=True)
 
     return outfile
@@ -1445,8 +1508,9 @@ def cli() -> None:
     args = parser.parse_args()
 
     from astropy.io import fits
-    from flint.summary import create_field_summary
+
     from flint.source_finding.aegean import AegeanOutputs
+    from flint.summary import create_field_summary
 
     rms_image_path = args.rms_image_path
 
