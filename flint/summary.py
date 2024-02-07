@@ -1,24 +1,26 @@
-"""Summary containers intended to hold general information obtained throughout a processing run. 
+"""Summary containers intended to hold general information obtained throughout a processing run.
 """
 from __future__ import (  # Used for mypy/pylance to like the return type of MS.with_options
     annotations,
 )
 
 from pathlib import Path
-from typing import NamedTuple, Optional, Union, Tuple, Collection
+from typing import Collection, NamedTuple, Optional, Tuple, Union
 
 import astropy.units as u
 from astropy.coordinates import (
-    concatenate,
     AltAz,
     EarthLocation,
     Latitude,
     Longitude,
     SkyCoord,
+    concatenate,
 )
 from astropy.table import Table
 from astropy.time import Time
 
+from flint.coadd.linmos import LinmosCommand
+from flint.imager.wsclean import ImageSet, WSCleanCommand
 from flint.logging import logger
 from flint.ms import (
     MS,
@@ -30,8 +32,6 @@ from flint.ms import (
 from flint.naming import get_sbid_from_path, processed_ms_format
 from flint.source_finding.aegean import AegeanOutputs
 from flint.utils import estimate_skycoord_centre
-from flint.imager.wsclean import ImageSet, WSCleanCommand
-from flint.coadd.linmos import LinmosCommand
 
 
 class FieldSummary(NamedTuple):

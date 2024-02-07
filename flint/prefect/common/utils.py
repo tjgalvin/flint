@@ -10,9 +10,9 @@ from prefect.artifacts import create_markdown_artifact
 
 from flint.logging import logger
 from flint.summary import (
+    create_beam_summary,
     create_field_summary,
     update_field_summary,
-    create_beam_summary,
 )
 
 T = TypeVar("T")

@@ -35,10 +35,10 @@ from flint.prefect.common.imaging import (
     task_zip_ms,
 )
 from flint.prefect.common.utils import (
-    task_flatten,
     task_create_beam_summary,
-    task_update_field_summary,
     task_create_field_summary,
+    task_flatten,
+    task_update_field_summary,
     task_update_with_options,
 )
 

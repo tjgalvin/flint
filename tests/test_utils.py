@@ -1,8 +1,8 @@
 """Basic tests for utility functions
 """
 
-import numpy as np
 import astropy.units as u
+import numpy as np
 from astropy.coordinates import SkyCoord
 
 from flint.utils import estimate_skycoord_centre

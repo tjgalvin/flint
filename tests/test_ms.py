@@ -4,9 +4,9 @@ and the MS class
 import shutil
 from pathlib import Path
 
+import numpy as np
 import pkg_resources
 import pytest
-import numpy as np
 
 from flint.calibrate.aocalibrate import ApplySolutions
 from flint.exceptions import MSError

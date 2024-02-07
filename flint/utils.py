@@ -7,10 +7,10 @@ import subprocess
 from pathlib import Path
 from typing import List, Optional
 
+import numpy as np
+from astropy.coordinates import SkyCoord
 from astropy.io import fits
 from astropy.wcs import WCS
-from astropy.coordinates import SkyCoord
-import numpy as np
 
 from flint.logging import logger
 
