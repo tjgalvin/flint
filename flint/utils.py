@@ -7,7 +7,50 @@ import subprocess
 from pathlib import Path
 from typing import List, Optional
 
+import numpy as np
+from astropy.coordinates import SkyCoord
+from astropy.io import fits
+from astropy.wcs import WCS
+
 from flint.logging import logger
+
+
+def estimate_skycoord_centre(
+    sky_positions: SkyCoord, final_frame: str = "fk5"
+) -> SkyCoord:
+    """Estimate the centre position of (RA, Dec) positions stored in a
+    input `SkyCoord`. Internally the mean of the cartesian (X,Y,Z) is
+    calculated, which is then transormed back to a sky position,.
+
+    Args:
+        sky_positions (SkyCoord): Set of input positions to consider
+        final_frame (str, optional): The frame of the returned `SkyCoord` objects set using `.transform_to`. Defaults to fk5.
+
+    Returns:
+        SkyCoord: Centre position
+    """
+    xyz_positions = sky_positions.cartesian.xyz
+    xyz_mean_position = np.mean(xyz_positions, axis=1)
+
+    mean_position = SkyCoord(
+        *xyz_mean_position, representation_type="cartesian"
+    ).transform_to(final_frame)
+
+    return mean_position
+
+
+def estimate_image_centre(image_path: Path) -> SkyCoord:
+    with fits.open(image_path, memmap=True) as open_image:
+        image_header = open_image[0].header
+        image_shape = open_image[0].data.shape
+
+    wcs = WCS(image_header)
+    centre_pixel = np.array(image_shape) / 2.0
+    # The celestial deals with the radio image potentially having four dimensions
+    # (stokes, frequencyes, ra, dec)
+    centre_sky = wcs.celestial.pixel_to_world(centre_pixel[0], centre_pixel[1])
+
+    return centre_sky
 
 
 def zip_folder(in_path: Path, out_zip: Optional[Path] = None) -> Path:

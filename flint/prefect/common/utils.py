@@ -9,6 +9,11 @@ from prefect import task
 from prefect.artifacts import create_markdown_artifact
 
 from flint.logging import logger
+from flint.summary import (
+    create_beam_summary,
+    create_field_summary,
+    update_field_summary,
+)
 
 T = TypeVar("T")
 
@@ -49,6 +54,33 @@ def upload_image_as_artifact(
     image_uuid = create_markdown_artifact(markdown=markdown, description=description)
 
     return image_uuid
+
+
+task_update_field_summary = task(update_field_summary)
+task_create_field_summary = task(create_field_summary)
+task_create_beam_summary = task(create_beam_summary)
+
+
+# Intended to represent objects with a .with_options() interface
+T = TypeVar("T")
+
+
+@task
+def task_update_with_options(input_object: T, **kwargs) -> T:
+    """Updated any object via its `.with_options()` interface.
+
+    All key-word arguments other than `input_object` are passed through
+    to that `input_object`s `.with_options()` method.
+
+    Args:
+        input_object (T): The object that has an `.with_options` method that will be updated
+
+    Returns:
+        T: The updated object
+    """
+    updated_object = input_object.with_options(**kwargs)
+
+    return updated_object
 
 
 @task

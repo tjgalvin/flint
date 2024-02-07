@@ -13,7 +13,7 @@ from typing import List, NamedTuple, Optional, Union
 
 import astropy.units as u
 import numpy as np
-from astropy.coordinates import EarthLocation
+from astropy.coordinates import EarthLocation, SkyCoord
 from astropy.time import Time
 from casacore.tables import table, taql
 from fixms.fix_ms_corrs import fix_ms_corrs
@@ -34,6 +34,8 @@ class MS(NamedTuple):
     """Column that should be operated against"""
     beam: Optional[int] = None
     """The beam ID of the MS within an ASKAP field"""
+    spw: Optional[int] = None
+    """Intended to be used with ASKAP high-frequency resolution modes, where the MS is divided into SPWs"""
     field: Optional[str] = None
     """The field name  of the data"""
     model_column: Optional[str] = None
@@ -76,7 +78,7 @@ class MS(NamedTuple):
         elif "ms" in dir(ms) and isinstance(ms.ms, MS):
             ms = ms.ms
         else:
-            raise MSError("Unable to convert to MS object. ")
+            raise MSError(f"Unable to convert {ms=} of {type(ms)} to MS object. ")
 
         return ms
 
@@ -107,6 +109,12 @@ class MSSummary(NamedTuple):
     """Collection of unique antennas"""
     beam: int
     """The ASKAP beam number of the measurement set"""
+    path: Path
+    """Path to the measurement set that is being represented"""
+    phase_dir: SkyCoord
+    """The phase direction of the measurement set, which will be where the image will be centred"""
+    spw: Optional[int] = None
+    """Intended to be used with ASKAP high-frequency resolution modes, where the MS is divided into SPWs"""
 
 
 # TODO: Some common MS validation functions?
@@ -249,6 +257,30 @@ def get_freqs_from_ms(ms: Union[MS, Path]) -> np.ndarray:
     return freqs
 
 
+def get_phase_dir_from_ms(ms: Union[MS, Path]) -> SkyCoord:
+    """Extract the phase direction from a measurement set.
+
+    If more than one phase direction is found an AssertError will
+    be raised.
+
+    Args:
+        ms (Union[MS, Path]): The measurement set to get the phase direction from
+
+    Returns:
+        SkyCoord: The phase direction the measurement set is directed towards
+    """
+    ms = MS.cast(ms)
+
+    with table(f"{str(ms.path)}/FIELD", readonly=True, ack=False) as tab:
+        phase_dir = tab.getcol("PHASE_DIR")[0]
+
+    assert phase_dir.shape[0] == 1, "More than one phase direction found. "
+
+    phase_sky = SkyCoord(*phase_dir[0], unit=(u.rad, u.rad))
+
+    return phase_sky
+
+
 def get_times_from_ms(ms: Union[MS, Path]) -> Time:
     """Return the observation times from an ASKAP Measurement set.
 
@@ -284,12 +316,14 @@ def get_telescope_location_from_ms(ms: Union[MS, Path]) -> EarthLocation:
     return pos
 
 
-def describe_ms(ms: Union[MS, Path], verbose: bool = True) -> MSSummary:
+# TODO: Inline with other changing conventions this should be
+# changed to `create_ms_summary`
+def describe_ms(ms: Union[MS, Path], verbose: bool = False) -> MSSummary:
     """Print some basic information from the inpute measurement set.
 
     Args:
         ms (Union[MS,Path]): Measurement set to inspect
-        verbose (bool, optional): Log MS options to the flint logger
+        verbose (bool, optional): Log MS options to the flint logger. Defaults to False.
 
     Returns:
         MSSummary: Brief overview of the MS.
@@ -311,6 +345,7 @@ def describe_ms(ms: Union[MS, Path], verbose: bool = True) -> MSSummary:
         uniq_fields = list(set(tab.getcol("NAME")))
 
     beam_no = get_beam_from_ms(ms=ms)
+    phase_dir = get_phase_dir_from_ms(ms=ms)
 
     if verbose:
         logger.info(f"Inspecting {ms.path}.")
@@ -319,6 +354,7 @@ def describe_ms(ms: Union[MS, Path], verbose: bool = True) -> MSSummary:
         logger.info(f"{flagged} of {total} flagged ({flagged/total*100.:.4f}%). ")
         logger.info(f"{len(uniq_ants)} unique antenna: {uniq_ants}")
         logger.info(f"Unique fields: {uniq_fields}")
+        logger.info(f"Phase direction: {phase_dir}")
 
     return MSSummary(
         flagged=flagged,
@@ -326,6 +362,8 @@ def describe_ms(ms: Union[MS, Path], verbose: bool = True) -> MSSummary:
         fields=uniq_fields,
         ants=uniq_ants,
         beam=beam_no,
+        path=ms.path,
+        phase_dir=phase_dir,
     )
 
 

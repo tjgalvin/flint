@@ -4,13 +4,13 @@ for continuum imaging of RACS data
 
 from argparse import ArgumentParser
 from pathlib import Path
-from typing import Dict, List, NamedTuple, Optional, Tuple, Union
+from typing import Dict, NamedTuple, Optional, Tuple, Union
 
 import astropy.units as u
 import matplotlib.pyplot as plt
 import numpy as np
 import pkg_resources
-from astropy.coordinates import AltAz, SkyCoord
+from astropy.coordinates import SkyCoord
 from astropy.io import fits
 from astropy.table import Table
 from astropy.time import Time
@@ -20,8 +20,9 @@ from matplotlib.figure import Figure
 from scipy import stats
 
 from flint.logging import logger
-from flint.ms import describe_ms, get_telescope_location_from_ms, get_times_from_ms
-from flint.naming import ProcessedNameComponents, processed_ms_format
+from flint.naming import processed_ms_format
+from flint.summary import BeamSummary, FieldSummary
+from flint.utils import estimate_image_centre
 
 F_SMALL = 7
 F_MED = 8
@@ -346,11 +347,8 @@ def get_rms_image_info(rms_path: Path) -> RMSImageInfo:
 
     area = pixel_area * valid_pixels
 
-    wcs = WCS(rms_header)
-    centre_pixel = np.array(rms_data.shape) / 2.0
-    # The celestial deals with the radio image potentially having four dimensions
-    # (stokes, frequencyes, ra, dec)
-    centre_sky = wcs.celestial.pixel_to_world(centre_pixel[0], centre_pixel[1])
+    centre_sky = estimate_image_centre(image_path=rms_path)
+    wcs = WCS(fits.getheader(rms_path))
 
     rms_image_info = RMSImageInfo(
         path=rms_path,
@@ -977,9 +975,8 @@ def plot_psf(fig: Figure, ax: Axes, rms_info: RMSImageInfo) -> Axes:
 def plot_field_info(
     fig: Figure,
     ax: Axes,
-    ms_info: ProcessedNameComponents,
+    field_summary: FieldSummary,
     rms_info: RMSImageInfo,
-    ms_path: Path,
     askap_table: Table,
 ) -> Axes:
     # TODO: Add the field information to the plot
@@ -996,43 +993,39 @@ def plot_field_info(
     # - Median rms
     # - Number of sources
     # - Processing date
-    ms_times = get_times_from_ms(ms_path)
-    telescope = get_telescope_location_from_ms(ms_path)
-    centre = rms_info.centre.icrs
-    centre_altaz = centre.transform_to(AltAz(obstime=ms_times, location=telescope))
-    hour_angles = centre_altaz.az.to(u.hourangle)
-    elevations = centre_altaz.alt.to(u.deg)
+
+    hour_angles = field_summary.hour_angles
+    elevations = field_summary.elevations
 
     ax.text(
         0.1,
         0.9,
-        f"Field name: {''}",
+        f"Field name: {field_summary.field_name}",
         fontdict={"fontsize": F_LARGE},
         family="monospace",
     )
+
+    field_text = "\n".join(
+        (
+            f"- J2000 RA / Dec    : {rms_info.centre.icrs.to_string(style='hmsdms', precision=1)}",
+            f"- Galactic l / b    : {rms_info.centre.galactic.to_string(style='decimal')}",
+            f"- SBID              : {field_summary.sbid}",
+            f"- CAL_SBID          : {field_summary.cal_sbid}",
+            f"- Holorgraphy file  : {field_summary.holography_path.name}",
+            f"- Start time        : {field_summary.ms_times[0].utc.fits}",
+            f"- Integration time  : {field_summary.integration_time * u.second:latex_inline}",
+            f"- Hour angle range  : {hour_angles.min().to_string(precision=2, format='latex_inline')} - {hour_angles.max().to_string(precision=2, format='latex_inline')}",
+            f"- Elevation range   : {elevations.min().to_string(precision=2, format='latex_inline')} - {elevations.max().to_string(precision=2, format='latex_inline')}",
+            f"- Median rms uJy    : {rms_info.median*1e6:.1f}",
+            f"- Components        : {len(askap_table)}",
+            f"- Processing date   : {Time.now().fits}",
+        )
+    )
+
     ax.text(
         0.0,
         0.0,
-        f"""
-    - J2000 RA / Dec    :
-              {rms_info.centre.icrs.to_string(style='hmsdms', precision=1)}
-    - Galactic l / b    : {rms_info.centre.galactic.to_string(style='decimal')}
-    - SBID              : {ms_info.sbid}
-    - CAL_SBID          : {""}
-    - Start time        :
-              {ms_times[0].utc.fits}
-    - Integration time  : {ms_times.ptp().sec * u.second:latex_inline}
-    - Hour angle range  :
-              {hour_angles.min().to_string(precision=2, format='latex_inline')} - {hour_angles.max().to_string(precision=2, format='latex_inline')}
-    - Elevation range   :
-              {elevations.min().to_string(precision=2, format='latex_inline')} - {elevations.max().to_string(precision=2, format='latex_inline')}
-
-    - Median rms uJy    : {rms_info.median*1e6:.1f}
-    - Components        : {len(askap_table)}
-
-    - Processing date   :
-              {Time.now().fits}
-        """,
+        field_text,
         family="monospace",
         fontdict={"fontsize": F_MED},
     )
@@ -1042,7 +1035,7 @@ def plot_field_info(
 def load_catalogues(
     source_catalogue_path: Path,
     reference_catalogue_directory: Path,
-    ms_name_components: ProcessedNameComponents,
+    askap_survey_name: str,
     rms_info: RMSImageInfo,
 ) -> Tuple[Catalogues, Tables]:
     """Load in all the catalogues that are required for the validation.
@@ -1050,7 +1043,7 @@ def load_catalogues(
     Args:
         source_catalogue_path (Path): The source catalogue to load
         reference_catalogue_directory (Path): The directory that contains the reference ICRF, NVSS and SUMSS catalogues.
-        ms_name_components (ProcessedNameComponents): The components of the MS name
+        askap_survey_name (str): The name that will be given to the ASKAP field data
         rms_info (RMSImageInfo): The extracted information from the RMS image
 
     Returns:
@@ -1059,7 +1052,7 @@ def load_catalogues(
     logger.info(f"Loading {source_catalogue_path=}")
     askap_table = Table.read(source_catalogue_path)
     askap_cata = Catalogue(
-        survey=f"{ms_name_components.sbid}-{ms_name_components.field}",
+        survey=askap_survey_name,
         file_name=source_catalogue_path.name,
         freq=rms_info.header["CRVAL3"],
         ra_col="ra",
@@ -1097,20 +1090,29 @@ def load_catalogues(
 
 
 def make_field_stats_table(
-    ms_name_components: ProcessedNameComponents,
+    field_summary: FieldSummary,
     rms_info: RMSImageInfo,
     output_path: Path,
 ) -> Path:
     # Columns are:
     # FLD_NAME,SBID,NPIXV,MINIMUM,MAXIMUM,MED_RMS_uJy,MODE_RMS_uJy,STD_RMS_uJy,MIN_RMS_uJy,MAX_RMS_uJy
     # TODO: Get the min / max from the image (not rms)
+    assert (
+        field_summary.linmos_image is not None
+    ), "The linmos image in the provided field summary is emtpy. "
+
+    with fits.open(field_summary.linmos_image) as linmos_image:
+        image_data = linmos_image[0].data
+        min_image_data = np.nanmin(image_data)
+        max_image_data = np.nanmax(image_data)
+
     stats_table = Table(
         {
-            "FLD_NAME": [ms_name_components.field],
-            "SBID": [ms_name_components.sbid],
+            "FLD_NAME": [field_summary.field_name],
+            "SBID": [field_summary.sbid],
             "NPIXV": [rms_info.no_valid_pixels],
-            "MINIMUM": [np.nan],
-            "MAXIMUM": [np.nan],
+            "MINIMUM": [min_image_data],
+            "MAXIMUM": [max_image_data],
             "MED_RMS_uJy": [rms_info.median * 1e6],
             "MODE_RMS_uJy": [rms_info.mode * 1e6],
             "STD_RMS_uJy": [rms_info.std * 1e6],
@@ -1120,40 +1122,99 @@ def make_field_stats_table(
     )
     # statistics_{SBID}-{FIELD_NAME}.csv
     outfile = (
-        output_path
-        / f"statistics_{ms_name_components.sbid}-{ms_name_components.field}.csv"
+        output_path / f"statistics_{field_summary.sbid}-{field_summary.field_name}.csv"
     )
     stats_table.write(outfile, format="csv", overwrite=True)
 
     return outfile
 
 
-def make_psf_table(processed_ms_paths: List[Path], output_path: Path) -> Path:
+class PSFTableRow(NamedTuple):
+    """Something that is only used to internally
+    represent the PSF information of a beam image.
+    Currently no reason to use this.
+    """
+
+    beam: int
+    vis_total: int
+    vis_flagged: int
+    image_name: str
+    bmaj: float
+    bmin: float
+    bpa: float
+    ra: float
+    dec: float
+    l: float  # noqa: E741
+    b: float
+
+
+def _make_beam_psf_row(beam_summary: BeamSummary) -> PSFTableRow:
+    """Collects the information required of a single beam image
+    and measurement set for entry into the PSF table.
+
+    Not intended for usage other than int he creation of the PSF table.
+
+    Args:
+        beam_summary (BeamSummary): The input set of collected properties
+
+    Returns:
+        PSFTableRow: Extracted information
+    """
+
+    name_components = processed_ms_format(in_name=beam_summary.ms_summary.path)
+    vis_total = beam_summary.ms_summary.flagged + beam_summary.ms_summary.unflagged
+    vis_flagged = beam_summary.ms_summary.flagged
+
+    image_file = beam_summary.imageset.image[-1]
+    with fits.open(image_file) as image:
+        bmaj = image[0].header["BMAJ"]
+        bmin = image[0].header["BMIN"]
+        bpa = image[0].header["BPA"]
+
+    coord = estimate_image_centre(image_path=image_file)
+
+    return PSFTableRow(
+        beam=name_components.beam,
+        vis_flagged=vis_flagged,
+        vis_total=vis_total,
+        image_name=image_file.name,
+        bmaj=bmaj,
+        bmin=bmin,
+        bpa=bpa,
+        ra=coord.ra.deg,
+        dec=coord.dec.deg,
+        l=coord.galactic.l.deg,
+        b=coord.galactic.b.deg,
+    )
+
+
+def make_psf_table(field_summary: FieldSummary, output_path: Path) -> Path:
+    # TODO: This will likely need changes to the
+    # FieldSummary structure to handle holding MSSummary objects
     # Columns are:
     # BEAM_NUM,BEAM_TIME,RA_DEG,DEC_DEG,GAL_LONG,GAL_LAT,PSF_MAJOR,PSF_MINOR,PSF_ANGLE,VIS_TOTAL,VIS_FLAGGED
-    all_ms_name_components = [
-        processed_ms_format(ms_path) for ms_path in processed_ms_paths
-    ]
-    ms_summaries = [describe_ms(ms_path) for ms_path in processed_ms_paths]
 
-    # TODO: Get per-beam PSF information
+    psf_table_rows = [
+        _make_beam_psf_row(beam_summary=beam_summary)
+        for beam_summary in field_summary.beam_summaries
+    ]
 
     psf_table = Table(
         {
-            "BEAM_NUM": [
-                ms_name_components.beam for ms_name_components in all_ms_name_components
-            ],
-            "VIS_TOTAL": [
-                ms_summary.unflagged + ms_summary.flagged for ms_summary in ms_summaries
-            ],
-            "VIS_FLAGGED": [ms_summary.flagged for ms_summary in ms_summaries],
+            "BEAM_NUM": [row.beam for row in psf_table_rows],
+            "VIS_TOTAL": [row.vis_total for row in psf_table_rows],
+            "VIS_FLAGGED": [row.vis_total for row in psf_table_rows],
+            "IMAGE_NAME": [row.image_name for row in psf_table_rows],
+            "PSF_MAJOR": [row.bmaj for row in psf_table_rows],
+            "PSF_MINOR": [row.bmin for row in psf_table_rows],
+            "PSF_ANGLE": [row.bpa for row in psf_table_rows],
         }
     )
+
     psf_table.sort("BEAM_NUM")
     # beam_inf_{SBID}-{FIELD_NAME}.csv
     outfile = (
-        output_path
-        / f"beam_inf_{all_ms_name_components[0].sbid}-{all_ms_name_components[0].field}.csv"
+        output_path / f"beam_inf_{field_summary.sbid}-{field_summary.field_name}.csv"
     )
     psf_table.write(outfile, format="csv", overwrite=True)
 
@@ -1161,7 +1222,7 @@ def make_psf_table(processed_ms_paths: List[Path], output_path: Path) -> Path:
 
 
 def create_validation_tables(
-    processed_ms_paths: List[Path],
+    field_summary: FieldSummary,
     rms_image_path: Path,
     source_catalogue_path: Path,
     output_path: Path,
@@ -1171,7 +1232,7 @@ def create_validation_tables(
     correctness of an image and associated source catalogue.
 
     Args:
-        processed_ms_paths (List[Path]): The processed MS files that were used to create the source catalogue
+        field_summary (FieldSummary): A description of the key properties of the field
         rms_image_path (Path): The RMS fits image the source catalogue was constructed against.
         source_catalogue_path (Path): The source catalogue.
         output_path (Path): The output path of the figure to create
@@ -1182,28 +1243,15 @@ def create_validation_tables(
     """
     logger.info("Creating validation tables")
 
-    # Get refernce info from single MS
-    ms_name_components = processed_ms_format(processed_ms_paths[0])
-
-    # Do sanity checks
-    # TODO: This should be separated out into a separate function
-    # or location. Proably should be moved to something like a
-    # FieldContext
-    for ms_path in processed_ms_paths:
-        _ms_name_components = processed_ms_format(ms_path)
-        assert ms_name_components.field == _ms_name_components.field, "Field mismatch"
-        assert ms_name_components.sbid == _ms_name_components.sbid, "SBID mismatch"
-        assert (
-            ms_name_components.round == _ms_name_components.round
-        ), "Self-cal round mismatch"
-
     rms_info = get_rms_image_info(rms_path=rms_image_path)
+
+    askap_survey_name = f"{field_summary.sbid}-{field_summary.field_name}"
 
     # Load in the catalogues
     catalogues, tables = load_catalogues(
         source_catalogue_path=source_catalogue_path,
         reference_catalogue_directory=reference_catalogue_directory,
-        ms_name_components=ms_name_components,
+        askap_survey_name=askap_survey_name,
         rms_info=rms_info,
     )
 
@@ -1246,13 +1294,13 @@ def create_validation_tables(
     )
 
     stats_table = make_field_stats_table(
-        ms_name_components=ms_name_components,
+        field_summary=field_summary,
         rms_info=rms_info,
         output_path=output_path,
     )
 
     psf_table = make_psf_table(
-        processed_ms_paths=processed_ms_paths,
+        field_summary=field_summary,
         output_path=output_path,
     )
 
@@ -1264,7 +1312,7 @@ def create_validation_tables(
 
 
 def create_validation_plot(
-    processed_ms_paths: List[Path],
+    field_summary: FieldSummary,
     rms_image_path: Path,
     source_catalogue_path: Path,
     output_path: Path,
@@ -1285,6 +1333,7 @@ def create_validation_plot(
     searching for the reference ICRF, NVSS and SUMSS cataloues.
 
     Args:
+        field_summary (FieldSummary): A description of the key properties of the field
         rms_image_path (Path): The RMS fits image the source catalogue was constructed against.
         source_catalogue_path (Path): The source catalogue.
         output_path (Path): The output path of the figure to create
@@ -1294,18 +1343,6 @@ def create_validation_plot(
         Path: The output path of the figure
     """
     logger.info("Creating validation plot")
-
-    # Get refernce info from single MS
-    ms_name_components = processed_ms_format(processed_ms_paths[0])
-
-    # Do sanity checks
-    for ms_path in processed_ms_paths:
-        _ms_name_components = processed_ms_format(ms_path)
-        assert ms_name_components.field == _ms_name_components.field, "Field mismatch"
-        assert ms_name_components.sbid == _ms_name_components.sbid, "SBID mismatch"
-        assert (
-            ms_name_components.round == _ms_name_components.round
-        ), "Self-cal round mismatch"
 
     rms_info = get_rms_image_info(rms_path=rms_image_path)
 
@@ -1320,11 +1357,13 @@ def create_validation_plot(
     logger.info(f"Loading {skads_path=}")
     skads = Table.read(skads_path)
 
+    askap_survey_name = f"{field_summary.sbid}-{field_summary.field_name}"
+
     # Load in the catalogues
     catalogues, tables = load_catalogues(
         source_catalogue_path=source_catalogue_path,
         reference_catalogue_directory=reference_catalogue_directory,
-        ms_name_components=ms_name_components,
+        askap_survey_name=askap_survey_name,
         rms_info=rms_info,
     )
 
@@ -1399,22 +1438,18 @@ def create_validation_plot(
     plot_field_info(
         fig=fig,
         ax=validator_layout.ax_legend,
-        ms_info=ms_name_components,
+        field_summary=field_summary,
         rms_info=rms_info,
-        ms_path=processed_ms_paths[0],
         askap_table=tables.askap,
     )
 
     fig.suptitle(
-        rf"$\it{{Flint}}$ summary for Field: {ms_name_components.field} - SBID: {ms_name_components.sbid} - Round: {ms_name_components.round}",
+        rf"$\it{{Flint}}$ summary for Field: {field_summary.field_name} - SBID: {field_summary.sbid} - Round: {field_summary.round}",
         fontsize=F_HUGE,
     )
 
     fig.tight_layout()
-    output_file = (
-        output_path
-        / f"validation_{ms_name_components.sbid}-{ms_name_components.field}.png"
-    )
+    output_file = output_path / f"validation_{askap_survey_name}.png"
     fig.savefig(str(output_file), dpi=300, bbox_inches="tight")
 
     return output_file
@@ -1452,6 +1487,18 @@ def get_parser() -> ArgumentParser:
         default=Path("."),
         help="Directory container the reference ICFS, NVSS and SUMSS catalogues. These are known catalogues and expect particular file names. ",
     )
+    parser.add_argument(
+        "--bandpass-directory",
+        type=Path,
+        default=None,
+        help="Path to the directory containing the bandpass measurement sets and solutions",
+    )
+    parser.add_argument(
+        "--holography-path",
+        type=Path,
+        default=None,
+        help="Path to the holography fits cube used to form the linmos image",
+    )
 
     return parser
 
@@ -1461,8 +1508,44 @@ def cli() -> None:
     parser = get_parser()
 
     args = parser.parse_args()
+
+    from astropy.io import fits
+
+    from flint.source_finding.aegean import AegeanOutputs
+    from flint.summary import create_field_summary
+
+    rms_image_path = args.rms_image_path
+
+    try:
+        rms_header = fits.getheader(rms_image_path)
+        rms_beam = (
+            rms_header["BMAJ"],
+            rms_header["BMIN"],
+            rms_header["BPA"],
+        )
+    except KeyError:
+        rms_beam = (1.0, 1.0, 1.0)
+        logger.warn(
+            f"Beam keywords not found in {rms_image_path=}. Setting to default {rms_beam}"
+        )
+
+    aegean_outputs = AegeanOutputs(
+        bkg=rms_image_path,
+        rms=rms_image_path,
+        comp=args.reference_catalogue_path,
+        beam_shape=rms_beam,
+    )
+
+    field_summary = create_field_summary(
+        ms=args.processed_ms_paths[0],
+        mss=args.processed_ms_paths,
+        aegean_outputs=aegean_outputs,
+        holography_path=args.holography_path,
+        cal_sbid_path=args.bandpass_directory,
+    )
+
     create_validation_plot(
-        processed_ms_paths=args.processed_ms_paths,
+        field_summary=field_summary,
         rms_image_path=args.rms_image_path,
         source_catalogue_path=args.source_catalogue_path,
         output_path=args.output_path,
@@ -1470,7 +1553,7 @@ def cli() -> None:
     )
 
     validation_tables = create_validation_tables(
-        processed_ms_paths=args.processed_ms_paths,
+        field_summary=field_summary,
         rms_image_path=args.rms_image_path,
         source_catalogue_path=args.source_catalogue_path,
         output_path=args.output_path,

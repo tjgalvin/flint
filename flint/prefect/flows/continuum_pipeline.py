@@ -34,7 +34,13 @@ from flint.prefect.common.imaging import (
     task_wsclean_imager,
     task_zip_ms,
 )
-from flint.prefect.common.utils import task_flatten
+from flint.prefect.common.utils import (
+    task_create_beam_summary,
+    task_create_field_summary,
+    task_flatten,
+    task_update_field_summary,
+    task_update_with_options,
+)
 
 
 @flow(name="Flint Continuum Pipeline")
@@ -95,7 +101,9 @@ def process_science_fields(
         out_dir=unmapped(output_split_science_path),
         column=unmapped("DATA"),
     )
-    flat_science_mss = task_flatten.submit(split_science_mss)
+
+    # This will block until resolved
+    flat_science_mss = task_flatten.submit(split_science_mss).result()
 
     solutions_paths = task_select_solution_for_ms.map(
         calibrate_cmds=unmapped(calibrate_cmds), ms=flat_science_mss
@@ -120,6 +128,13 @@ def process_science_fields(
     flagged_mss = task_flag_ms_aoflagger.map(
         ms=preprocess_science_mss, container=field_options.flagger_container, rounds=1
     )
+
+    field_summary = task_create_field_summary.submit(
+        mss=flagged_mss,
+        cal_sbid_path=bandpass_path,
+        holography_path=field_options.holofile,
+    )
+    logger.info(f"{field_summary=}")
 
     if field_options.no_imaging:
         logger.info(
@@ -146,10 +161,17 @@ def process_science_fields(
         wsclean_container=field_options.wsclean_container,
         update_wsclean_options=unmapped(wsclean_init),
     )
+    beam_summaries = task_create_beam_summary.map(ms=flagged_mss, imageset=wsclean_cmds)
     if run_aegean:
-        task_run_bane_and_aegean.map(
+        beam_aegean_outputs = task_run_bane_and_aegean.map(
             image=wsclean_cmds,
             aegean_container=unmapped(field_options.aegean_container),
+        )
+        beam_summaries = task_update_with_options.map(
+            input_object=beam_summaries, components=beam_aegean_outputs
+        )
+        field_summary = task_update_with_options.submit(
+            input_object=field_summary, beam_summaries=beam_summaries
         )
 
     beam_shape = task_get_common_beam.submit(
@@ -173,15 +195,20 @@ def process_science_fields(
             aegean_outputs = task_run_bane_and_aegean.submit(
                 image=parset, aegean_container=unmapped(field_options.aegean_container)
             )
+            field_summary = task_update_field_summary.submit(
+                field_summary=field_summary,
+                aegean_outputs=aegean_outputs,
+                linmos_command=parset,
+            )
 
             if run_validation:
                 validation_plot = task_create_validation_plot.submit(
-                    processed_mss=flagged_mss,
+                    field_summary=field_summary,
                     aegean_outputs=aegean_outputs,
                     reference_catalogue_directory=field_options.reference_catalogue_directory,
                 )
                 validation_tables = task_create_validation_tables.submit(
-                    processed_mss=flagged_mss,
+                    field_summary=field_summary,
                     aegean_outputs=aegean_outputs,
                     reference_catalogue_directory=field_options.reference_catalogue_directory,
                 )
@@ -235,7 +262,9 @@ def process_science_fields(
             round=round,
             update_gain_cal_options=unmapped(gain_cal_options),
             archive_input_ms=field_options.zip_ms,
-            wait_for=[validation_plot, validation_tables],
+            wait_for=[
+                field_summary
+            ],  # To make sure field summary is created with unzipped MSs
         )
         wsclean_cmds = task_wsclean_imager.map(
             in_ms=cal_mss,
@@ -283,24 +312,26 @@ def process_science_fields(
             aegean_outputs = task_run_bane_and_aegean.submit(
                 image=parset, aegean_container=unmapped(field_options.aegean_container)
             )
-
+            field_summary = task_update_field_summary.submit(
+                field_summary=field_summary,
+                aegean_outputs=aegean_outputs,
+                round=round,
+            )
             if run_validation:
-                validation_plot = task_create_validation_plot.submit(
-                    processed_mss=cal_mss,
+                validation_plot = task_create_validation_plot.submit(  # noqa: F841
+                    field_summary=field_summary,
                     aegean_outputs=aegean_outputs,
                     reference_catalogue_directory=field_options.reference_catalogue_directory,
                 )
-                validation_tables = task_create_validation_tables.submit(
-                    processed_mss=cal_mss,
+                validation_tables = task_create_validation_tables.submit(  # noqa: F841
+                    field_summary=field_summary,
                     aegean_outputs=aegean_outputs,
                     reference_catalogue_directory=field_options.reference_catalogue_directory,
                 )
 
     # zip up the final measurement set, which is not included in the above loop
     if field_options.zip_ms:
-        task_zip_ms.map(
-            in_item=wsclean_cmds, wait_for=[validation_plot, validation_tables]
-        )
+        task_zip_ms.map(in_item=wsclean_cmds)
 
 
 def setup_run_process_science_field(

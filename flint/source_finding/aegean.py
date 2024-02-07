@@ -2,11 +2,12 @@
 """
 from argparse import ArgumentParser
 from pathlib import Path
-from typing import NamedTuple
+from typing import NamedTuple, Tuple
 
 from AegeanTools import BANE
 from AegeanTools.catalogs import save_catalog
 from AegeanTools.source_finder import SourceFinder
+from astropy.io import fits
 
 from flint.logging import logger
 from flint.naming import create_aegean_names
@@ -22,6 +23,8 @@ class AegeanOutputs(NamedTuple):
     """RMS map created by BANE"""
     comp: Path
     """Source component catalogue created by Aegean"""
+    beam_shape: Tuple[float, float, float]
+    """The `BMAJ`, `BMIN` and `BPA` that were stored in the image header that Aegen searched"""
 
 
 def run_bane_and_aegean(
@@ -71,8 +74,18 @@ def run_bane_and_aegean(
     bkg_image_path = aegean_names.bkg_image
     rms_image_path = aegean_names.rms_image
 
+    image_header = fits.getheader(image)
+    image_beam = (
+        image_header["BMAJ"],
+        image_header["BMIN"],
+        image_header["BPA"],
+    )
+
     aegean_outputs = AegeanOutputs(
-        bkg=bkg_image_path, rms=rms_image_path, comp=aegean_names.comp_cat
+        bkg=bkg_image_path,
+        rms=rms_image_path,
+        comp=aegean_names.comp_cat,
+        beam_shape=image_beam,
     )
 
     logger.info(f"Aegeam finished running. {aegean_outputs=}")
@@ -135,8 +148,18 @@ def python_run_bane_and_aegean(image: Path, cores: int = 8) -> AegeanOutputs:
         catalog=source_finder.sources,
     )
 
+    image_header = fits.getheader(image)
+    image_beam = (
+        image_header["BMAJ"],
+        image_header["BMIN"],
+        image_header["BPA"],
+    )
+
     aegean_outputs = AegeanOutputs(
-        bkg=bkg_image_path, rms=rms_image_path, comp=aegean_names.comp_cat
+        bkg=bkg_image_path,
+        rms=rms_image_path,
+        comp=aegean_names.comp_cat,
+        beam_shape=image_beam,
     )
 
     logger.info(f"Aegeam finished running. {aegean_outputs=}")

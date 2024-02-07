@@ -33,6 +33,7 @@ from flint.options import FieldOptions
 from flint.prefect.common.utils import upload_image_as_artifact
 from flint.selfcal.casa import gaincal_applycal_ms
 from flint.source_finding.aegean import AegeanOutputs, run_bane_and_aegean
+from flint.summary import FieldSummary
 from flint.utils import zip_folder
 from flint.validation import (
     ValidationTables,
@@ -556,7 +557,7 @@ def task_extract_beam_mask_image(
 
 @task
 def task_create_validation_plot(
-    processed_mss: List[MS],
+    field_summary: FieldSummary,
     aegean_outputs: AegeanOutputs,
     reference_catalogue_directory: Path,
     upload_artifact: bool = True,
@@ -575,12 +576,8 @@ def task_create_validation_plot(
 
     logger.info(f"Will create validation plot in {output_path=}")
 
-    processed_mss = [
-        ms.ms if isinstance(ms, ApplySolutions) else ms for ms in processed_mss
-    ]
-
     plot_path = create_validation_plot(
-        processed_ms_paths=[ms.path for ms in processed_mss],
+        field_summary=field_summary,
         rms_image_path=aegean_outputs.rms,
         source_catalogue_path=aegean_outputs.comp,
         output_path=output_path,
@@ -597,7 +594,7 @@ def task_create_validation_plot(
 
 @task
 def task_create_validation_tables(
-    processed_mss: List[MS],
+    field_summary: FieldSummary,
     aegean_outputs: AegeanOutputs,
     reference_catalogue_directory: Path,
     upload_artifacts: bool = True,
@@ -617,13 +614,9 @@ def task_create_validation_tables(
     """
     output_path = aegean_outputs.comp.parent
 
-    processed_mss = [
-        ms.ms if isinstance(ms, ApplySolutions) else ms for ms in processed_mss
-    ]
-
     logger.info(f"Will create validation tables in {output_path=}")
     validation_tables = create_validation_tables(
-        processed_ms_paths=[ms.path for ms in processed_mss],
+        field_summary=field_summary,
         rms_image_path=aegean_outputs.rms,
         source_catalogue_path=aegean_outputs.comp,
         output_path=output_path,
