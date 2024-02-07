@@ -1135,7 +1135,7 @@ class PSFTableRow(NamedTuple):
     Currently no reason to use this.
     """
 
-    beam_number: int
+    beam: int
     vis_total: int
     vis_flagged: int
     image_name: str
@@ -1174,7 +1174,7 @@ def _make_beam_psf_row(beam_summary: BeamSummary) -> PSFTableRow:
     coord = estimate_image_centre(image_path=image_file)
 
     return PSFTableRow(
-        beam_number=name_components.beam,
+        beam=name_components.beam,
         vis_flagged=vis_flagged,
         vis_total=vis_total,
         image_name=image_file.name,
