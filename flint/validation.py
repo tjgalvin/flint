@@ -1204,7 +1204,7 @@ def make_psf_table(field_summary: FieldSummary, output_path: Path) -> Path:
             "BEAM_NUM": [row.beam for row in psf_table_rows],
             "VIS_TOTAL": [row.vis_total for row in psf_table_rows],
             "VIS_FLAGGED": [row.vis_total for row in psf_table_rows],
-            "IMAGE_NAME": [row.name for row in psf_table_rows],
+            "IMAGE_NAME": [row.image_name for row in psf_table_rows],
             "PSF_MAJOR": [row.bmaj for row in psf_table_rows],
             "PSF_MINOR": [row.bmin for row in psf_table_rows],
             "PSF_ANGLE": [row.bpa for row in psf_table_rows],
@@ -1213,7 +1213,9 @@ def make_psf_table(field_summary: FieldSummary, output_path: Path) -> Path:
 
     psf_table.sort("BEAM_NUM")
     # beam_inf_{SBID}-{FIELD_NAME}.csv
-    outfile = output_path / f"beam_inf_{field_summary.sbid}-{field_summary.field}.csv"
+    outfile = (
+        output_path / f"beam_inf_{field_summary.sbid}-{field_summary.field_name}.csv"
+    )
     psf_table.write(outfile, format="csv", overwrite=True)
 
     return outfile

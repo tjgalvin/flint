@@ -1,21 +1,23 @@
-import pytest
 import shutil
 from pathlib import Path
 
-import pkg_resources
-from astropy.time import Time
-from astropy.coordinates import EarthLocation, Longitude, Latitude
 import numpy as np
+import pkg_resources
+import pytest
+from astropy.coordinates import EarthLocation, Latitude, Longitude
+from astropy.time import Time
 
-from flint.ms import get_times_from_ms, get_telescope_location_from_ms
+from flint.imager.wsclean import ImageSet
+from flint.ms import get_telescope_location_from_ms, get_times_from_ms
+from flint.source_finding.aegean import AegeanOutputs
 from flint.summary import (
     FieldSummary,
-    create_field_summary,
     add_rms_information,
-    update_field_summary,
     create_beam_summary,
+    create_field_summary,
+    update_field_summary,
 )
-from flint.source_finding.aegean import AegeanOutputs
+from flint.validation import make_psf_table
 
 
 @pytest.fixture
@@ -59,6 +61,47 @@ def test_create_beam_summary(ms_example, aegean_outputs_example):
     beam_summary = create_beam_summary(ms=ms_example, components=aegean_outputs_example)
 
     assert beam_summary.ms_summary.path == ms_example
+
+
+def test_create_field_summary_beam_summary(ms_example, aegean_outputs_example):
+    cal_sbid_path = Path("/scratch3/gal16b/split/39433/SB39433.1934-638.beam0.ms")
+    mss = [ms_example for _ in range(36)]
+
+    image_set = ImageSet(prefix="Example", image=[aegean_outputs_example.rms])
+
+    beam_summaries = [
+        create_beam_summary(
+            ms=ms_example, imageset=image_set, components=aegean_outputs_example
+        )
+        for _ in range(36)
+    ]
+
+    field_summary = create_field_summary(
+        mss=mss, cal_sbid_path=cal_sbid_path, beam_summaries=beam_summaries
+    )
+
+    assert len(field_summary.beam_summaries) == 36
+
+
+def test_field_summary_beam_summary_make_psf(
+    ms_example, aegean_outputs_example, tmpdir
+):
+    cal_sbid_path = Path("/scratch3/gal16b/split/39433/SB39433.1934-638.beam0.ms")
+    mss = [ms_example for _ in range(36)]
+    image_set = ImageSet(prefix="Example", image=[aegean_outputs_example.rms])
+
+    beam_summaries = [
+        create_beam_summary(
+            ms=ms_example, imageset=image_set, components=aegean_outputs_example
+        )
+        for _ in range(36)
+    ]
+
+    field_summary = create_field_summary(
+        mss=mss, cal_sbid_path=cal_sbid_path, beam_summaries=beam_summaries
+    )
+
+    make_psf_table(field_summary=field_summary, output_path=Path(tmpdir))
 
 
 def test_field_summary(ms_example):

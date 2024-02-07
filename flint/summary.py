@@ -231,8 +231,11 @@ def create_field_summary(
     cal_sbid_path: Optional[Path] = None,
     holography_path: Optional[Path] = None,
     aegean_outputs: Optional[AegeanOutputs] = None,
+    **kwargs,
 ) -> FieldSummary:
     """Create a field summary object using a measurement set.
+
+    All other keyword arguments are passed directly through to `FieldSummary`
 
     Args:
         ms (Union[MS, Path]): Measurement set information will be pulled from
@@ -278,6 +281,7 @@ def create_field_summary(
         integration_time=integration,
         holography_path=holography_path,
         ms_times=Time([ms_times.min(), ms_times.max()]),
+        **kwargs,
     )
 
     field_summary = add_ms_summaries(field_summary=field_summary, mss=mss)
