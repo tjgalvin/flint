@@ -1103,8 +1103,8 @@ def make_field_stats_table(
 
     with fits.open(field_summary.linmos_image) as linmos_image:
         image_data = linmos_image[0].data
-        min_image_data = np.min(image_data)
-        max_image_data = np.max(image_data)
+        min_image_data = np.nanmin(image_data)
+        max_image_data = np.nanmax(image_data)
 
     stats_table = Table(
         {
