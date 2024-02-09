@@ -123,6 +123,22 @@ def test_known_bad_sols(ao_sols_known_bad):
     flag_aosolutions(solutions_path=ao_sols_known_bad, plot_solutions_throughout=False)
 
 
+def test_sols_same_with_plots(ao_sols_known_bad):
+    # Had a thought at one point the plktting was updating th mutable numpy array before
+    # it was writen back to file. Wrote the test, and it passed. Test stays
+    a = flag_aosolutions(
+        solutions_path=ao_sols_known_bad, plot_solutions_throughout=False
+    )
+    a_loaded = AOSolutions.load(a.path)
+
+    b = flag_aosolutions(
+        solutions_path=ao_sols_known_bad, plot_solutions_throughout=True
+    )
+    b_loaded = AOSolutions.load(b.path)
+
+    assert np.allclose(a_loaded.bandpass, b_loaded.bandpass, equal_nan=True)
+
+
 def test_flagged_aosols(ao_sols_known_bad):
     flagged_sols = flag_aosolutions(
         solutions_path=ao_sols_known_bad,

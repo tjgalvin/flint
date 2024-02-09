@@ -149,6 +149,7 @@ def smooth_bandpass_complex_gains(
         "Consider whether you really want to be smoothing when using continuum data. "
     )
     for ant in range(ants):
+        # TODO: This will be smoothing the X_y and Y_x. Should this actually be done?
         for pol in range(pols):
             smoothed_complex_gains[ant, :, pol].real = smooth_data(
                 data=complex_gains[ant, :, pol].real,
