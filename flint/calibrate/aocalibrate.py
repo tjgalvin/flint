@@ -986,12 +986,12 @@ def flag_aosolutions(
     if smooth_solutions:
         logger.info("Smoothing the bandpass solutions. ")
         for time in range(solutions.nsol):
-            complex_gains = divide_bandpass_by_ref_ant(
-                complex_gains=bandpass[time], ref_ant=ref_ant
-            )
-            logger.critical("Not smoothing. Just reference antenna division. ")
-            bandpass[time] = complex_gains
-            # bandpass[time] = smooth_bandpass_complex_gains(complex_gains=complex_gains)
+            # complex_gains = divide_bandpass_by_ref_ant(
+            #     complex_gains=bandpass[time], ref_ant=ref_ant
+            # )
+            logger.critical("Smoothing. and not dividing by a reference antenna. ")
+            complex_gains = bandpass[time]
+            bandpass[time] = smooth_bandpass_complex_gains(complex_gains=complex_gains)
 
         out_solutions_path = get_aocalibrate_output_path(
             ms_path=solutions_path, include_preflagger=True, include_smoother=True
