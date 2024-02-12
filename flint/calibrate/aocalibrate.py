@@ -1,5 +1,6 @@
 """Code to use AO calibrate s
 """
+
 from __future__ import annotations  # used to keep mypy/pylance happy in AOSolutions
 
 import struct
@@ -832,6 +833,8 @@ class FlaggedAOSolution(NamedTuple):
     """Path to the final set of flagged solutions"""
     plots: Collection[Path]
     """Contains paths to the plots generated throughout the flagging and smoothing procedure"""
+    bandpass: np.ndarray
+    """The bandpass solutions after flagging, as saved in the solutions file"""
 
 
 def flag_aosolutions(
@@ -986,7 +989,9 @@ def flag_aosolutions(
             complex_gains = divide_bandpass_by_ref_ant(
                 complex_gains=bandpass[time], ref_ant=ref_ant
             )
-            bandpass[time] = smooth_bandpass_complex_gains(complex_gains=complex_gains)
+            logger.critical("Not smoothing. Just reference antenna division. ")
+            bandpass[time] = complex_gains
+            # bandpass[time] = smooth_bandpass_complex_gains(complex_gains=complex_gains)
 
         out_solutions_path = get_aocalibrate_output_path(
             ms_path=solutions_path, include_preflagger=True, include_smoother=True
@@ -1006,7 +1011,9 @@ def flag_aosolutions(
         logger.critical(msg)
         raise ValueError(msg)
 
-    flagged_aosolutions = FlaggedAOSolution(path=out_solutions_path, plots=tuple(plots))
+    flagged_aosolutions = FlaggedAOSolution(
+        path=out_solutions_path, plots=tuple(plots), bandpass=bandpass
+    )
 
     return flagged_aosolutions
 

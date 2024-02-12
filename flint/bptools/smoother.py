@@ -1,3 +1,5 @@
+from typing import Tuple
+
 import numpy as np
 from scipy.ndimage import median_filter
 from scipy.signal import savgol_filter
@@ -108,6 +110,7 @@ def smooth_bandpass_complex_gains(
     window_size: int = 16,
     polynomial_order: int = 4,
     apply_median_filter: bool = True,
+    smooth_jones_elements: Tuple[int, ...] = (0, 1, 2, 3),
 ) -> np.ndarray:
     """Smooth bandpass solutions by applying a savgol filter to the real and imaginary components
     of each of the antenna based polarisation solutions across channels.
@@ -128,6 +131,7 @@ def smooth_bandpass_complex_gains(
         window_size (int, optional): The size of the window function of the savgol filter. Passed directly to savgol. Defaults to 16.
         polynomial_order (int, optional): The order of the polynomial of the savgol filter. Passed directly to savgol. Defaults to 4.
         apply_median_filter (bool, optional): Apply a median filter to the data before applying the savgol filter using the same window size. Defaults to True.
+        smoothe_jones_elements (Tuple[int, ...], optional): Which elements of the antennae Jones will be smoothed through frequency, i.e. X_x, X_y, Y_x, Y_y. Defaults to (0, 1, 2, 3).
 
     Returns:
         np.ndarray: Smoothed complex gains
@@ -150,7 +154,9 @@ def smooth_bandpass_complex_gains(
     )
     for ant in range(ants):
         # TODO: This will be smoothing the X_y and Y_x. Should this actually be done?
-        for pol in range(pols):
+        for pol in smooth_jones_elements:
+            assert pol in (0, 1, 2, 3), f"{pol=} is not valid Jones entry. "
+
             smoothed_complex_gains[ant, :, pol].real = smooth_data(
                 data=complex_gains[ant, :, pol].real,
                 window_size=window_size,
