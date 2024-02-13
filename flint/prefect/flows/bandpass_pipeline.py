@@ -69,11 +69,17 @@ def task_bandpass_create_apply_solutions_cmd(
 
 
 @task
-def task_flag_solutions(calibrate_cmd: CalibrateCommand) -> CalibrateCommand:
+def task_flag_solutions(
+    calibrate_cmd: CalibrateCommand,
+    smooth_window_size: int = 16,
+    smooth_polynomial_order: int = 4,
+) -> CalibrateCommand:
     """Flag calibration solutions
 
     Args:
         calibrate_cmd (CalibrateCommand): Calibrate command that contains path to the solution file that will be flagged
+        smooth_window_size (int, optional): The size of the window function of the savgol filter. Passed directly to savgol. Defaults to 16.
+        smooth_polynomial_order (int, optional): The order of the polynomial of the savgol filter. Passed directly to savgol. Defaults to 4.
 
     Returns:
         CalibrateCommand: Calibrate command with update meta-data describing the new solutions file
@@ -97,6 +103,8 @@ def task_flag_solutions(calibrate_cmd: CalibrateCommand) -> CalibrateCommand:
         flag_cut=3,
         plot_dir=plot_dir,
         smooth_solutions=True,
+        smooth_window_size=smooth_window_size,
+        smooth_polynomial_order=smooth_polynomial_order,
     )
 
     for image_path in flagged_solutions.plots:
@@ -130,7 +138,7 @@ def run_bandpass_stage(
         source_name_prefix (str, optional): Name of the field being calibrated. Defaults to "B1934-638".
         skip_rotation (bool, optional): If ``True`` the rotation of the ASKAP visibility from the antenna frame to the sky-frame will be skipped. Defaults to False.
         smooth_window_size (int, optional): The size of the window function of the savgol filter. Passed directly to savgol. Defaults to 16.
-        wmooth_polynomial_order (int, optional): The order of the polynomial of the savgol filter. Passed directly to savgol. Defaults to 4.
+        smooth_polynomial_order (int, optional): The order of the polynomial of the savgol filter. Passed directly to savgol. Defaults to 4.
 
     Returns:
         List[CalibrateCommand]: Set of calibration commands used
