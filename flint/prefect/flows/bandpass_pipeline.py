@@ -247,6 +247,8 @@ def calibrate_bandpass_flow(
         model_path=model_path,
         source_name_prefix=source_name_prefix,
         skip_rotation=True,
+        smooth_window_size=smooth_window_size,
+        smooth_polynomial_order=smooth_polynomial_order,
     )
 
     return output_split_bandpass_path
