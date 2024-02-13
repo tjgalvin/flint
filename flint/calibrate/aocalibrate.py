@@ -845,6 +845,8 @@ def flag_aosolutions(
     out_solutions_path: Optional[Path] = None,
     smooth_solutions: bool = False,
     plot_solutions_throughout: bool = True,
+    smooth_window_size: int = 16,
+    smooth_polynomial_order: int = 4,
 ) -> FlaggedAOSolution:
     """Will open a previously solved ao-calibrate solutions file and flag additional channels and antennae.
 
@@ -854,6 +856,8 @@ def flag_aosolutions(
 
     The second stage will flag an entire antenna if more then 80 percent of the flags for a polarisation are flagged.
 
+    Keywords that with the `smooth` prefix are passed to the `smooth_bandpass_complex_gains` function.
+
     Args:
         solutions_path (Path): Location of the solutions file to examine and flag.
         ref_ant (int, optional): Reference antenna to use, which is important when searching for phase-outliers and to smooth the bandpass. If ref_ant < 0, then an optimal one is selected. Defaults to -1.
@@ -862,6 +866,8 @@ def flag_aosolutions(
         out_solutions_path (Optional[Path], optional): The output path of the flagged solutions file. If None, the solutions_path provided is used. Defaults to None.
         smooth_solutions (blool, optional): Smooth the complex gain solutions after flaggined. Defaults to False.
         plot_solutions_throughout (bool, Optional): If True, the solutions will be plotted at different stages of processing. Defaults to True.
+        smooth_window_size (int, optional): The size of the window function of the savgol filter. Passed directly to savgol. Defaults to 16.
+        smooth_polynomial_order (int, optional): The order of the polynomial of the savgol filter. Passed directly to savgol. Defaults to 4.
 
     Returns:
         FlaggedAOSolution: Path to the updated solutions file, intermediate solution files and plots along the way
@@ -991,7 +997,11 @@ def flag_aosolutions(
             # )
             logger.critical("Smoothing. and not dividing by a reference antenna. ")
             complex_gains = bandpass[time]
-            bandpass[time] = smooth_bandpass_complex_gains(complex_gains=complex_gains)
+            bandpass[time] = smooth_bandpass_complex_gains(
+                complex_gains=complex_gains,
+                window_size=smooth_window_size,
+                polynomial_order=smooth_polynomial_order,
+            )
 
         out_solutions_path = get_aocalibrate_output_path(
             ms_path=solutions_path, include_preflagger=True, include_smoother=True

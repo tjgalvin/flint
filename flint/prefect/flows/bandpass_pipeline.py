@@ -115,6 +115,8 @@ def run_bandpass_stage(
     model_path: Path,
     source_name_prefix: str = "B1934-638",
     skip_rotation: bool = False,
+    smooth_window_size: int = 16,
+    smooth_polynomial_order: int = 4,
 ) -> List[CalibrateCommand]:
     """Excutes the bandpass calibration (using ``calibrate``) against a set of
     input measurement sets.
@@ -127,6 +129,8 @@ def run_bandpass_stage(
         model_path (Path): Path to the model used to calibrate against
         source_name_prefix (str, optional): Name of the field being calibrated. Defaults to "B1934-638".
         skip_rotation (bool, optional): If ``True`` the rotation of the ASKAP visibility from the antenna frame to the sky-frame will be skipped. Defaults to False.
+        smooth_window_size (int, optional): The size of the window function of the savgol filter. Passed directly to savgol. Defaults to 16.
+        wmooth_polynomial_order (int, optional): The order of the polynomial of the savgol filter. Passed directly to savgol. Defaults to 4.
 
     Returns:
         List[CalibrateCommand]: Set of calibration commands used
@@ -154,7 +158,11 @@ def run_bandpass_stage(
         calibrate_model=model_path,
         container=calibrate_container,
     )
-    flag_calibrate_cmds = task_flag_solutions.map(calibrate_cmd=calibrate_cmds)
+    flag_calibrate_cmds = task_flag_solutions.map(
+        calibrate_cmd=calibrate_cmds,
+        smooth_window_size=smooth_window_size,
+        smooth_polynomial_order=smooth_polynomial_order,
+    )
 
     return flag_calibrate_cmds
 
@@ -166,6 +174,8 @@ def calibrate_bandpass_flow(
     calibrate_container: Path,
     flagger_container: Path,
     expected_ms: int = 36,
+    smooth_window_size: int = 16,
+    smooth_polynomial_order: int = 4,
 ) -> Path:
     """Create and run the prefect flow to calibrate a set of bandpass measurement sets.
 
@@ -188,6 +198,8 @@ def calibrate_bandpass_flow(
         expected_ms (int): Expected numbner of measurement sets that should reside in the ``bandpass_path``
         calibrate_container (Path): Path to a singularity container with the ao-calibrate tool
         flagger_container (Path): Path to a singularity container with aoflaffer
+        smooth_window_size (int, optional): The size of the window function of the savgol filter. Passed directly to savgol. Defaults to 16.
+        wmooth_polynomial_order (int, optional): The order of the polynomial of the savgol filter. Passed directly to savgol. Defaults to 4.
 
     Returns:
         Path: Directory that contains the extracted measurement sets and the ao-style gain solutions files.
@@ -239,6 +251,8 @@ def setup_run_bandpass_flow(
     calibrate_container: Path,
     flagger_container: Path,
     cluster_config: Path,
+    smooth_window_size: int = 16,
+    smooth_polynomial_order: int = 4,
 ) -> Path:
     """Create and run the prefect flow to calibrate a set of bandpass measurement sets.
 
@@ -262,6 +276,8 @@ def setup_run_bandpass_flow(
         calibrate_container (Path): Path to a singularity container with the ao-calibrate tool
         flagger_container (Path): Path to a singularity container with aoflaffer
         cluster_config (Path): Path to a yaml file that is used to configure a prefect dask task runner.
+        smooth_window_size (int, optional): The size of the window function of the savgol filter. Passed directly to savgol. Defaults to 16.
+        wmooth_polynomial_order (int, optional): The order of the polynomial of the savgol filter. Passed directly to savgol. Defaults to 4.
 
     Returns:
         Path: Directory that contains the extracted measurement sets and the ao-style gain solutions files.
@@ -279,6 +295,8 @@ def setup_run_bandpass_flow(
         calibrate_container=calibrate_container,
         flagger_container=flagger_container,
         expected_ms=expected_ms,
+        smooth_window_size=smooth_window_size,
+        smooth_polynomial_order=smooth_polynomial_order,
     )
 
     return bandpass_path
@@ -330,6 +348,18 @@ def get_parser() -> ArgumentParser:
         default="petrichor",
         help="Path to a cluster configuration file, or a known cluster name. ",
     )
+    parser.add_argument(
+        "--smoth-window-size",
+        default=16,
+        type=int,
+        help="Size of the smoothing Savgol window when smoothing bandpass solutions",
+    )
+    parser.add_argument(
+        "--smooth-polynomial-order",
+        default=4,
+        type=int,
+        help="Order of the polynomial when smoothing the bandpass solutions with the Savgol filter",
+    )
 
     return parser
 
@@ -350,6 +380,8 @@ def cli() -> None:
         calibrate_container=args.calibrate_container,
         flagger_container=args.flagger_container,
         cluster_config=args.cluster_config,
+        smooth_window_size=args.smooth_window_size,
+        smooth_polynomial_order=args.smooth_polynomial_order,
     )
 
 
