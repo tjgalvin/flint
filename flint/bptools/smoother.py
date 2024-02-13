@@ -49,7 +49,7 @@ def smooth_data(
     data: np.ndarray,
     window_size: int,
     polynomial_order: int,
-    apply_median_filter: bool = True,
+    apply_median_filter: bool = False,
 ) -> np.ndarray:
     """Smooth a 1-dimensional dataset. Internally it uses a savgol filter as
     implemented in scipy.signal.savgol_filter. It is intended to be used to
@@ -68,7 +68,7 @@ def smooth_data(
         data (np.ndarray): The 1-dimensional data to be smoothed.
         window_size (int): The size of the window function of the savgol filter. Passed directly to savgol.
         polynomial_order (int): The order of the polynomial of the savgol filter. Passed directly to savgol.
-        apply_median_filter (bool, optional): Apply a median filter to the data before applying the savgol filter using the same window size. Defaults to True.
+        apply_median_filter (bool, optional): Apply a median filter to the data before applying the savgol filter using the same window size. Defaults to False.
 
     Returns:
         np.ndarray: Smoothed dataset
