@@ -349,7 +349,7 @@ def get_parser() -> ArgumentParser:
         help="Path to a cluster configuration file, or a known cluster name. ",
     )
     parser.add_argument(
-        "--smoth-window-size",
+        "--smooth-window-size",
         default=16,
         type=int,
         help="Size of the smoothing Savgol window when smoothing bandpass solutions",
