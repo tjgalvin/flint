@@ -1,5 +1,6 @@
 """Operations related to measurement sets
 """
+
 from __future__ import (  # Used for mypy/pylance to like the return type of MS.with_options
     annotations,
 )
@@ -404,7 +405,7 @@ def split_by_field(
             logger.info(f"Creating {ms_out_dir}.")
             ms_out_dir.mkdir(parents=True)
         except Exception as e:
-            logger.warn(e)
+            logger.warning(e)
             pass  # Incase above fails due to race condition
 
     logger.info(f"Opening {ms.path}. ")

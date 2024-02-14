@@ -1,14 +1,15 @@
 """Items related to test functions in the validation stage of flint
 """
+
 from pathlib import Path
 from typing import NamedTuple
 
 import matplotlib.pyplot as plt
 import numpy as np
-import pkg_resources
 import pytest
 from astropy.table import Table
 
+from flint.utils import get_packaged_resource_path
 from flint.validation import (
     RMSImageInfo,
     SourceCounts,
@@ -27,8 +28,9 @@ def test_get_parser():
 @pytest.fixture
 def rms_path(tmpdir):
     rms_path = Path(
-        pkg_resources.resource_filename(
-            "flint", "data/tests/SB39400.RACS_0635-31.beam0-MFS-subimage_rms.fits"
+        get_packaged_resource_path(
+            package="flint.data.tests",
+            filename="SB39400.RACS_0635-31.beam0-MFS-subimage_rms.fits",
         )
     )
 
@@ -38,8 +40,9 @@ def rms_path(tmpdir):
 @pytest.fixture
 def comp_path(tmpdir):
     comp_path = Path(
-        pkg_resources.resource_filename(
-            "flint", "data/tests/SB38959.RACS_1357-18.noselfcal.linmos_comp.fits"
+        get_packaged_resource_path(
+            package="flint.data.tests",
+            filename="SB38959.RACS_1357-18.noselfcal.linmos_comp.fits",
         )
     )
 

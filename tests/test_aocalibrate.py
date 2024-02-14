@@ -1,10 +1,10 @@
 """Some tests related to using aoccalibrate related things
 """
+
 import shutil
 from pathlib import Path
 
 import numpy as np
-import pkg_resources
 import pytest
 
 from flint.bptools.smoother import (
@@ -21,6 +21,7 @@ from flint.calibrate.aocalibrate import (
     plot_solutions,
     select_refant,
 )
+from flint.utils import get_packaged_resource_path
 
 
 def test_calibrate_options_to_command():
@@ -89,8 +90,8 @@ def test_calibrate_options_to_command3():
 @pytest.fixture
 def ao_sols(tmpdir):
     ao_sols = Path(
-        pkg_resources.resource_filename(
-            "flint", "data/tests/SB39433.B1934-638.beam0.calibrate.bin"
+        get_packaged_resource_path(
+            package="flint.data.tests", filename="SB39433.B1934-638.beam0.calibrate.bin"
         )
     )
 
@@ -107,8 +108,9 @@ def ao_sols_known_bad(tmpdir):
     # It was fixed by testing for all nans in the `flint.bptools.smoother.smooth_data`
     # function.
     ao_sols = Path(
-        pkg_resources.resource_filename(
-            "flint", "data/tests/SB38969.B1934-638.beam35.aocalibrate.bin"
+        get_packaged_resource_path(
+            package="flint.data.tests",
+            filename="SB38969.B1934-638.beam35.aocalibrate.bin",
         )
     )
 

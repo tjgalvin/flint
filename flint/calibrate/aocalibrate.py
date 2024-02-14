@@ -1,5 +1,6 @@
 """Code to use AO calibrate s
 """
+
 from __future__ import annotations  # used to keep mypy/pylance happy in AOSolutions
 
 import struct
@@ -194,7 +195,7 @@ def plot_solutions(
     logger.info(f"Plotting {solutions_path}")
 
     if ao_sols.nsol > 1:
-        logger.warn(f"Found {ao_sols.nsol} intervals, plotting the first. ")
+        logger.warning(f"Found {ao_sols.nsol} intervals, plotting the first. ")
     plot_sol = 0  # The first time interval
 
     data = ao_sols.bandpass[plot_sol]
@@ -232,7 +233,7 @@ def plot_solutions(
             ratio = amps_xx / amps_yy
 
             if any([np.sum(~np.isfinite(amps)) == 0 for amps in (amps_xx, amps_yy)]):
-                logger.warn(f"No valid data for {ant=}")
+                logger.warning(f"No valid data for {ant=}")
                 continue
 
             max_amp_xx = (

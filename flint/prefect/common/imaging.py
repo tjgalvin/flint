@@ -255,7 +255,9 @@ def task_get_common_beam(
     # TODO: This should support other image types
     for wsclean_cmd in wsclean_cmds:
         if wsclean_cmd.imageset is None:
-            logger.warn(f"No imageset fo {wsclean_cmd.ms} found. Has imager finished?")
+            logger.warning(
+                f"No imageset fo {wsclean_cmd.ms} found. Has imager finished?"
+            )
             continue
         images_to_consider.extend(wsclean_cmd.imageset.image)
 

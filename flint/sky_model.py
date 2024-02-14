@@ -6,7 +6,6 @@ from pathlib import Path
 from typing import Dict, List, NamedTuple, Optional, Tuple
 
 import numpy as np
-import pkg_resources
 import yaml
 from astropy import units as u
 from astropy.coordinates import Angle, SkyCoord
@@ -16,6 +15,7 @@ from casacore.tables import table
 from scipy.optimize import curve_fit
 
 from flint.logging import logger
+from flint.utils import get_packaged_resource_path
 
 
 class Catalogue(NamedTuple):
@@ -161,10 +161,10 @@ def get_1934_model(mode: str = "calibrate") -> Path:
         )
 
     logger.info(f"Searching for 1934-638 for {mode=}.")
-    model_dir = pkg_resources.resource_filename("flint", "data/models/")
     model_fn = KNOWN_1934_FILES[mode]
-
-    model_path = Path(model_dir) / model_fn
+    model_path = get_packaged_resource_path(
+        package="flint.data.models", filename=model_fn
+    )
 
     assert (
         model_path.exists()
@@ -735,21 +735,21 @@ def create_sky_model(
     return SkyModel(
         flux_jy=total_flux.to(u.Jy).value,
         no_sources=len(accepted_rows),
-        hyperdrive_model=make_hyperdrive_model(
-            out_path=hyperdrive_path, sources=accepted_rows
-        )
-        if hyperdrive_model
-        else None,
-        calibrate_model=make_calibrate_model(
-            out_path=calibrate_path, sources=accepted_rows
-        )
-        if calibrate_model
-        else None,
-        ds9_region=make_ds9_region(
-            out_path=region_path, sources=[r[0] for r in accepted_rows]
-        )
-        if ds9_region
-        else None,
+        hyperdrive_model=(
+            make_hyperdrive_model(out_path=hyperdrive_path, sources=accepted_rows)
+            if hyperdrive_model
+            else None
+        ),
+        calibrate_model=(
+            make_calibrate_model(out_path=calibrate_path, sources=accepted_rows)
+            if calibrate_model
+            else None
+        ),
+        ds9_region=(
+            make_ds9_region(out_path=region_path, sources=[r[0] for r in accepted_rows])
+            if ds9_region
+            else None
+        ),
     )
 
 

@@ -2,6 +2,7 @@
 
 This tooling is mostly centred on using gaincal from casatasks.
 """
+
 from __future__ import annotations
 
 from argparse import ArgumentParser
@@ -102,7 +103,7 @@ def copy_and_clean_ms_casagain(ms: MS, round: int = 1, verify: bool = True) -> M
     logger.info(f"Copying {ms.path} to {out_ms_path}.")
 
     if out_ms_path.exists():
-        logger.warn(f"{out_ms_path} already exists. Removing it. ")
+        logger.warning(f"{out_ms_path} already exists. Removing it. ")
         remove_files_folders(out_ms_path)
 
     copytree(ms.path, out_ms_path)
@@ -134,7 +135,7 @@ def copy_and_clean_ms_casagain(ms: MS, round: int = 1, verify: bool = True) -> M
                 except Exception as e:
                     logger.critical(f"Failed to remove {col=}! \nCaptured error: {e}")
             else:
-                logger.warn(f"Column {col} not found in {str(out_ms_path)}.")
+                logger.warning(f"Column {col} not found in {str(out_ms_path)}.")
 
         logger.info("Renaming CORRECTED_DATA to DATA. ")
         tab.renamecol("CORRECTED_DATA", "DATA")
@@ -257,7 +258,7 @@ def gaincal_applycal_ms(
     logger.info(f"Will create calibration table {cal_table}.")
 
     if cal_table.exists():
-        logger.warn(f"Removing {str(cal_table)}")
+        logger.warning(f"Removing {str(cal_table)}")
         remove_files_folders(cal_table)
 
     # This is used for when a frequency dependent self-calibration solution is requested.

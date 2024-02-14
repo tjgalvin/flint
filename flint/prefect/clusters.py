@@ -8,9 +8,10 @@ from glob import glob
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
 
-import pkg_resources
 import yaml
 from prefect_dask import DaskTaskRunner
+
+from flint.utils import get_packaged_resource_path
 
 
 def list_packaged_clusters() -> List[str]:
@@ -20,7 +21,11 @@ def list_packaged_clusters() -> List[str]:
     Returns:
         list[str]: A list of preinstalled dask_jobqueue cluster specification files
     """
-    yaml_files_dir = pkg_resources.resource_filename("aces", "cluster_configs/")
+    # TODO: This should be removed
+
+    yaml_files_dir = get_packaged_resource_path(
+        package="aces.cluster_configs", filename=""
+    )
     yaml_files = glob(f"{yaml_files_dir}/*yaml")
 
     clusters = [Path(f).stem for f in yaml_files]
@@ -52,13 +57,9 @@ def get_cluster_spec(cluster: Union[str, Path]) -> Dict[Any, Any]:
 
     if Path(cluster).exists():
         yaml_file = cluster
-    elif cluster == "galaxy":
-        yaml_file = pkg_resources.resource_filename(
-            "aces", "cluster_configs/galaxy_small.yaml"
-        )
     else:
-        yaml_file = pkg_resources.resource_filename(
-            "aces", f"cluster_configs/{cluster}.yaml"
+        yaml_file = get_packaged_resource_path(
+            package="flint.cluster_configs", filename=f"{cluster}.yaml"
         )
 
     if yaml_file is None or not Path(yaml_file).exists():

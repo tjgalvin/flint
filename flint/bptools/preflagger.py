@@ -5,6 +5,7 @@ be removed.
 At this point there are no attempts to smooth or interpolate these flagged
 components of the bandpass.
 """
+
 from pathlib import Path
 from typing import NamedTuple, Optional, Tuple
 
@@ -486,7 +487,7 @@ def flag_mean_xxyy_amplitude_ratio(
     )
 
     if result:
-        logger.warn(
+        logger.warning(
             f"Failed the mean gain ratio test: {xx_mean=} {yy_mean=} {mean_gain_ratio=} "
         )
 
