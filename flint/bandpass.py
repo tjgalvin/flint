@@ -1,5 +1,6 @@
 """Procedure to calibrate bandpass observation
 """
+
 from argparse import ArgumentParser
 from pathlib import Path
 from typing import Optional, Union
@@ -157,8 +158,8 @@ def extract_correct_bandpass_pointing(
             try:
                 ms_out_dir.mkdir(parents=True)
             except Exception as e:
-                logger.warn(f"Exception caught when making {ms_out_dir=}.")
-                logger.warn(f"{e}")
+                logger.warning(f"Exception caught when making {ms_out_dir=}.")
+                logger.warning(f"{e}")
                 pass
 
         out_path = ms_out_dir / Path(out_name).name
@@ -311,7 +312,7 @@ def cli() -> None:
     elif args.mode == "plot":
         plot_solutions(solutions_path=args.solutions)
     else:
-        logger.warn("This should not have happened. ")
+        logger.warning("This should not have happened. ")
 
 
 if __name__ == "__main__":

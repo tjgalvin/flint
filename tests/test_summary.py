@@ -2,7 +2,6 @@ import shutil
 from pathlib import Path
 
 import numpy as np
-import pkg_resources
 import pytest
 from astropy.coordinates import EarthLocation, Latitude, Longitude
 from astropy.time import Time
@@ -17,20 +16,23 @@ from flint.summary import (
     create_field_summary,
     update_field_summary,
 )
+from flint.utils import get_packaged_resource_path
 from flint.validation import make_psf_table
 
 
 @pytest.fixture
 def aegean_outputs_example():
     rms = Path(
-        pkg_resources.resource_filename(
-            "flint", "data/tests/SB39400.RACS_0635-31.beam0-MFS-subimage_rms.fits"
+        get_packaged_resource_path(
+            package="flint.data.tests",
+            filename="SB39400.RACS_0635-31.beam0-MFS-subimage_rms.fits",
         )
     )
 
     comp = Path(
-        pkg_resources.resource_filename(
-            "flint", "data/tests/SB38959.RACS_1357-18.noselfcal.linmos_comp.fits"
+        get_packaged_resource_path(
+            package="flint.data.tests",
+            filename="SB38959.RACS_1357-18.noselfcal.linmos_comp.fits",
         )
     )
 
@@ -44,8 +46,9 @@ def aegean_outputs_example():
 @pytest.fixture
 def ms_example(tmpdir):
     ms_zip = Path(
-        pkg_resources.resource_filename(
-            "flint", "data/tests/SB39400.RACS_0635-31.beam0.small.ms.zip"
+        get_packaged_resource_path(
+            package="flint.data.tests",
+            filename="SB39400.RACS_0635-31.beam0.small.ms.zip",
         )
     )
     outpath = Path(tmpdir) / "39400"

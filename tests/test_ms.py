@@ -1,23 +1,25 @@
 """Small tests for items related to measurement sets
 and the MS class
 """
+
 import shutil
 from pathlib import Path
 
 import numpy as np
-import pkg_resources
 import pytest
 
 from flint.calibrate.aocalibrate import ApplySolutions
 from flint.exceptions import MSError
 from flint.ms import MS, get_phase_dir_from_ms
+from flint.utils import get_packaged_resource_path
 
 
 @pytest.fixture
 def ms_example(tmpdir):
     ms_zip = Path(
-        pkg_resources.resource_filename(
-            "flint", "data/tests/SB39400.RACS_0635-31.beam0.small.ms.zip"
+        get_packaged_resource_path(
+            package="flint.data.tests",
+            filename="SB39400.RACS_0635-31.beam0.small.ms.zip",
         )
     )
     outpath = Path(tmpdir) / "39400"

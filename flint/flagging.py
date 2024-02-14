@@ -6,13 +6,13 @@ from pathlib import Path
 from typing import Collection, NamedTuple, Optional, Union
 
 import numpy as np
-import pkg_resources
 from casacore.tables import table
 
 from flint.exceptions import MSError
 from flint.logging import logger
 from flint.ms import MS, check_column_in_ms, describe_ms
 from flint.sclient import run_singularity_command
+from flint.utils import get_packaged_resource_path
 
 
 class AOFlaggerCommand(NamedTuple):
@@ -55,7 +55,7 @@ def nan_zero_extreme_flag_ms(
     ms = MS.cast(ms)
 
     if data_column is None and ms.column is None:
-        logger.warn("No valid data column selected, using default of DATA")
+        logger.warning("No valid data column selected, using default of DATA")
         data_column = "DATA"
     elif data_column is None and ms.column is not None:
         logger.info(f"Using nominated {ms.column} column for {str(ms.path)}")
@@ -130,8 +130,8 @@ def create_aoflagger_cmd(ms: MS) -> AOFlaggerCommand:
     if not check_column_in_ms(ms):
         raise MSError(f"Column {ms.column} not found in {ms.path}.")
 
-    flagging_strategy = pkg_resources.resource_filename(
-        "flint", "data/aoflagger/ASKAP.lua"
+    flagging_strategy = get_packaged_resource_path(
+        package="flint.data.aoflagger", filename="ASKAP.lua"
     )
     logger.info(f"Flagging using the stategy file {flagging_strategy}")
 

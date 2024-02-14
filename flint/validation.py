@@ -9,7 +9,6 @@ from typing import Dict, NamedTuple, Optional, Tuple, Union
 import astropy.units as u
 import matplotlib.pyplot as plt
 import numpy as np
-import pkg_resources
 from astropy.coordinates import SkyCoord
 from astropy.io import fits
 from astropy.table import Table
@@ -22,7 +21,7 @@ from scipy import stats
 from flint.logging import logger
 from flint.naming import processed_ms_format
 from flint.summary import BeamSummary, FieldSummary
-from flint.utils import estimate_image_centre
+from flint.utils import estimate_image_centre, get_packaged_resource_path
 
 F_SMALL = 7
 F_MED = 8
@@ -362,7 +361,7 @@ def get_rms_image_info(rms_path: Path) -> RMSImageInfo:
         minimum=np.nanmin(rms_data),
         maximum=np.nanmax(rms_data),
         std=np.nanstd(rms_data),
-        mode=stats.mode(rms_data, axis=None).mode[0],
+        mode=stats.mode(rms_data, keepdims=False).mode[0],
     )
 
     return rms_image_info
@@ -736,12 +735,16 @@ def match_nearest_neighbour(
         freq2=catalogue2.freq,
         idx1=np.argwhere(mask)[:, 0],
         idx2=idx,
-        flux1=table1[catalogue1.flux_col].value[mask]
-        if catalogue1.flux_col != "None"
-        else None,
-        flux2=table2[catalogue2.flux_col].value[idx]
-        if catalogue2.flux_col != "None"
-        else None,
+        flux1=(
+            table1[catalogue1.flux_col].value[mask]
+            if catalogue1.flux_col != "None"
+            else None
+        ),
+        flux2=(
+            table2[catalogue2.flux_col].value[idx]
+            if catalogue2.flux_col != "None"
+            else None
+        ),
     )
 
     return match_result
@@ -1346,11 +1349,11 @@ def create_validation_plot(
 
     rms_info = get_rms_image_info(rms_path=rms_image_path)
 
-    dezotti_path = Path(
-        pkg_resources.resource_filename("flint", "data/source_counts/de_zotti_1p4.txt")
+    dezotti_path = get_packaged_resource_path(
+        package="flint.data.source_counts", filename="de_zotti_1p4.txt"
     )
-    skads_path = Path(
-        pkg_resources.resource_filename("flint", "data/source_counts/SKADS_1p4GHz.fits")
+    skads_path = get_packaged_resource_path(
+        package="flint.data.source_counts", filename="SKADS_1p4GHz.fits"
     )
     logger.info(f"Loading {dezotti_path}")
     dezotti = Table.read(dezotti_path, format="ascii")
@@ -1525,7 +1528,7 @@ def cli() -> None:
         )
     except KeyError:
         rms_beam = (1.0, 1.0, 1.0)
-        logger.warn(
+        logger.warning(
             f"Beam keywords not found in {rms_image_path=}. Setting to default {rms_beam}"
         )
 

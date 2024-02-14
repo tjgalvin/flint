@@ -15,6 +15,33 @@ from astropy.wcs import WCS
 from flint.logging import logger
 
 
+def get_packaged_resource_path(package: str, filename: str) -> Path:
+    """Load in the path of a package sources.
+
+    The `package` argument is passed as a though the module
+    is being speficied as an import statement: `flint.data.aoflagger`.
+
+    Args:
+        package (str): The module path to the resources
+        filename (str): Filename of the datafile to load
+
+    Returns:
+        Path: The absolute path to the packaged resource file
+    """
+    logger.info(f"Loading {package=} for {filename=}")
+    try:
+        import importlib_resources as importlib_resources
+    except ImportWarning:
+        from importlib import resources as importlib_resources
+
+    with importlib_resources.files(package) as p:
+        full_path = Path(p) / filename
+
+    logger.debug(f"Resolved {full_path=}")
+
+    return full_path
+
+
 def estimate_skycoord_centre(
     sky_positions: SkyCoord, final_frame: str = "fk5"
 ) -> SkyCoord:

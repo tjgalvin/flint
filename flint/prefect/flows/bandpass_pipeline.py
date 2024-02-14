@@ -87,7 +87,7 @@ def task_flag_solutions(calibrate_cmd: CalibrateCommand) -> CalibrateCommand:
             logger.info(f"Attempting to create {plot_dir}")
             plot_dir.mkdir(parents=True)
         except FileExistsError:
-            logger.warn(
+            logger.warning(
                 "Creating the directory failed. Likely already exists. Race conditions, me-hearty."
             )
 
