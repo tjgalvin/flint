@@ -38,9 +38,13 @@ def divide_bandpass_by_ref_ant(complex_gains: np.ndarray, ref_ant: int) -> np.nd
     complex_gains = complex_gains.copy()
 
     ref_ant_solutions = complex_gains[ref_ant]
-    ref_ant_phasor = ref_ant_solutions / np.abs(ref_ant_solutions)
 
-    complex_gains = complex_gains / ref_ant_phasor[None, :, :]
+    ref_ant_phasor = ref_ant_solutions / np.abs(ref_ant_solutions)
+    ref_ant_shift = (ref_ant_solutions[:, 0] / np.abs(ref_ant_solutions[:, 0]))[:, None]
+
+    phasor_shift = ref_ant_phasor / ref_ant_shift
+
+    complex_gains = complex_gains / ref_ant_phasor / phasor_shift[None, :, :]
 
     return complex_gains
 
