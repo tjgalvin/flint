@@ -29,6 +29,7 @@ from flint.bptools.preflagger import (
 )
 from flint.bptools.smoother import (
     divide_bandpass_by_ref_ant,
+    divide_bandpass_by_ref_ant_preserve_phase,
     smooth_bandpass_complex_gains,
 )
 from flint.exceptions import PhaseOutlierFitError
@@ -992,11 +993,9 @@ def flag_aosolutions(
     if smooth_solutions:
         logger.info("Smoothing the bandpass solutions. ")
         for time in range(solutions.nsol):
-            # complex_gains = divide_bandpass_by_ref_ant(
-            #     complex_gains=bandpass[time], ref_ant=ref_ant
-            # )
-            logger.critical("Smoothing. and not dividing by a reference antenna. ")
-            complex_gains = bandpass[time]
+            complex_gains = divide_bandpass_by_ref_ant_preserve_phase(
+                complex_gains=bandpass[time], ref_ant=ref_ant
+            )     
             bandpass[time] = smooth_bandpass_complex_gains(
                 complex_gains=complex_gains,
                 window_size=smooth_window_size,
