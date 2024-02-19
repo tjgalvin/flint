@@ -28,7 +28,6 @@ from flint.bptools.preflagger import (
     flags_over_threshold,
 )
 from flint.bptools.smoother import (
-    divide_bandpass_by_ref_ant,
     divide_bandpass_by_ref_ant_preserve_phase,
     smooth_bandpass_complex_gains,
 )
