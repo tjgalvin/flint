@@ -108,6 +108,7 @@ def add_ms_summaries(
     Returns:
         Tuple[MSSummary]: Results from the inspected set of measurement sets
     """
+    logger.info("Adding MS summaries")
 
     ms_summaries = tuple(map(describe_ms, mss))
     centre = estimate_skycoord_centre(

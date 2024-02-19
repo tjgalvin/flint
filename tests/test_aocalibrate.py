@@ -9,6 +9,7 @@ import pytest
 
 from flint.bptools.smoother import (
     divide_bandpass_by_ref_ant,
+    divide_bandpass_by_ref_ant_preserve_phase,
     smooth_bandpass_complex_gains,
     smooth_data,
 )
@@ -233,6 +234,36 @@ def test_aosols_bandpass_ref_nu(ao_sols):
         ]
     )
     assert np.allclose(expected, complex_gains[0, :5, 0])
+
+
+def test_aosols_bandpass_ref_nu_preserve_phase(ao_sols):
+    ao = AOSolutions.load(path=ao_sols)
+
+    complex_gains = divide_bandpass_by_ref_ant_preserve_phase(
+        complex_gains=ao.bandpass[0], ref_ant=0
+    )
+
+    x_angle = np.angle(complex_gains[0, :, 0])
+    y_angle = np.angle(complex_gains[0, :, 3])
+
+    assert np.allclose(x_angle[np.isfinite(x_angle)], 0)
+    assert np.allclose(y_angle[np.isfinite(y_angle)], 0)
+
+    expected = np.array(
+        (
+            [
+                -0.10846614 - 0.01465966j,
+                -0.10776107 - 0.01495074j,
+                -0.10728749 - 0.01611982j,
+                -0.10742277 - 0.01654671j,
+            ]
+        )
+    )
+
+    print(expected)
+    print(complex_gains[1, :4, 0])
+
+    assert np.allclose(expected, complex_gains[1, :4, 0])
 
 
 def test_ref_ant_selection(ao_sols):

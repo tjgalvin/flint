@@ -129,18 +129,18 @@ def process_science_fields(
         ms=preprocess_science_mss, container=field_options.flagger_container, rounds=1
     )
 
+    if field_options.no_imaging:
+        logger.info(
+            f"No imaging will be performed, as requested bu {field_options.no_imaging=}"
+        )
+        return
+
     field_summary = task_create_field_summary.submit(
         mss=flagged_mss,
         cal_sbid_path=bandpass_path,
         holography_path=field_options.holofile,
     )
     logger.info(f"{field_summary=}")
-
-    if field_options.no_imaging:
-        logger.info(
-            f"No imaging will be performed, as requested bu {field_options.no_imaging=}"
-        )
-        return
 
     if field_options.wsclean_container is None:
         logger.info("No wsclean container provided. Rerutning. ")
