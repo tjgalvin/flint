@@ -15,7 +15,12 @@ def divide_bandpass_by_ref_ant_preserve_phase(complex_gains: np.ndarray, ref_ant
     
     This particular function is most appropriate for the `calibrate` style 
     solutions, which solve for the Jones in one step. In HMS notation this 
-    are normally split into two separate 2x2 matricies. 
+    are normally split into two separate 2x2 matricies, one for the gains
+    with zero off-diagonal elements and a leakage matrix with ones on 
+    the diagonal.
+    
+    This is the preferred function to use whena attempting to set a 
+    phase reference antenna to precomuted Jones bandpass solutions. 
 
     The input complex gains should be in the form:
     >> (ant, channel, pol)
@@ -42,7 +47,6 @@ def divide_bandpass_by_ref_ant_preserve_phase(complex_gains: np.ndarray, ref_ant
 
     logger.info(f"Dividing bandpass gain solutions using reference antenna={ref_ant}, using correct phasor")
 
-
     # Unpack the valuse for short hand use
     g_x = complex_gains[:,:,0]
     g_xy = complex_gains[:,:,1]
@@ -60,7 +64,9 @@ def divide_bandpass_by_ref_ant_preserve_phase(complex_gains: np.ndarray, ref_ant
 
     # Now here is the math, from one Captain Daniel Mitchell
     # g_x and g_y.d_yx by g_x(ref) and g_y and g_x.d_xy by g_y(ref). 
-    # i.e. assuming that xy-phase = 0 (due to the ODC) and that the cross terms are leakage
+    # i.e. assuming that xy-phase = 0 (due to the ODC) and that the cross terms are leakage.
+    # Since calibrate solves for the Jones directly, the off-diagonals are already
+    # multiplied through by the appropriate g_y and g_x. 
     g_x_prime = g_x / ref_g_x
     g_xy_prime = g_xy / ref_g_y # Leakage of y into x, so reference the y
     g_yx_prime = g_yx / ref_g_x # Leakage of x into y, so reference the x
@@ -69,8 +75,6 @@ def divide_bandpass_by_ref_ant_preserve_phase(complex_gains: np.ndarray, ref_ant
     # Construct the output array to slice things into
     bp_p = np.zeros_like(complex_gains) * np.nan
 
-    logger.info("Slicing in referenced results")
-    logger.info(f"{g_x_prime.shape=} {g_xy_prime.shape=} {g_yx_prime.shape=} {g_y_prime.shape=}")
     # Place things into place
     bp_p[:, :, 0] = g_x_prime
     bp_p[:, :, 1] = g_xy_prime
@@ -92,7 +96,10 @@ def divide_bandpass_by_ref_ant(complex_gains: np.ndarray, ref_ant: int) -> np.nd
     >> shift = Jones_{ref_ant}[0] / and(Jones_{ref_ant}[0])
     >> phasor_shifted = phasor / shift
 
-    which is applied to all antennas in ``complex_gains``.
+    which is applied to all antennas in ``complex_gains``. The resulting 
+    solutions will all have been referenced to the `G_x` of the reference
+    antenna. In other words, the phase of all `G_x` items of the reference
+    antenna will be zero. 
 
     Args:
         complex_gains (np.ndarray): The complex gains that will be normalised
