@@ -994,7 +994,7 @@ def flag_aosolutions(
         for time in range(solutions.nsol):
             complex_gains = divide_bandpass_by_ref_ant_preserve_phase(
                 complex_gains=bandpass[time], ref_ant=ref_ant
-            )     
+            )
             bandpass[time] = smooth_bandpass_complex_gains(
                 complex_gains=complex_gains,
                 window_size=smooth_window_size,

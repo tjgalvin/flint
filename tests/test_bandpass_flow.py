@@ -12,12 +12,12 @@ def test_parser():
     parser = get_parser()
 
     args = parser.parse_args(
-        """/51998 
-        --calibrate-container /scratch3/gal16b/containers/calibrate.sif 
-        --flagger-container /scratch3/gal16b/containers/aoflagger.sif  
-        --cluster-config /scratch3/gal16b/bp_test/petrichor.yaml 
-        --split-path $(pwd) 
-        --smooth-window-size 8 
+        """/51998
+        --calibrate-container /scratch3/gal16b/containers/calibrate.sif
+        --flagger-container /scratch3/gal16b/containers/aoflagger.sif
+        --cluster-config /scratch3/gal16b/bp_test/petrichor.yaml
+        --split-path $(pwd)
+        --smooth-window-size 8
         --smooth-polynomial-order 3
     """.split()
     )
