@@ -19,7 +19,7 @@ def divide_bandpass_by_ref_ant_preserve_phase(complex_gains: np.ndarray, ref_ant
     # Unpack the valuse for short hand use
     g_x = complex_gains[:,:,0]
     d_xy = complex_gains[:,:,1]
-    d_yx = complex_gains[:,:,2]
+    d_yx = -complex_gains[:,:,2]
     g_y = complex_gains[:,:,3]
 
     # In the operations below our ship only wants to be touching 
@@ -32,15 +32,18 @@ def divide_bandpass_by_ref_ant_preserve_phase(complex_gains: np.ndarray, ref_ant
     ref_g_y = ref_g_y / np.abs(ref_g_y)
 
     # Now here is the math, from one Captain Daniel Mitchell
-    # g_x and g_y.d_yx by g_x(ref) and g_y and g_x.d_xy by g_y(ref). i.e. assuming that xy-phase = 0 (due to the ODC) and that the cross terms are leakage
+    # g_x and g_y.d_yx by g_x(ref) and g_y and g_x.d_xy by g_y(ref). 
+    # i.e. assuming that xy-phase = 0 (due to the ODC) and that the cross terms are leakage
     g_x_prime = g_x / ref_g_x
-    d_xy_prime = (g_y * d_xy) / ref_g_x
-    d_yx_prime = (g_x * d_yx) / ref_g_y
+    d_xy_prime = d_xy / ref_g_y
+    d_yx_prime = d_yx / ref_g_x
     g_y_prime = g_y / ref_g_y
 
     # Construct the output array to slice things into
     bp_p = np.zeros_like(complex_gains) * np.nan
 
+    logger.info("Slicing in referenced results")
+    logger.info(f"{g_x_prime.shape=} {d_xy_prime.shape=} {d_yx_prime.shape=} {g_y_prime.shape=}")
     # Place things into place
     bp_p[:, :, 0] = g_x_prime
     bp_p[:, :, 1] = d_xy_prime
