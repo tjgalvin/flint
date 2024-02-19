@@ -8,7 +8,34 @@ from flint.logging import logger
 
 
 def divide_bandpass_by_ref_ant_preserve_phase(complex_gains: np.ndarray, ref_ant: int) -> np.ndarray:
+    """Divide the bandpass compelx gains (solved for initially by something like
+    calibrate) by a nominated reference antenna. In the case of ``calibrate``
+    there is no implicit reference antenna. This is valid for cases where the 
+    xy-phase is set to 0 (true via the ASKAP on-dish calibrator). 
+    
+    This particular function is most appropriate for the `calibrate` style 
+    solutions, which solve for the Jones in one step. In HMS notation this 
+    are normally split into two separate 2x2 matricies. 
 
+    The input complex gains should be in the form:
+    >> (ant, channel, pol)
+
+    Internally reference phasores are constructed for the G_x and G_y
+    terms of the reference antenna. They are then applied:
+    >> G_xp = G_x / G_xref
+    >> G_xyp = G_xy / G_yref
+    >> G_yxp = G_yx / G_xref
+    >> G_y = G_y / G_yref
+
+    which is applied to all antennas in ``complex_gains``.
+
+    Args:
+        complex_gains (np.ndarray): The complex gains that will be normalised
+        ref_ant (int): The desired reference antenna to use
+
+    Returns:
+        np.ndarray: The normalised bandpass solutions
+    """
     assert (
         len(complex_gains.shape) == 3
     ), f"The shape of the input complex gains should be of rank 3 in form (ant, chan, pol). Received {complex_gains.shape}"
@@ -18,8 +45,8 @@ def divide_bandpass_by_ref_ant_preserve_phase(complex_gains: np.ndarray, ref_ant
 
     # Unpack the valuse for short hand use
     g_x = complex_gains[:,:,0]
-    d_xy = complex_gains[:,:,1]
-    d_yx = complex_gains[:,:,2]
+    g_xy = complex_gains[:,:,1]
+    g_yx = complex_gains[:,:,2]
     g_y = complex_gains[:,:,3]
 
     # In the operations below our ship only wants to be touching 
@@ -35,19 +62,19 @@ def divide_bandpass_by_ref_ant_preserve_phase(complex_gains: np.ndarray, ref_ant
     # g_x and g_y.d_yx by g_x(ref) and g_y and g_x.d_xy by g_y(ref). 
     # i.e. assuming that xy-phase = 0 (due to the ODC) and that the cross terms are leakage
     g_x_prime = g_x / ref_g_x
-    d_xy_prime = d_xy / ref_g_y
-    d_yx_prime = d_yx / ref_g_x
+    g_xy_prime = g_xy / ref_g_y # Leakage of y into x, so reference the y
+    g_yx_prime = g_yx / ref_g_x # Leakage of x into y, so reference the x
     g_y_prime = g_y / ref_g_y
 
     # Construct the output array to slice things into
     bp_p = np.zeros_like(complex_gains) * np.nan
 
     logger.info("Slicing in referenced results")
-    logger.info(f"{g_x_prime.shape=} {d_xy_prime.shape=} {d_yx_prime.shape=} {g_y_prime.shape=}")
+    logger.info(f"{g_x_prime.shape=} {g_xy_prime.shape=} {g_yx_prime.shape=} {g_y_prime.shape=}")
     # Place things into place
     bp_p[:, :, 0] = g_x_prime
-    bp_p[:, :, 1] = d_xy_prime
-    bp_p[:, :, 2] = d_yx_prime
+    bp_p[:, :, 1] = g_xy_prime
+    bp_p[:, :, 2] = g_yx_prime
     bp_p[:, :, 3] = g_y_prime
 
     return bp_p
