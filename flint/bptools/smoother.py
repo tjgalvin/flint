@@ -7,20 +7,22 @@ from scipy.signal import savgol_filter
 from flint.logging import logger
 
 
-def divide_bandpass_by_ref_ant_preserve_phase(complex_gains: np.ndarray, ref_ant: int) -> np.ndarray:
+def divide_bandpass_by_ref_ant_preserve_phase(
+    complex_gains: np.ndarray, ref_ant: int
+) -> np.ndarray:
     """Divide the bandpass compelx gains (solved for initially by something like
     calibrate) by a nominated reference antenna. In the case of ``calibrate``
-    there is no implicit reference antenna. This is valid for cases where the 
-    xy-phase is set to 0 (true via the ASKAP on-dish calibrator). 
-    
-    This particular function is most appropriate for the `calibrate` style 
-    solutions, which solve for the Jones in one step. In HMS notation this 
+    there is no implicit reference antenna. This is valid for cases where the
+    xy-phase is set to 0 (true via the ASKAP on-dish calibrator).
+
+    This particular function is most appropriate for the `calibrate` style
+    solutions, which solve for the Jones in one step. In HMS notation this
     are normally split into two separate 2x2 matricies, one for the gains
-    with zero off-diagonal elements and a leakage matrix with ones on 
+    with zero off-diagonal elements and a leakage matrix with ones on
     the diagonal.
-    
-    This is the preferred function to use whena attempting to set a 
-    phase reference antenna to precomuted Jones bandpass solutions. 
+
+    This is the preferred function to use whena attempting to set a
+    phase reference antenna to precomuted Jones bandpass solutions.
 
     The input complex gains should be in the form:
     >> (ant, channel, pol)
@@ -45,15 +47,17 @@ def divide_bandpass_by_ref_ant_preserve_phase(complex_gains: np.ndarray, ref_ant
         len(complex_gains.shape) == 3
     ), f"The shape of the input complex gains should be of rank 3 in form (ant, chan, pol). Received {complex_gains.shape}"
 
-    logger.info(f"Dividing bandpass gain solutions using reference antenna={ref_ant}, using correct phasor")
+    logger.info(
+        f"Dividing bandpass gain solutions using reference antenna={ref_ant}, using correct phasor"
+    )
 
     # Unpack the valuse for short hand use
-    g_x = complex_gains[:,:,0]
-    g_xy = complex_gains[:,:,1]
-    g_yx = complex_gains[:,:,2]
-    g_y = complex_gains[:,:,3]
+    g_x = complex_gains[:, :, 0]
+    g_xy = complex_gains[:, :, 1]
+    g_yx = complex_gains[:, :, 2]
+    g_y = complex_gains[:, :, 3]
 
-    # In the operations below our ship only wants to be touching 
+    # In the operations below our ship only wants to be touching
     # the phases in a piratey manner. The amplitudes should remina
     # unchanged. Construct phasors of the nominated reference antenna
     ref_g_x = complex_gains[ref_ant, :, 0]
@@ -63,13 +67,13 @@ def divide_bandpass_by_ref_ant_preserve_phase(complex_gains: np.ndarray, ref_ant
     ref_g_y = ref_g_y / np.abs(ref_g_y)
 
     # Now here is the math, from one Captain Daniel Mitchell
-    # g_x and g_y.d_yx by g_x(ref) and g_y and g_x.d_xy by g_y(ref). 
+    # g_x and g_y.d_yx by g_x(ref) and g_y and g_x.d_xy by g_y(ref).
     # i.e. assuming that xy-phase = 0 (due to the ODC) and that the cross terms are leakage.
     # Since calibrate solves for the Jones directly, the off-diagonals are already
-    # multiplied through by the appropriate g_y and g_x. 
+    # multiplied through by the appropriate g_y and g_x.
     g_x_prime = g_x / ref_g_x
-    g_xy_prime = g_xy / ref_g_y # Leakage of y into x, so reference the y
-    g_yx_prime = g_yx / ref_g_x # Leakage of x into y, so reference the x
+    g_xy_prime = g_xy / ref_g_y  # Leakage of y into x, so reference the y
+    g_yx_prime = g_yx / ref_g_x  # Leakage of x into y, so reference the x
     g_y_prime = g_y / ref_g_y
 
     # Construct the output array to slice things into
@@ -82,6 +86,7 @@ def divide_bandpass_by_ref_ant_preserve_phase(complex_gains: np.ndarray, ref_ant
     bp_p[:, :, 3] = g_y_prime
 
     return bp_p
+
 
 def divide_bandpass_by_ref_ant(complex_gains: np.ndarray, ref_ant: int) -> np.ndarray:
     """Divide the bandpass compelx gains (solved for initially by something like
@@ -96,10 +101,10 @@ def divide_bandpass_by_ref_ant(complex_gains: np.ndarray, ref_ant: int) -> np.nd
     >> shift = Jones_{ref_ant}[0] / and(Jones_{ref_ant}[0])
     >> phasor_shifted = phasor / shift
 
-    which is applied to all antennas in ``complex_gains``. The resulting 
+    which is applied to all antennas in ``complex_gains``. The resulting
     solutions will all have been referenced to the `G_x` of the reference
     antenna. In other words, the phase of all `G_x` items of the reference
-    antenna will be zero. 
+    antenna will be zero.
 
     Args:
         complex_gains (np.ndarray): The complex gains that will be normalised
@@ -112,7 +117,9 @@ def divide_bandpass_by_ref_ant(complex_gains: np.ndarray, ref_ant: int) -> np.nd
         len(complex_gains.shape) == 3
     ), f"The shape of the input complex gains should be of rank 3 in form (ant, chan, pol). Received {complex_gains.shape}"
 
-    logger.info(f"Dividing bandpass gain solutions using reference antenna={ref_ant} with shifted phasor")
+    logger.info(
+        f"Dividing bandpass gain solutions using reference antenna={ref_ant} with shifted phasor"
+    )
 
     # Make a copy of the data to avoid editing it whereever else it might be.
     # Trust nothing you pirate.
@@ -124,11 +131,13 @@ def divide_bandpass_by_ref_ant(complex_gains: np.ndarray, ref_ant: int) -> np.nd
     ref_ant_shift = (ref_ant_solutions[:, 0] / np.abs(ref_ant_solutions[:, 0]))[:, None]
 
     # This preserves the consistency of the phase within an single Jones. Essentially
-    # setting the reference to the Xx term of the reference antenna. 
+    # setting the reference to the Xx term of the reference antenna.
     phasor_shift = ref_ant_phasor / ref_ant_shift
 
     logger.info("Multipply, no divide")
-    complex_gains = complex_gains / ref_ant_phasor[None, :, :] * phasor_shift[None, :, :]
+    complex_gains = (
+        complex_gains / ref_ant_phasor[None, :, :] * phasor_shift[None, :, :]
+    )
 
     return complex_gains
 
