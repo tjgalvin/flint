@@ -19,7 +19,7 @@ def divide_bandpass_by_ref_ant_preserve_phase(complex_gains: np.ndarray, ref_ant
     # Unpack the valuse for short hand use
     g_x = complex_gains[:,:,0]
     d_xy = complex_gains[:,:,1]
-    d_yx = -complex_gains[:,:,2]
+    d_yx = complex_gains[:,:,2]
     g_y = complex_gains[:,:,3]
 
     # In the operations below our ship only wants to be touching 
