@@ -169,7 +169,7 @@ def run_bandpass_stage(
 
     # Apply and then recalibrate
     apply_cmds = task_create_apply_solutions_cmd.map(
-        ms=calibrate_cmds.ms,
+        ms=calibrate_cmds,
         solutions_file=calibrate_cmds.solution_path,
         output_column="CORRECTED_DATA",
         container=calibrate_container,
