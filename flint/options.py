@@ -5,14 +5,39 @@ set of flint processing related options.
 from pathlib import Path
 from typing import NamedTuple, Optional
 
+class BandpassOptions(NamedTuple):
+    """Container that reoresents the flint related options that
+    might be used throughout the processing of bandpass calibration
+    data. 
+    
+    In its present form this `BandpassOptions` class is not intended
+    to contain properties of the data that arebeing processed, rather 
+    how these data will be processed. 
+    
+    These settings are not meant to be adjustabled throughout 
+    a single bandpass pipeline run
+    """
+    
+    flagger_container: Path
+    """Path to the singularity aoflagger container"""
+    calibrate_container: Path
+    """Path to the singularity calibrate container"""
+    expected_ms: int = 36
+    """The expected number of measurement set files to find"""
+    smooth_window_size: int = 16
+    """The width of the smoothing window used to smooth the bandpass solutions"""
+    smooth_polynomial_order: int = 4
+    """The polynomial order used by the Savgol filter when smoothing the bandpass solutions"""
+    flag_calibrate_rounds: int = 3 
+    """The number of times the bandpass will be calibrated, flagged, then recalibrated"""
 
 class FieldOptions(NamedTuple):
     """Container that represents the flint related options that
     might be used throughout components related to the actual
     pipeline.
 
-    In its present form this ``FieldOptions`` class is not intended
-    to container properties on the data that is being processed,
+    In its present form this `FieldOptions` class is not intended
+    to contain properties of the data that are being processed,
     rather how those data will be processed.
 
     These settins are not meant to be adjustable throughout

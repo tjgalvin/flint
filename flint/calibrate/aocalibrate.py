@@ -569,6 +569,7 @@ def create_calibrate_cmd(
     solution_path: Optional[Path] = None,
     container: Optional[Path] = None,
     update_calibrate_options: Optional[Dict[str, Any]] = None,
+    calibrate_data_column: Optional[str] = None
 ) -> CalibrateCommand:
     """Generate a typical ao calibrate command. Any extra keyword arguments
     are passed through as additional options to the `calibrate` program.
@@ -579,6 +580,7 @@ def create_calibrate_cmd(
         solution_path (Path, optional): The output path of the calibrate solutions file. If None, a default suffix of "calibrate.bin" is used. Defaults to None.
         container (Optional[Path], optional): If a path to a container is supplied the calibrate command is executed immediatedly. Defaults to None.
         update_calibrate_options (Optional[Dict[str, Any]], optional): Additional options to update the generated CalibrateOptions with. Keys should be attributes of CalibrationOptions. Defaults ot None.
+        calibrate_data_column(Optional[str], optional): The name of the column to calibrate, overwritting the nominated column set in the MS. If None, the MS.column atribute is used. Defaults to None. 
 
     Raises:
         FileNotFoundError: Raised when calibrate_model can not be found.
@@ -587,15 +589,21 @@ def create_calibrate_cmd(
         CalibrateCommand: The calibrate command to execute and output solution file
     """
     ms = MS.cast(ms)
+
+    column = ms.column 
+    if calibrate_data_column:
+        logger.info(f"Overwritting column to calibrate from {ms.column=} to {calibrate_data_column=}")
+        column = calibrate_data_column
+    
+    assert column is not None, f"{ms} does not have a nominated data_column"
+
     logger.info(f"Creating calibrate command for {ms.path}")
-    logger.info(f"Will calibrate data column {ms.column}")
+    logger.info(f"Will calibrate data column {column}")
 
     # This is a typical calibrate command.
     # calibrate -minuv 100 -i 50 -datacolumn DATA
     #        -m 2022-04-14_100122_0.calibrate.txt
     #        2022-04-14_100122_0.ms 2022-04-14_100122_0.aocalibrate.bin
-
-    assert ms.column is not None, f"{ms} does not have a nominated data_column"
 
     if not calibrate_model.exists():
         raise FileNotFoundError(f"Calibrate model {calibrate_model} not found. ")
@@ -606,7 +614,7 @@ def create_calibrate_cmd(
         )
 
     calibrate_options = CalibrateOptions(
-        datacolumn=ms.column, m=calibrate_model, minuv=600
+        datacolumn=column, m=calibrate_model, minuv=600
     )
     if update_calibrate_options:
         calibrate_options = calibrate_options.with_options(**update_calibrate_options)
@@ -653,7 +661,9 @@ def create_apply_solutions_cmd(
     Returns:
         ApplySolutions: Description of applysolutions command, solutions file path and updated MS
     """
-
+    # extract the ms property, if required
+    ms = MS.cast(ms)
+    
     assert ms.path.exists(), f"The measurement set {ms} was not found. "
     assert ms.column is not None, f"{ms} does not have a nominated data_column. "
     assert (

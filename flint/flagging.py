@@ -22,10 +22,11 @@ class AOFlaggerCommand(NamedTuple):
     """The command that will be executed"""
     ms_path: Path
     """The path to the MS that will be flagged. """
+    ms: MS 
+    """The MS object that was flagged"""
     strategy_file: Optional[Path] = None
     """The path to the aoflagging stategy file to use"""
-
-
+    
 def nan_zero_extreme_flag_ms(
     ms: Union[Path, MS],
     data_column: Optional[str] = None,
@@ -122,6 +123,7 @@ def create_aoflagger_cmd(ms: MS) -> AOFlaggerCommand:
         AOFlaggerCommand: The aoflagger command that will be run
     """
     logger.info("Creating an AOFlagger command. ")
+    ms = MS.cast(ms)
 
     assert (
         ms.column is not None
@@ -138,7 +140,7 @@ def create_aoflagger_cmd(ms: MS) -> AOFlaggerCommand:
     cmd = f"aoflagger -column {ms.column} -strategy {flagging_strategy} -v {str(ms.path.absolute())}"
 
     return AOFlaggerCommand(
-        cmd=cmd, ms_path=ms.path, strategy_file=Path(flagging_strategy)
+        cmd=cmd, ms_path=ms.path, strategy_file=Path(flagging_strategy), ms=ms
     )
 
 
@@ -175,6 +177,7 @@ def flag_ms_aoflagger(ms: MS, container: Path, rounds: int = 1) -> MS:
     Returns:
         MS: Measurement set flagged with the appropriate column
     """
+    ms = MS.cast(ms)
     logger.info(f"Will flag column {ms.column} in {str(ms.path)}.")
     aoflagger_cmd = create_aoflagger_cmd(ms=ms)
 
