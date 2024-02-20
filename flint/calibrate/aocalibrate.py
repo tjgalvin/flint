@@ -685,6 +685,9 @@ def create_apply_solutions_cmd(
     if container is not None:
         run_apply_solutions(apply_solutions_cmd=apply_solutions, container=container)
 
+    # TODO: If outputcolumn is not CORRECTED_DATA then it should be renamed
+    # applysolutions always calls it CORRECTED_DATA
+
     return apply_solutions
 
 
