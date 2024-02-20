@@ -265,6 +265,7 @@ def calibrate_bandpass_flow(
         skip_rotation=True,
         smooth_window_size=bandpass_options.smooth_window_size,
         smooth_polynomial_order=bandpass_options.smooth_polynomial_order,
+        flag_calibrate_rounds=bandpass_options.flag_calibrate_rounds
     )
 
     return output_split_bandpass_path
