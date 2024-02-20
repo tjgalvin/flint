@@ -22,11 +22,12 @@ class AOFlaggerCommand(NamedTuple):
     """The command that will be executed"""
     ms_path: Path
     """The path to the MS that will be flagged. """
-    ms: MS 
+    ms: MS
     """The MS object that was flagged"""
     strategy_file: Optional[Path] = None
     """The path to the aoflagging stategy file to use"""
-    
+
+
 def nan_zero_extreme_flag_ms(
     ms: Union[Path, MS],
     data_column: Optional[str] = None,
