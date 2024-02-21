@@ -853,6 +853,33 @@ class FlaggedAOSolution(NamedTuple):
     """The bandpass solutions after flagging, as saved in the solutions file"""
 
 
+def smooth_aocalibrate_solutions(complex_gains: np.ndarray) -> np.array:
+
+    logger.critical("Attempting to divide out gain terms from rotation terms")
+    assert (
+        len(complex_gains.shape) == 3
+    ), f"Complex gains expected (ant, channels, pol), received shape {complex_gains.shape=}"
+
+    copy_complex_gains = complex_gains.copy()
+    gx = copy_complex_gains[..., 0]
+    gy = copy_complex_gains[..., 3]
+
+    copy_complex_gains[..., 1] /= gx
+    copy_complex_gains[..., 2] /= gy
+
+    smoothed_complex_gains = smooth_bandpass_complex_gains(
+        complex_gains=copy_complex_gains,
+        window_size=4,
+        polynomial_order=1,
+        apply_median_filter=False,
+    )
+
+    smoothed_complex_gains[..., 1] *= smoothed_complex_gains[..., 0]
+    smoothed_complex_gains[..., 2] *= smoothed_complex_gains[..., 3]
+
+    return smoothed_complex_gains
+
+
 def flag_aosolutions(
     solutions_path: Path,
     ref_ant: Optional[int] = -1,
@@ -1008,14 +1035,17 @@ def flag_aosolutions(
     if smooth_solutions:
         logger.info("Smoothing the bandpass solutions. ")
         for time in range(solutions.nsol):
-            complex_gains = divide_bandpass_by_ref_ant_preserve_phase(
-                complex_gains=bandpass[time], ref_ant=ref_ant
-            )
-            bandpass[time] = smooth_bandpass_complex_gains(
-                complex_gains=complex_gains,
-                window_size=smooth_window_size,
-                polynomial_order=smooth_polynomial_order,
-            )
+            logger.critical(f"Being a little crazy pirtate on {time=} smoothing")
+            bandpass[time] = smooth_aocalibrate_solutions(complex_gains=bandpass[time])
+
+            # complex_gains = divide_bandpass_by_ref_ant_preserve_phase(
+            #     complex_gains=bandpass[time], ref_ant=ref_ant
+            # )
+            # bandpass[time] = smooth_bandpass_complex_gains(
+            #     complex_gains=complex_gains,
+            #     window_size=smooth_window_size,
+            #     polynomial_order=smooth_polynomial_order,
+            # )
 
         out_solutions_path = get_aocalibrate_output_path(
             ms_path=solutions_path, include_preflagger=True, include_smoother=True
