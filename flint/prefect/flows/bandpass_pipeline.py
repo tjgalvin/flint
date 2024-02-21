@@ -12,7 +12,7 @@ from argparse import ArgumentParser
 from pathlib import Path
 from typing import Collection, List, Optional
 
-from prefect import flow, task
+from prefect import flow, task, unmapped
 
 from flint.bandpass import extract_correct_bandpass_pointing
 from flint.calibrate.aocalibrate import (
@@ -180,7 +180,7 @@ def run_bandpass_stage(
         ms=flag_bandpass_mss,
         calibrate_model=model_path,
         container=calibrate_container,
-        update_calibrate_options=dict(minuv=minuv),
+        update_calibrate_options=unmapped(dict(minuv=minuv)),
     )
 
     for i in range(flag_calibrate_rounds):
@@ -199,7 +199,7 @@ def run_bandpass_stage(
             calibrate_model=model_path,
             container=calibrate_container,
             calibrate_data_column="DATA",
-            update_calibrate_options=dict(minuv=minuv),
+            update_calibrate_options=unmapped(dict(minuv=minuv)),
         )
     flag_calibrate_cmds = task_flag_solutions.map(
         calibrate_cmd=calibrate_cmds,
