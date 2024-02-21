@@ -134,6 +134,7 @@ def run_bandpass_stage(
     smooth_window_size: int = 16,
     smooth_polynomial_order: int = 4,
     flag_calibrate_rounds: int = 0,
+    minuv: Optional[float] = None,
 ) -> List[CalibrateCommand]:
     """Excutes the bandpass calibration (using ``calibrate``) against a set of
     input measurement sets.
@@ -149,6 +150,7 @@ def run_bandpass_stage(
         smooth_window_size (int, optional): The size of the window function of the savgol filter. Passed directly to savgol. Defaults to 16.
         smooth_polynomial_order (int, optional): The order of the polynomial of the savgol filter. Passed directly to savgol. Defaults to 4.
         flag_calibrate_rounds (int, optional): Defines the length of a loop that will calibrate, apply, flag and recalibrate. If 0, this is not performed. Defaults to 0.
+        minuv (Optional[float], optional): The minimum baseline length, in meters, for data to be included in bandpass calibration stage. Defaults to None.
 
     Returns:
         List[CalibrateCommand]: Set of calibration commands used
@@ -178,6 +180,7 @@ def run_bandpass_stage(
         ms=flag_bandpass_mss,
         calibrate_model=model_path,
         container=calibrate_container,
+        update_calibrate_options=dict(minuv=minuv),
     )
 
     for i in range(flag_calibrate_rounds):
@@ -196,6 +199,7 @@ def run_bandpass_stage(
             calibrate_model=model_path,
             container=calibrate_container,
             calibrate_data_column="DATA",
+            update_calibrate_options=dict(minuv=minuv),
         )
     flag_calibrate_cmds = task_flag_solutions.map(
         calibrate_cmd=calibrate_cmds,
@@ -388,6 +392,12 @@ def get_parser() -> ArgumentParser:
         default=3,
         help="The number of times a bandpass solution will be derived, applied and flagged. ",
     )
+    parser.add_argument(
+        "--minuv",
+        type=float,
+        default=None,
+        help="The minimum baseline length, in meters, for data to be included in bandpass calibration stage",
+    )
 
     return parser
 
@@ -408,6 +418,7 @@ def cli() -> None:
         smooth_window_size=args.smooth_window_size,
         smooth_polynomial_order=args.smooth_polynomial_order,
         flag_calibrate_rounds=args.flag_calibrate_rounds,
+        minuv=args.minuv,
     )
 
     setup_run_bandpass_flow(

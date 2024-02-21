@@ -31,6 +31,8 @@ class BandpassOptions(NamedTuple):
     """The polynomial order used by the Savgol filter when smoothing the bandpass solutions"""
     flag_calibrate_rounds: int = 3
     """The number of times the bandpass will be calibrated, flagged, then recalibrated"""
+    minuv: Optional[float] = None
+    """The minimum baseline length, in meters, for data to be included in bandpass calibration stage"""
 
 
 class FieldOptions(NamedTuple):
