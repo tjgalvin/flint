@@ -204,8 +204,9 @@ def plot_solutions(
         logger.info(f"Overwriting reference antenna selection, using {ref_ant=}")
 
     if ref_ant is not None:
-        # TODO: This is going to change the amplitudes as well. This is likely not wanted!
-        data = data / ao_sols.bandpass[plot_sol, ref_ant, :, :]
+        data = divide_bandpass_by_ref_ant_preserve_phase(
+            complex_gains=ao_sols.bandpass[plot_sol], ref_ant=ref_ant
+        )
 
     amplitudes = np.abs(data)
     phases = np.angle(data, deg=True)
