@@ -4,6 +4,7 @@
 - image and self-calibration the science fields
 - run aegean source finding
 """
+
 from argparse import ArgumentParser
 from pathlib import Path
 from typing import Union
@@ -113,8 +114,11 @@ def process_science_fields(
         solutions_file=solutions_paths,
         container=field_options.calibrate_container,
     )
+    flagged_mss = task_flag_ms_aoflagger.map(
+        ms=apply_solutions_cmds, container=field_options.flagger_container, rounds=1
+    )
     column_rename_mss = task_rename_column_in_ms.map(
-        ms=apply_solutions_cmds,
+        ms=flagged_mss,
         original_column_name=unmapped("DATA"),
         new_column_name=unmapped("INSTRUMENT_DATA"),
     )
@@ -125,10 +129,6 @@ def process_science_fields(
         overwrite=True,
     )
 
-    flagged_mss = task_flag_ms_aoflagger.map(
-        ms=preprocess_science_mss, container=field_options.flagger_container, rounds=1
-    )
-
     if field_options.no_imaging:
         logger.info(
             f"No imaging will be performed, as requested bu {field_options.no_imaging=}"
@@ -136,7 +136,7 @@ def process_science_fields(
         return
 
     field_summary = task_create_field_summary.submit(
-        mss=flagged_mss,
+        mss=preprocess_science_mss,
         cal_sbid_path=bandpass_path,
         holography_path=field_options.holofile,
     )
@@ -157,7 +157,7 @@ def process_science_fields(
     }
 
     wsclean_cmds = task_wsclean_imager.map(
-        in_ms=flagged_mss,
+        in_ms=preprocess_science_mss,
         wsclean_container=field_options.wsclean_container,
         update_wsclean_options=unmapped(wsclean_init),
     )
@@ -170,7 +170,7 @@ def process_science_fields(
         beam_summaries = task_update_with_options.map(
             input_object=beam_summaries, components=beam_aegean_outputs
         )
-        field_summary = task_update_with_options.submit(
+        init_field_summary = task_update_with_options.submit(
             input_object=field_summary, beam_summaries=beam_summaries
         )
 
@@ -196,7 +196,7 @@ def process_science_fields(
                 image=parset, aegean_container=unmapped(field_options.aegean_container)
             )
             field_summary = task_update_field_summary.submit(
-                field_summary=field_summary,
+                field_summary=init_field_summary,
                 aegean_outputs=aegean_outputs,
                 linmos_command=parset,
             )
@@ -263,7 +263,7 @@ def process_science_fields(
             update_gain_cal_options=unmapped(gain_cal_options),
             archive_input_ms=field_options.zip_ms,
             wait_for=[
-                field_summary
+                init_field_summary
             ],  # To make sure field summary is created with unzipped MSs
         )
         wsclean_cmds = task_wsclean_imager.map(
