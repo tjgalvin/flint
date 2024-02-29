@@ -928,7 +928,13 @@ def flag_aosolutions(
         logger.info("Combining antenna flags")
         for time in range(solutions.nsol):
             time_mask = construct_mesh_ant_flags(mask=~np.isfinite(bandpass[time]))
-            bandpass[time, time_mask] = np.nan
+            logger.info(
+                f"Flags before applying mesh ant mask: {np.sum(~np.isfinite(bandpass[time]))}"
+            )
+            bandpass[time][time_mask] = np.nan
+            logger.info(
+                f"Flags after applying mesh ant mask: {np.sum(~np.isfinite(bandpass[time]))}"
+            )
 
     for time in range(solutions.nsol):
         for pol in (0, 3):
