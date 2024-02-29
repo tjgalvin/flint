@@ -197,7 +197,7 @@ def run_bandpass_stage(
         calibrate_cmd=calibrate_cmds,
         smooth_window_size=bandpass_options.smooth_window_size,
         smooth_polynomial_order=bandpass_options.smooth_polynomial_order,
-        mean_ant_tolerance=bandpass_options.preflagger_mesh_ant_flagsmean_ant_tolerance,
+        mean_ant_tolerance=bandpass_options.preflagger_mean_ant_tolerance,
         mesh_ant_flags=bandpass_options.preflagger_mesh_ant_flags,
     )
 
