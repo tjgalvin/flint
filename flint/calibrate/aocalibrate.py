@@ -26,6 +26,7 @@ from flint.bptools.preflagger import (
     flag_mean_xxyy_amplitude_ratio,
     flag_outlier_phase,
     flags_over_threshold,
+    construct_mesh_ant_flags,
 )
 from flint.bptools.smoother import (
     divide_bandpass_by_ref_ant_preserve_phase,
@@ -863,6 +864,8 @@ def flag_aosolutions(
     plot_solutions_throughout: bool = True,
     smooth_window_size: int = 16,
     smooth_polynomial_order: int = 4,
+    mean_ant_tolderance: float = 0.1,
+    mesh_ant_flags: bool = False,
 ) -> FlaggedAOSolution:
     """Will open a previously solved ao-calibrate solutions file and flag additional channels and antennae.
 
@@ -884,6 +887,8 @@ def flag_aosolutions(
         plot_solutions_throughout (bool, Optional): If True, the solutions will be plotted at different stages of processing. Defaults to True.
         smooth_window_size (int, optional): The size of the window function of the savgol filter. Passed directly to savgol. Defaults to 16.
         smooth_polynomial_order (int, optional): The order of the polynomial of the savgol filter. Passed directly to savgol. Defaults to 4.
+        mean_ant_tolerance (float, optional): Tolerance of the mean x/y antenna gain ratio test before the antenna is flagged. Defaults to 0.1.
+        mesh_ant_flags (bool, optional): If True, a channel is flagged across all antenna if it is flagged for any antenna. Defaults to False.
 
     Returns:
         FlaggedAOSolution: Path to the updated solutions file, intermediate solution files and plots along the way
@@ -918,6 +923,12 @@ def flag_aosolutions(
     if plot_solutions_throughout:
         output_plots = plot_solutions(solutions=solutions_path, ref_ant=ref_ant)
         plots.extend(output_plots)
+
+    if mesh_ant_flags:
+        logger.info("Combining antenna flags")
+        for time in range(solutions.nsol):
+            time_mask = construct_mesh_ant_flags(mask=~np.isfinite(bandpass[time]))
+            bandpass[time, time_mask] = np.nan
 
     for time in range(solutions.nsol):
         for pol in (0, 3):
@@ -981,16 +992,17 @@ def flag_aosolutions(
                 )
 
     for time in range(solutions.nsol):
-        ref_ant_gains = bandpass[time, ref_ant]
+        bandpass_phased_referenced = divide_bandpass_by_ref_ant_preserve_phase(
+            complex_gains=bandpass[time], ref_ant=ref_ant
+        )
         # This loop will flag based on stats across different polarisations
         for ant in range(solutions.nant):
-            # We need to skip the case of flagging on the reference antenna, I think.
-            if ref_ant == ant:
-                continue
 
-            ant_gains = bandpass[time, ant] / ref_ant_gains
+            ant_gains = bandpass_phased_referenced[ant]
             if flag_mean_xxyy_amplitude_ratio(
-                xx_complex_gains=ant_gains[:, 0], yy_complex_gains=ant_gains[:, 3]
+                xx_complex_gains=ant_gains[:, 0],
+                yy_complex_gains=ant_gains[:, 3],
+                tolerance=mean_ant_tolderance,
             ):
                 logger.info(f"{ant=} failed mean amplitude gain test. Flagging {ant=}.")
                 bandpass[time, ant, :, :] = np.nan

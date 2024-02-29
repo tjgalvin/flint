@@ -33,6 +33,10 @@ class BandpassOptions(NamedTuple):
     """The number of times the bandpass will be calibrated, flagged, then recalibrated"""
     minuv: Optional[float] = None
     """The minimum baseline length, in meters, for data to be included in bandpass calibration stage"""
+    preflagger_ant_mean_tolerance: float = 0.2
+    """Tolerance that the mean x/y antenna gain ratio test before the antenna is flagged"""
+    preflagger_mesh_ant_flags: bool = False
+    """Share channel flags from bandpass solutions between all antenna"""
 
 
 class FieldOptions(NamedTuple):

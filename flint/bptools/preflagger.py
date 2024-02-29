@@ -7,7 +7,7 @@ components of the bandpass.
 """
 
 from pathlib import Path
-from typing import NamedTuple, Optional, Tuple
+from typing import NamedTuple, Optional, Tuple, List
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -443,7 +443,7 @@ def flag_mean_residual_amplitude(
 
 
 def flag_mean_xxyy_amplitude_ratio(
-    xx_complex_gains: np.ndarray, yy_complex_gains, fraction: float = 2.0
+    xx_complex_gains: np.ndarray, yy_complex_gains, tolerance: float = 0.1
 ) -> bool:
     """Will robust compute through an iterative sigma-clipping procedure the
     mean XX and YY gain amplitudes. The ratio of these  means are computed,
@@ -457,7 +457,7 @@ def flag_mean_xxyy_amplitude_ratio(
     Args:
         xx_complex_gains (np.ndarray): The XX complex gains to be considered
         yy_complex_gains (_type_): The YY complex gains to be considered
-        fraction (float, optional): The fraction used to distinguish a critical mean ratio threshold. Defaults to 2..
+        tolerance (float, optional): The tolerance used used to distinguish a critical mean ratio threshold. Defaults to 0.10.
 
     Returns:
         bool: Whether data should be flagged (True) or not (False)
@@ -482,13 +482,57 @@ def flag_mean_xxyy_amplitude_ratio(
 
     result = (
         not np.isfinite(mean_gain_ratio)
-        or mean_gain_ratio < (1.0 / fraction)
-        or mean_gain_ratio > fraction
+        or mean_gain_ratio < (1.0 - tolerance)
+        or mean_gain_ratio > (1.0 + tolerance)
     )
 
     if result:
         logger.warning(
-            f"Failed the mean gain ratio test: {xx_mean=} {yy_mean=} {mean_gain_ratio=} "
+            f"Failed the mean gain ratio test: {xx_mean=} {yy_mean=} {mean_gain_ratio=} {tolerance=}"
         )
 
     return result
+
+
+def construct_mesh_ant_flags(mask: np.ndarray) -> np.ndarray:
+    """Construct a mask that will accumulate the flags across
+    all antennas. The input mask array should be boolean and
+    of shape (ant, channels, pol), where `True` means flagged.
+
+    If an antenna is completely flagged it is ignored as the
+    statistics are collected
+
+    Args:
+        mask (np.ndarray): Input array denoting which items are flagged.
+
+    Returns:
+        np.ndarray: Output array where antennas have common sets of flags
+    """
+
+    assert (
+        len(mask.shape) == 3
+    ), f"Expect array of shape (ant, chnnel, pol), received {mask.shape=}"
+    accumulate_mask = np.zeros_like(mask[0], dtype=bool)
+
+    nant = mask.shape[0]
+    logger.info(f"Accumulating flagged channels over {nant=} antenna")
+
+    empty_ants: List[int] = []
+
+    for ant in range(nant):
+        ant_mask = mask[ant]
+        if np.all(ant_mask):
+            empty_ants.append(ant)
+            continue
+
+        accumulate_mask = accumulate_mask | ant_mask
+
+    result_mask = np.zeros_like(mask, dtype=bool)
+
+    for ant in range(nant):
+        if ant in empty_ants:
+            result_mask[ant, :, :] = True
+        else:
+            result_mask[ant] = accumulate_mask
+
+    return result_mask
