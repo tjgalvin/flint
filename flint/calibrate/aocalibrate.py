@@ -1008,18 +1008,14 @@ def flag_aosolutions(
                 )
 
     for time in range(solutions.nsol):
-        ref_ant_gains = bandpass[time, ref_ant]
+        ref_ant_gains = divide_bandpass_by_ref_ant_preserve_phase(complex_gains=bandpass[time], ref_ant=ref_ant)
         # This loop will flag based on stats across different polarisations
         for ant in range(solutions.nant):
-            # We need to skip the case of flagging on the reference antenna, I think.
-            if ref_ant == ant:
-                continue
-
-            ant_gains = bandpass[time, ant] / ref_ant_gains
+            ant_gains = ref_ant_gains[ant, :, :]
             if flag_mean_xxyy_amplitude_ratio(
-                xx_complex_gains=ant_gains[:, 0], yy_complex_gains=ant_gains[:, 3]
+                xx_complex_gains=ant_gains[:, 0], yy_complex_gains=ant_gains[:, 3], fraction=0.10
             ):
-                logger.info(f"{ant=} failed mean amplitude gain test. Flagging {ant=}.")
+                logger.warning(f"{ant=} failed mean amplitude gain test. Flagging {ant=}.")
                 bandpass[time, ant, :, :] = np.nan
 
     # To this point operations carried out to the bandpass were to the mutable array reference
@@ -1056,10 +1052,11 @@ def flag_aosolutions(
             plots.extend(output_plots)
 
     total_flagged = np.sum(~np.isfinite(bandpass)) / np.prod(bandpass.shape)
-    if total_flagged > 0.8:
+    ant_flag_limit = 0.8
+    if total_flagged > ant_flag_limit:
         msg = (
             f"{total_flagged*100.:.2f}% of {str((solutions_path))} is flagged after running the preflagger. "
-            "That is over 90%. "
+            f"That is over {ant_flag_limit*100:.2f}%. "
             f"This surely can not be correct. Likely something has gone very wrong. "
         )
         logger.critical(msg)

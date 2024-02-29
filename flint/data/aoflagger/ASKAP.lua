@@ -26,13 +26,13 @@ function execute(input)
   -- How to flag complex values, options are: phase, amplitude, real, imaginary, complex
   -- May have multiple values to perform detection multiple times
   local flag_representations = { "amplitude" }
-  local iteration_count = 3  -- how many iterations to perform?
+  local iteration_count = 6  -- how many iterations to perform?
   local threshold_factor_step = 2.0 -- How much to increase the sensitivity each iteration?
   -- If the following variable is true, the strategy will consider existing flags
   -- as bad data. It will exclude flagged data from detection, and make sure that any existing
   -- flags on input will be flagged on output. If set to false, existing flags are ignored.
   local exclude_original_flags = true
-  local frequency_resize_factor = 5.0 -- Amount of "extra" smoothing in frequency direction
+  local frequency_resize_factor = 7.0 -- Amount of "extra" smoothing in frequency direction
   local transient_threshold_factor = 1.0 -- decreasing this value makes detection of transient RFI more aggressive
 
   --

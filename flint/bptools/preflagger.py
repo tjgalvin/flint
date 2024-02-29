@@ -443,13 +443,13 @@ def flag_mean_residual_amplitude(
 
 
 def flag_mean_xxyy_amplitude_ratio(
-    xx_complex_gains: np.ndarray, yy_complex_gains, fraction: float = 2.0
+    xx_complex_gains: np.ndarray, yy_complex_gains, fraction: float = 0.15
 ) -> bool:
     """Will robust compute through an iterative sigma-clipping procedure the
     mean XX and YY gain amplitudes. The ratio of these  means are computed,
     and if the are:
 
-    >>> ratio < (1. / fraction) or ratio > fraction
+    >>> ratio < (1. - fraction) or ratio > (1. + fraction)
 
     the data are considered bad and a `True` is returned (indicating that they
     should be flagged).
@@ -457,7 +457,7 @@ def flag_mean_xxyy_amplitude_ratio(
     Args:
         xx_complex_gains (np.ndarray): The XX complex gains to be considered
         yy_complex_gains (_type_): The YY complex gains to be considered
-        fraction (float, optional): The fraction used to distinguish a critical mean ratio threshold. Defaults to 2..
+        fraction (float, optional): The fraction used to distinguish a critical mean ratio threshold. Defaults to 0.15.
 
     Returns:
         bool: Whether data should be flagged (True) or not (False)
@@ -482,8 +482,8 @@ def flag_mean_xxyy_amplitude_ratio(
 
     result = (
         not np.isfinite(mean_gain_ratio)
-        or mean_gain_ratio < (1.0 / fraction)
-        or mean_gain_ratio > fraction
+        or mean_gain_ratio < (1.0 - fraction)
+        or mean_gain_ratio > (1.0 + fraction)
     )
 
     if result:
