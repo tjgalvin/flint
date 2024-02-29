@@ -931,7 +931,7 @@ def flag_aosolutions(
             logger.info(
                 f"Flags before applying mesh ant mask: {np.sum(~np.isfinite(bandpass[time]))}"
             )
-            bandpass[time][time_mask] = np.nan
+            bandpass[time, time_mask] = np.nan
             logger.info(
                 f"Flags after applying mesh ant mask: {np.sum(~np.isfinite(bandpass[time]))}"
             )
