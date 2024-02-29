@@ -864,7 +864,7 @@ def flag_aosolutions(
     plot_solutions_throughout: bool = True,
     smooth_window_size: int = 16,
     smooth_polynomial_order: int = 4,
-    mean_ant_tolderance: float = 0.1,
+    mean_ant_tolerance: float = 0.1,
     mesh_ant_flags: bool = False,
 ) -> FlaggedAOSolution:
     """Will open a previously solved ao-calibrate solutions file and flag additional channels and antennae.
@@ -1002,7 +1002,7 @@ def flag_aosolutions(
             if flag_mean_xxyy_amplitude_ratio(
                 xx_complex_gains=ant_gains[:, 0],
                 yy_complex_gains=ant_gains[:, 3],
-                tolerance=mean_ant_tolderance,
+                tolerance=mean_ant_tolerance,
             ):
                 logger.info(f"{ant=} failed mean amplitude gain test. Flagging {ant=}.")
                 bandpass[time, ant, :, :] = np.nan
