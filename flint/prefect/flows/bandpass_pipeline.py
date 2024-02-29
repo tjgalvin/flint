@@ -81,6 +81,7 @@ def task_flag_solutions(
     calibrate_cmd: CalibrateCommand,
     smooth_window_size: int = 16,
     smooth_polynomial_order: int = 4,
+    **kwargs,
 ) -> CalibrateCommand:
     """Flag calibration solutions
 
@@ -113,6 +114,7 @@ def task_flag_solutions(
         smooth_solutions=True,
         smooth_window_size=smooth_window_size,
         smooth_polynomial_order=smooth_polynomial_order,
+        **kwargs,
     )
 
     for image_path in flagged_solutions.plots:
