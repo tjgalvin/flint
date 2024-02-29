@@ -864,7 +864,7 @@ def flag_aosolutions(
     plot_solutions_throughout: bool = True,
     smooth_window_size: int = 16,
     smooth_polynomial_order: int = 4,
-    mean_ant_tolerance: float = 0.1,
+    mean_ant_tolerance: float = 0.2,
     mesh_ant_flags: bool = False,
 ) -> FlaggedAOSolution:
     """Will open a previously solved ao-calibrate solutions file and flag additional channels and antennae.
@@ -887,7 +887,7 @@ def flag_aosolutions(
         plot_solutions_throughout (bool, Optional): If True, the solutions will be plotted at different stages of processing. Defaults to True.
         smooth_window_size (int, optional): The size of the window function of the savgol filter. Passed directly to savgol. Defaults to 16.
         smooth_polynomial_order (int, optional): The order of the polynomial of the savgol filter. Passed directly to savgol. Defaults to 4.
-        mean_ant_tolerance (float, optional): Tolerance of the mean x/y antenna gain ratio test before the antenna is flagged. Defaults to 0.1.
+        mean_ant_tolerance (float, optional): Tolerance of the mean x/y antenna gain ratio test before the antenna is flagged. Defaults to 0.2.
         mesh_ant_flags (bool, optional): If True, a channel is flagged across all antenna if it is flagged for any antenna. Defaults to False.
 
     Returns:
