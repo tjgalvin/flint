@@ -157,3 +157,30 @@ def remove_files_folders(*paths_to_remove: Path) -> List[Path]:
         files_removed.append(file)
 
     return files_removed
+
+
+def create_directory(directory: Path) -> Path:
+    """Will attempt to safely create a directory. Should it
+    not exist it will be created. if this creates an exception,
+    which might happen in a multi-process environment, it is
+    reported and discarded.
+
+    Args:
+        directory (Path): Path to directory to create
+
+    Returns:
+        Path: The directory created
+    """
+
+    directory = Path(directory)
+
+    if directory.exists():
+        return directory
+
+    logger.info(f"Creating {str(directory)}")
+    try:
+        directory.mkdir(parents=True)
+    except Exception as e:
+        logger.error(f"Failed to create {str(directory)} {e}.")
+
+    return directory
