@@ -871,11 +871,28 @@ def flag_aosolutions(
 ) -> FlaggedAOSolution:
     """Will open a previously solved ao-calibrate solutions file and flag additional channels and antennae.
 
-    There are currently two main stages. The first will attempt to search for channels where the the phase of the
+    There are a number of distinct operations applied to the data, which are
+    presented in order they are applied.
+
+    If `mesh_ant_flags` is `True`, channels flagged from on channel on a single
+    antenna will be applied to all (unless an antenna is completely flagged).
+    This happens before any other operation,.
+
+    If `max_gain_amplitude` is not `None` than any Jones with an element
+    whose amplitude is above the set value will be flagged.
+
+    Next, an attempt is made to search for channels where the the phase of the
     gain solution are outliers. The phase over frequency is first unwrapped (delay solved for) before the flagging
     statistics are computed.
 
-    The second stage will flag an entire antenna if more then 80 percent of the flags for a polarisation are flagged.
+    If an antenna is over 80% flagged then it is completely removed.
+
+    A low order polynomial (typically order 5) is fit to the amplitudes of the
+    Gx and Gy, and if the residuals are sufficently high then the pol will
+    be flagged.
+
+    If the mean ratio of the Gx and Gy amplitudes for an antenna are higher
+    then `mean_ant_tolerance` then the antenna will be flagged.
 
     Keywords that with the `smooth` prefix are passed to the `smooth_bandpass_complex_gains` function.
 
@@ -890,13 +907,15 @@ def flag_aosolutions(
         smooth_window_size (int, optional): The size of the window function of the savgol filter. Passed directly to savgol. Defaults to 16.
         smooth_polynomial_order (int, optional): The order of the polynomial of the savgol filter. Passed directly to savgol. Defaults to 4.
         mean_ant_tolerance (float, optional): Tolerance of the mean x/y antenna gain ratio test before the antenna is flagged. Defaults to 0.2.
-        mesh_ant_flags (bool, optional): If True, a channel is flagged across all antenna if it is flagged for any antenna. Defaults to False.
+        mesh_ant_flags (bool, optional): If True, a channel is flagged across all antenna if it is flagged for any antenna. Performed before other flagging operations. Defaults to False.
         max_gain_amplitude (Optional[float], optional): If not None, flag the Jones if an antenna has a amplitude gain above this value. Defaults to 10.
 
     Returns:
         FlaggedAOSolution: Path to the updated solutions file, intermediate solution files and plots along the way
     """
     # TODO: This should be broken down into separate stages. Way too large of a function.
+    # TODO: This pirate needs to cull some of this logic out, likely not needed
+    # and dead
 
     solutions = AOSolutions.load(path=solutions_path)
     title = solutions_path.name
