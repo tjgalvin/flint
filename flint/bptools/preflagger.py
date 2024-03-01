@@ -519,6 +519,8 @@ def construct_mesh_ant_flags(mask: np.ndarray) -> np.ndarray:
 
     empty_ants: List[int] = []
 
+    # TODO: This can be replaced with numpy broadcasting
+
     for ant in range(nant):
         ant_mask = mask[ant]
         if np.all(ant_mask):
@@ -536,3 +538,46 @@ def construct_mesh_ant_flags(mask: np.ndarray) -> np.ndarray:
             result_mask[ant] = accumulate_mask
 
     return result_mask
+
+
+def construct_jones_over_max_amp_flags(
+    complex_gains: np.ndarray, max_amplitude: float
+) -> np.ndarray:
+    """Construct and return a mask that would flag an entire Jones
+    should there be an element whose amplitude is above a flagging
+    threshold
+
+    Args:
+        complex_gains (np.ndarray): Complex gains that will have a mask constructed
+        max_amplitude (float): The flagging threshold, any Jones with a member above this will be flagged
+
+    Returns:
+        np.ndarray: Boolean array of equal shape to `complex_gains`, with `True` indicating a flag
+    """
+
+    assert (
+        complex_gains.shape[-1] == 4
+    ), f"Expected last dimension to be length 4, received {complex_gains.shape=}"
+
+    logger.info(f"Creating mask for Jones with amplitudes of {max_amplitude=}")
+    complex_gains = complex_gains.copy()
+
+    original_shape = complex_gains.shape
+
+    # Calculate tehe amplitudes of each of the complex numbers
+    # and construct the initial mask
+    amplitudes = np.abs(complex_gains)
+    mask = amplitudes > max_amplitude
+
+    # Compress all but the last dimension into a single
+    # rank so we can easily broadcast over
+    mask = mask.reshape((-1, 4))
+
+    # Now broadcast like a pirate
+    flag_jones = np.any(mask, axis=1)
+    mask[flag_jones, :] = True
+
+    # Convert back to original shape
+    mask = mask.reshape(original_shape)
+
+    return mask
