@@ -965,15 +965,13 @@ def flag_aosolutions(
         for pol in (0, 3):
             logger.info(f"Processing {pols[pol]} polarisation")
             ref_ant_gains = bandpass[time, ref_ant, :, pol]
-            if np.sum(np.isfinite(ref_ant_gains)) == 0:
-                raise ValueError(f"The ref_ant={ref_ant} is completely bad. ")
-
+            
             for ant in range(solutions.nant):
                 if ant == ref_ant:
                     logger.info(f"Skipping reference antenna = ant{ref_ant:02}")
                     continue
 
-                ant_gains = ref_bandpass[ant]
+                ant_gains = ref_bandpass[ant, :, pol]
                 plot_title = f"{title} - ant{ant:02d} - {pols[pol]}"
                 ouput_path = (
                     plot_dir / f"{title}.ant{ant:02d}.{pols[pol]}.png"
@@ -992,11 +990,14 @@ def flag_aosolutions(
                         plot_title=plot_title,
                         plot_path=ouput_path,
                     )
-                    bandpass[time, ant, phase_outlier_result.outlier_mask, pol] = np.nan
+                    bandpass[time, ant, phase_outlier_result.outlier_mask, :] = np.nan
                 except PhaseOutlierFitError:
                     # This is raised if the fit failed to converge, or some other nasty.
                     bandpass[time, ant, :, :] = np.nan
 
+    for time in range(solutions.nsol):
+        for pol in (0, 3):
+            for ant in range(solutions.nant):
                 # Flag all solutions for this (ant,pol) if more than 80% are flagged
                 if flags_over_threshold(
                     flags=~np.isfinite(bandpass[time, ant, :, pol]),
@@ -1004,16 +1005,16 @@ def flag_aosolutions(
                     ant_idx=ant,
                 ):
                     logger.info(
-                        f"Flagging all solutions across {pols[pol]} for ant{ant:02d}, too many flagged channels."
+                        f"Flagging all solutions across  ant{ant:02d}, too many flagged channels."
                     )
                     bandpass[time, ant, :, :] = np.nan
 
                 complex_gains = bandpass[time, ant, :, pol]
-                if any(np.isfinite(complex_gains)) and flag_mean_residual_amplitude(
+                if flag_mean_residual_amplitude(
                     complex_gains=complex_gains
                 ):
                     logger.info(
-                        f"Flagging all solutions across {pols[pol]} for ant{ant:02d}, mean residual amplitudes high"
+                        f"Flagging all solutions for ant{ant:02d}, mean residual amplitudes high"
                     )
                     bandpass[time, ant, :, :] = np.nan
 

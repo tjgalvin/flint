@@ -405,6 +405,9 @@ def flag_mean_residual_amplitude(
         bool: Whether the data should be considered bad. True if it is bad, False if otherwise.
     """
 
+    if not np.any(np.isfinite(complex_gains)):
+        return True
+
     amplitudes = np.abs(complex_gains)
     idxs = np.arange(amplitudes.shape[0])
     mask = np.isfinite(amplitudes)
