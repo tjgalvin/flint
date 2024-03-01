@@ -27,6 +27,7 @@ from flint.bptools.preflagger import (
     flag_outlier_phase,
     flags_over_threshold,
     construct_mesh_ant_flags,
+    construct_jones_over_max_amp_flags,
 )
 from flint.bptools.smoother import (
     divide_bandpass_by_ref_ant_preserve_phase,
@@ -866,6 +867,7 @@ def flag_aosolutions(
     smooth_polynomial_order: int = 4,
     mean_ant_tolerance: float = 0.2,
     mesh_ant_flags: bool = False,
+    max_gain_amplitude: Optional[float] = None,
 ) -> FlaggedAOSolution:
     """Will open a previously solved ao-calibrate solutions file and flag additional channels and antennae.
 
@@ -889,6 +891,7 @@ def flag_aosolutions(
         smooth_polynomial_order (int, optional): The order of the polynomial of the savgol filter. Passed directly to savgol. Defaults to 4.
         mean_ant_tolerance (float, optional): Tolerance of the mean x/y antenna gain ratio test before the antenna is flagged. Defaults to 0.2.
         mesh_ant_flags (bool, optional): If True, a channel is flagged across all antenna if it is flagged for any antenna. Defaults to False.
+        max_gain_amplitude (Optional[float], optional): If not None, flag the Jones if an antenna has a amplitude gain above this value. Defaults to 10.
 
     Returns:
         FlaggedAOSolution: Path to the updated solutions file, intermediate solution files and plots along the way
@@ -935,6 +938,12 @@ def flag_aosolutions(
             logger.info(
                 f"Flags after applying mesh ant mask: {np.sum(~np.isfinite(bandpass[time]))}"
             )
+
+    if max_gain_amplitude:
+        mask = construct_jones_over_max_amp_flags(
+            complex_gains=bandpass, max_amplitude=max_gain_amplitude
+        )
+        bandpass[mask] = np.nan
 
     for time in range(solutions.nsol):
         for pol in (0, 3):
