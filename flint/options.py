@@ -37,7 +37,7 @@ class BandpassOptions(NamedTuple):
     """Tolerance that the mean x/y antenna gain ratio test before the antenna is flagged"""
     preflagger_mesh_ant_flags: bool = False
     """Share channel flags from bandpass solutions between all antenna"""
-    preflagger_jones_max_amplitudes: Optional[float] = None
+    preflagger_jones_max_amplitude: Optional[float] = None
     """Flag Jones matrix if any amplitudes with a Jones are above this value"""
 
 
