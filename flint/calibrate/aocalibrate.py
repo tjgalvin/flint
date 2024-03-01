@@ -857,7 +857,7 @@ class FlaggedAOSolution(NamedTuple):
 
 def flag_aosolutions(
     solutions_path: Path,
-    ref_ant: Optional[int] = -1,
+    ref_ant: int = -1,
     flag_cut: float = 3,
     plot_dir: Optional[Path] = None,
     out_solutions_path: Optional[Path] = None,
@@ -929,21 +929,17 @@ def flag_aosolutions(
 
     if mesh_ant_flags:
         logger.info("Combining antenna flags")
+        mask = np.zeros_like(bandpass, dtype=bool)
+
         for time in range(solutions.nsol):
-            time_mask = construct_mesh_ant_flags(mask=~np.isfinite(bandpass[time]))
-            logger.info(
-                f"Flags before applying mesh ant mask: {np.sum(~np.isfinite(bandpass[time]))}"
-            )
-            bandpass[time, time_mask] = np.nan
-            logger.info(
-                f"Flags after applying mesh ant mask: {np.sum(~np.isfinite(bandpass[time]))}"
-            )
+            mask[time] = construct_mesh_ant_flags(mask=~np.isfinite(bandpass[time]))
+
+        bandpass[mask] = np.nan
 
     if max_gain_amplitude:
         mask = construct_jones_over_max_amp_flags(
             complex_gains=bandpass, max_amplitude=max_gain_amplitude
         )
-        no_flagged = np.sum(mask)
         bandpass[mask] = np.nan
 
     for time in range(solutions.nsol):

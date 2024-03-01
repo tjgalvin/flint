@@ -529,6 +529,8 @@ def construct_mesh_ant_flags(mask: np.ndarray) -> np.ndarray:
 
         accumulate_mask = accumulate_mask | ant_mask
 
+    logger.info(f"Flags in accumulated mask: {np.sum(accumulate_mask)}")
+
     result_mask = np.zeros_like(mask, dtype=bool)
 
     for ant in range(nant):
