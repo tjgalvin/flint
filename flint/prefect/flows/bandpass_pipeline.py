@@ -79,16 +79,12 @@ def task_bandpass_create_apply_solutions_cmd(
 @task
 def task_flag_solutions(
     calibrate_cmd: CalibrateCommand,
-    smooth_window_size: int = 16,
-    smooth_polynomial_order: int = 4,
     **kwargs,
 ) -> CalibrateCommand:
     """Flag calibration solutions
 
     Args:
         calibrate_cmd (CalibrateCommand): Calibrate command that contains path to the solution file that will be flagged
-        smooth_window_size (int, optional): The size of the window function of the savgol filter. Passed directly to savgol. Defaults to 16.
-        smooth_polynomial_order (int, optional): The order of the polynomial of the savgol filter. Passed directly to savgol. Defaults to 4.
 
     Returns:
         CalibrateCommand: Calibrate command with update meta-data describing the new solutions file
@@ -111,9 +107,6 @@ def task_flag_solutions(
         ref_ant=-1,
         flag_cut=3,
         plot_dir=plot_dir,
-        smooth_solutions=True,
-        smooth_window_size=smooth_window_size,
-        smooth_polynomial_order=smooth_polynomial_order,
         **kwargs,
     )
 
@@ -197,6 +190,7 @@ def run_bandpass_stage(
         )
     flag_calibrate_cmds = task_flag_solutions.map(
         calibrate_cmd=calibrate_cmds,
+        smooth_solutions=bandpass_options.smooth_solutions,
         smooth_window_size=bandpass_options.smooth_window_size,
         smooth_polynomial_order=bandpass_options.smooth_polynomial_order,
         mean_ant_tolerance=bandpass_options.preflagger_ant_mean_tolerance,
@@ -368,6 +362,12 @@ def get_parser() -> ArgumentParser:
         help="Path to a cluster configuration file, or a known cluster name. ",
     )
     parser.add_argument(
+        "--smooth-solutions",
+        default=False,
+        action="store_true",
+        help="Smooth the bandpass solutions",
+    )
+    parser.add_argument(
         "--smooth-window-size",
         default=16,
         type=int,
@@ -426,6 +426,7 @@ def cli() -> None:
         flagger_container=args.flagger_container,
         calibrate_container=args.calibrate_container,
         expected_ms=args.expected_ms,
+        smooth_solutions=args.smooth_solutions,
         smooth_window_size=args.smooth_window_size,
         smooth_polynomial_order=args.smooth_polynomial_order,
         flag_calibrate_rounds=args.flag_calibrate_rounds,

@@ -25,6 +25,8 @@ class BandpassOptions(NamedTuple):
     """Path to the singularity calibrate container"""
     expected_ms: int = 36
     """The expected number of measurement set files to find"""
+    smooth_solutions: bool = False
+    """Will activate the smoothing of the bandpass solutions"""
     smooth_window_size: int = 16
     """The width of the smoothing window used to smooth the bandpass solutions"""
     smooth_polynomial_order: int = 4
