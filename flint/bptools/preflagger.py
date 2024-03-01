@@ -580,4 +580,9 @@ def construct_jones_over_max_amp_flags(
     # Convert back to original shape
     mask = mask.reshape(original_shape)
 
+    no_flagged = np.sum(mask)
+
+    if no_flagged > 0:
+        logger.warning(f"{no_flagged} items flagged with {max_amplitude=}")
+
     return mask

@@ -943,6 +943,7 @@ def flag_aosolutions(
         mask = construct_jones_over_max_amp_flags(
             complex_gains=bandpass, max_amplitude=max_gain_amplitude
         )
+        no_flagged = np.sum(mask)
         bandpass[mask] = np.nan
 
     for time in range(solutions.nsol):
