@@ -964,7 +964,6 @@ def flag_aosolutions(
         )
         for pol in (0, 3):
             logger.info(f"Processing {pols[pol]} polarisation")
-            ref_ant_gains = bandpass[time, ref_ant, :, pol]
             
             for ant in range(solutions.nant):
                 if ant == ref_ant:
