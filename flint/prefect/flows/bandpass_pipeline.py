@@ -79,15 +79,12 @@ def task_bandpass_create_apply_solutions_cmd(
 @task
 def task_flag_solutions(
     calibrate_cmd: CalibrateCommand,
-    smooth_window_size: int = 16,
-    smooth_polynomial_order: int = 4,
+    **kwargs,
 ) -> CalibrateCommand:
     """Flag calibration solutions
 
     Args:
         calibrate_cmd (CalibrateCommand): Calibrate command that contains path to the solution file that will be flagged
-        smooth_window_size (int, optional): The size of the window function of the savgol filter. Passed directly to savgol. Defaults to 16.
-        smooth_polynomial_order (int, optional): The order of the polynomial of the savgol filter. Passed directly to savgol. Defaults to 4.
 
     Returns:
         CalibrateCommand: Calibrate command with update meta-data describing the new solutions file
@@ -110,9 +107,7 @@ def task_flag_solutions(
         ref_ant=-1,
         flag_cut=3,
         plot_dir=plot_dir,
-        smooth_solutions=True,
-        smooth_window_size=smooth_window_size,
-        smooth_polynomial_order=smooth_polynomial_order,
+        **kwargs,
     )
 
     for image_path in flagged_solutions.plots:
@@ -126,15 +121,10 @@ def task_flag_solutions(
 def run_bandpass_stage(
     bandpass_mss: Collection[MS],
     output_split_bandpass_path: Path,
-    calibrate_container: Path,
-    flagger_container: Path,
+    bandpass_options: BandpassOptions,
     model_path: Path,
     source_name_prefix: str = "B1934-638",
     skip_rotation: bool = False,
-    smooth_window_size: int = 16,
-    smooth_polynomial_order: int = 4,
-    flag_calibrate_rounds: int = 0,
-    minuv: Optional[float] = None,
 ) -> List[CalibrateCommand]:
     """Excutes the bandpass calibration (using ``calibrate``) against a set of
     input measurement sets.
@@ -142,22 +132,17 @@ def run_bandpass_stage(
     Args:
         bandpass_mss (Collection[MS]): Set of bandpass measurement sets to calibrate
         output_split_bandpass_path (Path): The location where the extract field centred on the calibration field (typically PKSB19340638)
-        calibrate_container (Path): Path the a singularity container with the ``calibrate`` software
-        flagger_container (Path): Path to the singularity container with the ``aoflagger`` software
+        bandpass_options (BandpassOptions): Configurables that will specify the bandpass calibbration process
         model_path (Path): Path to the model used to calibrate against
         source_name_prefix (str, optional): Name of the field being calibrated. Defaults to "B1934-638".
         skip_rotation (bool, optional): If ``True`` the rotation of the ASKAP visibility from the antenna frame to the sky-frame will be skipped. Defaults to False.
-        smooth_window_size (int, optional): The size of the window function of the savgol filter. Passed directly to savgol. Defaults to 16.
-        smooth_polynomial_order (int, optional): The order of the polynomial of the savgol filter. Passed directly to savgol. Defaults to 4.
-        flag_calibrate_rounds (int, optional): Defines the length of a loop that will calibrate, apply, flag and recalibrate. If 0, this is not performed. Defaults to 0.
-        minuv (Optional[float], optional): The minimum baseline length, in meters, for data to be included in bandpass calibration stage. Defaults to None.
 
     Returns:
         List[CalibrateCommand]: Set of calibration commands used
     """
     assert (
-        flag_calibrate_rounds >= 0
-    ), f"Currently {flag_calibrate_rounds=}, needs to be 0 or higher"
+        bandpass_options.flag_calibrate_rounds >= 0
+    ), f"Currently {bandpass_options.flag_calibrate_rounds=}, needs to be 0 or higher"
 
     if not output_split_bandpass_path.exists():
         logger.info(f"Creating {str(output_split_bandpass_path)}")
@@ -174,37 +159,43 @@ def run_bandpass_stage(
         ms=extract_bandpass_mss, skip_rotation=skip_rotation
     )
     flag_bandpass_mss = task_flag_ms_aoflagger.map(
-        ms=preprocess_bandpass_mss, container=flagger_container, rounds=1
+        ms=preprocess_bandpass_mss,
+        container=bandpass_options.flagger_container,
+        rounds=1,
     )
     calibrate_cmds = task_create_calibrate_cmd.map(
         ms=flag_bandpass_mss,
         calibrate_model=model_path,
-        container=calibrate_container,
-        update_calibrate_options=unmapped(dict(minuv=minuv)),
+        container=bandpass_options.calibrate_container,
+        update_calibrate_options=unmapped(dict(minuv=bandpass_options.minuv)),
     )
 
-    for i in range(flag_calibrate_rounds):
+    for i in range(bandpass_options.flag_calibrate_rounds):
         # Apply and then recalibrate
         apply_cmds = task_bandpass_create_apply_solutions_cmd.map(
             ms=calibrate_cmds,
             calibrate_cmd=calibrate_cmds,
             output_column="CORRECTED_DATA",
-            container=calibrate_container,
+            container=bandpass_options.calibrate_container,
         )
         flag_bandpass_mss = task_flag_ms_aoflagger.map(
-            ms=apply_cmds, container=flagger_container, rounds=1
+            ms=apply_cmds, container=bandpass_options.flagger_container, rounds=1
         )
         calibrate_cmds = task_create_calibrate_cmd.map(
             ms=flag_bandpass_mss,
             calibrate_model=model_path,
-            container=calibrate_container,
+            container=bandpass_options.calibrate_container,
             calibrate_data_column="DATA",
-            update_calibrate_options=unmapped(dict(minuv=minuv)),
+            update_calibrate_options=unmapped(dict(minuv=bandpass_options.minuv)),
         )
     flag_calibrate_cmds = task_flag_solutions.map(
         calibrate_cmd=calibrate_cmds,
-        smooth_window_size=smooth_window_size,
-        smooth_polynomial_order=smooth_polynomial_order,
+        smooth_solutions=bandpass_options.smooth_solutions,
+        smooth_window_size=bandpass_options.smooth_window_size,
+        smooth_polynomial_order=bandpass_options.smooth_polynomial_order,
+        mean_ant_tolerance=bandpass_options.preflagger_ant_mean_tolerance,
+        mesh_ant_flags=bandpass_options.preflagger_mesh_ant_flags,
+        max_gain_amplitude=bandpass_options.preflagger_jones_max_amplitude,
     )
 
     return flag_calibrate_cmds
@@ -269,15 +260,10 @@ def calibrate_bandpass_flow(
     run_bandpass_stage(
         bandpass_mss=bandpass_mss,
         output_split_bandpass_path=output_split_bandpass_path,
-        calibrate_container=bandpass_options.calibrate_container,
-        flagger_container=bandpass_options.flagger_container,
+        bandpass_options=bandpass_options,
         model_path=model_path,
         source_name_prefix=source_name_prefix,
         skip_rotation=True,
-        smooth_window_size=bandpass_options.smooth_window_size,
-        smooth_polynomial_order=bandpass_options.smooth_polynomial_order,
-        flag_calibrate_rounds=bandpass_options.flag_calibrate_rounds,
-        minuv=bandpass_options.minuv,
     )
 
     return output_split_bandpass_path
@@ -376,6 +362,12 @@ def get_parser() -> ArgumentParser:
         help="Path to a cluster configuration file, or a known cluster name. ",
     )
     parser.add_argument(
+        "--smooth-solutions",
+        default=False,
+        action="store_true",
+        help="Smooth the bandpass solutions",
+    )
+    parser.add_argument(
         "--smooth-window-size",
         default=16,
         type=int,
@@ -399,6 +391,24 @@ def get_parser() -> ArgumentParser:
         default=None,
         help="The minimum baseline length, in meters, for data to be included in bandpass calibration stage",
     )
+    parser.add_argument(
+        "--preflagger-ant-mean-tolerance",
+        type=float,
+        default=0.2,
+        help="Tolerance of the mean x/y antenna gain ratio test before antenna is flagged",
+    )
+    parser.add_argument(
+        "--preflagger-mesh-ant-flags",
+        default=False,
+        action="store_true",
+        help="Share channel flags from bandpass solutions between all antennas",
+    )
+    parser.add_argument(
+        "--preflagger-jones-max-amplitude",
+        default=None,
+        type=float,
+        help="Flag Jones matrix if any amplitudes with a Jones are above this value",
+    )
 
     return parser
 
@@ -416,10 +426,13 @@ def cli() -> None:
         flagger_container=args.flagger_container,
         calibrate_container=args.calibrate_container,
         expected_ms=args.expected_ms,
+        smooth_solutions=args.smooth_solutions,
         smooth_window_size=args.smooth_window_size,
         smooth_polynomial_order=args.smooth_polynomial_order,
         flag_calibrate_rounds=args.flag_calibrate_rounds,
         minuv=args.minuv,
+        preflagger_ant_mean_tolerance=args.preflagger_ant_mean_tolerance,
+        preflagger_mesh_ant_flags=args.preflagger_mesh_ant_flags,
     )
 
     setup_run_bandpass_flow(

@@ -7,7 +7,7 @@ components of the bandpass.
 """
 
 from pathlib import Path
-from typing import NamedTuple, Optional, Tuple
+from typing import List, NamedTuple, Optional, Tuple
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -405,6 +405,9 @@ def flag_mean_residual_amplitude(
         bool: Whether the data should be considered bad. True if it is bad, False if otherwise.
     """
 
+    if not np.any(np.isfinite(complex_gains)):
+        return True
+
     amplitudes = np.abs(complex_gains)
     idxs = np.arange(amplitudes.shape[0])
     mask = np.isfinite(amplitudes)
@@ -443,7 +446,7 @@ def flag_mean_residual_amplitude(
 
 
 def flag_mean_xxyy_amplitude_ratio(
-    xx_complex_gains: np.ndarray, yy_complex_gains, fraction: float = 2.0
+    xx_complex_gains: np.ndarray, yy_complex_gains, tolerance: float = 0.1
 ) -> bool:
     """Will robust compute through an iterative sigma-clipping procedure the
     mean XX and YY gain amplitudes. The ratio of these  means are computed,
@@ -457,7 +460,7 @@ def flag_mean_xxyy_amplitude_ratio(
     Args:
         xx_complex_gains (np.ndarray): The XX complex gains to be considered
         yy_complex_gains (_type_): The YY complex gains to be considered
-        fraction (float, optional): The fraction used to distinguish a critical mean ratio threshold. Defaults to 2..
+        tolerance (float, optional): The tolerance used used to distinguish a critical mean ratio threshold. Defaults to 0.10.
 
     Returns:
         bool: Whether data should be flagged (True) or not (False)
@@ -482,13 +485,109 @@ def flag_mean_xxyy_amplitude_ratio(
 
     result = (
         not np.isfinite(mean_gain_ratio)
-        or mean_gain_ratio < (1.0 / fraction)
-        or mean_gain_ratio > fraction
+        or mean_gain_ratio < (1.0 - tolerance)
+        or mean_gain_ratio > (1.0 + tolerance)
     )
 
     if result:
         logger.warning(
-            f"Failed the mean gain ratio test: {xx_mean=} {yy_mean=} {mean_gain_ratio=} "
+            f"Failed the mean gain ratio test: {xx_mean=} {yy_mean=} {mean_gain_ratio=} {tolerance=}"
         )
 
     return result
+
+
+def construct_mesh_ant_flags(mask: np.ndarray) -> np.ndarray:
+    """Construct a mask that will accumulate the flags across
+    all antennas. The input mask array should be boolean and
+    of shape (ant, channels, pol), where `True` means flagged.
+
+    If an antenna is completely flagged it is ignored as the
+    statistics are collected
+
+    Args:
+        mask (np.ndarray): Input array denoting which items are flagged.
+
+    Returns:
+        np.ndarray: Output array where antennas have common sets of flags
+    """
+
+    assert (
+        len(mask.shape) == 3
+    ), f"Expect array of shape (ant, chnnel, pol), received {mask.shape=}"
+    accumulate_mask = np.zeros_like(mask[0], dtype=bool)
+
+    nant = mask.shape[0]
+    logger.info(f"Accumulating flagged channels over {nant=} antenna")
+
+    empty_ants: List[int] = []
+
+    # TODO: This can be replaced with numpy broadcasting
+
+    for ant in range(nant):
+        ant_mask = mask[ant]
+        if np.all(ant_mask):
+            empty_ants.append(ant)
+            continue
+
+        accumulate_mask = accumulate_mask | ant_mask
+
+    logger.info(f"Flags in accumulated mask: {np.sum(accumulate_mask)}")
+
+    result_mask = np.zeros_like(mask, dtype=bool)
+
+    for ant in range(nant):
+        if ant in empty_ants:
+            result_mask[ant, :, :] = True
+        else:
+            result_mask[ant] = accumulate_mask
+
+    return result_mask
+
+
+def construct_jones_over_max_amp_flags(
+    complex_gains: np.ndarray, max_amplitude: float
+) -> np.ndarray:
+    """Construct and return a mask that would flag an entire Jones
+    should there be an element whose amplitude is above a flagging
+    threshold
+
+    Args:
+        complex_gains (np.ndarray): Complex gains that will have a mask constructed
+        max_amplitude (float): The flagging threshold, any Jones with a member above this will be flagged
+
+    Returns:
+        np.ndarray: Boolean array of equal shape to `complex_gains`, with `True` indicating a flag
+    """
+
+    assert (
+        complex_gains.shape[-1] == 4
+    ), f"Expected last dimension to be length 4, received {complex_gains.shape=}"
+
+    logger.info(f"Creating mask for Jones with amplitudes of {max_amplitude=}")
+    complex_gains = complex_gains.copy()
+
+    original_shape = complex_gains.shape
+
+    # Calculate tehe amplitudes of each of the complex numbers
+    # and construct the initial mask
+    amplitudes = np.abs(complex_gains)
+    mask = amplitudes > max_amplitude
+
+    # Compress all but the last dimension into a single
+    # rank so we can easily broadcast over
+    mask = mask.reshape((-1, 4))
+
+    # Now broadcast like a pirate
+    flag_jones = np.any(mask, axis=1)
+    mask[flag_jones, :] = True
+
+    # Convert back to original shape
+    mask = mask.reshape(original_shape)
+
+    no_flagged = np.sum(mask)
+
+    if no_flagged > 0:
+        logger.warning(f"{no_flagged} items flagged with {max_amplitude=}")
+
+    return mask

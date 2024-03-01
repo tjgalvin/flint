@@ -142,6 +142,27 @@ def test_sols_same_with_plots(ao_sols_known_bad):
     assert np.allclose(a_loaded.bandpass, b_loaded.bandpass, equal_nan=True)
 
 
+def test_flagged_aosols_mesh(ao_sols_known_bad):
+    flagged_sols = flag_aosolutions(
+        solutions_path=ao_sols_known_bad,
+        plot_solutions_throughout=True,
+        smooth_solutions=True,
+    )
+    assert isinstance(flagged_sols, FlaggedAOSolution)
+    assert len(flagged_sols.plots) == 9
+    assert isinstance(flagged_sols.path, Path)
+
+    flagged_sols = flag_aosolutions(
+        solutions_path=ao_sols_known_bad,
+        mesh_ant_flags=True,
+        plot_solutions_throughout=False,
+        smooth_solutions=False,
+    )
+    assert isinstance(flagged_sols, FlaggedAOSolution)
+    assert len(flagged_sols.plots) == 0
+    assert isinstance(flagged_sols.path, Path)
+
+
 def test_flagged_aosols(ao_sols_known_bad):
     flagged_sols = flag_aosolutions(
         solutions_path=ao_sols_known_bad,

@@ -25,6 +25,8 @@ class BandpassOptions(NamedTuple):
     """Path to the singularity calibrate container"""
     expected_ms: int = 36
     """The expected number of measurement set files to find"""
+    smooth_solutions: bool = False
+    """Will activate the smoothing of the bandpass solutions"""
     smooth_window_size: int = 16
     """The width of the smoothing window used to smooth the bandpass solutions"""
     smooth_polynomial_order: int = 4
@@ -33,6 +35,12 @@ class BandpassOptions(NamedTuple):
     """The number of times the bandpass will be calibrated, flagged, then recalibrated"""
     minuv: Optional[float] = None
     """The minimum baseline length, in meters, for data to be included in bandpass calibration stage"""
+    preflagger_ant_mean_tolerance: float = 0.2
+    """Tolerance that the mean x/y antenna gain ratio test before the antenna is flagged"""
+    preflagger_mesh_ant_flags: bool = False
+    """Share channel flags from bandpass solutions between all antenna"""
+    preflagger_jones_max_amplitude: Optional[float] = None
+    """Flag Jones matrix if any amplitudes with a Jones are above this value"""
 
 
 class FieldOptions(NamedTuple):

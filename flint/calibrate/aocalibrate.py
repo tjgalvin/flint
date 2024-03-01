@@ -22,6 +22,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from flint.bptools.preflagger import (
+    construct_jones_over_max_amp_flags,
+    construct_mesh_ant_flags,
     flag_mean_residual_amplitude,
     flag_mean_xxyy_amplitude_ratio,
     flag_outlier_phase,
@@ -36,6 +38,7 @@ from flint.logging import logger
 from flint.ms import MS, consistent_ms, get_beam_from_ms
 from flint.naming import get_aocalibrate_output_path
 from flint.sclient import run_singularity_command
+from flint.utils import create_directory
 
 
 class CalibrateOptions(NamedTuple):
@@ -855,7 +858,7 @@ class FlaggedAOSolution(NamedTuple):
 
 def flag_aosolutions(
     solutions_path: Path,
-    ref_ant: Optional[int] = -1,
+    ref_ant: int = -1,
     flag_cut: float = 3,
     plot_dir: Optional[Path] = None,
     out_solutions_path: Optional[Path] = None,
@@ -863,14 +866,34 @@ def flag_aosolutions(
     plot_solutions_throughout: bool = True,
     smooth_window_size: int = 16,
     smooth_polynomial_order: int = 4,
+    mean_ant_tolerance: float = 0.2,
+    mesh_ant_flags: bool = False,
+    max_gain_amplitude: Optional[float] = None,
 ) -> FlaggedAOSolution:
     """Will open a previously solved ao-calibrate solutions file and flag additional channels and antennae.
 
-    There are currently two main stages. The first will attempt to search for channels where the the phase of the
+    There are a number of distinct operations applied to the data, which are
+    presented in order they are applied.
+
+    If `mesh_ant_flags` is `True`, channels flagged from on channel on a single
+    antenna will be applied to all (unless an antenna is completely flagged).
+    This happens before any other operation,.
+
+    If `max_gain_amplitude` is not `None` than any Jones with an element
+    whose amplitude is above the set value will be flagged.
+
+    Next, an attempt is made to search for channels where the the phase of the
     gain solution are outliers. The phase over frequency is first unwrapped (delay solved for) before the flagging
     statistics are computed.
 
-    The second stage will flag an entire antenna if more then 80 percent of the flags for a polarisation are flagged.
+    If an antenna is over 80% flagged then it is completely removed.
+
+    A low order polynomial (typically order 5) is fit to the amplitudes of the
+    Gx and Gy, and if the residuals are sufficently high then the antenna will
+    be flagged.
+
+    If the mean ratio of the Gx and Gy amplitudes for an antenna are higher
+    then `mean_ant_tolerance` then the antenna will be flagged.
 
     Keywords that with the `smooth` prefix are passed to the `smooth_bandpass_complex_gains` function.
 
@@ -884,23 +907,24 @@ def flag_aosolutions(
         plot_solutions_throughout (bool, Optional): If True, the solutions will be plotted at different stages of processing. Defaults to True.
         smooth_window_size (int, optional): The size of the window function of the savgol filter. Passed directly to savgol. Defaults to 16.
         smooth_polynomial_order (int, optional): The order of the polynomial of the savgol filter. Passed directly to savgol. Defaults to 4.
+        mean_ant_tolerance (float, optional): Tolerance of the mean x/y antenna gain ratio test before the antenna is flagged. Defaults to 0.2.
+        mesh_ant_flags (bool, optional): If True, a channel is flagged across all antenna if it is flagged for any antenna. Performed before other flagging operations. Defaults to False.
+        max_gain_amplitude (Optional[float], optional): If not None, flag the Jones if an antenna has a amplitude gain above this value. Defaults to 10.
 
     Returns:
         FlaggedAOSolution: Path to the updated solutions file, intermediate solution files and plots along the way
     """
     # TODO: This should be broken down into separate stages. Way too large of a function.
+    # TODO: This pirate needs to cull some of this logic out, likely not needed
+    # and dead
 
     solutions = AOSolutions.load(path=solutions_path)
     title = solutions_path.name
 
     pols = {0: "XX", 1: "XY", 2: "YX", 3: "YY"}
 
-    if plot_dir is not None and not plot_dir.exists():
-        logger.info(f"Creating {str(plot_dir)}")
-        try:
-            plot_dir.mkdir(parents=True)
-        except Exception as e:
-            logger.error(f"Failed to create {str(plot_dir)} {e}.")
+    if plot_dir:
+        create_directory(directory=plot_dir)
 
     # Note that although the solutions variable (an instance of AOSolutions) is immutable,
     # which includes the reference to the numpy array, the _actual_ numpy array is! So,
@@ -919,19 +943,34 @@ def flag_aosolutions(
         output_plots = plot_solutions(solutions=solutions_path, ref_ant=ref_ant)
         plots.extend(output_plots)
 
+    if mesh_ant_flags:
+        logger.info("Combining antenna flags")
+        mask = np.zeros_like(bandpass, dtype=bool)
+
+        for time in range(solutions.nsol):
+            mask[time] = construct_mesh_ant_flags(mask=~np.isfinite(bandpass[time]))
+
+        bandpass[mask] = np.nan
+
+    if max_gain_amplitude:
+        mask = construct_jones_over_max_amp_flags(
+            complex_gains=bandpass, max_amplitude=max_gain_amplitude
+        )
+        bandpass[mask] = np.nan
+
     for time in range(solutions.nsol):
+        ref_bandpass = divide_bandpass_by_ref_ant_preserve_phase(
+            complex_gains=bandpass[time], ref_ant=ref_ant
+        )
         for pol in (0, 3):
             logger.info(f"Processing {pols[pol]} polarisation")
-            ref_ant_gains = bandpass[time, ref_ant, :, pol]
-            if np.sum(np.isfinite(ref_ant_gains)) == 0:
-                raise ValueError(f"The ref_ant={ref_ant} is completely bad. ")
-
+            
             for ant in range(solutions.nant):
                 if ant == ref_ant:
                     logger.info(f"Skipping reference antenna = ant{ref_ant:02}")
                     continue
 
-                ant_gains = bandpass[time, ant, :, pol] / ref_ant_gains
+                ant_gains = ref_bandpass[ant, :, pol]
                 plot_title = f"{title} - ant{ant:02d} - {pols[pol]}"
                 ouput_path = (
                     plot_dir / f"{title}.ant{ant:02d}.{pols[pol]}.png"
@@ -950,11 +989,14 @@ def flag_aosolutions(
                         plot_title=plot_title,
                         plot_path=ouput_path,
                     )
-                    bandpass[time, ant, phase_outlier_result.outlier_mask, pol] = np.nan
+                    bandpass[time, ant, phase_outlier_result.outlier_mask, :] = np.nan
                 except PhaseOutlierFitError:
                     # This is raised if the fit failed to converge, or some other nasty.
-                    bandpass[time, ant, :, pol] = np.nan
+                    bandpass[time, ant, :, :] = np.nan
 
+    for time in range(solutions.nsol):
+        for pol in (0, 3):
+            for ant in range(solutions.nant):
                 # Flag all solutions for this (ant,pol) if more than 80% are flagged
                 if flags_over_threshold(
                     flags=~np.isfinite(bandpass[time, ant, :, pol]),
@@ -962,18 +1004,16 @@ def flag_aosolutions(
                     ant_idx=ant,
                 ):
                     logger.info(
-                        f"Flagging all solutions across {pols[pol]} for ant{ant:02d}, too many flagged channels."
+                        f"Flagging all solutions across  ant{ant:02d}, too many flagged channels."
                     )
-                    bandpass[time, ant, :, pol] = np.nan
+                    bandpass[time, ant, :, :] = np.nan
 
                 complex_gains = bandpass[time, ant, :, pol]
-                if any(np.isfinite(complex_gains)) and flag_mean_residual_amplitude(
-                    complex_gains=complex_gains
-                ):
+                if flag_mean_residual_amplitude(complex_gains=complex_gains):
                     logger.info(
-                        f"Flagging all solutions across {pols[pol]} for ant{ant:02d}, mean residual amplitudes high"
+                        f"Flagging all solutions for ant{ant:02d}, mean residual amplitudes high"
                     )
-                    bandpass[time, ant, :, pol] = np.nan
+                    bandpass[time, ant, :, :] = np.nan
 
                 flagged = ~np.isfinite(bandpass[time, ant, :, pol])
                 logger.info(
@@ -981,16 +1021,16 @@ def flag_aosolutions(
                 )
 
     for time in range(solutions.nsol):
-        ref_ant_gains = bandpass[time, ref_ant]
+        bandpass_phased_referenced = divide_bandpass_by_ref_ant_preserve_phase(
+            complex_gains=bandpass[time], ref_ant=ref_ant
+        )
         # This loop will flag based on stats across different polarisations
         for ant in range(solutions.nant):
-            # We need to skip the case of flagging on the reference antenna, I think.
-            if ref_ant == ant:
-                continue
-
-            ant_gains = bandpass[time, ant] / ref_ant_gains
+            ant_gains = bandpass_phased_referenced[ant]
             if flag_mean_xxyy_amplitude_ratio(
-                xx_complex_gains=ant_gains[:, 0], yy_complex_gains=ant_gains[:, 3]
+                xx_complex_gains=ant_gains[:, 0],
+                yy_complex_gains=ant_gains[:, 3],
+                tolerance=mean_ant_tolerance,
             ):
                 logger.info(f"{ant=} failed mean amplitude gain test. Flagging {ant=}.")
                 bandpass[time, ant, :, :] = np.nan
