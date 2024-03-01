@@ -201,7 +201,7 @@ def run_bandpass_stage(
         smooth_polynomial_order=bandpass_options.smooth_polynomial_order,
         mean_ant_tolerance=bandpass_options.preflagger_ant_mean_tolerance,
         mesh_ant_flags=bandpass_options.preflagger_mesh_ant_flags,
-        max_fain_amplitude=bandpass_options.preflagger_jones_max_amplitude,
+        max_gain_amplitude=bandpass_options.preflagger_jones_max_amplitude,
     )
 
     return flag_calibrate_cmds
