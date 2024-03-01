@@ -1,12 +1,12 @@
 """Itemss around testing components of bptools
 """
 
-import pytest
 import numpy as np
+import pytest
 
 from flint.bptools.preflagger import (
-    construct_mesh_ant_flags,
     construct_jones_over_max_amp_flags,
+    construct_mesh_ant_flags,
 )
 
 

@@ -22,12 +22,12 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from flint.bptools.preflagger import (
+    construct_jones_over_max_amp_flags,
+    construct_mesh_ant_flags,
     flag_mean_residual_amplitude,
     flag_mean_xxyy_amplitude_ratio,
     flag_outlier_phase,
     flags_over_threshold,
-    construct_mesh_ant_flags,
-    construct_jones_over_max_amp_flags,
 )
 from flint.bptools.smoother import (
     divide_bandpass_by_ref_ant_preserve_phase,
@@ -1009,9 +1009,7 @@ def flag_aosolutions(
                     bandpass[time, ant, :, :] = np.nan
 
                 complex_gains = bandpass[time, ant, :, pol]
-                if flag_mean_residual_amplitude(
-                    complex_gains=complex_gains
-                ):
+                if flag_mean_residual_amplitude(complex_gains=complex_gains):
                     logger.info(
                         f"Flagging all solutions for ant{ant:02d}, mean residual amplitudes high"
                     )
@@ -1028,7 +1026,6 @@ def flag_aosolutions(
         )
         # This loop will flag based on stats across different polarisations
         for ant in range(solutions.nant):
-
             ant_gains = bandpass_phased_referenced[ant]
             if flag_mean_xxyy_amplitude_ratio(
                 xx_complex_gains=ant_gains[:, 0],

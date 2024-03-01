@@ -7,7 +7,7 @@ components of the bandpass.
 """
 
 from pathlib import Path
-from typing import NamedTuple, Optional, Tuple, List
+from typing import List, NamedTuple, Optional, Tuple
 
 import matplotlib.pyplot as plt
 import numpy as np
