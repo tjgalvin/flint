@@ -147,10 +147,13 @@ def process_science_fields(
         return
 
     wsclean_init = {
-        "size": 7144,
+        "size": 10144,
         "minuvw_m": 235,
-        "weight": "briggs -1.0",
-        "auto_mask": 5,
+        "weight": "briggs -1.5",
+        "scale": "2.0arcsec",
+        "nmiter": 10,
+        "force_mask_rounds": 10,
+        "auto_mask": 10,
         "multiscale": True,
         "local_rms_window": 55,
         "multiscale_scales": (0, 15, 30, 40, 50, 60, 70, 120, 240, 480),
@@ -161,7 +164,7 @@ def process_science_fields(
         wsclean_container=field_options.wsclean_container,
         update_wsclean_options=unmapped(wsclean_init),
     )
-    beam_summaries = task_create_beam_summary.map(ms=flagged_mss, imageset=wsclean_cmds)
+    beam_summaries = task_create_beam_summary.map(ms=flagged_mss, imageset=wsclean_cmds, wait_for=[field_summary])
     if run_aegean:
         beam_aegean_outputs = task_run_bane_and_aegean.map(
             image=wsclean_cmds,
@@ -170,7 +173,7 @@ def process_science_fields(
         beam_summaries = task_update_with_options.map(
             input_object=beam_summaries, components=beam_aegean_outputs
         )
-        init_field_summary = task_update_with_options.submit(
+        field_summary = task_update_with_options.submit(
             input_object=field_summary, beam_summaries=beam_summaries
         )
 
@@ -196,7 +199,7 @@ def process_science_fields(
                 image=parset, aegean_container=unmapped(field_options.aegean_container)
             )
             field_summary = task_update_field_summary.submit(
-                field_summary=init_field_summary,
+                field_summary=field_summary,
                 aegean_outputs=aegean_outputs,
                 linmos_command=parset,
             )
@@ -227,25 +230,45 @@ def process_science_fields(
         return
 
     gain_cal_rounds = {
-        1: {"solint": "1200s", "uvrange": ">235m", "nspw": 1},
-        2: {"solint": "60s", "uvrange": ">235m", "nspw": 1},
+        1: {"solint": "60s", "uvrange": ">235m", "nspw": 1},
+        2: {"solint": "30s", "calmode": "ap", "uvrange": ">235m", "nspw": 1},
+        3: {"solint": "10s", "calmode": "ap", "uvrange": ">235m", "nspw": 1},
     }
     wsclean_rounds = {
         1: {
-            "size": 7144,
-            "weight": "briggs -1.0",
-            "multiscale": True,
+            "size": 10144,
+            "weight": "briggs -1.5",
+            "scale": "2.0arcsec",
+            "nmiter": 20,
+            "force_mask_rounds": 17,
             "minuvw_m": 235,
-            "auto_mask": 4,
+            "auto_mask": 8.,
             "local_rms_window": 55,
             "multiscale_scales": (0, 15, 30, 40, 50, 60, 70, 120, 240, 480),
         },
         2: {
-            "size": 7144,
-            "weight": "briggs -1.0",
+            "size": 10144,
+            "weight": "briggs -1.5",
+            "scale": "2.0arcsec",
             "multiscale": True,
+            "multiscale_scale_bias": 0.6,
             "minuvw_m": 235,
-            "auto_mask": 4.0,
+            "nmiter": 20,
+            "force_mask_rounds": 15,
+            "auto_mask": 5.0,
+            "local_rms_window": 55,
+            "multiscale_scales": (0, 15, 30, 40, 50, 60, 70, 120, 240, 480),
+        },
+        3: {
+            "size": 10144,
+            "weight": "briggs -1.5",
+            "scale": "2.0arcsec",
+            "multiscale": True,
+            "multiscale_scale_bias": 0.6,
+            "minuvw_m": 235,
+            "nmiter": 20,
+            "force_mask_rounds": 15,
+            "auto_mask": 3.0,
             "local_rms_window": 55,
             "multiscale_scales": (0, 15, 30, 40, 50, 60, 70, 120, 240, 480),
         },
@@ -263,8 +286,8 @@ def process_science_fields(
             update_gain_cal_options=unmapped(gain_cal_options),
             archive_input_ms=field_options.zip_ms,
             wait_for=[
-                init_field_summary
-            ],  # To make sure field summary is created with unzipped MSs
+                field_summary
+            ] + beam_summaries,  # To make sure field summary is created with unzipped MSs
         )
         wsclean_cmds = task_wsclean_imager.map(
             in_ms=cal_mss,
@@ -299,7 +322,7 @@ def process_science_fields(
             cutoff=field_options.pb_cutoff,
         )
 
-        if final_round and field_options.linmos_residuals:
+        if field_options.linmos_residuals:
             _convolve_linmos_residuals(
                 wsclean_cmds=wsclean_cmds,
                 beam_shape=beam_shape,
