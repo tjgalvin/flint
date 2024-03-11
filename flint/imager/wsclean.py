@@ -108,6 +108,8 @@ class WSCleanOptions(NamedTuple):
     """Use a fitting box the size of <factor> times the theoretical beam size for fitting a Gaussian to the PSF."""
     fits_mask: Optional[Path] = None
     """Path to a FITS file that encodes a cleaning mask"""
+    deconvolution_channels: Optional[int] = None
+    """The channels out will be averaged down to this many sub-band images during deconvolution"""
 
     def with_options(self, **kwargs) -> WSCleanOptions:
         """Return a new instance of WSCleanOptions with updated components"""
