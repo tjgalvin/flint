@@ -56,12 +56,10 @@ FlagMS = TypeVar("FlagMS", MS, ApplySolutions)
 
 
 @task
-def task_flag_ms_aoflagger(ms: FlagMS, container: Path, rounds: int = 1) -> FlagMS:
+def task_flag_ms_aoflagger(ms: FlagMS, container: Path) -> FlagMS:
     extracted_ms = ms.ms if isinstance(ms, ApplySolutions) else ms
 
-    extracted_ms = flag_ms_aoflagger(
-        ms=extracted_ms, container=container, rounds=rounds
-    )
+    extracted_ms = flag_ms_aoflagger(ms=extracted_ms, container=container)
 
     return ms
 

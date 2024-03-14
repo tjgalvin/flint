@@ -115,7 +115,7 @@ def process_science_fields(
         container=field_options.calibrate_container,
     )
     flagged_mss = task_flag_ms_aoflagger.map(
-        ms=apply_solutions_cmds, container=field_options.flagger_container, rounds=1
+        ms=apply_solutions_cmds, container=field_options.flagger_container
     )
     column_rename_mss = task_rename_column_in_ms.map(
         ms=flagged_mss,
@@ -164,7 +164,9 @@ def process_science_fields(
         wsclean_container=field_options.wsclean_container,
         update_wsclean_options=unmapped(wsclean_init),
     )
-    beam_summaries = task_create_beam_summary.map(ms=flagged_mss, imageset=wsclean_cmds, wait_for=[field_summary])
+    beam_summaries = task_create_beam_summary.map(
+        ms=flagged_mss, imageset=wsclean_cmds, wait_for=[field_summary]
+    )
     if run_aegean:
         beam_aegean_outputs = task_run_bane_and_aegean.map(
             image=wsclean_cmds,
@@ -242,7 +244,7 @@ def process_science_fields(
             "nmiter": 20,
             "force_mask_rounds": 17,
             "minuvw_m": 235,
-            "auto_mask": 8.,
+            "auto_mask": 8.0,
             "local_rms_window": 55,
             "multiscale_scales": (0, 15, 30, 40, 50, 60, 70, 120, 240, 480),
         },
@@ -285,9 +287,8 @@ def process_science_fields(
             round=round,
             update_gain_cal_options=unmapped(gain_cal_options),
             archive_input_ms=field_options.zip_ms,
-            wait_for=[
-                field_summary
-            ] + beam_summaries,  # To make sure field summary is created with unzipped MSs
+            wait_for=[field_summary]
+            + beam_summaries,  # To make sure field summary is created with unzipped MSs
         )
         wsclean_cmds = task_wsclean_imager.map(
             in_ms=cal_mss,
