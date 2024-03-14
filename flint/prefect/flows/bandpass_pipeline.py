@@ -178,7 +178,7 @@ def run_bandpass_stage(
             container=bandpass_options.calibrate_container,
         )
         flag_bandpass_mss = task_flag_ms_aoflagger.map(
-            ms=apply_cmds, container=bandpass_options.flagger_container, rounds=1
+            ms=apply_cmds, container=bandpass_options.flagger_container
         )
         calibrate_cmds = task_create_calibrate_cmd.map(
             ms=flag_bandpass_mss,
