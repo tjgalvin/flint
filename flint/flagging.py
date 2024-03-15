@@ -58,14 +58,17 @@ def flag_ms_zero_uvws(ms: MS, chunk_size: int = 10000) -> MS:
                 uvws = tab.getcol("UVW", startrow=row_idx, nrow=chunk_size)
                 flags = tab.getcol("FLAG", startrow=row_idx, nrow=chunk_size)
 
+                # Select records what the (u,v,w) are (0,0,0)
+                # Data in the shape (record, 3)
                 zero_uvws = np.all(uvws == 0, axis=1)
                 flags[zero_uvws, :] = True
 
+                # Put it back into place, update the counter for the next insertion
                 size = len(flags)
                 tab.putcol("FLAG", flags, startrow=row_idx, nrow=size)
-
                 row_idx += size
 
+                # Ensure changes written back to the MS
                 tab.flush()
 
     return ms
