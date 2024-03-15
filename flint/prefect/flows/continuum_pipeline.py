@@ -147,7 +147,7 @@ def process_science_fields(
         return
 
     wsclean_init = {
-        "size": 10144,
+        "size": 9144,
         "minuvw_m": 235,
         "weight": "briggs -1.5",
         "scale": "2.0arcsec",
@@ -238,7 +238,7 @@ def process_science_fields(
     }
     wsclean_rounds = {
         1: {
-            "size": 10144,
+            "size": 9144,
             "weight": "briggs -1.5",
             "scale": "2.0arcsec",
             "nmiter": 20,
@@ -249,7 +249,20 @@ def process_science_fields(
             "multiscale_scales": (0, 15, 30, 40, 50, 60, 70, 120, 240, 480),
         },
         2: {
-            "size": 10144,
+            "size": 9144,
+            "weight": "briggs -1.5",
+            "scale": "2.0arcsec",
+            "multiscale": True,
+            "multiscale_scale_bias": 0.6,
+            "minuvw_m": 235,
+            "nmiter": 20,
+            "force_mask_rounds": 15,
+            "auto_mask": 7.0,
+            "local_rms_window": 55,
+            "multiscale_scales": (0, 15, 30, 40, 50, 60, 70, 120, 240, 480),
+        },
+        3: {
+            "size": 9144,
             "weight": "briggs -1.5",
             "scale": "2.0arcsec",
             "multiscale": True,
@@ -258,19 +271,6 @@ def process_science_fields(
             "nmiter": 20,
             "force_mask_rounds": 15,
             "auto_mask": 5.0,
-            "local_rms_window": 55,
-            "multiscale_scales": (0, 15, 30, 40, 50, 60, 70, 120, 240, 480),
-        },
-        3: {
-            "size": 10144,
-            "weight": "briggs -1.5",
-            "scale": "2.0arcsec",
-            "multiscale": True,
-            "multiscale_scale_bias": 0.6,
-            "minuvw_m": 235,
-            "nmiter": 20,
-            "force_mask_rounds": 15,
-            "auto_mask": 3.0,
             "local_rms_window": 55,
             "multiscale_scales": (0, 15, 30, 40, 50, 60, 70, 120, 240, 480),
         },

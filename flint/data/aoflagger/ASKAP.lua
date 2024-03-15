@@ -19,7 +19,7 @@ that is packaged in aoflagger. The main differences are:
    -- { 'I', 'Q' } to flag only on Stokes I and Q
    local flag_polarizations = input:get_polarizations()
  
-   local base_threshold = 2.5  -- lower means more sensitive detection
+   local base_threshold = 1.5  -- lower means more sensitive detection
    -- How to flag complex values, options are: phase, amplitude, real, imaginary, complex
    -- May have multiple values to perform detection multiple times
    local flag_representations = { "amplitude" }
