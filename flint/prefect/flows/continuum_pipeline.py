@@ -147,12 +147,15 @@ def process_science_fields(
         return
 
     wsclean_init = {
-        "size": 10144,
+        "size": 7144,
         "minuvw_m": 235,
-        "weight": "briggs -1.5",
-        "scale": "2.0arcsec",
+        "weight": "briggs -1.0",
+        "scale": "2.5arcsec",
         "nmiter": 10,
         "force_mask_rounds": 10,
+        "channels_out": 36,
+        "deconvolution_channels": 6,
+        "fit_spectral_pol": 3,
         "auto_mask": 10,
         "multiscale": True,
         "local_rms_window": 55,
@@ -164,7 +167,9 @@ def process_science_fields(
         wsclean_container=field_options.wsclean_container,
         update_wsclean_options=unmapped(wsclean_init),
     )
-    beam_summaries = task_create_beam_summary.map(ms=flagged_mss, imageset=wsclean_cmds, wait_for=[field_summary])
+    beam_summaries = task_create_beam_summary.map(
+        ms=flagged_mss, imageset=wsclean_cmds, wait_for=[field_summary]
+    )
     if run_aegean:
         beam_aegean_outputs = task_run_bane_and_aegean.map(
             image=wsclean_cmds,
@@ -236,38 +241,47 @@ def process_science_fields(
     }
     wsclean_rounds = {
         1: {
-            "size": 10144,
+            "size": 8144,
             "weight": "briggs -1.5",
-            "scale": "2.0arcsec",
+            "scale": "2.5arcsec",
             "nmiter": 20,
             "force_mask_rounds": 17,
             "minuvw_m": 235,
-            "auto_mask": 8.,
+            "channels_out": 36,
+            "deconvolution_channels": 6,
+            "fit_spectral_pol": 3,
+            "auto_mask": 8.0,
             "local_rms_window": 55,
             "multiscale_scales": (0, 15, 30, 40, 50, 60, 70, 120, 240, 480),
         },
         2: {
-            "size": 10144,
+            "size": 8144,
             "weight": "briggs -1.5",
-            "scale": "2.0arcsec",
+            "scale": "2.5arcsec",
             "multiscale": True,
             "multiscale_scale_bias": 0.6,
             "minuvw_m": 235,
             "nmiter": 20,
             "force_mask_rounds": 15,
+            "channels_out": 36,
+            "deconvolution_channels": 6,
+            "fit_spectral_pol": 3,
             "auto_mask": 5.0,
             "local_rms_window": 55,
             "multiscale_scales": (0, 15, 30, 40, 50, 60, 70, 120, 240, 480),
         },
         3: {
-            "size": 10144,
-            "weight": "briggs -1.5",
-            "scale": "2.0arcsec",
+            "size": 8144,
+            "weight": "briggs -1.0",
+            "scale": "2.5arcsec",
             "multiscale": True,
             "multiscale_scale_bias": 0.6,
             "minuvw_m": 235,
             "nmiter": 20,
             "force_mask_rounds": 15,
+            "channels_out": 36,
+            "deconvolution_channels": 6,
+            "fit_spectral_pol": 3,
             "auto_mask": 3.0,
             "local_rms_window": 55,
             "multiscale_scales": (0, 15, 30, 40, 50, 60, 70, 120, 240, 480),
@@ -285,9 +299,8 @@ def process_science_fields(
             round=round,
             update_gain_cal_options=unmapped(gain_cal_options),
             archive_input_ms=field_options.zip_ms,
-            wait_for=[
-                field_summary
-            ] + beam_summaries,  # To make sure field summary is created with unzipped MSs
+            wait_for=[field_summary]
+            + beam_summaries,  # To make sure field summary is created with unzipped MSs
         )
         wsclean_cmds = task_wsclean_imager.map(
             in_ms=cal_mss,
