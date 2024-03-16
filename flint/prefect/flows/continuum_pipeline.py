@@ -270,7 +270,7 @@ def process_science_fields(
             "minuvw_m": 235,
             "nmiter": 20,
             "force_mask_rounds": 15,
-            "auto_mask": 5.0,
+            "auto_mask": 6.0,
             "local_rms_window": 55,
             "multiscale_scales": (0, 15, 30, 40, 50, 60, 70, 120, 240, 480),
         },
@@ -279,8 +279,14 @@ def process_science_fields(
     for round in range(1, field_options.rounds + 1):
         final_round = round == field_options.rounds
 
-        gain_cal_options = gain_cal_rounds.get(round, None)
-        wsclean_options = wsclean_rounds.get(round, None)
+        gain_cal_options = gain_cal_rounds.get(min((round, 3)), None)
+        wsclean_options = wsclean_rounds.get(min((round, 3)), None)
+
+        if round > 3:
+            wsclean_options['auto_mask'] = 5
+            wsclean_options['force_mask_rounds'] = 17
+            wsclean_options['local_rms_window'] = 30
+            
 
         cal_mss = task_gaincal_applycal_ms.map(
             wsclean_cmd=wsclean_cmds,
