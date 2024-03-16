@@ -295,10 +295,9 @@ def process_science_fields(
         wsclean_options = wsclean_rounds.get(min((round, 3)), None)
 
         if round > 3:
-            wsclean_options['auto_mask'] = 5
-            wsclean_options['force_mask_rounds'] = 17
-            wsclean_options['local_rms_window'] = 30
-            
+            wsclean_options["auto_mask"] = 5
+            wsclean_options["force_mask_rounds"] = 17
+            wsclean_options["local_rms_window"] = 30
 
         cal_mss = task_gaincal_applycal_ms.map(
             wsclean_cmd=wsclean_cmds,

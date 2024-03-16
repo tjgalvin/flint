@@ -1,11 +1,11 @@
 """Test utilities related to flagging measurement set operations
 """
 
-import pytest
 import shutil
 from pathlib import Path
 
 import numpy as np
+import pytest
 from casacore.tables import table
 
 from flint.flagging import flag_ms_zero_uvws
@@ -51,7 +51,6 @@ def test_add_flag_ms_zero_uvws(ms_example):
     flag_ms_zero_uvws(ms=ms_example)
 
     with table(str(ms_example), ack=False) as tab:
-
         uvws = tab.getcol("UVW")
 
         flags = tab.getcol("FLAG")
