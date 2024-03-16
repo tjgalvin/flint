@@ -964,7 +964,7 @@ def flag_aosolutions(
         )
         for pol in (0, 3):
             logger.info(f"Processing {pols[pol]} polarisation")
-            
+
             for ant in range(solutions.nant):
                 if ant == ref_ant:
                     logger.info(f"Skipping reference antenna = ant{ref_ant:02}")

@@ -10,7 +10,7 @@ from casacore.tables import table
 
 from flint.exceptions import MSError
 from flint.logging import logger
-from flint.ms import MS, check_column_in_ms, describe_ms
+from flint.ms import MS, check_column_in_ms, critical_ms_interaction, describe_ms
 from flint.sclient import run_singularity_command
 from flint.utils import get_packaged_resource_path
 
@@ -26,6 +26,52 @@ class AOFlaggerCommand(NamedTuple):
     """The MS object that was flagged"""
     strategy_file: Optional[Path] = None
     """The path to the aoflagging stategy file to use"""
+
+
+def flag_ms_zero_uvws(ms: MS, chunk_size: int = 10000) -> MS:
+    """Flag out the UVWs in a measurement set that have values of zero.
+    This happens when some data are flagged before it reaches the TOS.
+
+    A critical MS interaction scope is created to ensure if things fail
+    they are known.
+
+    Args:
+        ms (MS): Measurement set to flag
+        chunk_size (int, optional): The number of rows to flag at a tim. Defaults to 10000.
+
+    Returns:
+        MS: The flagged measurement set
+    """
+
+    ms = MS.cast(ms)
+    logger.info(f"Flagging zero uvw's for {ms.path}")
+    row_idx = 0
+
+    # Rename the measurement set while it is being operated on
+    with critical_ms_interaction(input_ms=ms.path) as critical_ms_path:
+        with table(str(critical_ms_path), readonly=False, ack=False) as tab:
+            table_size = len(tab)
+
+            # so long as the row index is less than the table size there
+            # is another chunk to flag
+            while row_idx < (table_size - 1):
+                uvws = tab.getcol("UVW", startrow=row_idx, nrow=chunk_size)
+                flags = tab.getcol("FLAG", startrow=row_idx, nrow=chunk_size)
+
+                # Select records what the (u,v,w) are (0,0,0)
+                # Data in the shape (record, 3)
+                zero_uvws = np.all(uvws == 0, axis=1)
+                flags[zero_uvws, :] = True
+
+                # Put it back into place, update the counter for the next insertion
+                size = len(flags)
+                tab.putcol("FLAG", flags, startrow=row_idx, nrow=size)
+                row_idx += size
+
+                # Ensure changes written back to the MS
+                tab.flush()
+
+    return ms
 
 
 def nan_zero_extreme_flag_ms(
@@ -167,13 +213,12 @@ def run_aoflagger_cmd(aoflagger_cmd: AOFlaggerCommand, container: Path) -> None:
     )
 
 
-def flag_ms_aoflagger(ms: MS, container: Path, rounds: int = 1) -> MS:
+def flag_ms_aoflagger(ms: MS, container: Path) -> MS:
     """Create and run an aoflagger command in a container
 
     Args:
         ms (MS): The measurement set with nominated column to flag
         container (Path): The container with the aoflagger program
-        rounds (int, optional): Number of times to run the flagging. Defaults to 1.
 
     Returns:
         MS: Measurement set flagged with the appropriate column
@@ -182,9 +227,12 @@ def flag_ms_aoflagger(ms: MS, container: Path, rounds: int = 1) -> MS:
     logger.info(f"Will flag column {ms.column} in {str(ms.path)}.")
     aoflagger_cmd = create_aoflagger_cmd(ms=ms)
 
-    for i in range(rounds):
-        logger.info("Flagging command constructed. ")
-        run_aoflagger_cmd(aoflagger_cmd=aoflagger_cmd, container=container)
+    logger.info("Flagging command constructed. ")
+    run_aoflagger_cmd(aoflagger_cmd=aoflagger_cmd, container=container)
+
+    # TODO: This should be moved to the aoflagger lua file once it has
+    # been implemented
+    ms = flag_ms_zero_uvws(ms=ms)
 
     return ms
 

@@ -115,7 +115,7 @@ def process_science_fields(
         container=field_options.calibrate_container,
     )
     flagged_mss = task_flag_ms_aoflagger.map(
-        ms=apply_solutions_cmds, container=field_options.flagger_container, rounds=1
+        ms=apply_solutions_cmds, container=field_options.flagger_container
     )
     column_rename_mss = task_rename_column_in_ms.map(
         ms=flagged_mss,
@@ -241,7 +241,7 @@ def process_science_fields(
     }
     wsclean_rounds = {
         1: {
-            "size": 8144,
+            "size": 7144,
             "weight": "briggs -1.5",
             "scale": "2.5arcsec",
             "nmiter": 20,
@@ -255,7 +255,7 @@ def process_science_fields(
             "multiscale_scales": (0, 15, 30, 40, 50, 60, 70, 120, 240, 480),
         },
         2: {
-            "size": 8144,
+            "size": 7144,
             "weight": "briggs -1.5",
             "scale": "2.5arcsec",
             "multiscale": True,
@@ -266,12 +266,12 @@ def process_science_fields(
             "channels_out": 36,
             "deconvolution_channels": 6,
             "fit_spectral_pol": 3,
-            "auto_mask": 5.0,
+            "auto_mask": 7.0,
             "local_rms_window": 55,
             "multiscale_scales": (0, 15, 30, 40, 50, 60, 70, 120, 240, 480),
         },
         3: {
-            "size": 8144,
+            "size": 7144,
             "weight": "briggs -1.0",
             "scale": "2.5arcsec",
             "multiscale": True,
@@ -282,7 +282,7 @@ def process_science_fields(
             "channels_out": 36,
             "deconvolution_channels": 6,
             "fit_spectral_pol": 3,
-            "auto_mask": 3.0,
+            "auto_mask": 6.0,
             "local_rms_window": 55,
             "multiscale_scales": (0, 15, 30, 40, 50, 60, 70, 120, 240, 480),
         },
@@ -291,8 +291,13 @@ def process_science_fields(
     for round in range(1, field_options.rounds + 1):
         final_round = round == field_options.rounds
 
-        gain_cal_options = gain_cal_rounds.get(round, None)
-        wsclean_options = wsclean_rounds.get(round, None)
+        gain_cal_options = gain_cal_rounds.get(min((round, 3)), None)
+        wsclean_options = wsclean_rounds.get(min((round, 3)), None)
+
+        if round > 3:
+            wsclean_options["auto_mask"] = 5
+            wsclean_options["force_mask_rounds"] = 17
+            wsclean_options["local_rms_window"] = 30
 
         cal_mss = task_gaincal_applycal_ms.map(
             wsclean_cmd=wsclean_cmds,
