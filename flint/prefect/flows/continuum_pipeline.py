@@ -149,12 +149,11 @@ def process_science_fields(
     wsclean_init = {
         "size": 7144,
         "minuvw_m": 235,
-        "weight": "briggs -1.0",
+        "weight": "briggs -1.5",
         "scale": "2.5arcsec",
         "nmiter": 10,
         "force_mask_rounds": 10,
-        "channels_out": 36,
-        "deconvolution_channels": 6,
+        "deconvolution_channels": 8,
         "fit_spectral_pol": 3,
         "auto_mask": 10,
         "multiscale": True,
@@ -236,7 +235,7 @@ def process_science_fields(
 
     gain_cal_rounds = {
         1: {"solint": "60s", "uvrange": ">235m", "nspw": 1},
-        2: {"solint": "30s", "calmode": "ap", "uvrange": ">235m", "nspw": 1},
+        2: {"solint": "30s", "calmode": "p", "uvrange": ">235m", "nspw": 1},
         3: {"solint": "10s", "calmode": "ap", "uvrange": ">235m", "nspw": 1},
     }
     wsclean_rounds = {
@@ -247,8 +246,7 @@ def process_science_fields(
             "nmiter": 20,
             "force_mask_rounds": 17,
             "minuvw_m": 235,
-            "channels_out": 36,
-            "deconvolution_channels": 6,
+            "deconvolution_channels": 8,
             "fit_spectral_pol": 3,
             "auto_mask": 8.0,
             "local_rms_window": 55,
@@ -263,8 +261,7 @@ def process_science_fields(
             "minuvw_m": 235,
             "nmiter": 20,
             "force_mask_rounds": 15,
-            "channels_out": 36,
-            "deconvolution_channels": 6,
+            "deconvolution_channels": 8,
             "fit_spectral_pol": 3,
             "auto_mask": 7.0,
             "local_rms_window": 55,
@@ -272,17 +269,31 @@ def process_science_fields(
         },
         3: {
             "size": 7144,
-            "weight": "briggs -1.0",
+            "weight": "briggs -1.5",
             "scale": "2.5arcsec",
             "multiscale": True,
             "multiscale_scale_bias": 0.6,
             "minuvw_m": 235,
             "nmiter": 20,
             "force_mask_rounds": 15,
-            "channels_out": 36,
-            "deconvolution_channels": 6,
+            "channels_out": 8,
             "fit_spectral_pol": 3,
             "auto_mask": 6.0,
+            "local_rms_window": 55,
+            "multiscale_scales": (0, 15, 30, 40, 50, 60, 70, 120, 240, 480),
+        },
+        4: {
+            "size": 7144,
+            "weight": "briggs -1.5",
+            "scale": "2.5arcsec",
+            "multiscale": True,
+            "multiscale_scale_bias": 0.6,
+            "minuvw_m": 235,
+            "nmiter": 20,
+            "force_mask_rounds": 15,
+            "channels_out": 8,
+            "fit_spectral_pol": 3,
+            "auto_mask": 5.5,
             "local_rms_window": 55,
             "multiscale_scales": (0, 15, 30, 40, 50, 60, 70, 120, 240, 480),
         },
@@ -294,10 +305,10 @@ def process_science_fields(
         gain_cal_options = gain_cal_rounds.get(min((round, 3)), None)
         wsclean_options = wsclean_rounds.get(min((round, 3)), None)
 
-        if round > 3:
+        if round > 4:
             wsclean_options["auto_mask"] = 5
             wsclean_options["force_mask_rounds"] = 17
-            wsclean_options["local_rms_window"] = 30
+            wsclean_options["local_rms_window"] = 55
 
         cal_mss = task_gaincal_applycal_ms.map(
             wsclean_cmd=wsclean_cmds,
