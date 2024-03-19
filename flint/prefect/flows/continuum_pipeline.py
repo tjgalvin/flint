@@ -153,7 +153,7 @@ def process_science_fields(
         "scale": "2.5arcsec",
         "nmiter": 10,
         "force_mask_rounds": 10,
-        "deconvolution_channels": 8,
+        "deconvolution_channels": 4,
         "fit_spectral_pol": 3,
         "auto_mask": 10,
         "multiscale": True,
@@ -167,7 +167,7 @@ def process_science_fields(
         update_wsclean_options=unmapped(wsclean_init),
     )
     beam_summaries = task_create_beam_summary.map(
-        ms=flagged_mss, imageset=wsclean_cmds, wait_for=[field_summary]
+        ms=flagged_mss, imageset=wsclean_cmds
     )
     if run_aegean:
         beam_aegean_outputs = task_run_bane_and_aegean.map(
@@ -202,7 +202,7 @@ def process_science_fields(
             aegean_outputs = task_run_bane_and_aegean.submit(
                 image=parset, aegean_container=unmapped(field_options.aegean_container)
             )
-            field_summary = task_update_field_summary.submit(
+            linmos_field_summary = task_update_field_summary.submit(
                 field_summary=field_summary,
                 aegean_outputs=aegean_outputs,
                 linmos_command=parset,
@@ -210,12 +210,12 @@ def process_science_fields(
 
             if run_validation:
                 validation_plot = task_create_validation_plot.submit(
-                    field_summary=field_summary,
+                    field_summary=linmos_field_summary,
                     aegean_outputs=aegean_outputs,
                     reference_catalogue_directory=field_options.reference_catalogue_directory,
                 )
                 validation_tables = task_create_validation_tables.submit(
-                    field_summary=field_summary,
+                    field_summary=linmos_field_summary,
                     aegean_outputs=aegean_outputs,
                     reference_catalogue_directory=field_options.reference_catalogue_directory,
                 )
@@ -236,7 +236,8 @@ def process_science_fields(
     gain_cal_rounds = {
         1: {"solint": "60s", "uvrange": ">235m", "nspw": 1},
         2: {"solint": "30s", "calmode": "p", "uvrange": ">235m", "nspw": 1},
-        3: {"solint": "10s", "calmode": "ap", "uvrange": ">235m", "nspw": 1},
+        3: {"solint": "10s", "calmode": "p", "uvrange": ">235m", "nspw": 1},
+        4: {"solint": "10s", "calmode": "ap", "uvrange": ">235m", "nspw": 1},
     }
     wsclean_rounds = {
         1: {
@@ -246,7 +247,7 @@ def process_science_fields(
             "nmiter": 20,
             "force_mask_rounds": 17,
             "minuvw_m": 235,
-            "deconvolution_channels": 8,
+            "deconvolution_channels": 4,
             "fit_spectral_pol": 3,
             "auto_mask": 8.0,
             "local_rms_window": 55,
@@ -257,11 +258,10 @@ def process_science_fields(
             "weight": "briggs -1.5",
             "scale": "2.5arcsec",
             "multiscale": True,
-            "multiscale_scale_bias": 0.6,
             "minuvw_m": 235,
             "nmiter": 20,
-            "force_mask_rounds": 15,
-            "deconvolution_channels": 8,
+            "force_mask_rounds": 10,
+            "deconvolution_channels": 4,
             "fit_spectral_pol": 3,
             "auto_mask": 7.0,
             "local_rms_window": 55,
@@ -272,11 +272,10 @@ def process_science_fields(
             "weight": "briggs -1.5",
             "scale": "2.5arcsec",
             "multiscale": True,
-            "multiscale_scale_bias": 0.6,
             "minuvw_m": 235,
             "nmiter": 20,
-            "force_mask_rounds": 15,
-            "channels_out": 8,
+            "force_mask_rounds": 10,
+            "channels_out": 4,
             "fit_spectral_pol": 3,
             "auto_mask": 6.0,
             "local_rms_window": 55,
@@ -287,26 +286,42 @@ def process_science_fields(
             "weight": "briggs -1.5",
             "scale": "2.5arcsec",
             "multiscale": True,
-            "multiscale_scale_bias": 0.6,
             "minuvw_m": 235,
             "nmiter": 20,
-            "force_mask_rounds": 15,
-            "channels_out": 8,
+            "force_mask_rounds": 10,
+            "channels_out": 4,
             "fit_spectral_pol": 3,
-            "auto_mask": 5.5,
+            "auto_mask": 6,
+            "local_rms_window": 55,
+            "multiscale_scales": (0, 15, 30, 40, 50, 60, 70, 120, 240, 480),
+        },
+        5: {
+            "size": 7144,
+            "weight": "briggs -1.5",
+            "scale": "2.5arcsec",
+            "multiscale": True,
+            "minuvw_m": 235,
+            "nmiter": 20,
+            "force_mask_rounds": 10,
+            "channels_out": 4,
+            "fit_spectral_pol": 3,
+            "auto_mask": 5.0,
             "local_rms_window": 55,
             "multiscale_scales": (0, 15, 30, 40, 50, 60, 70, 120, 240, 480),
         },
     }
 
+    max_gain_cal_round = max(gain_cal_rounds.keys())
+    max_wsclean_round = max(wsclean_rounds.keys())
+
     for round in range(1, field_options.rounds + 1):
         final_round = round == field_options.rounds
 
-        gain_cal_options = gain_cal_rounds.get(min((round, 3)), None)
-        wsclean_options = wsclean_rounds.get(min((round, 3)), None)
+        gain_cal_options = gain_cal_rounds.get(min((round, max_gain_cal_round)), None)
+        wsclean_options = wsclean_rounds.get(min((round, max_wsclean_round)), None)
 
-        if round > 4:
-            wsclean_options["auto_mask"] = 5
+        if round == final_round:
+            wsclean_options["auto_mask"] = 4
             wsclean_options["force_mask_rounds"] = 17
             wsclean_options["local_rms_window"] = 55
 
@@ -315,8 +330,7 @@ def process_science_fields(
             round=round,
             update_gain_cal_options=unmapped(gain_cal_options),
             archive_input_ms=field_options.zip_ms,
-            wait_for=[field_summary]
-            + beam_summaries,  # To make sure field summary is created with unzipped MSs
+            wait_for=[field_summary]   # To make sure field summary is created with unzipped MSs
         )
         wsclean_cmds = task_wsclean_imager.map(
             in_ms=cal_mss,
@@ -364,19 +378,19 @@ def process_science_fields(
             aegean_outputs = task_run_bane_and_aegean.submit(
                 image=parset, aegean_container=unmapped(field_options.aegean_container)
             )
-            field_summary = task_update_field_summary.submit(
-                field_summary=field_summary,
+            linmos_field_summary = task_update_field_summary.submit(
+                field_summary=linmos_field_summary,
                 aegean_outputs=aegean_outputs,
                 round=round,
             )
             if run_validation:
                 validation_plot = task_create_validation_plot.submit(  # noqa: F841
-                    field_summary=field_summary,
+                    field_summary=linmos_field_summary,
                     aegean_outputs=aegean_outputs,
                     reference_catalogue_directory=field_options.reference_catalogue_directory,
                 )
                 validation_tables = task_create_validation_tables.submit(  # noqa: F841
-                    field_summary=field_summary,
+                    field_summary=linmos_field_summary,
                     aegean_outputs=aegean_outputs,
                     reference_catalogue_directory=field_options.reference_catalogue_directory,
                 )
