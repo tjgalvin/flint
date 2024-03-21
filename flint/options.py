@@ -94,5 +94,5 @@ class FieldOptions(NamedTuple):
     """Whether to apply (or search for solutions with) a bandpass smoothing operation applied"""
     use_beam_masks: bool = True
     """Construct beam masks from MFS images to use for the next round of imaging. """
-    use_beam_masks_from: int = 3
+    use_beam_masks_from: int = 2
     """If `use_beam_masks` is True, start using them from this round of self-calibration"""
