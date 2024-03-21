@@ -1,5 +1,6 @@
 """A basic interface into aegean source finding routines.
 """
+
 from argparse import ArgumentParser
 from pathlib import Path
 from typing import NamedTuple, Tuple
@@ -25,6 +26,8 @@ class AegeanOutputs(NamedTuple):
     """Source component catalogue created by Aegean"""
     beam_shape: Tuple[float, float, float]
     """The `BMAJ`, `BMIN` and `BPA` that were stored in the image header that Aegen searched"""
+    image: Path
+    """The input image that was used to source find against"""
 
 
 def run_bane_and_aegean(
@@ -86,6 +89,7 @@ def run_bane_and_aegean(
         rms=rms_image_path,
         comp=aegean_names.comp_cat,
         beam_shape=image_beam,
+        image=image,
     )
 
     logger.info(f"Aegeam finished running. {aegean_outputs=}")

@@ -20,7 +20,7 @@ from flint.calibrate.aocalibrate import (
 from flint.coadd.linmos import LinmosCommand, linmos_images
 from flint.convol import BeamShape, convolve_images, get_common_beam
 from flint.flagging import flag_ms_aoflagger
-from flint.imager.wsclean import WSCleanCommand, wsclean_imager
+from flint.imager.wsclean import ImageSet, WSCleanCommand, wsclean_imager
 from flint.logging import logger
 from flint.masking import (
     create_snr_mask_from_fits,
@@ -441,10 +441,11 @@ def _convolve_linmos_residuals(
 
 
 @task
-def task_create_linmos_mask_model(
-    linmos_parset: LinmosCommand,
+def task_create_image_mask_model(
+    image: Union[LinmosCommand, ImageSet, WSCleanCommand],
     image_products: AegeanOutputs,
     min_snr: Optional[float] = 3.5,
+    with_butterworth: bool = False,
 ) -> FITSMaskNames:
     """Create a mask from a linmos image, with the intention of providing it as a clean mask
     to an appropriate imager. This is derived using a simple signal to noise cut.
@@ -453,6 +454,7 @@ def task_create_linmos_mask_model(
         linmos_parset (LinmosCommand): Linmos command and associated meta-data
         image_products (AegeanOutputs): Images of the RMS and BKG
         min_snr (float, optional): The minimum S/N a pixel should be for it to be included in the clean mask.
+        with_butterworth (bool, optional): whether to taper the input image with a Butterworth filter before masking.
 
     Raises:
         ValueError: Raised when ``image_products`` are not known
@@ -461,76 +463,49 @@ def task_create_linmos_mask_model(
         FITSMaskNames: Clean mask where all pixels below a S/N are masked
     """
     if isinstance(image_products, AegeanOutputs):
-        linmos_image = linmos_parset.image_fits
-        linmos_rms = image_products.rms
-        linmos_bkg = image_products.bkg
+        source_rms = image_products.rms
+        source_bkg = image_products.bkg
     else:
         raise ValueError("Unsupported bkg/rms mode. ")
 
-    logger.info(f"Creating a clean mask for {linmos_image=}")
-    logger.info(f"Using {linmos_rms=}")
-    logger.info(f"Using {linmos_bkg=}")
-
-    linmos_mask_names = create_snr_mask_from_fits(
-        fits_image_path=linmos_image,
-        fits_bkg_path=linmos_bkg,
-        fits_rms_path=linmos_rms,
-        create_signal_fits=True,
-        min_snr=min_snr,
-    )
-
-    logger.info(f"Created {linmos_mask_names.mask_fits}")
-
-    return linmos_mask_names
-
-
-@task
-def task_create_linmos_mask_wbutter_model(
-    linmos_parset: LinmosCommand,
-    image_products: AegeanOutputs,
-    min_snr: Optional[float] = 5,
-) -> FITSMaskNames:
-    """Create a mask from a linmos image, with the intention of providing it as a clean mask
-    to an appropriate imager. This is derived using a simple signal to noise cut.
-
-    This will use a butterworth filter to first smooth the image before island thresdholds
-    are created. To account for the smooth a binary erosion operation is applied to the
-    resulting mask.
-
-    Args:
-        linmos_parset (LinmosCommand): Linmos command and associated meta-data
-        image_products (AegeanOutputs): Images of the RMS and BKG
-        min_snr (float, optional): The minimum S/N a pixel should be for it to be included in the clean mask. Defaults to 5.
-
-    Raises:
-        ValueError: Raised when ``image_products`` are not known
-
-    Returns:
-        FITSMaskNames: Clean mask where all pixels below a S/N are masked
-    """
-    if isinstance(image_products, AegeanOutputs):
-        linmos_image = linmos_parset.image_fits
-        linmos_rms = image_products.rms
-        linmos_bkg = image_products.bkg
+    source_image = None
+    if isinstance(image, LinmosCommand):
+        source_image = image.image_fits
+    elif isinstance(image, ImageSet):
+        source_image = image.image[-1]
+    elif isinstance(image, WSCleanCommand):
+        source_image = image.imageset.image[-1]
     else:
-        raise ValueError("Unsupported bkg/rms mode. ")
+        source_image = image_products.image
 
-    logger.info(f"Creating a clean mask for {linmos_image=}")
-    logger.info(f"Using {linmos_rms=}")
-    logger.info(f"Using {linmos_bkg=}")
+    if source_image is None:
+        raise ValueError(f"Unsupported image mode. Received {type(image)} ")
 
-    linmos_mask_names = create_snr_mask_wbutter_from_fits(
-        fits_image_path=linmos_image,
-        fits_bkg_path=linmos_bkg,
-        fits_rms_path=linmos_rms,
-        create_signal_fits=True,
-        min_snr=min_snr,
-        connectivity_shape=(2, 2),
-    )
+    logger.info(f"Creating a clean mask for {source_image=}")
+    logger.info(f"Using {source_rms=}")
+    logger.info(f"Using {source_bkg=}")
 
-    logger.info(f"Created {linmos_mask_names.mask_fits}")
+    if with_butterworth:
+        mask_names = create_snr_mask_wbutter_from_fits(
+            fits_image_path=source_image,
+            fits_bkg_path=source_bkg,
+            fits_rms_path=source_rms,
+            create_signal_fits=True,
+            min_snr=min_snr,
+            connectivity_shape=(2, 2),
+        )
+    else:
+        mask_names = create_snr_mask_from_fits(
+            fits_image_path=source_image,
+            fits_bkg_path=source_bkg,
+            fits_rms_path=source_rms,
+            create_signal_fits=True,
+            min_snr=min_snr,
+        )
 
-    return linmos_mask_names
+    logger.info(f"Created {mask_names.mask_fits}")
+
+    return mask_names
 
 
 @task

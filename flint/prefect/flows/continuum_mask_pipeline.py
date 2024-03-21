@@ -12,6 +12,7 @@ the larger singnal linmos mask image using a template WCS header. It seems
 that the best way to do this would be to use a header from the preivous
 imaging round.
 """
+
 from argparse import ArgumentParser
 from pathlib import Path
 from typing import Any, Union

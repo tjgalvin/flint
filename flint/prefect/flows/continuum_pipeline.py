@@ -34,6 +34,7 @@ from flint.prefect.common.imaging import (
     task_split_by_field,
     task_wsclean_imager,
     task_zip_ms,
+    task_create_image_mask_model,
 )
 from flint.prefect.common.utils import (
     task_create_beam_summary,
@@ -166,9 +167,9 @@ def process_science_fields(
         wsclean_container=field_options.wsclean_container,
         update_wsclean_options=unmapped(wsclean_init),
     )
-    beam_summaries = task_create_beam_summary.map(
-        ms=flagged_mss, imageset=wsclean_cmds
-    )
+    beam_summaries = task_create_beam_summary.map(ms=flagged_mss, imageset=wsclean_cmds)
+
+    fits_beam_masks = None
     if run_aegean:
         beam_aegean_outputs = task_run_bane_and_aegean.map(
             image=wsclean_cmds,
@@ -179,6 +180,12 @@ def process_science_fields(
         )
         field_summary = task_update_with_options.submit(
             input_object=field_summary, beam_summaries=beam_summaries
+        )
+        fits_beam_masks = task_create_image_mask_model.map(
+            image=wsclean_cmds,
+            image_products=beam_aegean_outputs,
+            min_snr=3.5,
+            with_butterworth=True,
         )
 
     beam_shape = task_get_common_beam.submit(
@@ -239,7 +246,7 @@ def process_science_fields(
         3: {"solint": "10s", "calmode": "p", "uvrange": ">235m", "nspw": 1},
         4: {"solint": "120s", "calmode": "ap", "uvrange": ">235m", "nspw": 1},
         5: {"solint": "60s", "calmode": "ap", "uvrange": ">235m", "nspw": 1},
-        5: {"solint": "30s", "calmode": "ap", "uvrange": ">235m", "nspw": 1},
+        6: {"solint": "30s", "calmode": "ap", "uvrange": ">235m", "nspw": 1},
     }
     wsclean_rounds = {
         1: {
@@ -332,12 +339,15 @@ def process_science_fields(
             round=round,
             update_gain_cal_options=unmapped(gain_cal_options),
             archive_input_ms=field_options.zip_ms,
-            wait_for=[field_summary]   # To make sure field summary is created with unzipped MSs
+            wait_for=[
+                field_summary
+            ],  # To make sure field summary is created with unzipped MSs
         )
         wsclean_cmds = task_wsclean_imager.map(
             in_ms=cal_mss,
             wsclean_container=field_options.wsclean_container,
             update_wsclean_options=unmapped(wsclean_options),
+            fits_mask=fits_beam_masks,
         )
 
         # Do source finding on the last round of self-cal'ed images
