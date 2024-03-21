@@ -11,6 +11,10 @@ from typing import Union
 
 from prefect import flow, unmapped
 
+from flint.configuration import (
+    get_image_options_from_yaml,
+    get_selfcal_options_from_yaml,
+)
 from flint.calibrate.aocalibrate import find_existing_solutions
 from flint.logging import logger
 from flint.ms import MS
@@ -55,6 +59,14 @@ def process_science_fields(
     run_aegean = (
         False if field_options.aegean_container is None else field_options.run_aegean
     )
+    use_beam_masks = field_options.use_beam_masks
+    use_beam_masks_from = field_options.use_beam_masks_from
+
+    if use_beam_masks is True and run_aegean is False:
+        raise ValueError(
+            "run_aegean and aegean container both need to be set is beam masks is being used. "
+        )
+
     run_validation = field_options.reference_catalogue_directory is not None
 
     assert (
@@ -147,20 +159,7 @@ def process_science_fields(
         logger.info("No wsclean container provided. Rerutning. ")
         return
 
-    wsclean_init = {
-        "size": 7144,
-        "minuvw_m": 235,
-        "weight": "briggs -1.5",
-        "scale": "2.5arcsec",
-        "nmiter": 10,
-        "force_mask_rounds": 10,
-        "deconvolution_channels": 4,
-        "fit_spectral_pol": 3,
-        "auto_mask": 10,
-        "multiscale": True,
-        "local_rms_window": 55,
-        "multiscale_scales": (0, 15, 30, 40, 50, 60, 70, 120, 240, 480),
-    }
+    wsclean_init = get_image_options_from_yaml(input_yaml=None, self_cal_rounds=False)
 
     wsclean_cmds = task_wsclean_imager.map(
         in_ms=preprocess_science_mss,
@@ -169,7 +168,6 @@ def process_science_fields(
     )
     beam_summaries = task_create_beam_summary.map(ms=flagged_mss, imageset=wsclean_cmds)
 
-    fits_beam_masks = None
     if run_aegean:
         beam_aegean_outputs = task_run_bane_and_aegean.map(
             image=wsclean_cmds,
@@ -180,12 +178,6 @@ def process_science_fields(
         )
         field_summary = task_update_with_options.submit(
             input_object=field_summary, beam_summaries=beam_summaries
-        )
-        fits_beam_masks = task_create_image_mask_model.map(
-            image=wsclean_cmds,
-            image_products=beam_aegean_outputs,
-            min_snr=3.5,
-            with_butterworth=True,
         )
 
     beam_shape = task_get_common_beam.submit(
@@ -240,99 +232,18 @@ def process_science_fields(
         logger.info("No self-calibration will be performed. Returning")
         return
 
-    gain_cal_rounds = {
-        1: {"solint": "60s", "uvrange": ">235m", "nspw": 1},
-        2: {"solint": "30s", "calmode": "p", "uvrange": ">235m", "nspw": 1},
-        3: {"solint": "10s", "calmode": "p", "uvrange": ">235m", "nspw": 1},
-        4: {"solint": "120s", "calmode": "ap", "uvrange": ">235m", "nspw": 1},
-        5: {"solint": "60s", "calmode": "ap", "uvrange": ">235m", "nspw": 1},
-        6: {"solint": "30s", "calmode": "ap", "uvrange": ">235m", "nspw": 1},
-    }
-    wsclean_rounds = {
-        1: {
-            "size": 7144,
-            "weight": "briggs -1.5",
-            "scale": "2.5arcsec",
-            "nmiter": 20,
-            "force_mask_rounds": 8,
-            "minuvw_m": 235,
-            "deconvolution_channels": 4,
-            "fit_spectral_pol": 3,
-            "auto_mask": 8.0,
-            "local_rms_window": 55,
-            "multiscale_scales": (0, 15, 30, 40, 50, 60, 70, 120, 240, 480),
-        },
-        2: {
-            "size": 7144,
-            "weight": "briggs -1.5",
-            "scale": "2.5arcsec",
-            "multiscale": True,
-            "minuvw_m": 235,
-            "nmiter": 20,
-            "force_mask_rounds": 8,
-            "deconvolution_channels": 4,
-            "fit_spectral_pol": 3,
-            "auto_mask": 7.0,
-            "local_rms_window": 55,
-            "multiscale_scales": (0, 15, 30, 40, 50, 60, 70, 120, 240, 480),
-        },
-        3: {
-            "size": 7144,
-            "weight": "briggs -1.5",
-            "scale": "2.5arcsec",
-            "multiscale": True,
-            "minuvw_m": 235,
-            "nmiter": 20,
-            "force_mask_rounds": 8,
-            "channels_out": 4,
-            "fit_spectral_pol": 3,
-            "auto_mask": 6.0,
-            "local_rms_window": 55,
-            "multiscale_scales": (0, 15, 30, 40, 50, 60, 70, 120, 240, 480),
-        },
-        4: {
-            "size": 7144,
-            "weight": "briggs -1.5",
-            "scale": "2.5arcsec",
-            "multiscale": True,
-            "minuvw_m": 235,
-            "nmiter": 20,
-            "force_mask_rounds": 10,
-            "channels_out": 4,
-            "fit_spectral_pol": 3,
-            "auto_mask": 8,
-            "local_rms_window": 55,
-            "multiscale_scales": (0, 15, 30, 40, 50, 60, 70, 120, 240, 480),
-        },
-        5: {
-            "size": 7144,
-            "weight": "briggs -1.5",
-            "scale": "2.5arcsec",
-            "multiscale": True,
-            "minuvw_m": 235,
-            "nmiter": 20,
-            "force_mask_rounds": 10,
-            "channels_out": 4,
-            "fit_spectral_pol": 3,
-            "auto_mask": 7.0,
-            "local_rms_window": 55,
-            "multiscale_scales": (0, 15, 30, 40, 50, 60, 70, 120, 240, 480),
-        },
-    }
+    gain_cal_rounds = get_selfcal_options_from_yaml(input_yaml=None)
+    wsclean_rounds = get_image_options_from_yaml(input_yaml=None, self_cal_rounds=True)
 
     max_gain_cal_round = max(gain_cal_rounds.keys())
     max_wsclean_round = max(wsclean_rounds.keys())
+    fits_beam_masks = None
 
     for round in range(1, field_options.rounds + 1):
         final_round = round == field_options.rounds
 
         gain_cal_options = gain_cal_rounds.get(min((round, max_gain_cal_round)), None)
         wsclean_options = wsclean_rounds.get(min((round, max_wsclean_round)), None)
-
-        if round == final_round:
-            wsclean_options["auto_mask"] = 4
-            wsclean_options["force_mask_rounds"] = 17
-            wsclean_options["local_rms_window"] = 55
 
         cal_mss = task_gaincal_applycal_ms.map(
             wsclean_cmd=wsclean_cmds,
@@ -343,6 +254,19 @@ def process_science_fields(
                 field_summary
             ],  # To make sure field summary is created with unzipped MSs
         )
+
+        if use_beam_masks and use_beam_masks_from <= round:
+            beam_aegean_outputs = task_run_bane_and_aegean.map(
+                image=wsclean_cmds,
+                aegean_container=unmapped(field_options.aegean_container),
+            )
+            fits_beam_masks = task_create_image_mask_model.map(
+                image=wsclean_cmds,
+                image_products=beam_aegean_outputs,
+                min_snr=3.5,
+                with_butterworth=True,
+            )
+
         wsclean_cmds = task_wsclean_imager.map(
             in_ms=cal_mss,
             wsclean_container=field_options.wsclean_container,
