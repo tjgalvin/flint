@@ -61,7 +61,7 @@ def get_image_options_from_yaml(
 
     if not self_cal_rounds:
         return {
-            "size": 7144,
+            "size": 5144,
             "minuvw_m": 235,
             "weight": "briggs -1.5",
             "scale": "2.5arcsec",
@@ -77,7 +77,7 @@ def get_image_options_from_yaml(
     else:
         return {
             1: {
-                "size": 7144,
+                "size": 5144,
                 "weight": "briggs -1.5",
                 "scale": "2.5arcsec",
                 "nmiter": 20,
@@ -90,7 +90,7 @@ def get_image_options_from_yaml(
                 "multiscale_scales": (0, 15, 30, 40, 50, 60, 70, 120, 240, 480),
             },
             2: {
-                "size": 7144,
+                "size": 5144,
                 "weight": "briggs -1.5",
                 "scale": "2.5arcsec",
                 "multiscale": True,
@@ -104,7 +104,7 @@ def get_image_options_from_yaml(
                 "multiscale_scales": (0, 15, 30, 40, 50, 60, 70, 120, 240, 480),
             },
             3: {
-                "size": 7144,
+                "size": 5144,
                 "weight": "briggs -1.5",
                 "scale": "2.5arcsec",
                 "multiscale": True,
@@ -118,7 +118,7 @@ def get_image_options_from_yaml(
                 "multiscale_scales": (0, 15, 30, 40, 50, 60, 70, 120, 240, 480),
             },
             4: {
-                "size": 7144,
+                "size": 5144,
                 "weight": "briggs -1.5",
                 "scale": "2.5arcsec",
                 "multiscale": True,
@@ -132,7 +132,7 @@ def get_image_options_from_yaml(
                 "multiscale_scales": (0, 15, 30, 40, 50, 60, 70, 120, 240, 480),
             },
             5: {
-                "size": 7144,
+                "size": 5144,
                 "weight": "briggs -1.5",
                 "scale": "2.5arcsec",
                 "multiscale": True,

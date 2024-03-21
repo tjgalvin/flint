@@ -263,9 +263,11 @@ def process_science_fields(
             fits_beam_masks = task_create_image_mask_model.map(
                 image=wsclean_cmds,
                 image_products=beam_aegean_outputs,
-                min_snr=3.5,
+                min_snr=4,
                 with_butterworth=True,
             )
+            wsclean_options["auto_mask"] = 3
+            wsclean_options["local_rms"] = False
 
         wsclean_cmds = task_wsclean_imager.map(
             in_ms=cal_mss,
