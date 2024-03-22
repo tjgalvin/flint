@@ -96,3 +96,5 @@ class FieldOptions(NamedTuple):
     """Construct beam masks from MFS images to use for the next round of imaging. """
     use_beam_masks_from: int = 2
     """If `use_beam_masks` is True, start using them from this round of self-calibration"""
+    use_beam_mask_wbutterworth: bool = False
+    """If `use_beam_masks` is True, this will specify whether a Butterworth filter is used to smooth the image before the S/N clip is applied"""
