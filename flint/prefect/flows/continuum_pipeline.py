@@ -264,6 +264,7 @@ def process_science_fields(
             )
             wsclean_options["auto_mask"] = 3
             wsclean_options["local_rms"] = False
+            wsclean_options['nmiter'] = 14
 
         wsclean_cmds = task_wsclean_imager.map(
             in_ms=cal_mss,
