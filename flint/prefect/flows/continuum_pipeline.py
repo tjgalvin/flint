@@ -492,7 +492,7 @@ def get_parser() -> ArgumentParser:
         help="If --use-beam-masks is provided, this option specifies from which round of self-calibration the masking operation will be used onwards from. ",
     )
     parser.add_argument(
-        "--use-beam_masks-wbutterworth",
+        "--use-beam-masks-wbutterworth",
         default=False,
         action="store_true",
         help="If --use-beam-masks is provided, this will specify whether a Butterworth filter is first used to smooth an image before applying the S/N cut",
