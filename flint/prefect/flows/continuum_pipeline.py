@@ -26,8 +26,6 @@ from flint.prefect.common.imaging import (
     _validation_items,
     task_convolve_image,
     task_create_apply_solutions_cmd,
-    task_create_validation_plot,
-    task_create_validation_tables,
     task_flag_ms_aoflagger,
     task_gaincal_applycal_ms,
     task_get_common_beam,
@@ -212,7 +210,7 @@ def process_science_fields(
                 _validation_items(
                     field_summary=linmos_field_summary,
                     aegean_outputs=aegean_outputs,
-                    reference_catalogue_directory=field_options.reference_catalogue_directory
+                    reference_catalogue_directory=field_options.reference_catalogue_directory,
                 )
 
         if field_options.linmos_residuals:
@@ -251,7 +249,7 @@ def process_science_fields(
             ],  # To make sure field summary is created with unzipped MSs
         )
 
-        if use_beam_masks and round >- use_beam_masks_from:
+        if use_beam_masks and round > -use_beam_masks_from:
             beam_aegean_outputs = task_run_bane_and_aegean.map(
                 image=wsclean_cmds,
                 aegean_container=unmapped(field_options.aegean_container),
@@ -260,7 +258,7 @@ def process_science_fields(
                 image=wsclean_cmds,
                 image_products=beam_aegean_outputs,
                 min_snr=4,
-                with_butterworth=True,
+                with_butterworth=field_options.use_beam_mask_wbutterworth,
             )
             wsclean_options["auto_mask"] = 3
             wsclean_options["local_rms"] = False
@@ -321,9 +319,9 @@ def process_science_fields(
                 _validation_items(
                     field_summary=linmos_field_summary,
                     aegean_outputs=aegean_outputs,
-                    reference_catalogue_directory=field_options.reference_catalogue_directory
+                    reference_catalogue_directory=field_options.reference_catalogue_directory,
                 )
-                
+
     # zip up the final measurement set, which is not included in the above loop
     if field_options.zip_ms:
         task_zip_ms.map(in_item=wsclean_cmds)
@@ -480,6 +478,24 @@ def get_parser() -> ArgumentParser:
         default=False,
         help="Whether to use (or search for solutions with) the smoothing operations applied to the bandpass gain solutions",
     )
+    parser.add_argument(
+        "--use-beam-masks",
+        default=False,
+        action="store_true",
+        help="Construct a clean mask from an MFS image for the next round of imaging. May adjust some of the imaging options per found if activated. ",
+    )
+    parser.add_argument(
+        "--use-beam-masks-from",
+        default=2,
+        type=int,
+        help="If --use-beam-masks is provided, this option specifies from which round of self-calibration the masking operation will be used onwards from. ",
+    )
+    parser.add_argument(
+        "--use-beam_masks-wbutterworth",
+        default=False,
+        action="store_true",
+        help="If --use-beam-masks is provided, this will specify whether a Butterworth filter is first used to smooth an image before applying the S/N cut",
+    )
 
     return parser
 
@@ -512,6 +528,9 @@ def cli() -> None:
         pb_cutoff=args.pb_cutoff,
         use_preflagger=args.use_preflagger,
         use_smoothed=args.use_smoothed,
+        use_beam_masks=args.use_beam_masks,
+        use_beam_masks_from=args.use_beam_masks_from,
+        use_beam_mask_wbutterworth=args.use_beam_masks_wbutterworth,
     )
 
     setup_run_process_science_field(
