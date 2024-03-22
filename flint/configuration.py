@@ -59,9 +59,12 @@ def get_image_options_from_yaml(
         input_yaml is None
     ), "Configuring via a yaml configuration file is not yet support. "
 
+    MULTISCALE_SCALES = (0, 15, 30, 40, 50, 60, 70, 120, 240, 480)
+    IMAGE_SIZE = 9144
+
     if not self_cal_rounds:
         return {
-            "size": 5144,
+            "size": IMAGE_SIZE,
             "minuvw_m": 235,
             "weight": "briggs -1.5",
             "scale": "2.5arcsec",
@@ -72,12 +75,12 @@ def get_image_options_from_yaml(
             "auto_mask": 10,
             "multiscale": True,
             "local_rms_window": 55,
-            "multiscale_scales": (0, 15, 30, 40, 50, 60, 70, 120, 240, 480),
+            "multiscale_scales": MULTISCALE_SCALES,
         }
     else:
         return {
             1: {
-                "size": 5144,
+                "size": IMAGE_SIZE,
                 "weight": "briggs -1.5",
                 "scale": "2.5arcsec",
                 "nmiter": 20,
@@ -87,10 +90,10 @@ def get_image_options_from_yaml(
                 "fit_spectral_pol": 3,
                 "auto_mask": 8.0,
                 "local_rms_window": 55,
-                "multiscale_scales": (0, 15, 30, 40, 50, 60, 70, 120, 240, 480),
+                "multiscale_scales": MULTISCALE_SCALES,
             },
             2: {
-                "size": 5144,
+                "size": IMAGE_SIZE,
                 "weight": "briggs -1.5",
                 "scale": "2.5arcsec",
                 "multiscale": True,
@@ -101,10 +104,10 @@ def get_image_options_from_yaml(
                 "fit_spectral_pol": 3,
                 "auto_mask": 7.0,
                 "local_rms_window": 55,
-                "multiscale_scales": (0, 15, 30, 40, 50, 60, 70, 120, 240, 480),
+                "multiscale_scales": MULTISCALE_SCALES,
             },
             3: {
-                "size": 5144,
+                "size": IMAGE_SIZE,
                 "weight": "briggs -1.5",
                 "scale": "2.5arcsec",
                 "multiscale": True,
@@ -115,10 +118,10 @@ def get_image_options_from_yaml(
                 "fit_spectral_pol": 3,
                 "auto_mask": 6.0,
                 "local_rms_window": 55,
-                "multiscale_scales": (0, 15, 30, 40, 50, 60, 70, 120, 240, 480),
+                "multiscale_scales": MULTISCALE_SCALES,
             },
             4: {
-                "size": 5144,
+                "size": IMAGE_SIZE,
                 "weight": "briggs -1.5",
                 "scale": "2.5arcsec",
                 "multiscale": True,
@@ -129,10 +132,10 @@ def get_image_options_from_yaml(
                 "fit_spectral_pol": 3,
                 "auto_mask": 8,
                 "local_rms_window": 55,
-                "multiscale_scales": (0, 15, 30, 40, 50, 60, 70, 120, 240, 480),
+                "multiscale_scales": MULTISCALE_SCALES,
             },
             5: {
-                "size": 5144,
+                "size": IMAGE_SIZE,
                 "weight": "briggs -1.5",
                 "scale": "2.5arcsec",
                 "multiscale": True,
@@ -143,7 +146,7 @@ def get_image_options_from_yaml(
                 "fit_spectral_pol": 3,
                 "auto_mask": 7.0,
                 "local_rms_window": 55,
-                "multiscale_scales": (0, 15, 30, 40, 50, 60, 70, 120, 240, 480),
+                "multiscale_scales": MULTISCALE_SCALES,
             },
         }
 

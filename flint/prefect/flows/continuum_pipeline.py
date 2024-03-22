@@ -23,6 +23,7 @@ from flint.options import FieldOptions
 from flint.prefect.clusters import get_dask_runner
 from flint.prefect.common.imaging import (
     _convolve_linmos_residuals,
+    _validation_items,
     task_convolve_image,
     task_create_apply_solutions_cmd,
     task_create_validation_plot,
@@ -208,15 +209,10 @@ def process_science_fields(
             )
 
             if run_validation:
-                validation_plot = task_create_validation_plot.submit(
+                _validation_items(
                     field_summary=linmos_field_summary,
                     aegean_outputs=aegean_outputs,
-                    reference_catalogue_directory=field_options.reference_catalogue_directory,
-                )
-                validation_tables = task_create_validation_tables.submit(
-                    field_summary=linmos_field_summary,
-                    aegean_outputs=aegean_outputs,
-                    reference_catalogue_directory=field_options.reference_catalogue_directory,
+                    reference_catalogue_directory=field_options.reference_catalogue_directory
                 )
 
         if field_options.linmos_residuals:
@@ -255,7 +251,7 @@ def process_science_fields(
             ],  # To make sure field summary is created with unzipped MSs
         )
 
-        if use_beam_masks and use_beam_masks_from <= round:
+        if use_beam_masks and round >- use_beam_masks_from:
             beam_aegean_outputs = task_run_bane_and_aegean.map(
                 image=wsclean_cmds,
                 aegean_container=unmapped(field_options.aegean_container),
@@ -322,17 +318,12 @@ def process_science_fields(
                 round=round,
             )
             if run_validation:
-                validation_plot = task_create_validation_plot.submit(  # noqa: F841
+                _validation_items(
                     field_summary=linmos_field_summary,
                     aegean_outputs=aegean_outputs,
-                    reference_catalogue_directory=field_options.reference_catalogue_directory,
+                    reference_catalogue_directory=field_options.reference_catalogue_directory
                 )
-                validation_tables = task_create_validation_tables.submit(  # noqa: F841
-                    field_summary=linmos_field_summary,
-                    aegean_outputs=aegean_outputs,
-                    reference_catalogue_directory=field_options.reference_catalogue_directory,
-                )
-
+                
     # zip up the final measurement set, which is not included in the above loop
     if field_options.zip_ms:
         task_zip_ms.map(in_item=wsclean_cmds)

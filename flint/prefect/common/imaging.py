@@ -492,7 +492,7 @@ def task_create_image_mask_model(
             fits_rms_path=source_rms,
             create_signal_fits=True,
             min_snr=min_snr,
-            connectivity_shape=(2, 2),
+            connectivity_shape=(4, 4),
         )
     else:
         mask_names = create_snr_mask_from_fits(
@@ -621,3 +621,28 @@ def task_create_validation_tables(
                     )
 
     return validation_tables
+
+
+def _validation_items(field_summary: FieldSummary, aegean_outputs: AegeanOutputs, reference_catalogue_directory: Path):
+    """Construct the validation plot and validation table items for the imaged field. 
+
+    Internally these are submitting the prefect task versions of:
+    - `task_create_validation_plot` 
+    - `task_create_validation_tables`
+
+    Args:
+        field_summary (FieldSummary): Container representing the SBID being imaged and its populated characteristics
+        aegean_outputs (AegeanOutputs): Source finding results 
+        reference_catalogue_directory (Path): Location of directory containing the reference known NVSS, SUMSS and ICRS catalogues
+    """
+    
+    validation_plot = task_create_validation_plot.submit(
+        field_summary=field_summary,
+        aegean_outputs=aegean_outputs,
+        reference_catalogue_directory=reference_catalogue_directory,
+    )
+    validation_tables = task_create_validation_tables.submit(
+        field_summary=field_summary,
+        aegean_outputs=aegean_outputs,
+        reference_catalogue_directory=reference_catalogue_directory,
+    )
