@@ -1,5 +1,4 @@
-"""Basic tests for utility functions
-"""
+"""Basic tests for utility functions"""
 
 from pathlib import Path
 

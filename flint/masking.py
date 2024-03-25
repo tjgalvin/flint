@@ -1,6 +1,7 @@
 """Utility functions to make image based masks from images, with the initial
 thought being towards FITS images.
 """
+
 from argparse import ArgumentParser
 from pathlib import Path
 from typing import Tuple

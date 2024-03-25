@@ -1,5 +1,4 @@
-"""Some tests related to using aoccalibrate related things
-"""
+"""Some tests related to using aoccalibrate related things"""
 
 import shutil
 from pathlib import Path

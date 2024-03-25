@@ -1,6 +1,7 @@
 """Attempts to centralise components to do with naming of pipeline files and data
 products.
 """
+
 import re
 from pathlib import Path
 from typing import Any, List, NamedTuple, Optional, Union
