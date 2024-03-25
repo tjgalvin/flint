@@ -1,5 +1,4 @@
-"""Basic tests for the prefect bandpass flow
-"""
+"""Basic tests for the prefect bandpass flow"""
 
 # this pirate made a promise that if there is a typo and an error
 # then a test will be made to not let it happen. Penaalty is walking

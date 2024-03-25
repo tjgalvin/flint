@@ -1,5 +1,5 @@
-"""Testing some wsclean functionality.
-"""
+"""Testing some wsclean functionality."""
+
 from pathlib import Path
 
 import pytest

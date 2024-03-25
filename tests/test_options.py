@@ -2,6 +2,7 @@
 somewhat tracked, especially when using an argparse object
 to create it
 """
+
 from pathlib import Path
 
 from flint.options import FieldOptions

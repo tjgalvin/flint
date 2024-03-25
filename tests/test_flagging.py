@@ -1,5 +1,4 @@
-"""Test utilities related to flagging measurement set operations
-"""
+"""Test utilities related to flagging measurement set operations"""
 
 import shutil
 from pathlib import Path

@@ -1,5 +1,4 @@
-"""Itemss around testing components of bptools
-"""
+"""Itemss around testing components of bptools"""
 
 import numpy as np
 import pytest

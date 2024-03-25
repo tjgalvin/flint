@@ -166,9 +166,7 @@ def process_science_fields(
         wsclean_container=field_options.wsclean_container,
         update_wsclean_options=unmapped(wsclean_init),
     )
-    beam_summaries = task_create_beam_summary.map(
-        ms=flagged_mss, imageset=wsclean_cmds
-    )
+    beam_summaries = task_create_beam_summary.map(ms=flagged_mss, imageset=wsclean_cmds)
     if run_aegean:
         beam_aegean_outputs = task_run_bane_and_aegean.map(
             image=wsclean_cmds,
@@ -332,7 +330,9 @@ def process_science_fields(
             round=round,
             update_gain_cal_options=unmapped(gain_cal_options),
             archive_input_ms=field_options.zip_ms,
-            wait_for=[field_summary]   # To make sure field summary is created with unzipped MSs
+            wait_for=[
+                field_summary
+            ],  # To make sure field summary is created with unzipped MSs
         )
         wsclean_cmds = task_wsclean_imager.map(
             in_ms=cal_mss,

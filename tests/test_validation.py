@@ -1,5 +1,4 @@
-"""Items related to test functions in the validation stage of flint
-"""
+"""Items related to test functions in the validation stage of flint"""
 
 from pathlib import Path
 from typing import NamedTuple

@@ -3,6 +3,7 @@ configuration file. The idea being that a configuration file would
 be used to specify the options for imaging and self-calibration
 throughout the pipeline.
 """
+
 from argparse import ArgumentParser
 from pathlib import Path
 from typing import Any, Dict, Optional

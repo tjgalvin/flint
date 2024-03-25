@@ -1,5 +1,5 @@
-"""Some tests related to components around measurement sets.
-"""
+"""Some tests related to components around measurement sets."""
+
 from pathlib import Path
 
 from flint.naming import (

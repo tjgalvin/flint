@@ -1,5 +1,4 @@
-"""Operations related to measurement sets
-"""
+"""Operations related to measurement sets"""
 
 from __future__ import (  # Used for mypy/pylance to like the return type of MS.with_options
     annotations,
