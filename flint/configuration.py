@@ -34,8 +34,8 @@ def get_selfcal_options_from_yaml(input_yaml: Optional[Path] = None) -> Dict:
     return {
         1: {"solint": "60s", "uvrange": ">235m", "nspw": 1},
         2: {"solint": "30s", "calmode": "p", "uvrange": ">235m", "nspw": 1},
-        3: {"solint": "120s", "calmode": "ap", "uvrange": ">235m", "nspw": 1},
-        4: {"solint": "60s", "calmode": "ap", "uvrange": ">235m", "nspw": 1},
+        3: {"solint": "60s", "calmode": "ap", "uvrange": ">235m", "nspw": 4},
+        4: {"solint": "30s", "calmode": "ap", "uvrange": ">235m", "nspw": 4},
         5: {"solint": "30s", "calmode": "ap", "uvrange": ">235m", "nspw": 1},
     }
 
@@ -114,7 +114,8 @@ def get_image_options_from_yaml(
                 "minuvw_m": 235,
                 "nmiter": 20,
                 "force_mask_rounds": 8,
-                "channels_out": 4,
+                "channels_out": 16,
+                "deconvolution_channels": 4,
                 "fit_spectral_pol": 3,
                 "auto_mask": 6.0,
                 "local_rms_window": 55,
@@ -128,7 +129,8 @@ def get_image_options_from_yaml(
                 "minuvw_m": 235,
                 "nmiter": 20,
                 "force_mask_rounds": 10,
-                "channels_out": 4,
+                "channels_out": 16,
+                "deconvolution_channels": 4,
                 "fit_spectral_pol": 3,
                 "auto_mask": 8,
                 "local_rms_window": 55,

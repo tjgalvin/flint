@@ -58,10 +58,7 @@ def process_science_fields(
     run_aegean = (
         False if field_options.aegean_container is None else field_options.run_aegean
     )
-    use_beam_masks = field_options.use_beam_masks
-    use_beam_masks_from = field_options.use_beam_masks_from
-
-    if use_beam_masks is True and run_aegean is False:
+    if field_options.use_beam_masks is True and run_aegean is False:
         raise ValueError(
             "run_aegean and aegean container both need to be set is beam masks is being used. "
         )
@@ -233,15 +230,15 @@ def process_science_fields(
     max_wsclean_round = max(wsclean_rounds.keys())
     fits_beam_masks = None
 
-    for round in range(1, field_options.rounds + 1):
+    for current_round in range(1, field_options.rounds + 1):
         final_round = round == field_options.rounds
 
-        gain_cal_options = gain_cal_rounds.get(min((round, max_gain_cal_round)), None)
-        wsclean_options = wsclean_rounds.get(min((round, max_wsclean_round)), None)
+        gain_cal_options = gain_cal_rounds.get(min((current_round, max_gain_cal_round)), None)
+        wsclean_options = wsclean_rounds.get(min((current_round, max_wsclean_round)), None)
 
         cal_mss = task_gaincal_applycal_ms.map(
             wsclean_cmd=wsclean_cmds,
-            round=round,
+            round=current_round,
             update_gain_cal_options=unmapped(gain_cal_options),
             archive_input_ms=field_options.zip_ms,
             wait_for=[
@@ -249,7 +246,7 @@ def process_science_fields(
             ],  # To make sure field summary is created with unzipped MSs
         )
 
-        if use_beam_masks and round > -use_beam_masks_from:
+        if field_options.use_beam_masks and current_round >= field_options.use_beam_masks_from:
             beam_aegean_outputs = task_run_bane_and_aegean.map(
                 image=wsclean_cmds,
                 aegean_container=unmapped(field_options.aegean_container),
@@ -257,12 +254,14 @@ def process_science_fields(
             fits_beam_masks = task_create_image_mask_model.map(
                 image=wsclean_cmds,
                 image_products=beam_aegean_outputs,
-                min_snr=4,
+                min_snr=3.5,
                 with_butterworth=field_options.use_beam_mask_wbutterworth,
             )
-            wsclean_options["auto_mask"] = 3
+            wsclean_options["auto_mask"] = None
+            wsclean_options["force_mask_rounds"] = None
             wsclean_options["local_rms"] = False
-            wsclean_options['nmiter'] = 14
+            # wsclean_options['nmiter'] = 18
+            # wsclean_options['niter'] = 175000
 
         wsclean_cmds = task_wsclean_imager.map(
             in_ms=cal_mss,
@@ -293,7 +292,7 @@ def process_science_fields(
         parset = task_linmos_images.submit(
             images=conv_images,
             container=field_options.yandasoft_container,
-            suffix_str=f"round{round}",
+            suffix_str=f"round{current_round}",
             holofile=field_options.holofile,
             cutoff=field_options.pb_cutoff,
         )
@@ -303,7 +302,7 @@ def process_science_fields(
                 wsclean_cmds=wsclean_cmds,
                 beam_shape=beam_shape,
                 field_options=field_options,
-                linmos_suffix_str=f"round{round}.residual",
+                linmos_suffix_str=f"round{current_round}.residual",
                 cutoff=field_options.pb_cutoff,
             )
 
@@ -314,7 +313,7 @@ def process_science_fields(
             linmos_field_summary = task_update_field_summary.submit(
                 field_summary=linmos_field_summary,
                 aegean_outputs=aegean_outputs,
-                round=round,
+                round=current_round,
             )
             if run_validation:
                 _validation_items(

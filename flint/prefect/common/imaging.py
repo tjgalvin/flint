@@ -492,7 +492,7 @@ def task_create_image_mask_model(
             fits_rms_path=source_rms,
             create_signal_fits=True,
             min_snr=min_snr,
-            connectivity_shape=(4, 4),
+            connectivity_shape=(3, 3),
         )
     else:
         mask_names = create_snr_mask_from_fits(

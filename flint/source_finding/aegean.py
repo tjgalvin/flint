@@ -55,7 +55,7 @@ def run_bane_and_aegean(
     bane_command_str = f"BANE {str(image)} --cores {cores} --stripes {cores//2}"
     logger.info("Constructed BANE command. ")
 
-    bind_dir = [image.absolute()]
+    bind_dir = [image.absolute().parent]
     run_singularity_command(
         image=aegean_container, command=bane_command_str, bind_dirs=bind_dir
     )
