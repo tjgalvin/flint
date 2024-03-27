@@ -126,4 +126,5 @@ dmypy.json
 
 #
 flint/data/tests/*.ms
-flint/tests/*.csv
+tests/*.csv
+tests/*.png
