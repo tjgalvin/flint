@@ -397,8 +397,7 @@ def make_validator_axes_layout(fig: Figure, rms_path: Path) -> ValidatorLayout:
         TFPA
         BBSs
         BBNn
-        ff..
-        ff..
+        ffff
         """,
         per_subplot_kw={
             "B": {"projection": rms_wcs},
