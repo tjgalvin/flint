@@ -123,3 +123,7 @@ venv.bak/
 .mypy_cache/
 .dmypy.json
 dmypy.json
+
+#
+flint/data/tests/*.ms
+flint/tests/*.csv
