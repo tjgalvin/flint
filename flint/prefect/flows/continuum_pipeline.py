@@ -183,7 +183,7 @@ def process_science_fields(
         wsclean_cmd=wsclean_cmds,
         beam_shape=unmapped(beam_shape),
         cutoff=field_options.beam_cutoff,
-        filter="-MFS-"
+        filter="-MFS-",
     )
     if field_options.yandasoft_container:
         parset = task_linmos_images.submit(
@@ -268,8 +268,8 @@ def process_science_fields(
             wsclean_options["auto_mask"] = 1
             wsclean_options["force_mask_rounds"] = 18
             wsclean_options["local_rms"] = False
-            wsclean_options['niter'] = 1750000
-            wsclean_options['nmiter'] = 20
+            wsclean_options["niter"] = 1750000
+            wsclean_options["nmiter"] = 20
 
         wsclean_cmds = task_wsclean_imager.map(
             in_ms=cal_mss,
@@ -292,7 +292,7 @@ def process_science_fields(
             wsclean_cmd=wsclean_cmds,
             beam_shape=unmapped(beam_shape),
             cutoff=field_options.beam_cutoff,
-            filter="-MFS-"
+            filter="-MFS-",
         )
         if field_options.yandasoft_container is None:
             logger.info("No yandasoft container supplied, not linmosing. ")
