@@ -60,7 +60,7 @@ def get_image_options_from_yaml(
     ), "Configuring via a yaml configuration file is not yet support. "
 
     MULTISCALE_SCALES = (0, 15, 30, 40, 50, 60, 70, 120)
-    IMAGE_SIZE = 9144
+    IMAGE_SIZE = 7144
 
     if not self_cal_rounds:
         return {

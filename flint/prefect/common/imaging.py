@@ -237,14 +237,15 @@ def task_wsclean_imager(
 
 @task
 def task_get_common_beam(
-    wsclean_cmds: Collection[WSCleanCommand], cutoff: float = 25
+    wsclean_cmds: Collection[WSCleanCommand], cutoff: float = 25, filter: Optional[str] = None
 ) -> BeamShape:
     """Compute a common beam size that all input images will be convoled to.
 
     Args:
         wsclean_cmds (Collection[WSCleanCommand]): Input images whose restoring beam properties will be considered
         cutoff (float, optional): Major axis larger than this valur, in arcseconds, will be ignored. Defaults to 25.
-
+        filter (Optional[str], optional): Only include images when considering beam shape if this string is in the file path. Defaults to None.
+        
     Returns:
         BeamShape: The final convolving beam size to be used
     """
@@ -258,6 +259,9 @@ def task_get_common_beam(
             )
             continue
         images_to_consider.extend(wsclean_cmd.imageset.image)
+
+    if filter:
+        images_to_consider = [image for image in images_to_consider if filter in str(image)]
 
     logger.info(
         f"Considering {len(images_to_consider)} images across {len(wsclean_cmds)} outputs. "
@@ -274,6 +278,7 @@ def task_convolve_image(
     beam_shape: BeamShape,
     cutoff: float = 60,
     mode: str = "image",
+    filter: Optional[str] = None
 ) -> Collection[Path]:
     """Convolve images to a specified resolution
 
@@ -281,6 +286,7 @@ def task_convolve_image(
         wsclean_cmd (WSCleanCommand): Collection of output images from wsclean that will be convolved
         beam_shape (BeamShape): The shape images will be convolved to
         cutoff (float, optional): Maximum major beam axis an image is allowed to have before it will not be convolved. Defaults to 60.
+        filter (Optional[str], optional): This string must be contained in the image path for it to be convolved. Defaults to None. 
 
     Returns:
         Collection[Path]: Path to the output images that have been convolved.
@@ -298,6 +304,10 @@ def task_convolve_image(
     image_paths: Collection[Path] = (
         wsclean_cmd.imageset.image if mode == "image" else wsclean_cmd.imageset.residual
     )
+
+    if filter:
+        logger.info(f"Filtering images paths with {filter=}")
+        image_paths = [image_path for image_path in image_paths if filter in str(image_path)]
 
     # It is possible depending on how aggressively cleaning image products are deleted that these
     # some cleaning products (e.g. residuals) do not exist. There are a number of ways one could consider
@@ -428,6 +438,7 @@ def _convolve_linmos_residuals(
         beam_shape=unmapped(beam_shape),
         cutoff=150.0,
         mode="residual",
+        filter="-MFS-"
     )
     parset = task_linmos_images.submit(
         images=residual_conv_images,
