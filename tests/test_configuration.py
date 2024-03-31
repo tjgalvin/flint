@@ -1,5 +1,6 @@
-import pytest
 from pathlib import Path
+
+import pytest
 
 from flint.configuration import (
     get_image_options_from_yaml,
@@ -19,7 +20,6 @@ def test_get_image_options():
 
 
 def test_raise_image_options_error():
-
     example = Path("example.yaml")
 
     with pytest.raises(AssertionError):
@@ -34,7 +34,6 @@ def test_self_cal_options():
 
 
 def test_raise_error_options_error():
-
     example = Path("example.yaml")
 
     with pytest.raises(AssertionError):

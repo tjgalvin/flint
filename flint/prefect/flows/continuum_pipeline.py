@@ -11,11 +11,11 @@ from typing import Union
 
 from prefect import flow, unmapped
 
+from flint.calibrate.aocalibrate import find_existing_solutions
 from flint.configuration import (
     get_image_options_from_yaml,
     get_selfcal_options_from_yaml,
 )
-from flint.calibrate.aocalibrate import find_existing_solutions
 from flint.logging import logger
 from flint.ms import MS
 from flint.naming import get_sbid_from_path
@@ -26,6 +26,7 @@ from flint.prefect.common.imaging import (
     _validation_items,
     task_convolve_image,
     task_create_apply_solutions_cmd,
+    task_create_image_mask_model,
     task_flag_ms_aoflagger,
     task_gaincal_applycal_ms,
     task_get_common_beam,
@@ -37,7 +38,6 @@ from flint.prefect.common.imaging import (
     task_split_by_field,
     task_wsclean_imager,
     task_zip_ms,
-    task_create_image_mask_model,
 )
 from flint.prefect.common.utils import (
     task_create_beam_summary,
@@ -234,8 +234,12 @@ def process_science_fields(
     for current_round in range(1, field_options.rounds + 1):
         final_round = round == field_options.rounds
 
-        gain_cal_options = gain_cal_rounds.get(min((current_round, max_gain_cal_round)), None)
-        wsclean_options = wsclean_rounds.get(min((current_round, max_wsclean_round)), None)
+        gain_cal_options = gain_cal_rounds.get(
+            min((current_round, max_gain_cal_round)), None
+        )
+        wsclean_options = wsclean_rounds.get(
+            min((current_round, max_wsclean_round)), None
+        )
 
         cal_mss = task_gaincal_applycal_ms.map(
             wsclean_cmd=wsclean_cmds,
@@ -247,7 +251,10 @@ def process_science_fields(
             ],  # To make sure field summary is created with unzipped MSs
         )
 
-        if field_options.use_beam_masks and current_round >= field_options.use_beam_masks_from:
+        if (
+            field_options.use_beam_masks
+            and current_round >= field_options.use_beam_masks_from
+        ):
             beam_aegean_outputs = task_run_bane_and_aegean.map(
                 image=wsclean_cmds,
                 aegean_container=unmapped(field_options.aegean_container),
