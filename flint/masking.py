@@ -73,10 +73,11 @@ def extract_beam_mask_from_mosaic(
     return mask_names
 
 
-def reverse_flood_fill(
-    image: np.ndarray,
-    rms: np.ndarray,
+def reverse_negative_flood_fill(
+    image: Optional[np.ndarray] = None,
+    rms: Optional[np.ndarray] = None,
     background: Optional[np.ndarray] = None,
+    signal: Optional[np.ndarray] = None,
     positive_seed_clip: float = 4,
     positive_flood_clip: float = 2,
     negative_seed_clip: float = 5,
@@ -101,9 +102,10 @@ def reverse_flood_fill(
     * such negative pixels are ~10% level artefacts from a presumed bright sources
 
     Args:
-        image (np.ndarray): The total intensity pixels to have the mask for
-        rms (np.ndarray): The noise across the image
+        image (Optional[np.ndarray], optional): The total intensity pixels to have the mask for. Defaults to None.
+        rms (Optional[np.ndarray], optional): The noise across the image. Defaults to None.
         background (Optional[np.ndarray], optional): The background acros the image. If None, zeros are assumed. Defaults to None.
+        signal(Optional[np.ndarray], optional): A signal map. Defaults to None.
         positive_seed_clip (float, optional): Initial clip of the mask before islands are grown. Defaults to 4.
         positive_flood_clip (float, optional): Pixels above `positive_seed_clip` are dilated to this threshold. Defaults to 2.
         negative_seed_clip (float, optional): Initial clip of negative pixels. Defaults to 5.
@@ -115,13 +117,18 @@ def reverse_flood_fill(
 
     logger.info("Will be reversing filling")
 
-    if background is None:
-        logger.info("No background supplied, assuming zeros. ")
-        background = np.zeros_like(image)
+    if all([item is None for item in (image, background, rms, signal)]):
+        raise ValueError("No input maps have been provided. ")
+
+    if signal is None:
+        if background is None:
+            logger.info("No background supplied, assuming zeros. ")
+            background = np.zeros_like(image)
+
+        signal = (image - background) / rms
 
     # This Pirate thinks provided the background is handled
     # that taking the inverse is correct
-    signal = (image - background) / rms
     negative_signal = -1 * signal
 
     # Here we create the mask image that will start the binary dilation
@@ -152,7 +159,7 @@ def reverse_flood_fill(
     # and here we set the presumable nasty islands to False
     positive_dilated_mask[negative_dilated_mask] = False
 
-    return positive_dilated_mask
+    return positive_dilated_mask.astype(np.int32)
 
 
 def create_snr_mask_wbutter_from_fits(
@@ -252,6 +259,7 @@ def create_snr_mask_from_fits(
     fits_bkg_path: Path,
     create_signal_fits: bool = False,
     min_snr: float = 3.5,
+    attempt_reverse_nergative_flood_fill: bool = True,
 ) -> FITSMaskNames:
     """Create a mask for an input FITS image based on a signal to noise given a corresponding pair of RMS and background FITS images.
 
@@ -304,7 +312,16 @@ def create_snr_mask_from_fits(
     # case of a fits file, the file may either contain a single frequency or it may
     # contain a cube of images.
     logger.info(f"Clipping using a {min_snr=}")
-    mask_data = (signal_data > min_snr).astype(np.int32)
+    if attempt_reverse_nergative_flood_fill:
+        mask_data = reverse_negative_flood_fill(
+            signal=signal_data,
+            positive_seed_clip=5,
+            positive_flood_clip=2,
+            negative_seed_clip=5,
+            guard_negative_dilation=50,
+        )
+    else:
+        mask_data = (signal_data > min_snr).astype(np.int32)
 
     logger.info(f"Writing {mask_names.mask_fits}")
     fits.writeto(
