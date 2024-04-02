@@ -20,7 +20,7 @@ from flint.calibrate.aocalibrate import (
 from flint.coadd.linmos import LinmosCommand, linmos_images
 from flint.convol import BeamShape, convolve_images, get_common_beam
 from flint.flagging import flag_ms_aoflagger
-from flint.imager.wsclean import WSCleanCommand, wsclean_imager
+from flint.imager.wsclean import ImageSet, WSCleanCommand, wsclean_imager
 from flint.logging import logger
 from flint.masking import (
     create_snr_mask_from_fits,
@@ -237,13 +237,16 @@ def task_wsclean_imager(
 
 @task
 def task_get_common_beam(
-    wsclean_cmds: Collection[WSCleanCommand], cutoff: float = 25
+    wsclean_cmds: Collection[WSCleanCommand],
+    cutoff: float = 25,
+    filter: Optional[str] = None,
 ) -> BeamShape:
     """Compute a common beam size that all input images will be convoled to.
 
     Args:
         wsclean_cmds (Collection[WSCleanCommand]): Input images whose restoring beam properties will be considered
         cutoff (float, optional): Major axis larger than this valur, in arcseconds, will be ignored. Defaults to 25.
+        filter (Optional[str], optional): Only include images when considering beam shape if this string is in the file path. Defaults to None.
 
     Returns:
         BeamShape: The final convolving beam size to be used
@@ -258,6 +261,11 @@ def task_get_common_beam(
             )
             continue
         images_to_consider.extend(wsclean_cmd.imageset.image)
+
+    if filter:
+        images_to_consider = [
+            image for image in images_to_consider if filter in str(image)
+        ]
 
     logger.info(
         f"Considering {len(images_to_consider)} images across {len(wsclean_cmds)} outputs. "
@@ -274,6 +282,7 @@ def task_convolve_image(
     beam_shape: BeamShape,
     cutoff: float = 60,
     mode: str = "image",
+    filter: Optional[str] = None,
 ) -> Collection[Path]:
     """Convolve images to a specified resolution
 
@@ -281,6 +290,7 @@ def task_convolve_image(
         wsclean_cmd (WSCleanCommand): Collection of output images from wsclean that will be convolved
         beam_shape (BeamShape): The shape images will be convolved to
         cutoff (float, optional): Maximum major beam axis an image is allowed to have before it will not be convolved. Defaults to 60.
+        filter (Optional[str], optional): This string must be contained in the image path for it to be convolved. Defaults to None.
 
     Returns:
         Collection[Path]: Path to the output images that have been convolved.
@@ -298,6 +308,12 @@ def task_convolve_image(
     image_paths: Collection[Path] = (
         wsclean_cmd.imageset.image if mode == "image" else wsclean_cmd.imageset.residual
     )
+
+    if filter:
+        logger.info(f"Filtering images paths with {filter=}")
+        image_paths = [
+            image_path for image_path in image_paths if filter in str(image_path)
+        ]
 
     # It is possible depending on how aggressively cleaning image products are deleted that these
     # some cleaning products (e.g. residuals) do not exist. There are a number of ways one could consider
@@ -428,6 +444,7 @@ def _convolve_linmos_residuals(
         beam_shape=unmapped(beam_shape),
         cutoff=150.0,
         mode="residual",
+        filter="-MFS-",
     )
     parset = task_linmos_images.submit(
         images=residual_conv_images,
@@ -441,10 +458,11 @@ def _convolve_linmos_residuals(
 
 
 @task
-def task_create_linmos_mask_model(
-    linmos_parset: LinmosCommand,
+def task_create_image_mask_model(
+    image: Union[LinmosCommand, ImageSet, WSCleanCommand],
     image_products: AegeanOutputs,
     min_snr: Optional[float] = 3.5,
+    with_butterworth: bool = False,
 ) -> FITSMaskNames:
     """Create a mask from a linmos image, with the intention of providing it as a clean mask
     to an appropriate imager. This is derived using a simple signal to noise cut.
@@ -453,6 +471,7 @@ def task_create_linmos_mask_model(
         linmos_parset (LinmosCommand): Linmos command and associated meta-data
         image_products (AegeanOutputs): Images of the RMS and BKG
         min_snr (float, optional): The minimum S/N a pixel should be for it to be included in the clean mask.
+        with_butterworth (bool, optional): whether to taper the input image with a Butterworth filter before masking.
 
     Raises:
         ValueError: Raised when ``image_products`` are not known
@@ -461,76 +480,49 @@ def task_create_linmos_mask_model(
         FITSMaskNames: Clean mask where all pixels below a S/N are masked
     """
     if isinstance(image_products, AegeanOutputs):
-        linmos_image = linmos_parset.image_fits
-        linmos_rms = image_products.rms
-        linmos_bkg = image_products.bkg
+        source_rms = image_products.rms
+        source_bkg = image_products.bkg
     else:
         raise ValueError("Unsupported bkg/rms mode. ")
 
-    logger.info(f"Creating a clean mask for {linmos_image=}")
-    logger.info(f"Using {linmos_rms=}")
-    logger.info(f"Using {linmos_bkg=}")
-
-    linmos_mask_names = create_snr_mask_from_fits(
-        fits_image_path=linmos_image,
-        fits_bkg_path=linmos_bkg,
-        fits_rms_path=linmos_rms,
-        create_signal_fits=True,
-        min_snr=min_snr,
-    )
-
-    logger.info(f"Created {linmos_mask_names.mask_fits}")
-
-    return linmos_mask_names
-
-
-@task
-def task_create_linmos_mask_wbutter_model(
-    linmos_parset: LinmosCommand,
-    image_products: AegeanOutputs,
-    min_snr: Optional[float] = 5,
-) -> FITSMaskNames:
-    """Create a mask from a linmos image, with the intention of providing it as a clean mask
-    to an appropriate imager. This is derived using a simple signal to noise cut.
-
-    This will use a butterworth filter to first smooth the image before island thresdholds
-    are created. To account for the smooth a binary erosion operation is applied to the
-    resulting mask.
-
-    Args:
-        linmos_parset (LinmosCommand): Linmos command and associated meta-data
-        image_products (AegeanOutputs): Images of the RMS and BKG
-        min_snr (float, optional): The minimum S/N a pixel should be for it to be included in the clean mask. Defaults to 5.
-
-    Raises:
-        ValueError: Raised when ``image_products`` are not known
-
-    Returns:
-        FITSMaskNames: Clean mask where all pixels below a S/N are masked
-    """
-    if isinstance(image_products, AegeanOutputs):
-        linmos_image = linmos_parset.image_fits
-        linmos_rms = image_products.rms
-        linmos_bkg = image_products.bkg
+    source_image = None
+    if isinstance(image, LinmosCommand):
+        source_image = image.image_fits
+    elif isinstance(image, ImageSet):
+        source_image = image.image[-1]
+    elif isinstance(image, WSCleanCommand):
+        source_image = image.imageset.image[-1]
     else:
-        raise ValueError("Unsupported bkg/rms mode. ")
+        source_image = image_products.image
 
-    logger.info(f"Creating a clean mask for {linmos_image=}")
-    logger.info(f"Using {linmos_rms=}")
-    logger.info(f"Using {linmos_bkg=}")
+    if source_image is None:
+        raise ValueError(f"Unsupported image mode. Received {type(image)} ")
 
-    linmos_mask_names = create_snr_mask_wbutter_from_fits(
-        fits_image_path=linmos_image,
-        fits_bkg_path=linmos_bkg,
-        fits_rms_path=linmos_rms,
-        create_signal_fits=True,
-        min_snr=min_snr,
-        connectivity_shape=(2, 2),
-    )
+    logger.info(f"Creating a clean mask for {source_image=}")
+    logger.info(f"Using {source_rms=}")
+    logger.info(f"Using {source_bkg=}")
 
-    logger.info(f"Created {linmos_mask_names.mask_fits}")
+    if with_butterworth:
+        mask_names = create_snr_mask_wbutter_from_fits(
+            fits_image_path=source_image,
+            fits_bkg_path=source_bkg,
+            fits_rms_path=source_rms,
+            create_signal_fits=True,
+            min_snr=min_snr,
+            connectivity_shape=(3, 3),
+        )
+    else:
+        mask_names = create_snr_mask_from_fits(
+            fits_image_path=source_image,
+            fits_bkg_path=source_bkg,
+            fits_rms_path=source_rms,
+            create_signal_fits=True,
+            min_snr=min_snr,
+        )
 
-    return linmos_mask_names
+    logger.info(f"Created {mask_names.mask_fits}")
+
+    return mask_names
 
 
 @task
@@ -646,3 +638,32 @@ def task_create_validation_tables(
                     )
 
     return validation_tables
+
+
+def _validation_items(
+    field_summary: FieldSummary,
+    aegean_outputs: AegeanOutputs,
+    reference_catalogue_directory: Path,
+):
+    """Construct the validation plot and validation table items for the imaged field.
+
+    Internally these are submitting the prefect task versions of:
+    - `task_create_validation_plot`
+    - `task_create_validation_tables`
+
+    Args:
+        field_summary (FieldSummary): Container representing the SBID being imaged and its populated characteristics
+        aegean_outputs (AegeanOutputs): Source finding results
+        reference_catalogue_directory (Path): Location of directory containing the reference known NVSS, SUMSS and ICRS catalogues
+    """
+
+    task_create_validation_plot.submit(
+        field_summary=field_summary,
+        aegean_outputs=aegean_outputs,
+        reference_catalogue_directory=reference_catalogue_directory,
+    )
+    task_create_validation_tables.submit(
+        field_summary=field_summary,
+        aegean_outputs=aegean_outputs,
+        reference_catalogue_directory=reference_catalogue_directory,
+    )

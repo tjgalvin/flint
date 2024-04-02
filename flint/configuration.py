@@ -3,6 +3,7 @@ configuration file. The idea being that a configuration file would
 be used to specify the options for imaging and self-calibration
 throughout the pipeline.
 """
+
 from argparse import ArgumentParser
 from pathlib import Path
 from typing import Any, Dict, Optional
@@ -12,6 +13,144 @@ import yaml
 from flint.imager.wsclean import WSCleanOptions
 from flint.logging import logger
 from flint.selfcal.casa import GainCalOptions
+
+
+def get_selfcal_options_from_yaml(input_yaml: Optional[Path] = None) -> Dict:
+    """Stub to represent interaction with a configurationf ile
+
+    If a path is supplied, an error is raised.
+
+    Args:
+        input_yaml (Optional[Path], optional): Path to the configuration file. . Defaults to Optional[Path]=None.
+
+    Returns:
+        Dict: Mapping where the key is the self-calibration round, and values are key-value of updated gaincal options
+    """
+
+    assert (
+        input_yaml is None
+    ), "Configuring via a yaml configuration file is not yet support. "
+
+    return {
+        1: {"solint": "60s", "uvrange": ">235m", "nspw": 1},
+        2: {"solint": "30s", "calmode": "p", "uvrange": ">235m", "nspw": 1},
+        3: {"solint": "60s", "calmode": "ap", "uvrange": ">235m", "nspw": 4},
+        4: {"solint": "30s", "calmode": "ap", "uvrange": ">235m", "nspw": 4},
+        5: {"solint": "30s", "calmode": "ap", "uvrange": ">235m", "nspw": 1},
+    }
+
+
+def get_image_options_from_yaml(
+    input_yaml: Optional[Path] = None, self_cal_rounds: bool = False
+) -> Dict:
+    """Stub to interact with configuration file.
+
+    If a `input_yaml` file is provided an error is raised
+
+    Args:
+        input_yaml (Optional[Path], optional): Should be None. Defaults to None.
+        self_cal_rounds (bool, optional): Whether options for first imaging is being provided, or options to supply for each self-cal round. Defaults to False.
+
+    Returns:
+        Dict: _description_
+    """
+
+    assert (
+        input_yaml is None
+    ), "Configuring via a yaml configuration file is not yet support. "
+
+    MULTISCALE_SCALES = (0, 15, 30, 40, 50, 60, 70, 120)
+    IMAGE_SIZE = 7144
+
+    if not self_cal_rounds:
+        return {
+            "size": IMAGE_SIZE,
+            "minuvw_m": 235,
+            "weight": "briggs -1.5",
+            "scale": "2.5arcsec",
+            "nmiter": 10,
+            "force_mask_rounds": 10,
+            "deconvolution_channels": 4,
+            "fit_spectral_pol": 3,
+            "auto_mask": 10,
+            "multiscale": True,
+            "local_rms_window": 55,
+            "multiscale_scales": MULTISCALE_SCALES,
+        }
+    else:
+        return {
+            1: {
+                "size": IMAGE_SIZE,
+                "weight": "briggs -1.5",
+                "scale": "2.5arcsec",
+                "nmiter": 20,
+                "force_mask_rounds": 8,
+                "minuvw_m": 235,
+                "deconvolution_channels": 4,
+                "fit_spectral_pol": 3,
+                "auto_mask": 8.0,
+                "local_rms_window": 55,
+                "multiscale_scales": MULTISCALE_SCALES,
+            },
+            2: {
+                "size": IMAGE_SIZE,
+                "weight": "briggs -1.5",
+                "scale": "2.5arcsec",
+                "multiscale": True,
+                "minuvw_m": 235,
+                "nmiter": 20,
+                "force_mask_rounds": 8,
+                "deconvolution_channels": 4,
+                "fit_spectral_pol": 3,
+                "auto_mask": 7.0,
+                "local_rms_window": 55,
+                "multiscale_scales": MULTISCALE_SCALES,
+            },
+            3: {
+                "size": IMAGE_SIZE,
+                "weight": "briggs -1.5",
+                "scale": "2.5arcsec",
+                "multiscale": True,
+                "minuvw_m": 235,
+                "nmiter": 20,
+                "force_mask_rounds": 8,
+                "channels_out": 16,
+                "deconvolution_channels": 4,
+                "fit_spectral_pol": 3,
+                "auto_mask": 6.0,
+                "local_rms_window": 55,
+                "multiscale_scales": MULTISCALE_SCALES,
+            },
+            4: {
+                "size": IMAGE_SIZE,
+                "weight": "briggs -1.5",
+                "scale": "2.5arcsec",
+                "multiscale": True,
+                "minuvw_m": 235,
+                "nmiter": 20,
+                "force_mask_rounds": 10,
+                "channels_out": 16,
+                "deconvolution_channels": 4,
+                "fit_spectral_pol": 3,
+                "auto_mask": 8,
+                "local_rms_window": 55,
+                "multiscale_scales": MULTISCALE_SCALES,
+            },
+            5: {
+                "size": IMAGE_SIZE,
+                "weight": "briggs -1.5",
+                "scale": "2.5arcsec",
+                "multiscale": True,
+                "minuvw_m": 235,
+                "nmiter": 20,
+                "force_mask_rounds": 10,
+                "channels_out": 4,
+                "fit_spectral_pol": 3,
+                "auto_mask": 7.0,
+                "local_rms_window": 55,
+                "multiscale_scales": MULTISCALE_SCALES,
+            },
+        }
 
 
 def load_yaml(input_yaml: Path) -> Any:
