@@ -169,6 +169,7 @@ def create_snr_mask_wbutter_from_fits(
     create_signal_fits: bool = False,
     min_snr: float = 5,
     connectivity_shape: Tuple[int, int] = (4, 4),
+    overwrite: bool = True,
 ) -> FITSMaskNames:
     """Create a mask for an input FITS image based on a signal to noise given a corresponding pair of RMS and background FITS images.
 
@@ -195,6 +196,7 @@ def create_snr_mask_wbutter_from_fits(
         create_signal_fits (bool, optional): Create an output signal map. Defaults to False.
         min_snr (float, optional): Minimum signal-to-noise ratio for the masking to include a pixel. Defaults to 3.5.
         connectivity_shape (Tuple[int, int], optional): The connectivity matrix used in the scikit-image binary erosion applied to the mask. Defaults to (4, 4).
+        overwrite (bool): Passed to `fits.writeto`, and will overwrite files should they exist. Defaults to True.
 
     Returns:
         FITSMaskNames: Container describing the signal and mask FITS image paths. If ``create_signal_path`` is None, then the ``signal_fits`` attribute will be None.
@@ -228,7 +230,10 @@ def create_snr_mask_wbutter_from_fits(
     if create_signal_fits:
         logger.info(f"Writing {mask_names.signal_fits}")
         fits.writeto(
-            filename=mask_names.signal_fits, data=signal_data, header=fits_header
+            filename=mask_names.signal_fits,
+            data=signal_data,
+            header=fits_header,
+            overwrite=overwrite,
         )
 
     # Following the help in wsclean:
@@ -248,6 +253,7 @@ def create_snr_mask_wbutter_from_fits(
         filename=mask_names.mask_fits,
         data=mask_data.astype(np.int32),
         header=fits_header,
+        overwrite=overwrite,
     )
 
     return mask_names
@@ -260,6 +266,7 @@ def create_snr_mask_from_fits(
     create_signal_fits: bool = False,
     min_snr: float = 3.5,
     attempt_reverse_nergative_flood_fill: bool = True,
+    overwrite: bool = True,
 ) -> FITSMaskNames:
     """Create a mask for an input FITS image based on a signal to noise given a corresponding pair of RMS and background FITS images.
 
@@ -280,6 +287,8 @@ def create_snr_mask_from_fits(
         fits_bkg_path (Path): Path to the FITS file with an baclground image corresponding to ``fits_image_path``
         create_signal_fits (bool, optional): Create an output signal map. Defaults to False.
         min_snr (float, optional): Minimum signal-to-noise ratio for the masking to include a pixel. Defaults to 3.5.
+        attempt_negative_flood_fill (bool): Attempt to filter out negative sidelobes from the bask. See `reverse_negative_flood_fill`. Defaults to True.
+        overwrite (bool): Passed to `fits.writeto`, and will overwrite files should they exist. Defaults to True.
 
     Returns:
         FITSMaskNames: Container describing the signal and mask FITS image paths. If ``create_signal_path`` is None, then the ``signal_fits`` attribute will be None.
@@ -302,7 +311,10 @@ def create_snr_mask_from_fits(
     if create_signal_fits:
         logger.info(f"Writing {mask_names.signal_fits}")
         fits.writeto(
-            filename=mask_names.signal_fits, data=signal_data, header=fits_header
+            filename=mask_names.signal_fits,
+            data=signal_data,
+            header=fits_header,
+            overwrite=overwrite,
         )
 
     # Following the help in wsclean:
@@ -314,12 +326,13 @@ def create_snr_mask_from_fits(
     logger.info(f"Clipping using a {min_snr=}")
     if attempt_reverse_nergative_flood_fill:
         mask_data = reverse_negative_flood_fill(
-            signal=signal_data,
+            signal=np.squeeze(signal_data),
             positive_seed_clip=5,
             positive_flood_clip=2,
             negative_seed_clip=5,
             guard_negative_dilation=50,
         )
+        mask_data = mask_data.reshape(signal_data.shape)
     else:
         mask_data = (signal_data > min_snr).astype(np.int32)
 
@@ -328,6 +341,7 @@ def create_snr_mask_from_fits(
         filename=mask_names.mask_fits,
         data=mask_data,
         header=fits_header,
+        overwrite=overwrite,
     )
 
     return mask_names
