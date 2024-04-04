@@ -80,16 +80,23 @@ def reverse_negative_flood_fill(
     signal: Optional[np.ndarray] = None,
     positive_seed_clip: float = 4,
     positive_flood_clip: float = 2,
-    negative_seed_clip: float = 5,
+    negative_seed_clip: Optional[float] = 5,
     guard_negative_dilation: float = 50,
 ) -> np.ndarray:
-    """Attempt to remove regions of negative and positive islands that surrond
-    bright sources.
+    """Attempt to:
 
-    Around bright sources there will likely be positive and negative artefacts
+    * seed masks around bright regions of an image and grow them to lower significance thresholds
+    * remove regions of negative and positive islands that surrond bright sources.
+
+    An initial set of islands (and masks) are constructed by first
+    using the `positive_seed_clip` to create an initial SNR based
+    mask. These islands then are binary dilated to grow the islands
+    to adjacent pixels at a lower signifcance level (see `scipy.ndimage.binary_dilation`).
+
+    Next an attempt is made to remove artefacts around bright sources,  where
+    there are likely to be positive and negative artefacts
     that originate from calibration errors, deconvolution errors, or residual
-    structure from an incomplete clean. Here an attempt is made to remove regions
-    of pixels around bright sources.
+    structure from an incomplete clean.
 
     This operation will search for islands of _negative_ pixels above a
     threshold. These pixels are then grown after a guard mask has been constructed
@@ -108,7 +115,7 @@ def reverse_negative_flood_fill(
         signal(Optional[np.ndarray], optional): A signal map. Defaults to None.
         positive_seed_clip (float, optional): Initial clip of the mask before islands are grown. Defaults to 4.
         positive_flood_clip (float, optional): Pixels above `positive_seed_clip` are dilated to this threshold. Defaults to 2.
-        negative_seed_clip (float, optional): Initial clip of negative pixels. Defaults to 5.
+        negative_seed_clip (Optional[float], optional): Initial clip of negative pixels. This operation is on the inverted signal mask (so this value should be a positive number). If None this second operation is not performed. Defaults to 5.
         guard_negative_dilation (float, optional): Positive pixels from the computed signal mask will be above this threshold to be protect from the negative island mask dilation. Defaults to 50.
 
     Returns:
@@ -152,16 +159,17 @@ def reverse_negative_flood_fill(
     # - if there are brightish negative islands there is also positive brightish arteefact islands nearby
     # For this reason the guard mask should be sufficently high to protect the
     # main source but nuke the fask positive islands
-    negative_mask = negative_signal > negative_seed_clip
-    negative_dilated_mask = scipy_binary_dilation(
-        input=negative_mask,
-        mask=signal < guard_negative_dilation,
-        iterations=10,
-        structure=np.ones((3, 3)),
-    )
+    if negative_seed_clip:
+        negative_mask = negative_signal > negative_seed_clip
+        negative_dilated_mask = scipy_binary_dilation(
+            input=negative_mask,
+            mask=signal < guard_negative_dilation,
+            iterations=10,
+            structure=np.ones((3, 3)),
+        )
 
-    # and here we set the presumable nasty islands to False
-    positive_dilated_mask[negative_dilated_mask] = False
+        # and here we set the presumable nasty islands to False
+        positive_dilated_mask[negative_dilated_mask] = False
 
     return positive_dilated_mask.astype(np.int32)
 
