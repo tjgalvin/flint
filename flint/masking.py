@@ -115,7 +115,11 @@ def reverse_negative_flood_fill(
         np.ndarray: Mask of the pixels to clean
     """
 
-    logger.info("Will be reversing filling")
+    logger.info("Will be reversing flood filling")
+    logger.info(f"{positive_seed_clip=} ")
+    logger.info(f"{positive_flood_clip=} ")
+    logger.info(f"{negative_seed_clip=} ")
+    logger.info(f"{guard_negative_dilation=}")
 
     if all([item is None for item in (image, background, rms, signal)]):
         raise ValueError("No input maps have been provided. ")
@@ -139,7 +143,7 @@ def reverse_negative_flood_fill(
         input=positive_mask,
         mask=signal > positive_flood_clip,
         iterations=10,
-        structure=np.ones((3, 3)),
+        structure=np.ones((4, 4)),
     )
 
     # Now do the same but on negative islands. The assumption here is that:
@@ -323,17 +327,17 @@ def create_snr_mask_from_fits(
     # as being not masked, and all non-zero values are interpreted as masked. In the
     # case of a fits file, the file may either contain a single frequency or it may
     # contain a cube of images.
-    logger.info(f"Clipping using a {min_snr=}")
     if attempt_reverse_nergative_flood_fill:
         mask_data = reverse_negative_flood_fill(
             signal=np.squeeze(signal_data),
-            positive_seed_clip=5,
+            positive_seed_clip=4,
             positive_flood_clip=2,
-            negative_seed_clip=5,
-            guard_negative_dilation=50,
+            negative_seed_clip=4,
+            guard_negative_dilation=40,
         )
         mask_data = mask_data.reshape(signal_data.shape)
     else:
+        logger.info(f"Clipping using a {min_snr=}")
         mask_data = (signal_data > min_snr).astype(np.int32)
 
     logger.info(f"Writing {mask_names.mask_fits}")
