@@ -266,7 +266,7 @@ def process_science_fields(
                 with_butterworth=field_options.use_beam_mask_wbutterworth,
             )
             wsclean_options["auto_mask"] = 1
-            wsclean_options["force_mask_rounds"] = 18
+            wsclean_options["force_mask_rounds"] = 10
             wsclean_options["local_rms"] = False
             wsclean_options["niter"] = 1750000
             wsclean_options["nmiter"] = 20
