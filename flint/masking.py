@@ -1,14 +1,18 @@
 """Utility functions to make image based masks from images, with the initial
 thought being towards FITS images.
 """
+
 from argparse import ArgumentParser
 from pathlib import Path
-from typing import Tuple
+from typing import Optional, Tuple
 
 import numpy as np
 from astropy.io import fits
 from astropy.wcs import WCS
 from reproject import reproject_interp
+from scipy.ndimage import (
+    binary_dilation as scipy_binary_dilation,  # Rename to distinguish from skimage
+)
 from skimage.filters import butterworth
 from skimage.morphology import binary_erosion
 
@@ -69,6 +73,107 @@ def extract_beam_mask_from_mosaic(
     return mask_names
 
 
+def reverse_negative_flood_fill(
+    image: Optional[np.ndarray] = None,
+    rms: Optional[np.ndarray] = None,
+    background: Optional[np.ndarray] = None,
+    signal: Optional[np.ndarray] = None,
+    positive_seed_clip: float = 4,
+    positive_flood_clip: float = 2,
+    negative_seed_clip: Optional[float] = 5,
+    guard_negative_dilation: float = 50,
+) -> np.ndarray:
+    """Attempt to:
+
+    * seed masks around bright regions of an image and grow them to lower significance thresholds
+    * remove regions of negative and positive islands that surrond bright sources.
+
+    An initial set of islands (and masks) are constructed by first
+    using the `positive_seed_clip` to create an initial SNR based
+    mask. These islands then are binary dilated to grow the islands
+    to adjacent pixels at a lower signifcance level (see `scipy.ndimage.binary_dilation`).
+
+    Next an attempt is made to remove artefacts around bright sources,  where
+    there are likely to be positive and negative artefacts
+    that originate from calibration errors, deconvolution errors, or residual
+    structure from an incomplete clean.
+
+    This operation will search for islands of _negative_ pixels above a
+    threshold. These pixels are then grown after a guard mask has been constructed
+    around bright pixels.
+
+    The assumptions that go into this process:
+
+    * the no genuine source of negative sky emission
+    * if there are bright negative artefacts there are likely bright positive artefacts nearby
+    * such negative pixels are ~10% level artefacts from a presumed bright sources
+
+    Args:
+        image (Optional[np.ndarray], optional): The total intensity pixels to have the mask for. Defaults to None.
+        rms (Optional[np.ndarray], optional): The noise across the image. Defaults to None.
+        background (Optional[np.ndarray], optional): The background acros the image. If None, zeros are assumed. Defaults to None.
+        signal(Optional[np.ndarray], optional): A signal map. Defaults to None.
+        positive_seed_clip (float, optional): Initial clip of the mask before islands are grown. Defaults to 4.
+        positive_flood_clip (float, optional): Pixels above `positive_seed_clip` are dilated to this threshold. Defaults to 2.
+        negative_seed_clip (Optional[float], optional): Initial clip of negative pixels. This operation is on the inverted signal mask (so this value should be a positive number). If None this second operation is not performed. Defaults to 5.
+        guard_negative_dilation (float, optional): Positive pixels from the computed signal mask will be above this threshold to be protect from the negative island mask dilation. Defaults to 50.
+
+    Returns:
+        np.ndarray: Mask of the pixels to clean
+    """
+
+    logger.info("Will be reversing flood filling")
+    logger.info(f"{positive_seed_clip=} ")
+    logger.info(f"{positive_flood_clip=} ")
+    logger.info(f"{negative_seed_clip=} ")
+    logger.info(f"{guard_negative_dilation=}")
+
+    if all([item is None for item in (image, background, rms, signal)]):
+        raise ValueError("No input maps have been provided. ")
+
+    if signal is None:
+        if background is None:
+            logger.info("No background supplied, assuming zeros. ")
+            background = np.zeros_like(image)
+
+        signal = (image - background) / rms
+
+    # This Pirate thinks provided the background is handled
+    # that taking the inverse is correct
+    negative_signal = -1 * signal
+
+    # Here we create the mask image that will start the binary dilation
+    # process, and we will ensure only pixels above the `positive_flood_clip`
+    # are allowed to be dilated. In other words we are growing the mask
+    positive_mask = signal >= positive_seed_clip
+    positive_dilated_mask = scipy_binary_dilation(
+        input=positive_mask,
+        mask=signal > positive_flood_clip,
+        iterations=200,
+        structure=np.ones((3, 3)),
+    )
+
+    # Now do the same but on negative islands. The assumption here is that:
+    # - no genuine source of negative sky emission
+    # - negative islands are around bright sources with deconvolution/calibration errors
+    # - if there are brightish negative islands there is also positive brightish arteefact islands nearby
+    # For this reason the guard mask should be sufficently high to protect the
+    # main source but nuke the fask positive islands
+    if negative_seed_clip:
+        negative_mask = negative_signal > negative_seed_clip
+        negative_dilated_mask = scipy_binary_dilation(
+            input=negative_mask,
+            mask=signal < guard_negative_dilation,
+            iterations=10,
+            structure=np.ones((3, 3)),
+        )
+
+        # and here we set the presumable nasty islands to False
+        positive_dilated_mask[negative_dilated_mask] = False
+
+    return positive_dilated_mask.astype(np.int32)
+
+
 def create_snr_mask_wbutter_from_fits(
     fits_image_path: Path,
     fits_rms_path: Path,
@@ -76,6 +181,7 @@ def create_snr_mask_wbutter_from_fits(
     create_signal_fits: bool = False,
     min_snr: float = 5,
     connectivity_shape: Tuple[int, int] = (4, 4),
+    overwrite: bool = True,
 ) -> FITSMaskNames:
     """Create a mask for an input FITS image based on a signal to noise given a corresponding pair of RMS and background FITS images.
 
@@ -102,6 +208,7 @@ def create_snr_mask_wbutter_from_fits(
         create_signal_fits (bool, optional): Create an output signal map. Defaults to False.
         min_snr (float, optional): Minimum signal-to-noise ratio for the masking to include a pixel. Defaults to 3.5.
         connectivity_shape (Tuple[int, int], optional): The connectivity matrix used in the scikit-image binary erosion applied to the mask. Defaults to (4, 4).
+        overwrite (bool): Passed to `fits.writeto`, and will overwrite files should they exist. Defaults to True.
 
     Returns:
         FITSMaskNames: Container describing the signal and mask FITS image paths. If ``create_signal_path`` is None, then the ``signal_fits`` attribute will be None.
@@ -135,7 +242,10 @@ def create_snr_mask_wbutter_from_fits(
     if create_signal_fits:
         logger.info(f"Writing {mask_names.signal_fits}")
         fits.writeto(
-            filename=mask_names.signal_fits, data=signal_data, header=fits_header
+            filename=mask_names.signal_fits,
+            data=signal_data,
+            header=fits_header,
+            overwrite=overwrite,
         )
 
     # Following the help in wsclean:
@@ -155,6 +265,7 @@ def create_snr_mask_wbutter_from_fits(
         filename=mask_names.mask_fits,
         data=mask_data.astype(np.int32),
         header=fits_header,
+        overwrite=overwrite,
     )
 
     return mask_names
@@ -166,6 +277,8 @@ def create_snr_mask_from_fits(
     fits_bkg_path: Path,
     create_signal_fits: bool = False,
     min_snr: float = 3.5,
+    attempt_reverse_nergative_flood_fill: bool = True,
+    overwrite: bool = True,
 ) -> FITSMaskNames:
     """Create a mask for an input FITS image based on a signal to noise given a corresponding pair of RMS and background FITS images.
 
@@ -186,6 +299,8 @@ def create_snr_mask_from_fits(
         fits_bkg_path (Path): Path to the FITS file with an baclground image corresponding to ``fits_image_path``
         create_signal_fits (bool, optional): Create an output signal map. Defaults to False.
         min_snr (float, optional): Minimum signal-to-noise ratio for the masking to include a pixel. Defaults to 3.5.
+        attempt_negative_flood_fill (bool): Attempt to filter out negative sidelobes from the bask. See `reverse_negative_flood_fill`. Defaults to True.
+        overwrite (bool): Passed to `fits.writeto`, and will overwrite files should they exist. Defaults to True.
 
     Returns:
         FITSMaskNames: Container describing the signal and mask FITS image paths. If ``create_signal_path`` is None, then the ``signal_fits`` attribute will be None.
@@ -208,7 +323,10 @@ def create_snr_mask_from_fits(
     if create_signal_fits:
         logger.info(f"Writing {mask_names.signal_fits}")
         fits.writeto(
-            filename=mask_names.signal_fits, data=signal_data, header=fits_header
+            filename=mask_names.signal_fits,
+            data=signal_data,
+            header=fits_header,
+            overwrite=overwrite,
         )
 
     # Following the help in wsclean:
@@ -217,14 +335,25 @@ def create_snr_mask_from_fits(
     # as being not masked, and all non-zero values are interpreted as masked. In the
     # case of a fits file, the file may either contain a single frequency or it may
     # contain a cube of images.
-    logger.info(f"Clipping using a {min_snr=}")
-    mask_data = (signal_data > min_snr).astype(np.int32)
+    if attempt_reverse_nergative_flood_fill:
+        mask_data = reverse_negative_flood_fill(
+            signal=np.squeeze(signal_data),
+            positive_seed_clip=5,
+            positive_flood_clip=1.5,
+            negative_seed_clip=4,
+            guard_negative_dilation=40,
+        )
+        mask_data = mask_data.reshape(signal_data.shape)
+    else:
+        logger.info(f"Clipping using a {min_snr=}")
+        mask_data = (signal_data > min_snr).astype(np.int32)
 
     logger.info(f"Writing {mask_names.mask_fits}")
     fits.writeto(
         filename=mask_names.mask_fits,
         data=mask_data,
         header=fits_header,
+        overwrite=overwrite,
     )
 
     return mask_names
