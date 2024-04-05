@@ -149,8 +149,8 @@ def reverse_negative_flood_fill(
     positive_dilated_mask = scipy_binary_dilation(
         input=positive_mask,
         mask=signal > positive_flood_clip,
-        iterations=10,
-        structure=np.ones((4, 4)),
+        iterations=200,
+        structure=np.ones((3, 3)),
     )
 
     # Now do the same but on negative islands. The assumption here is that:
@@ -338,8 +338,8 @@ def create_snr_mask_from_fits(
     if attempt_reverse_nergative_flood_fill:
         mask_data = reverse_negative_flood_fill(
             signal=np.squeeze(signal_data),
-            positive_seed_clip=4,
-            positive_flood_clip=2,
+            positive_seed_clip=5,
+            positive_flood_clip=1.5,
             negative_seed_clip=4,
             guard_negative_dilation=40,
         )
