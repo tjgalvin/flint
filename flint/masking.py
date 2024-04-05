@@ -4,15 +4,15 @@ thought being towards FITS images.
 
 from argparse import ArgumentParser
 from pathlib import Path
-from typing import Tuple, Optional
+from typing import Optional, Tuple
 
 import numpy as np
 from astropy.io import fits
 from astropy.wcs import WCS
 from reproject import reproject_interp
 from scipy.ndimage import (
-    binary_dilation as scipy_binary_dilation,
-)  # Rename to distinguish from skimage
+    binary_dilation as scipy_binary_dilation,  # Rename to distinguish from skimage
+)
 from skimage.filters import butterworth
 from skimage.morphology import binary_erosion
 
