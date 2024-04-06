@@ -147,7 +147,7 @@ def grow_low_snr_mask(
         input=low_snr_mask, iterations=2, structure=np.ones((3, 3))
     )
 
-    if region_mask:
+    if region_mask is not None:
         low_snr_mask[region_mask] = False
 
     mask_labels, no_labels = label(low_snr_mask, structure=np.ones((3, 3)))
@@ -262,8 +262,8 @@ def reverse_negative_flood_fill(
     if grow_low_snr:
         low_snr_mask = grow_low_snr_mask(
             signal=signal,
-            grow_min_snr=grow_low_snr,
-            grow_min_island_size=grow_low_island_size,
+            grow_low_snr=grow_low_snr,
+            grow_low_island_size=grow_low_island_size,
             region_mask=negative_dilated_mask,
         )
         positive_dilated_mask[low_snr_mask] = True
