@@ -435,16 +435,31 @@ def plot_flag_summary(
     fig: Figure,
     ax: Axes,
     field_summary: FieldSummary,
-):
-    for ms_summary in field_summary.ms_summaries:
+) -> Axes:
+    """Plot the percentage of the spectrum that is flagged for
+    each measurement set
+
+    Args:
+        fig (Figure): The figure canvas that is being plotted to
+        ax (Axes): The axes object that is being plotted to
+        field_summary (FieldSummary): An active field summary object with the collection of MSSummary structures
+
+    Returns:
+        Axes: The axes object with the plotted RMS image
+    """
+
+    ms_summaries = sorted(
+        [mss for mss in field_summary.ms_summaries], key=lambda x: x.beam
+    )
+    for ms_summary in ms_summaries:
         flag_spectrum = ms_summary.flag_spectrum
         ax.plot(
             np.arange(len(flag_spectrum)),
             flag_spectrum,
-            label=f"Beam {ms_summary.beam:02d}",
+            label=f"{ms_summary.beam:02d}",
             lw=0.5,
         )
-    ax.legend()
+    ax.legend(ncols=18, title="Beam Number", loc="lower left")
     ax.set(
         xlabel="Channel",
         ylabel="Flagged fraction",
@@ -452,6 +467,8 @@ def plot_flag_summary(
         aspect="auto",
         title="Flagging summary",
     )
+
+    return ax
 
 
 def plot_rms_map(
