@@ -17,7 +17,6 @@ from scipy.ndimage import (
     binary_erosion as scipy_binary_erosion,  # Rename to distinguish from skimage
 )
 from scipy.ndimage import label
-
 from skimage.filters import butterworth
 from skimage.morphology import binary_erosion
 
