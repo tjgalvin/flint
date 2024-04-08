@@ -13,6 +13,10 @@ from reproject import reproject_interp
 from scipy.ndimage import (
     binary_dilation as scipy_binary_dilation,  # Rename to distinguish from skimage
 )
+from scipy.ndimage import (
+    binary_erosion as scipy_binary_erosion,  # Rename to distinguish from skimage
+)
+from scipy.ndimage import label
 from skimage.filters import butterworth
 from skimage.morphology import binary_erosion
 
@@ -73,6 +77,87 @@ def extract_beam_mask_from_mosaic(
     return mask_names
 
 
+def _get_signal_image(
+    image: Optional[np.ndarray] = None,
+    rms: Optional[np.ndarray] = None,
+    background: Optional[np.ndarray] = None,
+    signal: Optional[np.ndarray] = None,
+) -> np.ndarray:
+    if all([item is None for item in (image, background, rms, signal)]):
+        raise ValueError("No input maps have been provided. ")
+
+    if signal is None:
+        if background is None:
+            logger.info("No background supplied, assuming zeros. ")
+            background = np.zeros_like(image)
+
+        signal = (image - background) / rms
+
+    return signal
+
+
+def grow_low_snr_mask(
+    image: Optional[np.ndarray] = None,
+    rms: Optional[np.ndarray] = None,
+    background: Optional[np.ndarray] = None,
+    signal: Optional[np.ndarray] = None,
+    grow_low_snr: float = 2.0,
+    grow_low_island_size: int = 512,
+    region_mask: Optional[np.ndarray] = None,
+) -> np.array:
+    """There may be cases where normal thresholding operations based on simple pixel-wise SNR
+    cuts fail to pick up diffuse, low surface brightness regions of emission. When some type
+    of masking operation is used there may be instances where these regions are never cleaned.
+
+    Sometimes smoothing can help to pick up these features, but when attempting to pass such
+    a mask through to the imagery of choice the islands may be larger than the features at their
+    native resolution, unless some other more sophisticated filtering is performed.
+
+    This function attempts to grow masks to capture islands of contigous pixels above a low
+    SNR cut that would otherwise go uncleaned.
+
+    Args:
+            Args:
+        image (Optional[np.ndarray], optional): The total intensity pixels to have the mask for. Defaults to None.
+        rms (Optional[np.ndarray], optional): The noise across the image. Defaults to None.
+        background (Optional[np.ndarray], optional): The background acros the image. If None, zeros are assumed. Defaults to None.
+        signal(Optional[np.ndarray], optional): A signal map. Defaults to None.
+        grow_low_snr (float, optional): The SNR pixekls have to be above. Defaults to 2.
+        grow_low_island_size (int, optional): The minimum number of pixels an island should be for it to be considered valid. Defaults to 512.
+        region_mask (Optional[np.ndarray], optional): Whether some region should be masked out before the island size constraint is applied. Defaults to None.
+
+    Returns:
+        np.array: The derived mask of objects with low-surface brightness
+    """
+    # TODO: The `grow_low_island_size` should be represented in solid angle relative to the restoring beam
+
+    signal = _get_signal_image(
+        image=image, rms=rms, background=background, signal=signal
+    )
+
+    logger.info(
+        f"Growing mask for low surface brightness using {grow_low_snr=} {grow_low_island_size=}"
+    )
+    low_snr_mask = signal > grow_low_snr
+    low_snr_mask = scipy_binary_dilation(
+        input=low_snr_mask, iterations=2, structure=np.ones((3, 3))
+    )
+    low_snr_mask = scipy_binary_erosion(
+        input=low_snr_mask, iterations=2, structure=np.ones((3, 3))
+    )
+
+    if region_mask is not None:
+        low_snr_mask[region_mask] = False
+
+    mask_labels, no_labels = label(low_snr_mask, structure=np.ones((3, 3)))
+    _, counts = np.unique(mask_labels.flatten(), return_counts=True)
+
+    small_islands = [idx for idx, count in enumerate(counts) if count < 512 and idx > 0]
+    low_snr_mask[np.isin(mask_labels, small_islands)] = False
+
+    return low_snr_mask
+
+
 def reverse_negative_flood_fill(
     image: Optional[np.ndarray] = None,
     rms: Optional[np.ndarray] = None,
@@ -82,6 +167,8 @@ def reverse_negative_flood_fill(
     positive_flood_clip: float = 2,
     negative_seed_clip: Optional[float] = 5,
     guard_negative_dilation: float = 50,
+    grow_low_snr: Optional[float] = 2,
+    grow_low_island_size: int = 512,
 ) -> np.ndarray:
     """Attempt to:
 
@@ -108,6 +195,9 @@ def reverse_negative_flood_fill(
     * if there are bright negative artefacts there are likely bright positive artefacts nearby
     * such negative pixels are ~10% level artefacts from a presumed bright sources
 
+    Optionally, the `growlow_snr_mask` may also be considered via the `grow_low_snr` and `grow_low_island_size`
+    parameters.
+
     Args:
         image (Optional[np.ndarray], optional): The total intensity pixels to have the mask for. Defaults to None.
         rms (Optional[np.ndarray], optional): The noise across the image. Defaults to None.
@@ -117,6 +207,8 @@ def reverse_negative_flood_fill(
         positive_flood_clip (float, optional): Pixels above `positive_seed_clip` are dilated to this threshold. Defaults to 2.
         negative_seed_clip (Optional[float], optional): Initial clip of negative pixels. This operation is on the inverted signal mask (so this value should be a positive number). If None this second operation is not performed. Defaults to 5.
         guard_negative_dilation (float, optional): Positive pixels from the computed signal mask will be above this threshold to be protect from the negative island mask dilation. Defaults to 50.
+        grow_low__snr (Optional[float], optional): Attempt to grow islands of contigous pixels above thius low SNR ration. If None this is not performed. Defaults to 2.
+        grow_low_island_size (int, optional): The number of pixels a low SNR should be in order to be considered valid. Defaults to 512.
 
     Returns:
         np.ndarray: Mask of the pixels to clean
@@ -128,15 +220,9 @@ def reverse_negative_flood_fill(
     logger.info(f"{negative_seed_clip=} ")
     logger.info(f"{guard_negative_dilation=}")
 
-    if all([item is None for item in (image, background, rms, signal)]):
-        raise ValueError("No input maps have been provided. ")
-
-    if signal is None:
-        if background is None:
-            logger.info("No background supplied, assuming zeros. ")
-            background = np.zeros_like(image)
-
-        signal = (image - background) / rms
+    signal = _get_signal_image(
+        image=image, rms=rms, background=background, signal=signal
+    )
 
     # This Pirate thinks provided the background is handled
     # that taking the inverse is correct
@@ -149,7 +235,7 @@ def reverse_negative_flood_fill(
     positive_dilated_mask = scipy_binary_dilation(
         input=positive_mask,
         mask=signal > positive_flood_clip,
-        iterations=200,
+        iterations=1000,
         structure=np.ones((3, 3)),
     )
 
@@ -159,6 +245,7 @@ def reverse_negative_flood_fill(
     # - if there are brightish negative islands there is also positive brightish arteefact islands nearby
     # For this reason the guard mask should be sufficently high to protect the
     # main source but nuke the fask positive islands
+    negative_dilated_mask = None
     if negative_seed_clip:
         negative_mask = negative_signal > negative_seed_clip
         negative_dilated_mask = scipy_binary_dilation(
@@ -170,6 +257,15 @@ def reverse_negative_flood_fill(
 
         # and here we set the presumable nasty islands to False
         positive_dilated_mask[negative_dilated_mask] = False
+
+    if grow_low_snr:
+        low_snr_mask = grow_low_snr_mask(
+            signal=signal,
+            grow_low_snr=grow_low_snr,
+            grow_low_island_size=grow_low_island_size,
+            region_mask=negative_dilated_mask,
+        )
+        positive_dilated_mask[low_snr_mask] = True
 
     return positive_dilated_mask.astype(np.int32)
 
@@ -338,10 +434,12 @@ def create_snr_mask_from_fits(
     if attempt_reverse_nergative_flood_fill:
         mask_data = reverse_negative_flood_fill(
             signal=np.squeeze(signal_data),
-            positive_seed_clip=5,
+            positive_seed_clip=4,
             positive_flood_clip=1.5,
             negative_seed_clip=4,
-            guard_negative_dilation=40,
+            guard_negative_dilation=30,
+            grow_low_snr=1.75,
+            grow_low_island_size=768,
         )
         mask_data = mask_data.reshape(signal_data.shape)
     else:
