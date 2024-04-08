@@ -511,8 +511,8 @@ def task_create_image_mask_model(
         fits_image_path=source_image,
         fits_bkg_path=source_bkg,
         fits_rms_path=source_rms,
+        masking_options=masking_options,
         create_signal_fits=True,
-        min_snr=min_snr,
     )
 
     logger.info(f"Created {mask_names.mask_fits}")
