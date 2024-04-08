@@ -25,6 +25,7 @@ from flint.logging import logger
 from flint.masking import (
     create_snr_mask_from_fits,
     extract_beam_mask_from_mosaic,
+    MaskingOptions,
 )
 from flint.ms import MS, preprocess_askap_ms, rename_column_in_ms, split_by_field
 from flint.naming import FITSMaskNames, processed_ms_format
@@ -461,6 +462,7 @@ def task_create_image_mask_model(
     image: Union[LinmosCommand, ImageSet, WSCleanCommand],
     image_products: AegeanOutputs,
     min_snr: Optional[float] = 3.5,
+    update_masking_options: Optional[Dict[str, Any]] = None,
 ) -> FITSMaskNames:
     """Create a mask from a linmos image, with the intention of providing it as a clean mask
     to an appropriate imager. This is derived using a simple signal to noise cut.
@@ -469,6 +471,8 @@ def task_create_image_mask_model(
         linmos_parset (LinmosCommand): Linmos command and associated meta-data
         image_products (AegeanOutputs): Images of the RMS and BKG
         min_snr (float, optional): The minimum S/N a pixel should be for it to be included in the clean mask.
+        update_masking_options (Optional[Dict[str,Any]], optional): Updated options supplied to the default MaskingOptions. Defaults to None.
+
 
     Raises:
         ValueError: Raised when ``image_products`` are not known
@@ -498,6 +502,10 @@ def task_create_image_mask_model(
     logger.info(f"Creating a clean mask for {source_image=}")
     logger.info(f"Using {source_rms=}")
     logger.info(f"Using {source_bkg=}")
+
+    masking_options = MaskingOptions()
+    if update_masking_options:
+        masking_options = masking_options.with_options(**update_masking_options)
 
     mask_names = create_snr_mask_from_fits(
         fits_image_path=source_image,

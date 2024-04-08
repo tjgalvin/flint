@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 from astropy.io import fits
 
-from flint.masking import create_snr_mask_from_fits
+from flint.masking import create_snr_mask_from_fits, MaskingOptions
 from flint.naming import FITSMaskNames
 
 SHAPE = (100, 100)
@@ -28,11 +28,24 @@ def fits_dir(tmpdir):
     return fits_dir
 
 
+def test_make_masking_options():
+    """Just a dump test to make sure the options structure is ok"""
+
+    masking_options = MaskingOptions()
+
+    assert masking_options.base_snr_clip != -1
+
+    masking_options = masking_options.with_options(base_snr_clip=-1)
+    assert masking_options.base_snr_clip == -1
+
+
 def test_fits_masking(fits_dir):
+    masking_options = MaskingOptions(flood_fill=False)
     names = create_snr_mask_from_fits(
         fits_image_path=fits_dir / "image.fits",
         fits_rms_path=fits_dir / "rms.fits",
         fits_bkg_path=fits_dir / "bkg.fits",
+        masking_options=masking_options,
     )
 
     assert isinstance(names, FITSMaskNames)
@@ -45,10 +58,12 @@ def test_fits_masking(fits_dir):
 
 
 def test_fits_masking_with_signal(fits_dir):
+    masking_options = MaskingOptions(flood_fill=False)
     names = create_snr_mask_from_fits(
         fits_image_path=fits_dir / "image.fits",
         fits_rms_path=fits_dir / "rms.fits",
         fits_bkg_path=fits_dir / "bkg.fits",
+        masking_options=masking_options,
         create_signal_fits=True,
     )
 
