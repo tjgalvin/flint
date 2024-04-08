@@ -4,7 +4,7 @@ thought being towards FITS images.
 
 from argparse import ArgumentParser
 from pathlib import Path
-from typing import Optional, Tuple
+from typing import Optional, Tuple, NamedTuple
 
 import numpy as np
 from astropy.io import fits
@@ -22,6 +22,34 @@ from skimage.morphology import binary_erosion
 
 from flint.logging import logger
 from flint.naming import FITSMaskNames, create_fits_mask_names
+
+
+class MaskingOptions(NamedTuple):
+    """Contains options for the creation of clean masks from some subject
+    image. Clipping levels specified are in units of RMS (or sigma). They
+    are NOT in absolute units.
+    """
+
+    base_snr_clip: float = 4
+    """A base clipping level to be used should other options not be activated"""
+    flood_fill: bool = True
+    """Whether to attempt to flood fill when constructing a mask"""
+    flood_fill_positive_seed_clip: float = 4.5
+    """The clipping level to seed islands that will be grown to lower SNR"""
+    flood_fill_positive_flood_clip: float = 1.5
+    """Clipping level used to grow seeded islands down to"""
+    suppress_artefacts: bool = True
+    """Whether to attempt artefacts based on the presence of sigificant negatives"""
+    suppress_artefacts_negative_seed_clip: Optional[float] = 5
+    """The significance level of a negative island for the sidelobe suppresion to be activated. This should be a positive number (the signal map is internally inverted)"""
+    supress_artefacts_guard_negative_dilation: float = 40
+    """The minimum positive signifance pixels should have to be guarded when attempting to suppress artefacts around bright sources"""
+    grow_low_snr_islands: bool = True
+    """Whether to attempt to grow a mask to capture islands of low SNR (e.g. diffuse emission)"""
+    grow_low_snr_clip: float = 1.75
+    """The minimum signifance levels of pixels to be to seed low SNR islands for consideration"""
+    grow_low_snr_island_size: int = 512
+    """The number of pixels an island has to be for it to be accepted"""
 
 
 def extract_beam_mask_from_mosaic(
