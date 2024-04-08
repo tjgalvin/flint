@@ -276,6 +276,9 @@ def reverse_negative_flood_fill(
         structure=np.ones((3, 3)),
     )
 
+    # TODO: This function should be divided up
+    negative_dilated_mask = None
+
     # Now do the same but on negative islands. The assumption here is that:
     # - no genuine source of negative sky emission
     # - negative islands are around bright sources with deconvolution/calibration errors
