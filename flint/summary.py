@@ -111,9 +111,14 @@ def add_ms_summaries(
     logger.info("Adding MS summaries")
 
     ms_summaries = tuple(map(describe_ms, mss))
-    centre = estimate_skycoord_centre(
-        sky_positions=concatenate([ms_summary.phase_dir for ms_summary in ms_summaries])
-    )
+    centres_list = [ms_summary.phase_dir for ms_summary in ms_summaries]
+    if len(centres_list) == 0:
+        raise ValueError("No phase directions found in the MSs")
+    elif len(centres_list) == 1:
+        centre = centres_list[0]
+    else:
+        centres = concatenate(centres_list)
+        centre = estimate_skycoord_centre(sky_positions=centres)
 
     telescope = field_summary.location
     ms_times = field_summary.ms_times

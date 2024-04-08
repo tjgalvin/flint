@@ -151,6 +151,8 @@ class ValidatorLayout(NamedTuple):
     """Axes to compare astrometry of sources from the first catalogue"""
     ax_astrometry2: Axes
     """Axes to compare astromnetry of sources from the first catalogue"""
+    ax_flag_summary: Axes
+    """Axes to summarise the flagging of the MS"""
 
 
 class RMSImageInfo(NamedTuple):
@@ -388,12 +390,14 @@ def make_validator_axes_layout(fig: Figure, rms_path: Path) -> ValidatorLayout:
     # s = SUMMS astrometry comparison
     # N = NVSS flux comparison
     # n = NVSS astrometry comparison
+    # f = Flagging summary
     rms_wcs = WCS(fits.getheader(rms_path)).celestial
     ax_dict = fig.subplot_mosaic(
         """
         TFPA
         BBSs
         BBNn
+        ffff
         """,
         per_subplot_kw={
             "B": {"projection": rms_wcs},
@@ -421,9 +425,50 @@ def make_validator_axes_layout(fig: Figure, rms_path: Path) -> ValidatorLayout:
         ax_astrometry=ax_dict["A"],
         ax_astrometry1=ax_dict["n"],
         ax_astrometry2=ax_dict["s"],
+        ax_flag_summary=ax_dict["f"],
     )
 
     return validator_layout
+
+
+def plot_flag_summary(
+    fig: Figure,
+    ax: Axes,
+    field_summary: FieldSummary,
+) -> Axes:
+    """Plot the percentage of the spectrum that is flagged for
+    each measurement set
+
+    Args:
+        fig (Figure): The figure canvas that is being plotted to
+        ax (Axes): The axes object that is being plotted to
+        field_summary (FieldSummary): An active field summary object with the collection of MSSummary structures
+
+    Returns:
+        Axes: The axes object with the plotted RMS image
+    """
+
+    ms_summaries = sorted(
+        [mss for mss in field_summary.ms_summaries], key=lambda x: x.beam
+    )
+    for ms_summary in ms_summaries:
+        flag_spectrum = ms_summary.flag_spectrum
+        ax.plot(
+            np.arange(len(flag_spectrum)),
+            flag_spectrum,
+            label=f"{ms_summary.beam:02d}",
+            lw=0.5,
+        )
+    ax.legend(ncols=18, title="Beam Number", loc="lower left")
+    ax.set(
+        xlabel="Channel",
+        ylabel="Flagged fraction",
+        ylim=(0, 1.1),
+        aspect="auto",
+        title="Flagging summary",
+    )
+
+    return ax
 
 
 def plot_rms_map(
@@ -1014,7 +1059,7 @@ def plot_field_info(
             f"- Galactic l / b    : {rms_info.centre.galactic.to_string(style='decimal')}",
             f"- SBID              : {field_summary.sbid}",
             f"- CAL_SBID          : {field_summary.cal_sbid}",
-            f"- Holorgraphy file  : {field_summary.holography_path.name}",
+            f"- Holorgraphy file  : {field_summary.holography_path.name if field_summary.holography_path else 'N/A'}",
             f"- Start time        : {field_summary.ms_times[0].utc.fits}",
             f"- Integration time  : {field_summary.integration_time * u.second:latex_inline}",
             f"- Hour angle range  : {hour_angles.min().to_string(precision=2, format='latex_inline')} - {hour_angles.max().to_string(precision=2, format='latex_inline')}",
@@ -1100,14 +1145,15 @@ def make_field_stats_table(
     # Columns are:
     # FLD_NAME,SBID,NPIXV,MINIMUM,MAXIMUM,MED_RMS_uJy,MODE_RMS_uJy,STD_RMS_uJy,MIN_RMS_uJy,MAX_RMS_uJy
     # TODO: Get the min / max from the image (not rms)
-    assert (
-        field_summary.linmos_image is not None
-    ), "The linmos image in the provided field summary is emtpy. "
-
-    with fits.open(field_summary.linmos_image) as linmos_image:
-        image_data = linmos_image[0].data
-        min_image_data = np.nanmin(image_data)
-        max_image_data = np.nanmax(image_data)
+    if field_summary.linmos_image is not None:
+        with fits.open(field_summary.linmos_image) as linmos_image:
+            image_data = linmos_image[0].data
+            min_image_data = np.nanmin(image_data)
+            max_image_data = np.nanmax(image_data)
+    else:
+        logger.warning("The linmos image in the provided field summary is emtpy.")
+        min_image_data = np.nan
+        max_image_data = np.nan
 
     stats_table = Table(
         {
@@ -1191,11 +1237,15 @@ def _make_beam_psf_row(beam_summary: BeamSummary) -> PSFTableRow:
     )
 
 
-def make_psf_table(field_summary: FieldSummary, output_path: Path) -> Path:
+def make_psf_table(field_summary: FieldSummary, output_path: Path) -> Optional[Path]:
     # TODO: This will likely need changes to the
     # FieldSummary structure to handle holding MSSummary objects
     # Columns are:
     # BEAM_NUM,BEAM_TIME,RA_DEG,DEC_DEG,GAL_LONG,GAL_LAT,PSF_MAJOR,PSF_MINOR,PSF_ANGLE,VIS_TOTAL,VIS_FLAGGED
+
+    if field_summary.beam_summaries is None:
+        logger.error("No beam summaries found in the field summary")
+        return
 
     psf_table_rows = [
         _make_beam_psf_row(beam_summary=beam_summary)
@@ -1332,7 +1382,7 @@ def create_validation_plot(
     also expects that some level of units are embedded in the catalogue.
     For Aegean produced catalogues this is the case.
 
-    The reference_catalogue_path sets the directory to look into when
+    The reference_catalogue_directory sets the directory to look into when
     searching for the reference ICRF, NVSS and SUMSS cataloues.
 
     Args:
@@ -1370,7 +1420,7 @@ def create_validation_plot(
         rms_info=rms_info,
     )
 
-    height = 12.0
+    height = 18.0
     width = height * np.sqrt(2.0)
 
     fig = plt.figure(figsize=(width, height))
@@ -1444,6 +1494,12 @@ def create_validation_plot(
         field_summary=field_summary,
         rms_info=rms_info,
         askap_table=tables.askap,
+    )
+
+    plot_flag_summary(
+        fig=fig,
+        ax=validator_layout.ax_flag_summary,
+        field_summary=field_summary,
     )
 
     fig.suptitle(
@@ -1535,12 +1591,11 @@ def cli() -> None:
     aegean_outputs = AegeanOutputs(
         bkg=rms_image_path,
         rms=rms_image_path,
-        comp=args.reference_catalogue_path,
+        comp=args.source_catalogue_path,
         beam_shape=rms_beam,
     )
 
     field_summary = create_field_summary(
-        ms=args.processed_ms_paths[0],
         mss=args.processed_ms_paths,
         aegean_outputs=aegean_outputs,
         holography_path=args.holography_path,

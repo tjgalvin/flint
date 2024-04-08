@@ -104,6 +104,8 @@ class MSSummary(NamedTuple):
     """Number of unflagged records"""
     flagged: int
     """Number of flagged records"""
+    flag_spectrum: np.ndarray[float]
+    """Flagged spectral channels"""
     fields: List[str]
     """Collection of unique field names from the FIELDS table"""
     ants: List[int]
@@ -335,10 +337,11 @@ def describe_ms(ms: Union[MS, Path], verbose: bool = False) -> MSSummary:
     with table(str(ms.path), readonly=True, ack=False) as tab:
         colnames = tab.colnames()
 
-        flags = tab.getcol("FLAG")
+        flags: np.ndarray[bool] = tab.getcol("FLAG")
         flagged = np.sum(flags == True)  # Noqa: E712
         unflagged = np.sum(flags == False)  # Noqa: E712
         total = np.prod(flags.shape)
+        flag_spectrum = flags.sum(axis=(0, -1)) / (flags.shape[0] * flags.shape[-1])
 
         uniq_ants = sorted(list(set(tab.getcol("ANTENNA1"))))
 
@@ -360,6 +363,7 @@ def describe_ms(ms: Union[MS, Path], verbose: bool = False) -> MSSummary:
     return MSSummary(
         flagged=flagged,
         unflagged=unflagged,
+        flag_spectrum=flag_spectrum,
         fields=uniq_fields,
         ants=uniq_ants,
         beam=beam_no,
