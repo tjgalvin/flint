@@ -439,7 +439,7 @@ def create_snr_mask_from_fits(
             positive_flood_clip=1.5,
             negative_seed_clip=4,
             guard_negative_dilation=30,
-            grow_low_snr=1.5,
+            grow_low_snr=1.75,
             grow_low_island_size=768,
         )
         mask_data = mask_data.reshape(signal_data.shape)
