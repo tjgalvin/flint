@@ -1,5 +1,4 @@
-"""Simple interface into wsclean
-"""
+"""Simple interface into wsclean"""
 
 from __future__ import annotations
 
