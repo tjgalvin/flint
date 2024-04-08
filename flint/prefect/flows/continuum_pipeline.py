@@ -263,7 +263,6 @@ def process_science_fields(
                 image=wsclean_cmds,
                 image_products=beam_aegean_outputs,
                 min_snr=3.5,
-                with_butterworth=field_options.use_beam_mask_wbutterworth,
             )
             wsclean_options["auto_mask"] = 1.25
             wsclean_options["auto_threshold"] = 1.0
@@ -483,12 +482,6 @@ def get_parser() -> ArgumentParser:
         help="Whether to use (or search for solutions with) the preflagger operations applied to the bandpass gain solutions",
     )
     parser.add_argument(
-        "--use-smoothed",
-        action="store_true",
-        default=False,
-        help="Whether to use (or search for solutions with) the smoothing operations applied to the bandpass gain solutions",
-    )
-    parser.add_argument(
         "--use-beam-masks",
         default=False,
         action="store_true",
@@ -537,7 +530,6 @@ def cli() -> None:
         beam_cutoff=args.beam_cutoff,
         pb_cutoff=args.pb_cutoff,
         use_preflagger=args.use_preflagger,
-        use_smoothed=args.use_smoothed,
         use_beam_masks=args.use_beam_masks,
         use_beam_masks_from=args.use_beam_masks_from,
         use_beam_mask_wbutterworth=args.use_beam_masks_wbutterworth,
