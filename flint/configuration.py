@@ -12,7 +12,21 @@ import yaml
 
 from flint.imager.wsclean import WSCleanOptions
 from flint.logging import logger
+from flint.masking import MaskingOptions
 from flint.selfcal.casa import GainCalOptions
+
+KNOWN_HEADERS = ("defaults", "initial", "selfcal", "version")
+FORMAT_VERSION = 0.1
+
+
+# A simple representation to pass around. Will help the type
+# analysis and future pirates be clear with their mutinous
+# intentions
+class Strategy(dict):
+    """Base representation for handling a loaded flint
+    strategy"""
+
+    pass
 
 
 def get_selfcal_options_from_yaml(input_yaml: Optional[Path] = None) -> Dict:
@@ -154,7 +168,49 @@ def get_image_options_from_yaml(
         }
 
 
-def load_yaml(input_yaml: Path) -> Any:
+def verify_configuration(input_config: Strategy, raise_on_error: bool = True) -> bool:
+    """Perform basic checks on the configuration file
+
+    Args:
+        input_config (Strategy): The loaded configuraiton file structure
+        raise_on_error (bool, optional): Whether to raise an error should an issue in thew config file be found. Defaults to True.
+
+    Raises:
+        ValueError: Whether structure is valid
+
+    Returns:
+        bool: Config file is not valid. Raised only if `raise_on_error` is `True`
+    """
+
+    errors = []
+
+    unknown_headers = [
+        header for header in input_config.keys() if header not in KNOWN_HEADERS
+    ]
+    if unknown_headers:
+        errors.append(f"{unknown_headers=} found. Supported headers: {KNOWN_HEADERS}")
+
+    if "initial" not in input_config.keys():
+        errors.append("No initial imaging round parameters")
+
+    if "selfcal" in input_config.keys():
+        round_keys = input_config["selfcal"].keys()
+
+        if not all([isinstance(i, int) for i in round_keys]):
+            errors.append("The keys into the self-calibration should be ints. ")
+
+    valid_config = len(errors) == 0
+    if not valid_config:
+        for error in errors:
+            logger.warn(error)
+
+        if raise_on_error:
+            raise ValueError("Configuration file not valid. ")
+
+    return valid_config
+
+
+def load_yaml(input_yaml: Path, verify: bool = True) -> Strategy:
     """Load in a flint based configuration file, which
     will be used to form the strategy for imaging of
     a field.
@@ -165,29 +221,19 @@ def load_yaml(input_yaml: Path) -> Any:
 
     Args:
         input_yaml (Path): The imaging strategy to use
+        verify (bool, optional): Apply some basic checks to ensure a correctly formed strategy. Defaults to True.
 
     Returns:
-        Any: The parameters of the imaging and self-calibration to use.
+        Strategy: The parameters of the imaging and self-calibration to use.
     """
 
     logger.info(f"Loading {input_yaml} file. ")
 
     with open(input_yaml, "r") as in_file:
-        input_strategy = yaml.load(in_file, Loader=yaml.Loader)
+        input_strategy = Strategy(yaml.load(in_file, Loader=yaml.Loader))
 
-    logger.info("Loaded strategy is: ")
-
-    init_wsclean = WSCleanOptions(**input_strategy["initial"])
-    logger.info(f"The initial wsclean options:\n {init_wsclean}")
-
-    if "selfcal" in input_strategy.keys():
-        for selfcal_round, selfcal in enumerate(input_strategy["selfcal"]):
-            wsclean = WSCleanOptions(**selfcal["imager"])
-            casa = GainCalOptions(**selfcal["gaincal"])
-
-            logger.info(f"Self-calibration round {selfcal_round}: ")
-            logger.info(f"wsclean options: {wsclean}")
-            logger.info(f"casa gaincal options: {casa}")
+    if verify:
+        verify_configuration(input_config=input_strategy)
 
     return input_strategy
 
@@ -210,24 +256,31 @@ def create_default_yaml(
     logger.info("Generating a default stategy. ")
     strategy: Dict[Any, Any] = {}
 
-    initial_wsclean = WSCleanOptions()
-    strategy["initial"] = initial_wsclean._asdict()
+    strategy["version"] = FORMAT_VERSION
+
+    strategy["defaults"] = {
+        "wsclean": WSCleanOptions()._asdict(),
+        "gaincal": GainCalOptions()._asdict(),
+        "masking": MaskingOptions()._asdict(),
+    }
+
+    strategy["initial"] = {"wsclean": {}}
 
     if selfcal_rounds:
         logger.info(f"Creating {selfcal_rounds} self-calibration rounds. ")
-        selfcal = []
+        selfcal = {}
         for round in range(1, selfcal_rounds + 1):
-            selfcal.append(
-                {
-                    "imager": WSCleanOptions()._asdict(),
-                    "gaincal": GainCalOptions()._asdict(),
-                }
-            )
+            selfcal[round] = {
+                "wsclean": {},
+                "gaincal": {},
+                "masking": {},
+            }
+
         strategy["selfcal"] = selfcal
 
     with open(output_yaml, "w") as out_file:
         logger.info(f"Writing {output_yaml}.")
-        yaml.dump(data=strategy, stream=out_file)
+        yaml.dump(data=strategy, stream=out_file, sort_keys=False)
 
     return output_yaml
 
@@ -261,6 +314,10 @@ def get_parser() -> ArgumentParser:
         type=Path,
         help="Path to a strategy yaml file to load and inspect. ",
     )
+    verify_parser = subparser.add_parser(
+        "verify", help="Create an initail yaml file for editing. "
+    )
+    verify_parser.add_argument("input_yaml", type=Path, help="Path to a sdtrategy file")
 
     return parser
 
@@ -276,6 +333,9 @@ def cli() -> None:
         )
     elif args.mode == "load":
         load_yaml(input_yaml=args.input_yaml)
+    elif args.mode == "verify":
+        input_config = load_yaml(input_yaml=args.input_yaml)
+        verify_configuration(input_config=input_config)
     else:
         logger.error(f"{args.mode=} is not set or not known. Check --help. ")
 
