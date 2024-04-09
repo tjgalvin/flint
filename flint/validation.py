@@ -460,10 +460,12 @@ def plot_flag_summary(
             lw=0.5,
         )
     ax.legend(ncols=18, title="Beam Number", loc="lower left")
+    ax.grid()
+    ax.axhline(0.0, color="black")
     ax.set(
         xlabel="Channel",
         ylabel="Flagged fraction",
-        ylim=(0, 1.1),
+        ylim=(-0.3, 1.1),
         aspect="auto",
         title="Flagging summary",
     )
@@ -1059,7 +1061,8 @@ def plot_field_info(
             f"- Galactic l / b    : {rms_info.centre.galactic.to_string(style='decimal')}",
             f"- SBID              : {field_summary.sbid}",
             f"- CAL_SBID          : {field_summary.cal_sbid}",
-            f"- Holorgraphy file  : {field_summary.holography_path.name if field_summary.holography_path else 'N/A'}",
+            "- Holorgraphy file  : ",
+            f"        {field_summary.holography_path.name if field_summary.holography_path else 'N/A'}",
             f"- Start time        : {field_summary.ms_times[0].utc.fits}",
             f"- Integration time  : {field_summary.integration_time * u.second:latex_inline}",
             f"- Hour angle range  : {hour_angles.min().to_string(precision=2, format='latex_inline')} - {hour_angles.max().to_string(precision=2, format='latex_inline')}",
