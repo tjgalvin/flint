@@ -6,7 +6,7 @@ throughout the pipeline.
 
 from argparse import ArgumentParser
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Union
 
 import yaml
 
@@ -166,6 +166,16 @@ def get_image_options_from_yaml(
                 "multiscale_scales": MULTISCALE_SCALES,
             },
         }
+
+
+def get_options_from_strategy(
+    strategy: Strategy, mode: str = "wsclean", round: Union[str, int] = "initial"
+) -> Dict[Any, Any]:
+    # step one, get the defaults
+
+    options = strategy[mode]
+
+    return options
 
 
 def verify_configuration(input_config: Strategy, raise_on_error: bool = True) -> bool:
@@ -335,7 +345,8 @@ def cli() -> None:
         load_yaml(input_yaml=args.input_yaml)
     elif args.mode == "verify":
         input_config = load_yaml(input_yaml=args.input_yaml)
-        verify_configuration(input_config=input_config)
+        if verify_configuration(input_config=input_config):
+            logger.info(f"{args.input_yaml} appears valid")
     else:
         logger.error(f"{args.mode=} is not set or not known. Check --help. ")
 

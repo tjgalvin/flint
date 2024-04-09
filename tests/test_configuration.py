@@ -5,7 +5,49 @@ import pytest
 from flint.configuration import (
     get_image_options_from_yaml,
     get_selfcal_options_from_yaml,
+    create_default_yaml,
+    load_yaml,
+    verify_configuration,
+    Strategy,
 )
+
+
+def test_create_yaml_file(tmpdir):
+    output = create_default_yaml(
+        output_yaml=Path(tmpdir) / "example.yaml", selfcal_rounds=3
+    )
+
+    assert output.exists()
+
+
+def test_create_and_load(tmpdir):
+    output = create_default_yaml(
+        output_yaml=Path(tmpdir) / "example.yaml", selfcal_rounds=3
+    )
+
+    assert output.exists()
+
+    strat = load_yaml(input_yaml=output)
+    assert isinstance(strat, Strategy)
+
+    strat = load_yaml(input_yaml=output, verify=False)
+    assert isinstance(strat, Strategy)
+
+
+def test_verify(tmpdir):
+    output = create_default_yaml(
+        output_yaml=Path(tmpdir) / "example.yaml", selfcal_rounds=3
+    )
+
+    assert output.exists()
+    strat = load_yaml(input_yaml=output, verify=False)
+    assert isinstance(strat, Strategy)
+
+    _ = verify_configuration(input_config=strat)
+
+    strat["ddd"] = 123
+    with pytest.raises(ValueError):
+        verify_configuration(input_config=strat)
 
 
 def test_get_image_options():
