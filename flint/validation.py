@@ -451,14 +451,20 @@ def plot_flag_summary(
     ms_summaries = sorted(
         [mss for mss in field_summary.ms_summaries], key=lambda x: x.beam
     )
+    accumulated_flags = 0
+    accumulated_samples = 0
     for ms_summary in ms_summaries:
         flag_spectrum = ms_summary.flag_spectrum
+        accumulated_flags += np.sum(np.nan_to_num(flag_spectrum))
+        accumulated_samples += len(flag_spectrum)
         ax.plot(
             np.arange(len(flag_spectrum)),
             flag_spectrum,
             label=f"{ms_summary.beam:02d}",
             lw=0.5,
         )
+
+    percent_sbid_flagged = accumulated_flags / accumulated_samples * 100.0
     ax.legend(ncols=18, title="Beam Number", loc="lower left")
     ax.grid()
     ax.axhline(0.0, color="black")
@@ -467,7 +473,7 @@ def plot_flag_summary(
         ylabel="Flagged fraction",
         ylim=(-0.3, 1.1),
         aspect="auto",
-        title="Flagging summary",
+        title=f"Flagging summary - {percent_sbid_flagged:.2f}% of {field_summary.sbid} flagged",
     )
 
     return ax
