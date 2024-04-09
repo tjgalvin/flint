@@ -23,9 +23,9 @@ from flint.flagging import flag_ms_aoflagger
 from flint.imager.wsclean import ImageSet, WSCleanCommand, wsclean_imager
 from flint.logging import logger
 from flint.masking import (
+    MaskingOptions,
     create_snr_mask_from_fits,
     extract_beam_mask_from_mosaic,
-    MaskingOptions,
 )
 from flint.ms import MS, preprocess_askap_ms, rename_column_in_ms, split_by_field
 from flint.naming import FITSMaskNames, processed_ms_format

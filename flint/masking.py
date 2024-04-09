@@ -6,7 +6,7 @@ from __future__ import annotations
 
 from argparse import ArgumentParser
 from pathlib import Path
-from typing import Optional, NamedTuple
+from typing import NamedTuple, Optional
 
 import numpy as np
 from astropy.io import fits
