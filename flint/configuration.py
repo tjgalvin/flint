@@ -36,7 +36,6 @@ def get_selfcal_options_from_yaml(input_yaml: Optional[Path] = None) -> Dict:
         2: {"solint": "30s", "calmode": "p", "uvrange": ">235m", "nspw": 4},
         3: {"solint": "60s", "calmode": "ap", "uvrange": ">235m", "nspw": 4},
         4: {"solint": "30s", "calmode": "ap", "uvrange": ">235m", "nspw": 4},
-        5: {"solint": "30s", "calmode": "ap", "uvrange": ">235m", "nspw": 1},
     }
 
 
