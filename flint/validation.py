@@ -451,21 +451,29 @@ def plot_flag_summary(
     ms_summaries = sorted(
         [mss for mss in field_summary.ms_summaries], key=lambda x: x.beam
     )
+    accumulated_flags = 0
+    accumulated_samples = 0
     for ms_summary in ms_summaries:
         flag_spectrum = ms_summary.flag_spectrum
+        accumulated_flags += np.sum(np.nan_to_num(flag_spectrum))
+        accumulated_samples += len(flag_spectrum)
         ax.plot(
             np.arange(len(flag_spectrum)),
             flag_spectrum,
             label=f"{ms_summary.beam:02d}",
             lw=0.5,
         )
+
+    percent_sbid_flagged = accumulated_flags / accumulated_samples * 100.0
     ax.legend(ncols=18, title="Beam Number", loc="lower left")
+    ax.grid()
+    ax.axhline(0.0, color="black")
     ax.set(
         xlabel="Channel",
         ylabel="Flagged fraction",
-        ylim=(0, 1.1),
+        ylim=(-0.3, 1.1),
         aspect="auto",
-        title="Flagging summary",
+        title=f"Flagging summary - {percent_sbid_flagged:.2f}% of {field_summary.sbid} flagged",
     )
 
     return ax
@@ -1059,7 +1067,8 @@ def plot_field_info(
             f"- Galactic l / b    : {rms_info.centre.galactic.to_string(style='decimal')}",
             f"- SBID              : {field_summary.sbid}",
             f"- CAL_SBID          : {field_summary.cal_sbid}",
-            f"- Holorgraphy file  : {field_summary.holography_path.name if field_summary.holography_path else 'N/A'}",
+            "- Holorgraphy file  : ",
+            f"        {field_summary.holography_path.name if field_summary.holography_path else 'N/A'}",
             f"- Start time        : {field_summary.ms_times[0].utc.fits}",
             f"- Integration time  : {field_summary.integration_time * u.second:latex_inline}",
             f"- Hour angle range  : {hour_angles.min().to_string(precision=2, format='latex_inline')} - {hour_angles.max().to_string(precision=2, format='latex_inline')}",
