@@ -171,9 +171,49 @@ def get_image_options_from_yaml(
 def get_options_from_strategy(
     strategy: Strategy, mode: str = "wsclean", round: Union[str, int] = "initial"
 ) -> Dict[Any, Any]:
-    # step one, get the defaults
+    """Extract a set of options from a strategy file to use in a pipeline
+    run. If the mode exists in the default section, these are used as a base.
 
-    options = strategy[mode]
+    If the mode exists and a round is specified, the options listed in the
+    round are used to update the defaults.
+
+    Args:
+        strategy (Strategy): A loaded instance of a strategy file
+        mode (str, optional): Which set of options to load. Typical values are `wsclean`, `gaincal` and `masking`. Defaults to "wsclean".
+        round (Union[str, int], optional): Which round to load options for. May be `initial` or an `int` (which indicated a self-calibration round). Defaults to "initial".
+
+    Raises:
+        ValueError: An unrecongised value for `round`.
+        AssertError: An unrecongised value for `round`.
+
+    Returns:
+        Dict[Any, Any]: Options specific to the requested set
+    """
+
+    assert round == "initial" or isinstance(
+        round, int
+    ), f"{round=} not a known value or type. "
+
+    # step one, get the defaults
+    options = dict(**strategy["defaults"][mode]) if mode in strategy["defaults"] else {}
+    logger.debug(f"Defaults for {mode=}, {options=}")
+
+    # Now get the updates
+    if round == "initial" and mode in strategy["initial"].keys():
+        update_options = dict(**strategy["initial"][mode])
+        logger.debug(f"Updating options with {update_options=}")
+        options.update(update_options)
+    elif (
+        isinstance(round, int)
+        and round in strategy["selfcal"].keys()
+        and mode in strategy["selfcal"][round].keys()
+    ):
+        update_options = dict(**strategy["selfcal"][round][mode])
+
+        logger.debug(f"Updating options with {update_options=}")
+        options.update(update_options)
+    else:
+        raise ValueError(f"{round=} not recognised.")
 
     return options
 
@@ -212,7 +252,7 @@ def verify_configuration(input_config: Strategy, raise_on_error: bool = True) ->
     valid_config = len(errors) == 0
     if not valid_config:
         for error in errors:
-            logger.warn(error)
+            logger.warning(error)
 
         if raise_on_error:
             raise ValueError("Configuration file not valid. ")

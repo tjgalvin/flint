@@ -8,8 +8,32 @@ from flint.configuration import (
     create_default_yaml,
     load_yaml,
     verify_configuration,
+    get_options_from_strategy,
     Strategy,
 )
+from flint.utils import get_packaged_resource_path
+
+
+@pytest.fixture
+def package_strategy():
+    example = get_packaged_resource_path(
+        package="flint", filename="data/tests/test_config.yaml"
+    )
+
+    strategy = load_yaml(input_yaml=example, verify=False)
+
+    return strategy
+
+
+@pytest.fixture
+def strategy(tmpdir):
+    output = create_default_yaml(
+        output_yaml=Path(tmpdir) / "example.yaml", selfcal_rounds=3
+    )
+
+    strat = load_yaml(input_yaml=output, verify=False)
+
+    return strat
 
 
 def test_create_yaml_file(tmpdir):
@@ -48,6 +72,56 @@ def test_verify(tmpdir):
     strat["ddd"] = 123
     with pytest.raises(ValueError):
         verify_configuration(input_config=strat)
+
+
+def test_get_options(strategy):
+    wsclean = get_options_from_strategy(
+        strategy=strategy, mode="wsclean", round="initial"
+    )
+    assert isinstance(wsclean, dict)
+    # example options
+    assert wsclean["data_column"] == "CORRECTED_DATA"
+
+    wsclean = get_options_from_strategy(strategy=strategy, mode="wsclean", round=1)
+    assert isinstance(wsclean, dict)
+    # example options
+    assert wsclean["data_column"] == "CORRECTED_DATA"
+
+
+def test_updated_get_options(package_strategy):
+
+    strategy = package_strategy
+    assert isinstance(strategy, Strategy)
+
+    wsclean_init = get_options_from_strategy(
+        strategy=strategy, mode="wsclean", round="initial"
+    )
+    assert wsclean_init["data_column"] == "CORRECTED_DATA"
+
+    wsclean_1 = get_options_from_strategy(strategy=strategy, mode="wsclean", round=1)
+    assert wsclean_init["data_column"] == "CORRECTED_DATA"
+    assert wsclean_1["data_column"] == "EXAMPLE"
+
+    wsclean_2 = get_options_from_strategy(strategy=strategy, mode="wsclean", round=2)
+    assert wsclean_2["multiscale"] is False
+    assert wsclean_2["data_column"] == "CORRECTED_DATA"
+
+    assert all(
+        [
+            wsclean_init[key] == wsclean_1[key]
+            for key in wsclean_init.keys()
+            if key != "data_column"
+        ]
+    )
+    assert wsclean_init["data_column"] != wsclean_1["data_column"]
+
+    assert all(
+        [
+            wsclean_init[key] == wsclean_2[key]
+            for key in wsclean_init.keys()
+            if key != "multiscale"
+        ]
+    )
 
 
 def test_get_image_options():
