@@ -407,7 +407,7 @@ def make_validator_axes_layout(fig: Figure, rms_path: Path) -> ValidatorLayout:
         },
     )
     for spine in ax_dict["T"].spines.values():
-        spine.set_edgecolor("tab:red")
+        spine.set_edgecolor("none")
     _ = ax_dict["T"].axes.yaxis.set_visible(False)
     _ = ax_dict["T"].axes.xaxis.set_visible(False)
 
@@ -471,7 +471,7 @@ def plot_flag_summary(
     ax.set(
         xlabel="Channel",
         ylabel="Flagged fraction",
-        ylim=(-0.3, 1.1),
+        ylim=(-0.35, 1.1),
         aspect="auto",
         title=f"Flagging summary - {percent_sbid_flagged:.2f}% of {field_summary.sbid} flagged",
     )
@@ -1053,22 +1053,14 @@ def plot_field_info(
     hour_angles = field_summary.hour_angles
     elevations = field_summary.elevations
 
-    ax.text(
-        0.1,
-        0.9,
-        f"Field name: {field_summary.field_name}",
-        fontdict={"fontsize": F_LARGE},
-        family="monospace",
-    )
-
     field_text = "\n".join(
         (
+            f"Field name: {field_summary.field_name}",
             f"- J2000 RA / Dec    : {rms_info.centre.icrs.to_string(style='hmsdms', precision=1)}",
             f"- Galactic l / b    : {rms_info.centre.galactic.to_string(style='decimal')}",
             f"- SBID              : {field_summary.sbid}",
             f"- CAL_SBID          : {field_summary.cal_sbid}",
-            "- Holorgraphy file  : ",
-            f"        {field_summary.holography_path.name if field_summary.holography_path else 'N/A'}",
+            f"- Holorgraphy file  : {field_summary.holography_path.name if field_summary.holography_path else 'N/A'}",
             f"- Start time        : {field_summary.ms_times[0].utc.fits}",
             f"- Integration time  : {field_summary.integration_time * u.second:latex_inline}",
             f"- Hour angle range  : {hour_angles.min().to_string(precision=2, format='latex_inline')} - {hour_angles.max().to_string(precision=2, format='latex_inline')}",
@@ -1078,13 +1070,16 @@ def plot_field_info(
             f"- Processing date   : {Time.now().fits}",
         )
     )
-
+    props = dict(boxstyle="square", facecolor="none", edgecolor="tab:red", pad=2)
     ax.text(
         0.0,
         0.0,
         field_text,
         family="monospace",
-        fontdict={"fontsize": F_MED},
+        fontdict={"fontsize": F_LARGE},
+        wrap=True,
+        bbox=props,
+        ha="left",
     )
     return ax
 
@@ -1429,8 +1424,8 @@ def create_validation_plot(
         rms_info=rms_info,
     )
 
-    height = 18.0
-    width = height * np.sqrt(2.0)
+    height = 16.0
+    width = height * np.sqrt(3.0)
 
     fig = plt.figure(figsize=(width, height))
 
@@ -1602,6 +1597,7 @@ def cli() -> None:
         rms=rms_image_path,
         comp=args.source_catalogue_path,
         beam_shape=rms_beam,
+        image=rms_image_path,
     )
 
     field_summary = create_field_summary(
