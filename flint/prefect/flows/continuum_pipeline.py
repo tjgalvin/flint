@@ -238,10 +238,10 @@ def process_science_fields(
         final_round = round == field_options.rounds
 
         gain_cal_options = get_options_from_strategy(
-            strategy=strategy, mode="gaincal", round=round
+            strategy=strategy, mode="gaincal", round=current_round
         )
         wsclean_options = get_options_from_strategy(
-            strategy=strategy, mode="wsclean", round=round
+            strategy=strategy, mode="wsclean", round=current_round
         )
 
         cal_mss = task_gaincal_applycal_ms.map(
