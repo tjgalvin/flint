@@ -89,7 +89,8 @@ def test_get_options(strategy):
 
 
 def test_get_modes(package_strategy):
-
+    # makes sure defaults for these modes are return when reuestion options
+    # on a self-cal round without them set
     strategy = package_strategy
 
     for mode in ("wsclean", "gaincal", "masking"):
@@ -99,6 +100,7 @@ def test_get_modes(package_strategy):
 
 
 def test_bad_round(package_strategy):
+    # make sure incorrect round is handled properly
     with pytest.raises(AssertionError):
         _ = get_options_from_strategy(strategy=package_strategy, round="doesnotexists")
 
@@ -107,12 +109,19 @@ def test_bad_round(package_strategy):
 
 
 def test_empty_options(package_strategy):
+    # ensures an empty options dict is return should something not set is requested
     items = get_options_from_strategy(
         strategy=package_strategy, mode="thisdoesnotexist"
     )
 
     assert isinstance(items, dict)
     assert len(items.keys()) == 0
+
+
+def test_assert_strategy_bad():
+    # tests to see if a error is raised when a bad strategy instance is passed in
+    with pytest.raises(AssertionError):
+        _ = get_options_from_strategy(strategy="ThisIsBad")
 
 
 def test_updated_get_options(package_strategy):
