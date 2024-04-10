@@ -190,28 +190,38 @@ def get_options_from_strategy(
         Dict[Any, Any]: Options specific to the requested set
     """
 
+    # Some sanity checks
+    assert isinstance(
+        strategy, (Strategy, dict)
+    ), f"Unknown input strategy type {type(strategy)}"
     assert round == "initial" or isinstance(
         round, int
     ), f"{round=} not a known value or type. "
 
     # step one, get the defaults
-    options = dict(**strategy["defaults"][mode]) if mode in strategy["defaults"] else {}
+    options = (
+        dict(**strategy["defaults"][mode])
+        if mode in strategy["defaults"].keys()
+        else {}
+    )
     logger.debug(f"Defaults for {mode=}, {options=}")
 
     # Now get the updates
-    if round == "initial" and mode in strategy["initial"].keys():
-        update_options = dict(**strategy["initial"][mode])
-        logger.debug(f"Updating options with {update_options=}")
-        options.update(update_options)
-    elif (
-        isinstance(round, int)
-        and round in strategy["selfcal"].keys()
-        and mode in strategy["selfcal"][round].keys()
-    ):
-        update_options = dict(**strategy["selfcal"][round][mode])
-
-        logger.debug(f"Updating options with {update_options=}")
-        options.update(update_options)
+    if round == "initial":
+        # separate function to avoid a missing mode from raising valu error
+        if mode in strategy["initial"].keys():
+            update_options = dict(**strategy["initial"][mode])
+            logger.debug(f"Updating options with {update_options=}")
+            options.update(update_options)
+    elif isinstance(round, int):
+        # separate function to avoid a missing mode from raising valu error
+        if (
+            round in strategy["selfcal"].keys()
+            and mode in strategy["selfcal"][round].keys()
+        ):
+            update_options = dict(**strategy["selfcal"][round][mode])
+            logger.debug(f"Updating options with {update_options=}")
+            options.update(update_options)
     else:
         raise ValueError(f"{round=} not recognised.")
 

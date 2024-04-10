@@ -88,6 +88,33 @@ def test_get_options(strategy):
     assert wsclean["data_column"] == "CORRECTED_DATA"
 
 
+def test_get_modes(package_strategy):
+
+    strategy = package_strategy
+
+    for mode in ("wsclean", "gaincal", "masking"):
+        test = get_options_from_strategy(strategy=strategy, mode=mode, round=1)
+        assert isinstance(test, dict)
+        assert len(test.keys()) > 0
+
+
+def test_bad_round(package_strategy):
+    with pytest.raises(AssertionError):
+        _ = get_options_from_strategy(strategy=package_strategy, round="doesnotexists")
+
+    with pytest.raises(AssertionError):
+        _ = get_options_from_strategy(strategy=package_strategy, round=1.23456)
+
+
+def test_empty_options(package_strategy):
+    items = get_options_from_strategy(
+        strategy=package_strategy, mode="thisdoesnotexist"
+    )
+
+    assert isinstance(items, dict)
+    assert len(items.keys()) == 0
+
+
 def test_updated_get_options(package_strategy):
 
     strategy = package_strategy
