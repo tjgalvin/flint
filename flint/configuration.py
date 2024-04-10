@@ -365,9 +365,9 @@ def get_parser() -> ArgumentParser:
         help="Path to a strategy yaml file to load and inspect. ",
     )
     verify_parser = subparser.add_parser(
-        "verify", help="Create an initail yaml file for editing. "
+        "verify", help="Verify a yaml file is correct, as far as we can tell.  "
     )
-    verify_parser.add_argument("input_yaml", type=Path, help="Path to a sdtrategy file")
+    verify_parser.add_argument("input_yaml", type=Path, help="Path to a strategy file")
 
     return parser
 
