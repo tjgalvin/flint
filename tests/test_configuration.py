@@ -76,6 +76,14 @@ def test_verify(tmpdir):
         verify_configuration(input_config=strat)
 
 
+def test_load_yaml_none():
+    # make sure an error is raise if None is passed in. This
+    # should be checked as the default value of FieldOptions.imaging_strategy
+    # is None.
+    with pytest.raises(TypeError):
+        _ = load_yaml(input_yaml=None)
+
+
 def test_get_options(strategy):
     # test to make sure we can generate a default strategy (see pytest fixture)
     # read it backinto a dict and then access some attributes

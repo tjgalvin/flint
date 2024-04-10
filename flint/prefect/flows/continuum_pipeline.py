@@ -75,7 +75,11 @@ def process_science_fields(
         len(science_mss) == field_options.expected_ms
     ), f"Expected to find {field_options.expected_ms} in {str(science_path)}, found {len(science_mss)}."
 
-    strategy = load_yaml(input_yaml=field_options.imaging_strategy, verify=True)
+    strategy = (
+        load_yaml(input_yaml=field_options.imaging_strategy, verify=True)
+        if field_options.imaging_strategy
+        else None
+    )
 
     science_folder_name = science_path.name
 
