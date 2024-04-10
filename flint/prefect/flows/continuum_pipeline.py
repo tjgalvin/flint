@@ -13,8 +13,8 @@ from prefect import flow, unmapped
 
 from flint.calibrate.aocalibrate import find_existing_solutions
 from flint.configuration import (
-    get_image_options_from_yaml,
-    get_selfcal_options_from_yaml,
+    get_options_from_strategy,
+    load_yaml,
 )
 from flint.logging import logger
 from flint.ms import MS
@@ -74,6 +74,8 @@ def process_science_fields(
     assert (
         len(science_mss) == field_options.expected_ms
     ), f"Expected to find {field_options.expected_ms} in {str(science_path)}, found {len(science_mss)}."
+
+    strategy = load_yaml(input_yaml=field_options.imaging_strategy, verify=True)
 
     science_folder_name = science_path.name
 
@@ -155,7 +157,9 @@ def process_science_fields(
         logger.info("No wsclean container provided. Rerutning. ")
         return
 
-    wsclean_init = get_image_options_from_yaml(input_yaml=None, self_cal_rounds=False)
+    wsclean_init = get_options_from_strategy(
+        strategy=strategy, mode="wsclean", round="initial"
+    )
 
     wsclean_cmds = task_wsclean_imager.map(
         in_ms=preprocess_science_mss,
@@ -224,21 +228,16 @@ def process_science_fields(
         logger.info("No self-calibration will be performed. Returning")
         return
 
-    gain_cal_rounds = get_selfcal_options_from_yaml(input_yaml=None)
-    wsclean_rounds = get_image_options_from_yaml(input_yaml=None, self_cal_rounds=True)
-
-    max_gain_cal_round = max(gain_cal_rounds.keys())
-    max_wsclean_round = max(wsclean_rounds.keys())
     fits_beam_masks = None
 
     for current_round in range(1, field_options.rounds + 1):
         final_round = round == field_options.rounds
 
-        gain_cal_options = gain_cal_rounds.get(
-            min((current_round, max_gain_cal_round)), None
+        gain_cal_options = get_options_from_strategy(
+            strategy=strategy, mode="gaincal", round=round
         )
-        wsclean_options = wsclean_rounds.get(
-            min((current_round, max_wsclean_round)), None
+        wsclean_options = get_options_from_strategy(
+            strategy=strategy, mode="wsclean", round=round
         )
 
         cal_mss = task_gaincal_applycal_ms.map(
@@ -374,6 +373,12 @@ def get_parser() -> ArgumentParser:
         type=Path,
         default=None,
         help="Path to directory containing the uncalibrated beam-wise measurement sets that contain the bandpass calibration source. If None then the '--sky-model-directory' should be provided. ",
+    )
+    parser.add_argument(
+        "--imaging-strategy",
+        type=Path,
+        default=None,
+        help="Path to a FLINT yaml file that specifies options to use throughout iamging. ",
     )
     parser.add_argument(
         "--split-path",
@@ -526,6 +531,7 @@ def cli() -> None:
         use_preflagger=args.use_preflagger,
         use_beam_masks=args.use_beam_masks,
         use_beam_masks_from=args.use_beam_masks_from,
+        imaging_strategy=args.imaging_strategy,
     )
 
     setup_run_process_science_field(

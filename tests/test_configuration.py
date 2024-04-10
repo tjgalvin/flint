@@ -59,6 +59,8 @@ def test_create_and_load(tmpdir):
 
 
 def test_verify(tmpdir):
+    # test to make sure we can generate a default strategy (see pytest fixture)
+    # read it backinto a dict and verify it is valid
     output = create_default_yaml(
         output_yaml=Path(tmpdir) / "example.yaml", selfcal_rounds=3
     )
@@ -75,6 +77,8 @@ def test_verify(tmpdir):
 
 
 def test_get_options(strategy):
+    # test to make sure we can generate a default strategy (see pytest fixture)
+    # read it backinto a dict and then access some attributes
     wsclean = get_options_from_strategy(
         strategy=strategy, mode="wsclean", round="initial"
     )
@@ -106,6 +110,24 @@ def test_bad_round(package_strategy):
 
     with pytest.raises(AssertionError):
         _ = get_options_from_strategy(strategy=package_strategy, round=1.23456)
+
+
+def test_empty_strategy_empty_options():
+    # if None is given as a strategy state then empty set of options is return
+    res = get_options_from_strategy(strategy=None)
+
+    assert isinstance(res, dict)
+    assert not res == 0
+
+
+def test_max_round_override(package_strategy):
+    # ebsyre that the logic to switch to the highest available slefcal
+    # round is sound
+    strategy = package_strategy
+
+    opts = get_options_from_strategy(strategy=strategy, round=9999)
+    assert isinstance(opts, dict)
+    assert opts["data_column"] == "TheLastRoundIs3"
 
 
 def test_empty_options(package_strategy):

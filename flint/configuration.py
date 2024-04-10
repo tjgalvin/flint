@@ -169,7 +169,10 @@ def get_image_options_from_yaml(
 
 
 def get_options_from_strategy(
-    strategy: Strategy, mode: str = "wsclean", round: Union[str, int] = "initial"
+    strategy: Union[Strategy, None],
+    mode: str = "wsclean",
+    round: Union[str, int] = "initial",
+    max_round_override: bool = True,
 ) -> Dict[Any, Any]:
     """Extract a set of options from a strategy file to use in a pipeline
     run. If the mode exists in the default section, these are used as a base.
@@ -178,9 +181,10 @@ def get_options_from_strategy(
     round are used to update the defaults.
 
     Args:
-        strategy (Strategy): A loaded instance of a strategy file
+        strategy (Union[Strategy,None]): A loaded instance of a strategy file. If `None` is provided then an empty dictionary is returned.
         mode (str, optional): Which set of options to load. Typical values are `wsclean`, `gaincal` and `masking`. Defaults to "wsclean".
         round (Union[str, int], optional): Which round to load options for. May be `initial` or an `int` (which indicated a self-calibration round). Defaults to "initial".
+        max_round_override (bool, optional): Check whether an integer round number is recorded. If it is higher than the largest self-cal round specified, set it to the last self-cal round. If False this is not performed. Defaults to True.
 
     Raises:
         ValueError: An unrecongised value for `round`.
@@ -190,6 +194,9 @@ def get_options_from_strategy(
         Dict[Any, Any]: Options specific to the requested set
     """
 
+    if strategy is None:
+        return {}
+
     # Some sanity checks
     assert isinstance(
         strategy, (Strategy, dict)
@@ -197,6 +204,10 @@ def get_options_from_strategy(
     assert round == "initial" or isinstance(
         round, int
     ), f"{round=} not a known value or type. "
+
+    # Override the round if requested
+    if isinstance(round, int) and max_round_override and "selfcal" in strategy.keys():
+        round = min(round, max(strategy["selfcal"].keys()))
 
     # step one, get the defaults
     options = (

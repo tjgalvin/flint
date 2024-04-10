@@ -96,3 +96,5 @@ class FieldOptions(NamedTuple):
     """Construct beam masks from MFS images to use for the next round of imaging. """
     use_beam_masks_from: int = 2
     """If `use_beam_masks` is True, start using them from this round of self-calibration"""
+    imaging_strategy: Optional[Path] = None
+    """Path to a FLINT imaging yaml file that contains settings to use throughout imaging"""

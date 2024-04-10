@@ -75,6 +75,7 @@ selfcal:
     gaincal: {}
     masking: {}
   3:
-    wsclean: {}
+    wsclean: 
+      data_column: "TheLastRoundIs3"
     gaincal: {}
     masking: {}
