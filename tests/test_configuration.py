@@ -3,14 +3,14 @@ from pathlib import Path
 import pytest
 
 from flint.configuration import (
-    get_image_options_from_yaml,
-    get_selfcal_options_from_yaml,
+    Strategy,
     create_default_yaml,
+    get_image_options_from_yaml,
+    get_options_from_strategy,
+    get_selfcal_options_from_yaml,
     load_strategy_yaml,
     verify_configuration,
-    get_options_from_strategy,
     write_strategy_to_yaml,
-    Strategy,
 )
 from flint.utils import get_packaged_resource_path
 

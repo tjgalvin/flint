@@ -12,10 +12,7 @@ from typing import Union
 from prefect import flow, unmapped
 
 from flint.calibrate.aocalibrate import find_existing_solutions
-from flint.configuration import (
-    get_options_from_strategy,
-    load_strategy_yaml,
-)
+from flint.configuration import get_options_from_strategy, load_strategy_yaml
 from flint.logging import logger
 from flint.ms import MS
 from flint.naming import get_sbid_from_path

@@ -15,7 +15,7 @@ defaults:
     niter: 750000
     multiscale: true
     multiscale_scale_bias: 0.75
-    multiscale_scales: 
+    multiscale_scales:
     - 0
     - 15
     - 25
@@ -70,12 +70,12 @@ selfcal:
     gaincal: {}
     masking: {}
   2:
-    wsclean: 
+    wsclean:
       multiscale: false
     gaincal: {}
     masking: {}
   3:
-    wsclean: 
+    wsclean:
       data_column: "TheLastRoundIs3"
     gaincal: {}
     masking: {}
