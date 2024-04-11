@@ -264,12 +264,12 @@ def process_science_fields(
                 image_products=beam_aegean_outputs,
                 min_snr=3.5,
             )
-            wsclean_options["auto_mask"] = 1.25
-            wsclean_options["auto_threshold"] = 1.0
-            wsclean_options["force_mask_rounds"] = 13
-            wsclean_options["local_rms"] = False
-            wsclean_options["niter"] = 1750000
-            wsclean_options["nmiter"] = 30
+            # wsclean_options["auto_mask"] = 1.25
+            # wsclean_options["auto_threshold"] = 1.0
+            # wsclean_options["force_mask_rounds"] = 13
+            # wsclean_options["local_rms"] = False
+            # wsclean_options["niter"] = 1750000
+            # wsclean_options["nmiter"] = 30
 
         wsclean_cmds = task_wsclean_imager.map(
             in_ms=cal_mss,

@@ -215,31 +215,28 @@ def get_options_from_strategy(
         round = min(round, max(strategy["selfcal"].keys()))
 
     # step one, get the defaults
-    options = (
-        dict(**strategy["defaults"][mode])
-        if mode in strategy["defaults"].keys()
-        else {}
-    )
+    options = dict(**strategy["defaults"][mode]) if mode in strategy["defaults"] else {}
     logger.debug(f"Defaults for {mode=}, {options=}")
 
-    # Now get the updates
+    # A default empty dict
+    update_options = {}
+
+    # Now get the updates. When using the 'in' on dicts
+    # remember it is checking against the keys
     if round == "initial":
         # separate function to avoid a missing mode from raising valu error
-        if mode in strategy["initial"].keys():
+        if mode in strategy["initial"]:
             update_options = dict(**strategy["initial"][mode])
-            logger.debug(f"Updating options with {update_options=}")
-            options.update(update_options)
     elif isinstance(round, int):
         # separate function to avoid a missing mode from raising valu error
-        if (
-            round in strategy["selfcal"].keys()
-            and mode in strategy["selfcal"][round].keys()
-        ):
+        if round in strategy["selfcal"] and mode in strategy["selfcal"][round]:
             update_options = dict(**strategy["selfcal"][round][mode])
-            logger.debug(f"Updating options with {update_options=}")
-            options.update(update_options)
     else:
         raise ValueError(f"{round=} not recognised.")
+
+    if update_options:
+        logger.debug(f"Updating options with {update_options=}")
+        options.update(update_options)
 
     return options
 
@@ -284,14 +281,14 @@ def verify_configuration(input_strategy: Strategy, raise_on_error: bool = True) 
                 f"{key} mode in initial round incorrectly formed. {typeerror} "
             )
 
-    if "selfcal" in input_strategy.keys():
+    if "selfcal" in input_strategy:
         round_keys = input_strategy["selfcal"].keys()
 
         if not all([isinstance(i, int) for i in round_keys]):
             errors.append("The keys into the self-calibration should be ints. ")
 
         for round in round_keys:
-            for mode in input_strategy["selfcal"][round].keys():
+            for mode in input_strategy["selfcal"][round]:
                 options = get_options_from_strategy(
                     strategy=input_strategy, mode=mode, round=round
                 )
