@@ -6,7 +6,7 @@ from flint.configuration import (
     get_image_options_from_yaml,
     get_selfcal_options_from_yaml,
     create_default_yaml,
-    load_yaml,
+    load_strategy_yaml,
     verify_configuration,
     get_options_from_strategy,
     Strategy,
@@ -20,7 +20,7 @@ def package_strategy():
         package="flint", filename="data/tests/test_config.yaml"
     )
 
-    strategy = load_yaml(input_yaml=example, verify=False)
+    strategy = load_strategy_yaml(input_yaml=example, verify=False)
 
     return strategy
 
@@ -31,12 +31,33 @@ def strategy(tmpdir):
         output_yaml=Path(tmpdir) / "example.yaml", selfcal_rounds=3
     )
 
-    strat = load_yaml(input_yaml=output, verify=False)
+    strat = load_strategy_yaml(input_yaml=output, verify=False)
 
     return strat
 
 
+def test_verify_options_with_class(package_strategy):
+    # ebsure that the errors raised from options passed through
+    # to the input structures correctly raise errors should they
+    # be misconfigured (e.g. option supplied does not exist, missing
+    # mandatory argument)
+    strategy = package_strategy
+    verify_configuration(input_strategy=strategy)
+
+    strategy["initial"]["wsclean"]["ThisDoesNotExist"] = "ThisDoesNotExist"
+    with pytest.raises(ValueError):
+        verify_configuration(input_strategy=strategy)
+
+    strategy["initial"]["wsclean"].pop("ThisDoesNotExist")
+    verify_configuration(input_strategy=strategy)
+
+    strategy["selfcal"][1]["masking"]["ThisDoesNotExist"] = "ThisDoesNotExist"
+    with pytest.raises(ValueError):
+        verify_configuration(input_strategy=strategy)
+
+
 def test_create_yaml_file(tmpdir):
+    # ensure a default yaml stategy can be created
     output = create_default_yaml(
         output_yaml=Path(tmpdir) / "example.yaml", selfcal_rounds=3
     )
@@ -45,16 +66,17 @@ def test_create_yaml_file(tmpdir):
 
 
 def test_create_and_load(tmpdir):
+    # ensure that a default strategy file can be both created and read back in
     output = create_default_yaml(
         output_yaml=Path(tmpdir) / "example.yaml", selfcal_rounds=3
     )
 
     assert output.exists()
 
-    strat = load_yaml(input_yaml=output)
+    strat = load_strategy_yaml(input_yaml=output)
     assert isinstance(strat, Strategy)
 
-    strat = load_yaml(input_yaml=output, verify=False)
+    strat = load_strategy_yaml(input_yaml=output, verify=False)
     assert isinstance(strat, Strategy)
 
 
@@ -66,14 +88,14 @@ def test_verify(tmpdir):
     )
 
     assert output.exists()
-    strat = load_yaml(input_yaml=output, verify=False)
+    strat = load_strategy_yaml(input_yaml=output, verify=False)
     assert isinstance(strat, Strategy)
 
-    _ = verify_configuration(input_config=strat)
+    _ = verify_configuration(input_strategy=strat)
 
     strat["ddd"] = 123
     with pytest.raises(ValueError):
-        verify_configuration(input_config=strat)
+        verify_configuration(input_strategy=strat)
 
 
 def test_load_yaml_none():
@@ -81,7 +103,7 @@ def test_load_yaml_none():
     # should be checked as the default value of FieldOptions.imaging_strategy
     # is None.
     with pytest.raises(TypeError):
-        _ = load_yaml(input_yaml=None)
+        _ = load_strategy_yaml(input_yaml=None)
 
 
 def test_get_options(strategy):
@@ -155,7 +177,9 @@ def test_assert_strategy_bad():
 
 
 def test_updated_get_options(package_strategy):
-
+    # test to make sure that the defaults outlined in a strategy file
+    # are correctly overwritten should there be an options in a later
+    # round. All other optiosn should remain the same.
     strategy = package_strategy
     assert isinstance(strategy, Strategy)
 

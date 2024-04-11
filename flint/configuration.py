@@ -17,6 +17,11 @@ from flint.selfcal.casa import GainCalOptions
 
 KNOWN_HEADERS = ("defaults", "initial", "selfcal", "version")
 FORMAT_VERSION = 0.1
+MODE_OPTIONS_MAPPING = {
+    "wsclean": WSCleanOptions,
+    "gaincal": GainCalOptions,
+    "masking": MaskingOptions,
+}
 
 
 # A simple representation to pass around. Will help the type
@@ -239,11 +244,11 @@ def get_options_from_strategy(
     return options
 
 
-def verify_configuration(input_config: Strategy, raise_on_error: bool = True) -> bool:
+def verify_configuration(input_strategy: Strategy, raise_on_error: bool = True) -> bool:
     """Perform basic checks on the configuration file
 
     Args:
-        input_config (Strategy): The loaded configuraiton file structure
+        input_strategy (Strategy): The loaded configuraiton file structure
         raise_on_error (bool, optional): Whether to raise an error should an issue in thew config file be found. Defaults to True.
 
     Raises:
@@ -255,20 +260,47 @@ def verify_configuration(input_config: Strategy, raise_on_error: bool = True) ->
 
     errors = []
 
+    if "defaults" not in input_strategy.keys():
+        errors.append("Default section missing from input configuration. ")
+
+    # make sure the main components of the file are there
     unknown_headers = [
-        header for header in input_config.keys() if header not in KNOWN_HEADERS
+        header for header in input_strategy.keys() if header not in KNOWN_HEADERS
     ]
     if unknown_headers:
         errors.append(f"{unknown_headers=} found. Supported headers: {KNOWN_HEADERS}")
 
-    if "initial" not in input_config.keys():
+    if "initial" not in input_strategy.keys():
         errors.append("No initial imaging round parameters")
 
-    if "selfcal" in input_config.keys():
-        round_keys = input_config["selfcal"].keys()
+    for key in input_strategy["initial"].keys():
+        options = get_options_from_strategy(
+            strategy=input_strategy, mode=key, round="initial"
+        )
+        try:
+            _ = MODE_OPTIONS_MAPPING[key](**options)
+        except TypeError as typeerror:
+            errors.append(
+                f"{key} mode in initial round incorrectly formed. {typeerror} "
+            )
+
+    if "selfcal" in input_strategy.keys():
+        round_keys = input_strategy["selfcal"].keys()
 
         if not all([isinstance(i, int) for i in round_keys]):
             errors.append("The keys into the self-calibration should be ints. ")
+
+        for round in round_keys:
+            for mode in input_strategy["selfcal"][round].keys():
+                options = get_options_from_strategy(
+                    strategy=input_strategy, mode=mode, round=round
+                )
+                try:
+                    _ = MODE_OPTIONS_MAPPING[mode](**options)
+                except TypeError as typeerror:
+                    errors.append(
+                        f"{key} mode in initial round incorrectly formed. {typeerror} "
+                    )
 
     valid_config = len(errors) == 0
     if not valid_config:
@@ -281,7 +313,7 @@ def verify_configuration(input_config: Strategy, raise_on_error: bool = True) ->
     return valid_config
 
 
-def load_yaml(input_yaml: Path, verify: bool = True) -> Strategy:
+def load_strategy_yaml(input_yaml: Path, verify: bool = True) -> Strategy:
     """Load in a flint based configuration file, which
     will be used to form the strategy for imaging of
     a field.
@@ -304,7 +336,7 @@ def load_yaml(input_yaml: Path, verify: bool = True) -> Strategy:
         input_strategy = Strategy(yaml.load(in_file, Loader=yaml.Loader))
 
     if verify:
-        verify_configuration(input_config=input_strategy)
+        verify_configuration(input_strategy=input_strategy)
 
     return input_strategy
 
@@ -403,10 +435,10 @@ def cli() -> None:
             output_yaml=args.output_yaml, selfcal_rounds=args.selfcal_rounds
         )
     elif args.mode == "load":
-        load_yaml(input_yaml=args.input_yaml)
+        load_strategy_yaml(input_yaml=args.input_yaml)
     elif args.mode == "verify":
-        input_config = load_yaml(input_yaml=args.input_yaml)
-        if verify_configuration(input_config=input_config):
+        input_strategy = load_strategy_yaml(input_yaml=args.input_yaml)
+        if verify_configuration(input_strategy=input_strategy):
             logger.info(f"{args.input_yaml} appears valid")
     else:
         logger.error(f"{args.mode=} is not set or not known. Check --help. ")

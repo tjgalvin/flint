@@ -14,7 +14,7 @@ from prefect import flow, unmapped
 from flint.calibrate.aocalibrate import find_existing_solutions
 from flint.configuration import (
     get_options_from_strategy,
-    load_yaml,
+    load_strategy_yaml,
 )
 from flint.logging import logger
 from flint.ms import MS
@@ -76,7 +76,7 @@ def process_science_fields(
     ), f"Expected to find {field_options.expected_ms} in {str(science_path)}, found {len(science_mss)}."
 
     strategy = (
-        load_yaml(input_yaml=field_options.imaging_strategy, verify=True)
+        load_strategy_yaml(input_yaml=field_options.imaging_strategy, verify=True)
         if field_options.imaging_strategy
         else None
     )
