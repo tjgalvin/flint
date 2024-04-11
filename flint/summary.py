@@ -1,4 +1,5 @@
-"""Summary containers intended to hold general information obtained throughout a processing run."""
+"""Summary containers intended to hold general information obtained throughout a processing run.
+"""
 
 from __future__ import (  # Used for mypy/pylance to like the return type of MS.with_options
     annotations,

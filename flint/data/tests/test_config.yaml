@@ -1,0 +1,81 @@
+version: 0.1
+defaults:
+  wsclean:
+    abs_mem: 100
+    local_rms_window: 65
+    size: 10128
+    local_rms: true
+    force_mask_rounds: 10
+    auto_mask: 3.5
+    auto_threshold: 0.5
+    threshold: null
+    channels_out: 4
+    mgain: 0.7
+    nmiter: 15
+    niter: 750000
+    multiscale: true
+    multiscale_scale_bias: 0.75
+    multiscale_scales:
+    - 0
+    - 15
+    - 25
+    - 50
+    - 75
+    - 100
+    - 250
+    - 400
+    fit_spectral_pol: 2
+    weight: briggs -0.5
+    data_column: CORRECTED_DATA
+    scale: 2.5asec
+    gridder: wgridder
+    nwlayers: null
+    wgridder_accuracy: 0.0001
+    join_channels: true
+    minuv_l: null
+    minuvw_m: null
+    maxw: null
+    no_update_model_required: false
+    no_small_inversion: false
+    name: null
+    beam_fitting_size: 1.25
+    fits_mask: null
+    deconvolution_channels: null
+  gaincal:
+    solint: 60s
+    calmode: p
+    round: 0
+    minsnr: 0.0
+    uvrange: '>200m'
+    selectdata: true
+    gaintype: G
+    nspw: 1
+  masking:
+    base_snr_clip: 4
+    flood_fill: true
+    flood_fill_positive_seed_clip: 4.5
+    flood_fill_positive_flood_clip: 1.5
+    suppress_artefacts: true
+    suppress_artefacts_negative_seed_clip: 5
+    suppress_artefacts_guard_negative_dilation: 40
+    grow_low_snr_islands: true
+    grow_low_snr_clip: 1.75
+    grow_low_snr_island_size: 768
+initial:
+  wsclean: {}
+selfcal:
+  1:
+    wsclean:
+      data_column: "EXAMPLE"
+    gaincal: {}
+    masking: {}
+  2:
+    wsclean:
+      multiscale: false
+    gaincal: {}
+    masking: {}
+  3:
+    wsclean:
+      data_column: "TheLastRoundIs3"
+    gaincal: {}
+    masking: {}

@@ -90,11 +90,11 @@ class FieldOptions(NamedTuple):
     """Primary beam attentuation cutoff to use during linmos"""
     use_preflagger: bool = True
     """Whether to apply (or search for solutions with) bandpass solutions that have gone through the preflagging operations"""
-    use_smoothed: bool = True
+    use_smoothed: bool = False
     """Whether to apply (or search for solutions with) a bandpass smoothing operation applied"""
     use_beam_masks: bool = True
     """Construct beam masks from MFS images to use for the next round of imaging. """
     use_beam_masks_from: int = 2
     """If `use_beam_masks` is True, start using them from this round of self-calibration"""
-    use_beam_mask_wbutterworth: bool = False
-    """If `use_beam_masks` is True, this will specify whether a Butterworth filter is used to smooth the image before the S/N clip is applied"""
+    imaging_strategy: Optional[Path] = None
+    """Path to a FLINT imaging yaml file that contains settings to use throughout imaging"""

@@ -47,12 +47,10 @@ def test_create_field_options():
         beam_cutoff=args.beam_cutoff,
         pb_cutoff=args.pb_cutoff,
         use_preflagger=args.use_preflagger,
-        use_smoothed=args.use_smoothed,
     )
 
     assert isinstance(field_options, FieldOptions)
     assert field_options.use_preflagger is False
-    assert field_options.use_smoothed is False
     assert field_options.zip_ms is True
     assert field_options.linmos_residuals is True
     assert field_options.rounds == 2
@@ -76,7 +74,6 @@ def test_create_field_options2():
         --aegean-container '/scratch3/gal16b/containers/aegean.sif'
         --reference-catalogue-directory '/scratch3/gal16b/reference_catalogues/'
         --use-preflagger
-        --use-smoothed
     """.split()
     )
 
@@ -97,12 +94,10 @@ def test_create_field_options2():
         beam_cutoff=args.beam_cutoff,
         pb_cutoff=args.pb_cutoff,
         use_preflagger=args.use_preflagger,
-        use_smoothed=args.use_smoothed,
     )
 
     assert isinstance(field_options, FieldOptions)
     assert field_options.use_preflagger is True
-    assert field_options.use_smoothed is True
     assert field_options.zip_ms is False
     assert field_options.linmos_residuals is False
     assert field_options.rounds == 2
