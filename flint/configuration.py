@@ -341,6 +341,25 @@ def load_strategy_yaml(input_yaml: Path, verify: bool = True) -> Strategy:
     return input_strategy
 
 
+def write_strategy_to_yaml(strategy: Strategy, output_path: Path) -> Path:
+    """Write the contents of a current strategy to a yaml file
+
+    Args:
+        strategy (Strategy): The strategy to write out
+        output_path (Path): Where to write the output YAML file to
+
+    Returns:
+        Path: The path the output YAML file was written to
+    """
+
+    logger.info(f"Writing stategy to {output_path=}")
+
+    with open(output_path, "w") as out_file:
+        yaml.dump(data=strategy, stream=out_file, sort_keys=False)
+
+    return output_path
+
+
 def create_default_yaml(
     output_yaml: Path, selfcal_rounds: Optional[int] = None
 ) -> Path:

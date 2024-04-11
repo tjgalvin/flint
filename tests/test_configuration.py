@@ -9,6 +9,7 @@ from flint.configuration import (
     load_strategy_yaml,
     verify_configuration,
     get_options_from_strategy,
+    write_strategy_to_yaml,
     Strategy,
 )
 from flint.utils import get_packaged_resource_path
@@ -244,3 +245,29 @@ def test_raise_error_options_error():
 
     with pytest.raises(AssertionError):
         get_selfcal_options_from_yaml(input_yaml=example)
+
+
+def test_write_strategy_to_yaml(package_strategy, tmpdir):
+    strategy = package_strategy
+
+    output_strategy = Path(tmpdir) / "testing.yaml"
+    write_strategy_to_yaml(strategy=strategy, output_path=output_strategy)
+
+    loaded_strategy = load_strategy_yaml(input_yaml=output_strategy)
+
+    assert len(set(loaded_strategy.keys()) - set(strategy.keys())) == 0
+    assert (
+        len(set(loaded_strategy["initial"].keys()) - set(strategy["initial"].keys()))
+        == 0
+    )
+    assert (
+        len(
+            set(loaded_strategy["selfcal"][1].keys())
+            - set(strategy["selfcal"][1].keys())
+        )
+        == 0
+    )
+    assert (
+        loaded_strategy["selfcal"][1]["wsclean"]["data_column"]
+        == strategy["selfcal"][1]["wsclean"]["data_column"]
+    )
