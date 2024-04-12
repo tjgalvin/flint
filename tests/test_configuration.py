@@ -40,13 +40,11 @@ def strategy(tmpdir):
 
 
 def test_copy_and_timestamp(tmpdir):
+    # a single function toe rename and copy a file because pirates needs to be efficient
     example = get_packaged_resource_path(
         package="flint", filename="data/tests/test_config.yaml"
     )
     copy_path = copy_and_timestamp_strategy_file(output_dir=tmpdir, input_yaml=example)
-
-    print(example)
-    print(copy_path)
 
     assert copy_path != example
     assert filecmp.cmp(example, copy_path)
