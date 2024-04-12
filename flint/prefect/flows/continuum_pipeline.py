@@ -5,7 +5,7 @@
 - run aegean source finding
 """
 
-from argparse import ArgumentParser
+from configargparse import ArgumentParser
 from pathlib import Path
 from typing import Union
 

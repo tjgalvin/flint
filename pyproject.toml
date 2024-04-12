@@ -37,6 +37,7 @@ radio-beam = "^0.3.4"
 reproject = "*"
 scikit-image = "*"
 pandas = "*"
+ConfigArgParse = "^1.7"
 
 [tool.poetry.group.dev.dependencies]
 black = "^23.3.0"
