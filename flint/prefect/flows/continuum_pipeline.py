@@ -90,7 +90,10 @@ def process_science_fields(
             output_split_science_path
             / add_timestamp_to_path(input_path=field_options.imaging_strategy).name
         )
-        shutil.copy(field_options.imaging_strategy, stamped_imaging_strategy)
+        logger.info(
+            f"Copying {field_options.imaging_strategy} to {stamped_imaging_strategy}"
+        )
+        shutil.copyfile(field_options.imaging_strategy, stamped_imaging_strategy)
 
     strategy = (
         load_strategy_yaml(input_yaml=field_options.imaging_strategy, verify=True)
