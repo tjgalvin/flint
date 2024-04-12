@@ -4,6 +4,7 @@ be used to specify the options for imaging and self-calibration
 throughout the pipeline.
 """
 
+import shutil
 from argparse import ArgumentParser
 from pathlib import Path
 from typing import Any, Dict, Optional, Union
@@ -13,6 +14,7 @@ import yaml
 from flint.imager.wsclean import WSCleanOptions
 from flint.logging import logger
 from flint.masking import MaskingOptions
+from flint.naming import add_timestamp_to_path
 from flint.selfcal.casa import GainCalOptions
 
 KNOWN_HEADERS = ("defaults", "initial", "selfcal", "version")
@@ -32,6 +34,26 @@ class Strategy(dict):
     strategy"""
 
     pass
+
+
+def copy_and_timestamp_strategy_file(output_dir: Path, input_yaml: Path) -> Path:
+    """Timestamp and copy the input strategy file to an
+    output directory
+
+    Args:
+        output_dir (Path): Output directory the file will be copied to
+        input_yaml (Path): The file to copy
+
+    Returns:
+        Path: Copied and timestamped file path
+    """
+    stamped_imaging_strategy = (
+        output_dir / add_timestamp_to_path(input_path=input_yaml).name
+    )
+    logger.info(f"Copying {input_yaml.absolute()} to {stamped_imaging_strategy}")
+    shutil.copyfile(input_yaml.absolute(), stamped_imaging_strategy)
+
+    return Path(stamped_imaging_strategy)
 
 
 def get_selfcal_options_from_yaml(input_yaml: Optional[Path] = None) -> Dict:
@@ -79,6 +101,16 @@ def get_image_options_from_yaml(
 
     MULTISCALE_SCALES = (0, 15, 30, 40, 50, 60, 70, 120)
     IMAGE_SIZE = 7144
+
+    # These werte teh settings I was using when overloading if
+    # mask was created for the cleaning
+
+    # wsclean_options["auto_mask"] = 1.25
+    # wsclean_options["auto_threshold"] = 1.0
+    # wsclean_options["force_mask_rounds"] = 13
+    # wsclean_options["local_rms"] = False
+    # wsclean_options["niter"] = 1750000
+    # wsclean_options["nmiter"] = 30
 
     if not self_cal_rounds:
         return {

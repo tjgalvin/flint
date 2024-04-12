@@ -1,11 +1,13 @@
 """Some tests related to components around measurement sets."""
 
+from datetime import datetime
 from pathlib import Path
 
 from flint.naming import (
     FITSMaskNames,
     ProcessedNameComponents,
     RawNameComponents,
+    add_timestamp_to_path,
     create_fits_mask_names,
     create_ms_name,
     extract_beam_from_name,
@@ -15,6 +17,25 @@ from flint.naming import (
     processed_ms_format,
     raw_ms_format,
 )
+
+
+def test_add_timestamp_to_path():
+    # make sure adding a timestamp to a file name works
+    dd = datetime(2024, 4, 12, 10, 30, 50, 243910)
+
+    example_str = "/test/this/is/filename.txt"
+    stamped_path = add_timestamp_to_path(input_path=example_str, timestamp=dd)
+    expected = Path("/test/this/is/filename-20240412-103050.txt")
+
+    assert stamped_path == expected
+
+    example_path = Path("/test/this/is/filename.txt")
+    stamped_path = add_timestamp_to_path(input_path=example_path, timestamp=dd)
+
+    assert stamped_path == expected
+
+    now_path = add_timestamp_to_path(input_path=example_path)
+    assert now_path != expected
 
 
 def test_create_fits_mask_names_no_signal():

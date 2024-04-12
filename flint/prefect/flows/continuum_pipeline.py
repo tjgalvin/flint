@@ -12,7 +12,11 @@ from typing import Union
 from prefect import flow, unmapped
 
 from flint.calibrate.aocalibrate import find_existing_solutions
-from flint.configuration import get_options_from_strategy, load_strategy_yaml
+from flint.configuration import (
+    copy_and_timestamp_strategy_file,
+    get_options_from_strategy,
+    load_strategy_yaml,
+)
 from flint.logging import logger
 from flint.ms import MS
 from flint.naming import get_sbid_from_path
@@ -72,12 +76,6 @@ def process_science_fields(
         len(science_mss) == field_options.expected_ms
     ), f"Expected to find {field_options.expected_ms} in {str(science_path)}, found {len(science_mss)}."
 
-    strategy = (
-        load_strategy_yaml(input_yaml=field_options.imaging_strategy, verify=True)
-        if field_options.imaging_strategy
-        else None
-    )
-
     science_folder_name = science_path.name
 
     output_split_science_path = (
@@ -92,6 +90,18 @@ def process_science_fields(
 
     logger.info(f"Creating {str(output_split_science_path)}")
     output_split_science_path.mkdir(parents=True)
+
+    strategy = (
+        load_strategy_yaml(
+            input_yaml=copy_and_timestamp_strategy_file(
+                output_dir=output_split_science_path,
+                input_yaml=field_options.imaging_strategy,
+            ),
+            verify=True,
+        )
+        if field_options.imaging_strategy
+        else None
+    )
 
     logger.info(f"{field_options=}")
 
@@ -264,12 +274,6 @@ def process_science_fields(
                 image_products=beam_aegean_outputs,
                 min_snr=3.5,
             )
-            # wsclean_options["auto_mask"] = 1.25
-            # wsclean_options["auto_threshold"] = 1.0
-            # wsclean_options["force_mask_rounds"] = 13
-            # wsclean_options["local_rms"] = False
-            # wsclean_options["niter"] = 1750000
-            # wsclean_options["nmiter"] = 30
 
         wsclean_cmds = task_wsclean_imager.map(
             in_ms=cal_mss,

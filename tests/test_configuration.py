@@ -1,9 +1,11 @@
+import filecmp
 from pathlib import Path
 
 import pytest
 
 from flint.configuration import (
     Strategy,
+    copy_and_timestamp_strategy_file,
     create_default_yaml,
     get_image_options_from_yaml,
     get_options_from_strategy,
@@ -35,6 +37,17 @@ def strategy(tmpdir):
     strat = load_strategy_yaml(input_yaml=output, verify=False)
 
     return strat
+
+
+def test_copy_and_timestamp(tmpdir):
+    # a single function toe rename and copy a file because pirates needs to be efficient
+    example = get_packaged_resource_path(
+        package="flint", filename="data/tests/test_config.yaml"
+    )
+    copy_path = copy_and_timestamp_strategy_file(output_dir=tmpdir, input_yaml=example)
+
+    assert copy_path != example
+    assert filecmp.cmp(example, copy_path)
 
 
 def test_verify_options_with_class(package_strategy):
