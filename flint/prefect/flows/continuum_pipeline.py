@@ -369,6 +369,10 @@ def get_parser() -> ArgumentParser:
     parser = ArgumentParser(description=__doc__)
 
     parser.add_argument(
+        "--cli-config", is_config_file=True, help="Path to configuration file"
+    )
+
+    parser.add_argument(
         "science_path",
         type=Path,
         help="Path to directories containing the beam-wise science measurementsets that will have solutions copied over and applied.",
