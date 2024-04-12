@@ -1,5 +1,5 @@
-"""This is an interface into the yandasoft linmos task.
-"""
+"""This is an interface into the yandasoft linmos task."""
+
 from argparse import ArgumentParser
 from pathlib import Path
 from typing import Collection, List, NamedTuple, Optional

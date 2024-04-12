@@ -1,5 +1,5 @@
-"""Common prefect related utilities that can be used between flows.
-"""
+"""Common prefect related utilities that can be used between flows."""
+
 import base64
 from pathlib import Path
 from typing import Any, List, Optional, TypeVar

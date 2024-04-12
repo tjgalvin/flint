@@ -1,5 +1,4 @@
-"""Procedure to calibrate bandpass observation
-"""
+"""Procedure to calibrate bandpass observation"""
 
 from argparse import ArgumentParser
 from pathlib import Path

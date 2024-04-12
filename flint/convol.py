@@ -1,6 +1,7 @@
 """Tooling related to the convolution of images. Principally
 this is mostly to smooth to a common resolution
 """
+
 from __future__ import annotations
 
 import warnings

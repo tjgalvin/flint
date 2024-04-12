@@ -1,5 +1,4 @@
-"""Utility functions to carry out flagging against ASKAP measurement sets
-"""
+"""Utility functions to carry out flagging against ASKAP measurement sets"""
 
 from argparse import ArgumentParser
 from pathlib import Path

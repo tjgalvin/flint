@@ -1,5 +1,5 @@
-"""Utilities related to running commands in a singularity container
-"""
+"""Utilities related to running commands in a singularity container"""
+
 from pathlib import Path
 from socket import gethostname
 from subprocess import CalledProcessError

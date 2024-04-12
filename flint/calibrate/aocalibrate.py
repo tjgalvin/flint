@@ -1,5 +1,4 @@
-"""Code to use AO calibrate s
-"""
+"""Code to use AO calibrate s"""
 
 from __future__ import annotations  # used to keep mypy/pylance happy in AOSolutions
 

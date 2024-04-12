@@ -1,5 +1,4 @@
-"""A basic interface into aegean source finding routines.
-"""
+"""A basic interface into aegean source finding routines."""
 
 from argparse import ArgumentParser
 from pathlib import Path
