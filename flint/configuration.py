@@ -80,6 +80,16 @@ def get_image_options_from_yaml(
     MULTISCALE_SCALES = (0, 15, 30, 40, 50, 60, 70, 120)
     IMAGE_SIZE = 7144
 
+    # These werte teh settings I was using when overloading if
+    # mask was created for the cleaning
+
+    # wsclean_options["auto_mask"] = 1.25
+    # wsclean_options["auto_threshold"] = 1.0
+    # wsclean_options["force_mask_rounds"] = 13
+    # wsclean_options["local_rms"] = False
+    # wsclean_options["niter"] = 1750000
+    # wsclean_options["nmiter"] = 30
+
     if not self_cal_rounds:
         return {
             "size": IMAGE_SIZE,
