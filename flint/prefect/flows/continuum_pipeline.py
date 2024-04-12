@@ -85,6 +85,9 @@ def process_science_fields(
         )
         raise ValueError("Output science directory already exists. ")
 
+    logger.info(f"Creating {str(output_split_science_path)}")
+    output_split_science_path.mkdir(parents=True)
+
     if field_options.imaging_strategy:
         stamped_imaging_strategy = (
             output_split_science_path
@@ -100,9 +103,6 @@ def process_science_fields(
         if field_options.imaging_strategy
         else None
     )
-
-    logger.info(f"Creating {str(output_split_science_path)}")
-    output_split_science_path.mkdir(parents=True)
 
     logger.info(f"{field_options=}")
 
