@@ -50,8 +50,8 @@ def copy_and_timestamp_strategy_file(output_dir: Path, input_yaml: Path) -> Path
     stamped_imaging_strategy = (
         output_dir / add_timestamp_to_path(input_path=input_yaml).name
     )
-    logger.info(f"Copying {input_yaml} to {stamped_imaging_strategy}")
-    shutil.copyfile(input_yaml, stamped_imaging_strategy)
+    logger.info(f"Copying {input_yaml.absolute()} to {stamped_imaging_strategy}")
+    shutil.copyfile(input_yaml.absolute(), stamped_imaging_strategy)
 
     return Path(stamped_imaging_strategy)
 
