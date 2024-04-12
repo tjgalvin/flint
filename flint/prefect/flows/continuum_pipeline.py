@@ -19,7 +19,7 @@ from flint.configuration import (
 )
 from flint.logging import logger
 from flint.ms import MS
-from flint.naming import add_timestamp_to_path, get_sbid_from_path
+from flint.naming import get_sbid_from_path
 from flint.options import FieldOptions
 from flint.prefect.clusters import get_dask_runner
 from flint.prefect.common.imaging import (
