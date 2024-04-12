@@ -5,7 +5,6 @@
 - run aegean source finding
 """
 
-import shutil
 from argparse import ArgumentParser
 from pathlib import Path
 from typing import Union
@@ -13,10 +12,14 @@ from typing import Union
 from prefect import flow, unmapped
 
 from flint.calibrate.aocalibrate import find_existing_solutions
-from flint.configuration import get_options_from_strategy, load_strategy_yaml
+from flint.configuration import (
+    get_options_from_strategy,
+    load_strategy_yaml,
+    copy_and_timestamp_strategy_file,
+)
 from flint.logging import logger
 from flint.ms import MS
-from flint.naming import get_sbid_from_path, add_timestamp_to_path
+from flint.naming import get_sbid_from_path
 from flint.options import FieldOptions
 from flint.prefect.clusters import get_dask_runner
 from flint.prefect.common.imaging import (
@@ -88,18 +91,14 @@ def process_science_fields(
     logger.info(f"Creating {str(output_split_science_path)}")
     output_split_science_path.mkdir(parents=True)
 
-    if field_options.imaging_strategy:
-        stamped_imaging_strategy = (
-            output_split_science_path
-            / add_timestamp_to_path(input_path=field_options.imaging_strategy).name
-        )
-        logger.info(
-            f"Copying {field_options.imaging_strategy} to {stamped_imaging_strategy}"
-        )
-        shutil.copyfile(field_options.imaging_strategy, stamped_imaging_strategy)
-
     strategy = (
-        load_strategy_yaml(input_yaml=field_options.imaging_strategy, verify=True)
+        load_strategy_yaml(
+            input_yaml=copy_and_timestamp_strategy_file(
+                output_dir=output_split_science_path,
+                input_yaml=field_options.imaging_strategy,
+            ),
+            verify=True,
+        )
         if field_options.imaging_strategy
         else None
     )
