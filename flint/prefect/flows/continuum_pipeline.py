@@ -13,9 +13,9 @@ from prefect import flow, unmapped
 
 from flint.calibrate.aocalibrate import find_existing_solutions
 from flint.configuration import (
+    copy_and_timestamp_strategy_file,
     get_options_from_strategy,
     load_strategy_yaml,
-    copy_and_timestamp_strategy_file,
 )
 from flint.logging import logger
 from flint.ms import MS
