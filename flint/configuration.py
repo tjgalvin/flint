@@ -13,8 +13,8 @@ import yaml
 
 from flint.imager.wsclean import WSCleanOptions
 from flint.logging import logger
-from flint.naming import add_timestamp_to_path
 from flint.masking import MaskingOptions
+from flint.naming import add_timestamp_to_path
 from flint.selfcal.casa import GainCalOptions
 
 KNOWN_HEADERS = ("defaults", "initial", "selfcal", "version")
