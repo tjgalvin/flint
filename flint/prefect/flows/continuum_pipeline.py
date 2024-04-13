@@ -5,10 +5,10 @@
 - run aegean source finding
 """
 
-from argparse import ArgumentParser
 from pathlib import Path
 from typing import Union
 
+from configargparse import ArgumentParser
 from prefect import flow, unmapped
 
 from flint.calibrate.aocalibrate import find_existing_solutions
@@ -369,6 +369,10 @@ def get_parser() -> ArgumentParser:
     parser = ArgumentParser(description=__doc__)
 
     parser.add_argument(
+        "--cli-config", is_config_file=True, help="Path to configuration file"
+    )
+
+    parser.add_argument(
         "science_path",
         type=Path,
         help="Path to directories containing the beam-wise science measurementsets that will have solutions copied over and applied.",
@@ -470,7 +474,6 @@ def get_parser() -> ArgumentParser:
     parser.add_argument(
         "--linmos-residuals",
         action="store_true",
-        default=False,
         help="Co-add the per-beam cleaning residuals into a field image",
     )
     parser.add_argument(
