@@ -474,7 +474,6 @@ def get_parser() -> ArgumentParser:
     parser.add_argument(
         "--linmos-residuals",
         action="store_true",
-        default=False,
         help="Co-add the per-beam cleaning residuals into a field image",
     )
     parser.add_argument(
