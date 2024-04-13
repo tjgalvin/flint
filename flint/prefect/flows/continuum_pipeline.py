@@ -5,10 +5,10 @@
 - run aegean source finding
 """
 
-from configargparse import ArgumentParser
 from pathlib import Path
 from typing import Union
 
+from configargparse import ArgumentParser
 from prefect import flow, unmapped
 
 from flint.calibrate.aocalibrate import find_existing_solutions
