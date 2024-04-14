@@ -375,6 +375,7 @@ def create_snr_mask_from_fits(
             signal=np.squeeze(signal_data),
             positive_seed_clip=masking_options.flood_fill_positive_seed_clip,
             positive_flood_clip=masking_options.flood_fill_positive_flood_clip,
+            suppress_artefacts=masking_options.suppress_artefacts,
             negative_seed_clip=masking_options.suppress_artefacts_negative_seed_clip,
             guard_negative_dilation=masking_options.suppress_artefacts_guard_negative_dilation,
             grow_low_snr=masking_options.grow_low_snr_clip,
