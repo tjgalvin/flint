@@ -11,7 +11,6 @@ from astropy import units as u
 from astropy.coordinates import Angle, SkyCoord
 from astropy.table import QTable, Table
 from astropy.table.row import Row
-from astropy.modeling.models import AiryDisk2D
 from casacore.tables import table
 from scipy.optimize import curve_fit
 
@@ -233,6 +232,15 @@ def generate_gaussian_pb(
     return GaussianResponse(freqs=freqs, atten=taper, fwhms=fwhms, offset=offset)
 
 
+@np.vectorize
+def _jinc(x):
+    from scipy.special import j1
+
+    if x == 0:
+        return 1.0
+    return 2 * j1(x) / x
+
+
 def generate_sinc_squared_pb(
     freqs: u.Quantity, aperture: u.Quantity, offset: u.Quantity
 ) -> SincSquaredResponse:
@@ -288,18 +296,15 @@ def generate_airy_pb(
     aperture = 12 * u.m
     lambda_m = (c / freqs).to(u.m)
 
-    # 1.22 \lambda / D is the offset to the first null
-    airy_func = AiryDisk2D(
-        amplitude=1, x_0=0, y_0=0, radius=1.22 * (lambda_m / aperture)
+    k = 2 * np.pi / lambda_m
+    power = (
+        _jinc(k.value * aperture.to(u.m).value * np.sin(offset.to(u.rad).value / 2))
+        ** 2
     )
-
-    # Airy func is 2D, but can assume circular symmetry
-    # Take x = 0, and y = offset
-    airy_mod = airy_func(np.zeros_like(offset.to(u.rad)).value, offset.to(u.rad).value)
 
     fwhms = 1.02 * (c / freqs_hz / aperture).decompose() * u.rad
 
-    return AiryResponse(freqs=freqs_hz, atten=airy_mod, fwhms=fwhms, offset=offset)
+    return AiryResponse(freqs=freqs_hz, atten=power, fwhms=fwhms, offset=offset)
 
 
 def generate_pb(
