@@ -44,8 +44,8 @@ def get_packaged_resource_path(package: str, filename: str) -> Path:
 
 
 def generate_stub_wcs_header(
-    ra: float,
-    dec: float,
+    ra: Union[float, u.Quantity],
+    dec: Union[float, u.Quantity],
     image_shape: Tuple[int, int],
     pixel_scale: Union[u.Quantity, str, float],
     projection: str = "SIN",
@@ -55,8 +55,8 @@ def generate_stub_wcs_header(
     for an example image.
 
     Args:
-        ra (float): The RA in degrees at the reference position
-        dec (float): The Dec in degrees at the reference position
+        ra (fUnion[loat,u.Quantuty]): The RA at the reference pixel. if a float is provided it is assumed to be in degrees.
+        dec (Union[float,u.Quantuty]): The Dec at the reference pizel. if a float is provided it is assumed to be in degrees.
         image_shape (Tuple[int, int]): Size of the representative image
         pixel_scale (Union[u.Quantity, str, float]): The size of the square pixels. if a `float` it is assumed to be arcseconds. If `str`, parsing is hangled by `astropy.units.Quantity`.
         projection (str, optional): Project scheme to encode in the header. Defaults to "SIN".
@@ -65,6 +65,8 @@ def generate_stub_wcs_header(
     Returns:
         WCS: The representative WCS objects
     """
+    # TODO: Handle RA and Dec being Quantities!
+
     # Trust nothing
     assert (
         len(projection) == 3
@@ -82,6 +84,10 @@ def generate_stub_wcs_header(
     ), f"pixel_scale is not an quantity, instead {type(pixel_scale)}"
     pixel_scale = np.abs(pixel_scale.to(u.rad).value)
 
+    # Handle the ref position
+    ra = ra if isinstance(ra, u.Quantity) else ra * u.deg
+    dec = dec if isinstance(dec, u.Quantity) else dec * u.deg
+
     image_center = np.array(image_shape, dtype=int) // 2
 
     # Sort out the header. If Path get the header through and construct the WCS
@@ -94,7 +100,7 @@ def generate_stub_wcs_header(
     # Nor bring it all together
     w.wcs.crpix = image_center
     w.wcs.cdelt = np.array([-pixel_scale, pixel_scale])
-    w.wcs.crval = [ra, dec]
+    w.wcs.crval = [ra.to(u.rad).value, dec.to(u.rad).value]
     w.wcs.ctype = [f"RA---{projection}", f"DEC--{projection}"]
     w.wcs.cunit = ["deg", "deg"]
     w._naxis1 = image_shape[0]

@@ -50,6 +50,14 @@ def test_wcs_getter_quantity():
     )
     assert isinstance(w, WCS)
 
+    w = generate_stub_wcs_header(
+        ra=180 * u.deg,
+        dec=-45 * u.rad,
+        image_shape=(8000, 8000),
+        pixel_scale="2.5arcsec",
+    )
+    assert isinstance(w, WCS)
+
 
 def test_wcs_getter_withbase(rms_path):
     """Make a wcs object overriding the wcs from an existing fits file"""
