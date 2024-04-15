@@ -329,7 +329,7 @@ def generate_pb(
     response = None
     if pb_type.lower() == "gaussian":
         response = generate_gaussian_pb(freqs=freqs, aperture=aperture, offset=offset)
-    elif pb_type.lower() == "sincsquare":
+    elif pb_type.lower() == "sincsquared":
         response = generate_sinc_squared_pb(
             freqs=freqs, aperture=aperture, offset=offset
         )
