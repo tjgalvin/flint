@@ -5,9 +5,10 @@ for general usage.
 import shutil
 import subprocess
 from pathlib import Path
-from typing import List, Optional
+from typing import List, Optional, Tuple, Union
 
 import numpy as np
+import astropy.units as u
 from astropy.coordinates import SkyCoord
 from astropy.io import fits
 from astropy.wcs import WCS
@@ -40,6 +41,66 @@ def get_packaged_resource_path(package: str, filename: str) -> Path:
     logger.debug(f"Resolved {full_path=}")
 
     return full_path
+
+
+def generate_stub_wcs_header(
+    ra: float,
+    dec: float,
+    image_shape: Tuple[int, int],
+    pixel_scale: Union[u.Quantity, str, float],
+    projection: str = "SIN",
+    base_wcs: Optional[Union[Path, WCS]] = None,
+) -> WCS:
+    """Create a basic WSC header object that can be used to calculate sky positions
+    for an example image.
+
+    Args:
+        ra (float): The RA in degrees at the reference position
+        dec (float): The Dec in degrees at the reference position
+        image_shape (Tuple[int, int]): Size of the representative image
+        pixel_scale (Union[u.Quantity, str, float]): The size of the square pixels. if a `float` it is assumed to be arcseconds. If `str`, parsing is hangled by `astropy.units.Quantity`.
+        projection (str, optional): Project scheme to encode in the header. Defaults to "SIN".
+        base_wcs (Optional[Union[Path, WCS]], optional): Overload an existing WCS object with argument properties. If a `Path` the WCS is obtained from the fits file. If `None` WCS is built from arguments. Defaults to None.
+
+    Returns:
+        WCS: The representative WCS objects
+    """
+    # Trust nothing
+    assert (
+        len(projection) == 3
+    ), f"Projection should be three characters, received {projection}"
+
+    # Handle all the pixels you rotten seadog
+    if isinstance(pixel_scale, str):
+        pixel_scale = u.Quantity(pixel_scale)
+    elif isinstance(pixel_scale, float):
+        pixel_scale = pixel_scale * u.arcsec
+
+    # Trust nothing even more
+    assert isinstance(
+        pixel_scale, u.Quantity
+    ), f"pixel_scale is not an quantity, instead {type(pixel_scale)}"
+    pixel_scale = np.abs(pixel_scale.to(u.rad).value)
+
+    image_center = np.array(image_shape, dtype=int) // 2
+
+    # Sort out the header. If Path get the header through and construct the WCS
+    if isinstance(base_wcs, Path):
+        base_wcs = WCS(fits.getheader(base_wcs))
+
+    # The celestial guarantees only two axis
+    w = base_wcs.celestial if base_wcs else WCS(naxis=2)
+
+    # Nor bring it all together
+    w.wcs.crpix = image_center
+    w.wcs.cdelt = np.array([-pixel_scale, pixel_scale])
+    w.wcs.crval = [ra, dec]
+    w.wcs.ctype = [f"RA---{projection}", f"DEC--{projection}"]
+    w.wcs.cunit = ["deg", "deg"]
+    w._naxis1 = image_shape[0]
+    w._naxis2 = image_shape[1]
+
+    return w
 
 
 def estimate_skycoord_centre(

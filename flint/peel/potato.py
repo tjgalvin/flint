@@ -52,7 +52,7 @@ import numpy as np
 
 from flint.logging import logger
 from flint.ms import MS, get_phase_dir_from_ms, get_freqs_from_ms
-from flint.sky_model import generate_gaussian_pb
+from flint.sky_model import generate_pb
 from flint.utils import get_packaged_resource_path
 
 
@@ -117,12 +117,12 @@ def find_sources_to_peel(
             )
             continue
 
-        gauss_taper = generate_gaussian_pb(
-            freqs=nominal_freq, aperture=12 * u.m, offset=offset
+        taper = generate_pb(
+            pb_model="airy", freqs=nominal_freq, aperture=12 * u.m, offset=offset
         )
-        if gauss_taper.atten > cutoff:
+        if taper.atten > cutoff:
             logger.info(
-                f"{src['Name']} attenuation {gauss_taper.atten} is above {cutoff=} (in field of view)"
+                f"{src['Name']} attenuation {taper.atten} is above {cutoff=} (in field of view)"
             )
             continue
 

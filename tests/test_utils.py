@@ -1,12 +1,75 @@
 """Basic tests for utility functions"""
 
+import pytest
 from pathlib import Path
 
 import astropy.units as u
 import numpy as np
 from astropy.coordinates import SkyCoord
+from astropy.wcs import WCS
+from astropy.io import fits
 
-from flint.utils import estimate_skycoord_centre, get_packaged_resource_path
+from flint.utils import (
+    estimate_skycoord_centre,
+    get_packaged_resource_path,
+    generate_stub_wcs_header,
+)
+
+
+@pytest.fixture
+def rms_path(tmpdir):
+    rms_path = Path(
+        get_packaged_resource_path(
+            package="flint.data.tests",
+            filename="SB39400.RACS_0635-31.beam0-MFS-subimage_rms.fits",
+        )
+    )
+
+    return rms_path
+
+
+def test_wcs_getter():
+    w = generate_stub_wcs_header(
+        ra=180, dec=-45, image_shape=(8000, 8000), pixel_scale=0.01
+    )
+
+    assert isinstance(w, WCS)
+
+
+def test_wcs_getter_quantity():
+    w = generate_stub_wcs_header(
+        ra=180, dec=-45, image_shape=(8000, 8000), pixel_scale=0.01 * u.deg
+    )
+    assert isinstance(w, WCS)
+
+    w = generate_stub_wcs_header(
+        ra=180, dec=-45, image_shape=(8000, 8000), pixel_scale="2.5arcsec"
+    )
+    assert isinstance(w, WCS)
+
+
+def test_wcs_getter_withbase(rms_path):
+
+    hdr = fits.getheader(rms_path)
+    w = generate_stub_wcs_header(
+        ra=180,
+        dec=-45,
+        image_shape=(8000, 8000),
+        pixel_scale=0.01,
+        base_wcs=WCS(hdr),
+    )
+
+    assert isinstance(w, WCS)
+
+    w2 = generate_stub_wcs_header(
+        ra=180,
+        dec=-45,
+        image_shape=(8000, 8000),
+        pixel_scale=0.01,
+        base_wcs=rms_path,
+    )
+
+    assert isinstance(w2, WCS)
 
 
 def test_package_resource_path_folder():
