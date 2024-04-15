@@ -29,6 +29,8 @@ def rms_path(tmpdir):
 
 
 def test_wcs_getter():
+    """Make a basic wcs object"""
+    # TODO: Need some proper tests here. Translate to sky positions etc
     w = generate_stub_wcs_header(
         ra=180, dec=-45, image_shape=(8000, 8000), pixel_scale=0.01
     )
@@ -37,6 +39,7 @@ def test_wcs_getter():
 
 
 def test_wcs_getter_quantity():
+    """Make a basic wcs object that includes different pixel types"""
     w = generate_stub_wcs_header(
         ra=180, dec=-45, image_shape=(8000, 8000), pixel_scale=0.01 * u.deg
     )
@@ -49,7 +52,7 @@ def test_wcs_getter_quantity():
 
 
 def test_wcs_getter_withbase(rms_path):
-
+    """Make a wcs object overriding the wcs from an existing fits file"""
     hdr = fits.getheader(rms_path)
     w = generate_stub_wcs_header(
         ra=180,
@@ -73,6 +76,7 @@ def test_wcs_getter_withbase(rms_path):
 
 
 def test_package_resource_path_folder():
+    """Ensure the utils package path resource getter works"""
     dir_path = get_packaged_resource_path(package="flint.data", filename="")
 
     assert isinstance(dir_path, Path)
@@ -80,6 +84,7 @@ def test_package_resource_path_folder():
 
 
 def test_package_resource_path_askap_lua():
+    """Ensure the utils package path resource getter work, and check the contents of a file"""
     askap_lua = get_packaged_resource_path(
         package="flint.data.aoflagger", filename="ASKAP.lua"
     )
@@ -93,6 +98,7 @@ def test_package_resource_path_askap_lua():
 
 
 def test_package_resource_path_skymodel():
+    """Ensure the utils package path resource getter work, and check the contents of a file"""
     askap_model = get_packaged_resource_path(
         package="flint.data.models", filename="1934-638.calibrate.txt"
     )
@@ -109,6 +115,7 @@ def test_package_resource_path_skymodel():
 
 
 def test_estimate_skycoord_centre():
+    """Estimate the centre position from a collection of sky positions"""
     ras = np.arange(-3, 3, 1) + 180.0
     decs = np.arange(-3, 3, 1) - 40.0
 
@@ -123,6 +130,7 @@ def test_estimate_skycoord_centre():
 
 
 def test_estimate_skycoord_centre_wrap():
+    """Estimate the mean center sky position that wraps around 360 -> 0 degrees in ra"""
     ras = np.arange(-3, 3, 1) + 360.0 % 360
     decs = np.arange(-3, 3, 1) - 40.0
 
