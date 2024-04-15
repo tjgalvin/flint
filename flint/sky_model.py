@@ -3,7 +3,7 @@
 from argparse import ArgumentParser
 from functools import partial
 from pathlib import Path
-from typing import Dict, List, NamedTuple, Optional, Tuple
+from typing import Dict, List, NamedTuple, Optional, Tuple, Union
 
 import numpy as np
 import yaml
@@ -11,11 +11,14 @@ from astropy import units as u
 from astropy.coordinates import Angle, SkyCoord
 from astropy.table import QTable, Table
 from astropy.table.row import Row
+from astropy.modeling.models import AiryDisk2D
 from casacore.tables import table
 from scipy.optimize import curve_fit
 
 from flint.logging import logger
 from flint.utils import get_packaged_resource_path
+
+KNOWN_PB_TYPES = ("gaussian", "sincsquared", "airy")
 
 
 class Catalogue(NamedTuple):
@@ -65,8 +68,34 @@ class CurvedPL(NamedTuple):
     """The nominated reference frequency"""
 
 
-class GaussianTaper(NamedTuple):
+class GaussianResponse(NamedTuple):
     """Container describing a simple Gaussian taper"""
+
+    freqs: np.ndarray
+    """The frequencies the beam is evaluated at"""
+    atten: np.ndarray
+    """The attenuation of the response"""
+    fwhms: np.ndarray
+    """The full-width at half-maximum corresponding to freqs"""
+    offset: float
+    """Angular offset of the source"""
+
+
+class SincSquaredResponse(NamedTuple):
+    """Container describing a sinc-squared response"""
+
+    freqs: np.ndarray
+    """The frequencies the beam is evaluated at"""
+    atten: np.ndarray
+    """The attenuation of the response"""
+    fwhms: np.ndarray
+    """The full-width at half-maximum corresponding to freqs"""
+    offset: float
+    """Angular offset of the source"""
+
+
+class AiryResponse(NamedTuple):
+    """Container describing a airy disc response"""
 
     freqs: np.ndarray
     """The frequencies the beam is evaluated at"""
@@ -176,7 +205,7 @@ def get_1934_model(mode: str = "calibrate") -> Path:
 
 def generate_gaussian_pb(
     freqs: u.Quantity, aperture: u.Quantity, offset: u.Quantity
-) -> GaussianTaper:
+) -> GaussianResponse:
     """Calculate the theoretical Gaussian taper for an aperture of
     known size
 
@@ -186,7 +215,7 @@ def generate_gaussian_pb(
         offset (u.Quantity): Offset from the centre of the beam
 
     Returns:
-        GaussianTaper: Numerical results of the theoretical gaussian primary beam
+        GaussianResponse: Numerical results of the theoretical gaussian primary beam
     """
     c = 299792458.0 * u.meter / u.second
     solid_angle = 4.0 * np.log(2)
@@ -201,7 +230,116 @@ def generate_gaussian_pb(
 
     taper = np.exp(e)
 
-    return GaussianTaper(freqs=freqs, atten=taper, fwhms=fwhms, offset=offset)
+    return GaussianResponse(freqs=freqs, atten=taper, fwhms=fwhms, offset=offset)
+
+
+def generate_sinc_squared_pb(
+    freqs: u.Quantity, aperture: u.Quantity, offset: u.Quantity
+) -> SincSquaredResponse:
+    """Calculate the theoretical sinc-squared response of an aperture of
+    a known size.
+
+    See Equation 3.78 and 3.79 from:
+    https://www.cv.nrao.edu/~sransom/web/Ch3.html
+
+    Args:
+        reqs (u.Quantity): Frequencies to evaluate the beam at
+        aperture (u.Quantity): Size of the dish
+        offset (u.Quantity): Offset from the centre of the beam
+
+    Returns:
+        SincSquaredResponse:  Numerical results of the theoretical sinc-squared primary beam
+    """
+    c = 299792458.0 * u.meter / u.second
+
+    offset = offset.to(u.rad)
+    freqs_hz = freqs.to(u.hertz)
+    lambda_m = (c / freqs).decompose()
+
+    aperture_m = aperture.to(u.meter)
+
+    fwhms = 0.89 * (c / freqs_hz / aperture_m).decompose() * u.rad
+
+    taper = (
+        np.sinc((offset * 0.89 * aperture / lambda_m).decompose()) ** 2
+    ).decompose()
+
+    return SincSquaredResponse(freqs=freqs, atten=taper, fwhms=fwhms, offset=offset)
+
+
+def generate_airy_pb(
+    freqs: u.Quantity, aperture: u.Quantity, offset: u.Quantity
+) -> AiryResponse:
+    """Calculate the theoretical airy response of an aperture of
+    a known size.
+
+    Args:
+        reqs (u.Quantity): Frequencies to evaluate the beam at
+        aperture (u.Quantity): Size of the dish
+        offset (u.Quantity): Offset from the centre of the beam
+
+    Returns:
+        AiryResponse:  Numerical results of the theoretical sinc-squared primary beam
+    """
+    c = 299792458.0 * u.meter / u.second
+
+    freqs_hz = freqs.to(u.Hz)
+    offset = offset.to(u.rad)
+    aperture = 12 * u.m
+    lambda_m = (c / freqs).to(u.m)
+
+    # 1.22 \lambda / D is the offset to the first null
+    airy_func = AiryDisk2D(
+        amplitude=1, x_0=0, y_0=0, radius=1.22 * (lambda_m / aperture)
+    )
+
+    # Airy func is 2D, but can assume circular symmetry
+    # Take x = 0, and y = offset
+    airy_mod = airy_func(np.zeros_like(offset.to(u.rad)).value, offset.to(u.rad).value)
+
+    fwhms = 1.02 * (c / freqs_hz / aperture).decompose() * u.rad
+
+    return AiryResponse(freqs=freqs_hz, atten=airy_mod, fwhms=fwhms, offset=offset)
+
+
+def generate_pb(
+    pb_type: str, freqs: u.Quantity, aperture: u.Quantity, offset: u.Quantity
+) -> Union[GaussianResponse, SincSquaredResponse, AiryResponse]:
+    """Generate the primary beam response using a set of physical quantities. Each
+    is assumed to be rotationally invariant, so a 1-D slice can be evaluated.
+
+    Known approximations are:
+
+    * gaussian
+    * sincsquared
+    * airy
+
+    Args:
+        pb_type (str): The type of approximation to use
+        freqs (u.Quantity): The frequency to valuate at.
+        aperture (u.Quantity): The size of the dish
+        offset (u.Quantity): The distance to measure out to
+
+    Raises:
+        ValueError: Raised if `pb_type` is not known
+
+    Returns:
+        Union[GaussianResponse, SincSquaredResponse, AiryResponse]: Constructed primary beam responses
+    """
+    response = None
+    if pb_type.lower() == "gaussian":
+        response = generate_gaussian_pb(freqs=freqs, aperture=aperture, offset=offset)
+    elif pb_type.lower() == "sincsquare":
+        response = generate_sinc_squared_pb(
+            freqs=freqs, aperture=aperture, offset=offset
+        )
+    elif pb_type.lower() == "airy":
+        response = generate_airy_pb(freqs=freqs, aperture=aperture, offset=offset)
+
+    if response is None:
+        raise ValueError(f"{pb_type=} is unknown. Available modes are {KNOWN_PB_TYPES}")
+
+    return response
 
 
 def curved_power_law(
