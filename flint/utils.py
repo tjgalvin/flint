@@ -44,10 +44,10 @@ def get_packaged_resource_path(package: str, filename: str) -> Path:
 
 
 def generate_stub_wcs_header(
-    ra: Union[float, u.Quantity],
-    dec: Union[float, u.Quantity],
-    image_shape: Tuple[int, int],
-    pixel_scale: Union[u.Quantity, str, float],
+    ra: Optional[Union[float, u.Quantity]] = None,
+    dec: Optional[Union[float, u.Quantity]] = None,
+    image_shape: Optional[Tuple[int, int]] = None,
+    pixel_scale: Optional[Union[u.Quantity, str, float]] = None,
     projection: str = "SIN",
     base_wcs: Optional[Union[Path, WCS]] = None,
 ) -> WCS:
@@ -71,40 +71,55 @@ def generate_stub_wcs_header(
     ), f"Projection should be three characters, received {projection}"
 
     # Handle all the pixels you rotten seadog
-    if isinstance(pixel_scale, str):
-        pixel_scale = u.Quantity(pixel_scale)
-    elif isinstance(pixel_scale, float):
-        pixel_scale = pixel_scale * u.arcsec
+    if pixel_scale is not None:
+        if isinstance(pixel_scale, str):
+            pixel_scale = u.Quantity(pixel_scale)
+        elif isinstance(pixel_scale, float):
+            pixel_scale = pixel_scale * u.arcsec
 
-    # Trust nothing even more
-    assert isinstance(
-        pixel_scale, u.Quantity
-    ), f"pixel_scale is not an quantity, instead {type(pixel_scale)}"
-    pixel_scale = np.abs(pixel_scale.to(u.rad).value)
+        # Trust nothing even more
+        assert isinstance(
+            pixel_scale, u.Quantity
+        ), f"pixel_scale is not an quantity, instead {type(pixel_scale)}"
+        pixel_scale = np.abs(pixel_scale.to(u.rad).value)
+
+        pixel_scale = np.array([-pixel_scale, pixel_scale])
 
     # Handle the ref position
-    ra = ra if isinstance(ra, u.Quantity) else ra * u.deg
-    dec = dec if isinstance(dec, u.Quantity) else dec * u.deg
-
-    # Only needs to be approx correct. Off by one pixel should be ok, this pirate thinks
-    image_center = np.array(image_shape, dtype=int) // 2
+    if ra is not None:
+        ra = ra if isinstance(ra, u.Quantity) else ra * u.deg
+    if dec is not None:
+        dec = dec if isinstance(dec, u.Quantity) else dec * u.deg
 
     # Sort out the header. If Path get the header through and construct the WCS
     if isinstance(base_wcs, Path):
-        base_wcs = WCS(fits.getheader(base_wcs))
+        base_wcs = WCS(fits.getheader(base_wcs)).celestial
+        if image_shape is None:
+            image_shape = base_wcs._naxis
+        if ra is None:
+            ra = base_wcs.wcs.crval[0] * u.Unit(base_wcs.wcs.cunit[0])
+        if dec is None:
+            dec = base_wcs.wcs.crval[1] * u.Unit(base_wcs.wcs.cunit[1])
+        if pixel_scale is None:
+            pixel_scale = base_wcs.wcs.cdelt
+
+    # Only needs to be approx correct. Off by one pixel should be ok, this pirate thinks
+    if image_shape is not None:
+        image_center = np.array(image_shape, dtype=int) // 2
 
     # The celestial guarantees only two axis
     w = base_wcs.celestial if base_wcs else WCS(naxis=2)
 
+    if any([i is None for i in (image_shape, ra, dec, pixel_scale)]):
+        raise ValueError("Something is unset, and unable to form wcs object. ")
+
     # Nor bring it all together
     w.wcs.crpix = image_center
-    w.wcs.cdelt = np.array([-pixel_scale, pixel_scale])
+    w.wcs.cdelt = pixel_scale
     w.wcs.crval = [ra.to(u.deg).value, dec.to(u.deg).value]
     w.wcs.ctype = [f"RA---{projection}", f"DEC--{projection}"]
     w.wcs.cunit = ["deg", "deg"]
-    w._naxis1 = image_shape[0]
-    w._naxis2 = image_shape[1]
-
+    w._naxis = tuple(image_shape)
     return w
 
 

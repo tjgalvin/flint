@@ -43,6 +43,7 @@ $container potato ${TMP_DIR}${obsid}.ms ${source_ra} ${source_dec} ${peel_fov} $
 
 from argparse import ArgumentParser
 from pathlib import Path
+from typing import Union
 
 from casacore.tables import table
 from astropy.table import Table
@@ -50,6 +51,7 @@ import astropy.units as u
 from astropy.coordinates import SkyCoord
 import numpy as np
 
+from flint.imager.wsclean import WSCleanOptions
 from flint.logging import logger
 from flint.ms import MS, get_phase_dir_from_ms, get_freqs_from_ms
 from flint.sky_model import generate_pb
@@ -71,6 +73,13 @@ def load_known_peel_sources() -> Table:
     logger.info(f"Loaded {len(peel_tab)} sources. ")
 
     return peel_tab
+
+
+def source_within_image_fov(
+    source_coord: SkyCoord, image_options: Union[WSCleanOptions, Path]
+) -> bool:
+
+    return True
 
 
 def find_sources_to_peel(

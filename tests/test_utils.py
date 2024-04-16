@@ -30,12 +30,69 @@ def rms_path(tmpdir):
 
 def test_wcs_getter():
     """Make a basic wcs object"""
+    w = generate_stub_wcs_header(
+        ra=180, dec=-45, image_shape=(8000, 8000), pixel_scale=0.01
+    )
+
+    assert isinstance(w, WCS)
+    assert w._naxis == (8000, 8000)
+    assert w.wcs.ctype[0] == "RA---SIN"
+    assert w.wcs.ctype[1] == "DEC--SIN"
+
+
+def test_wcs_getter_with_valueerrors(rms_path):
+    """Make a basic wcs object"""
+    # This one tests the pixel scale not being a quantity
+    with pytest.raises(AssertionError):
+        _ = generate_stub_wcs_header(ra=180, dec=-45, pixel_scale=2)
+
+    # This one tests something being a None
+    with pytest.raises(ValueError):
+        _ = generate_stub_wcs_header(ra=180, dec=-45, pixel_scale="2.5arcsec")
+
+    # This one tests a bad projection
+    with pytest.raises(AssertionError):
+        _ = generate_stub_wcs_header(
+            ra=180, dec=-45, projection="ThisIsBad", pixel_scale="2.5arcsec"
+        )
+
+    # This one tests missing ra and dec but draws from the base
+    _ = generate_stub_wcs_header(
+        projection="SIN", pixel_scale="2.5arcsec", base_wcs=rms_path
+    )
+
+    # This one tests drawing everything from the base wcs
+    w = generate_stub_wcs_header(base_wcs=rms_path)
+    assert w._naxis == (15, 10)
+    assert w.wcs.ctype[0] == "RA---SIN"
+    assert w.wcs.ctype[1] == "DEC--SIN"
+
+    w = generate_stub_wcs_header(
+        ra=180, dec=-45, pixel_scale="2.5arcsec", base_wcs=rms_path
+    )
+    assert w._naxis == (15, 10)
+    assert w.wcs.ctype[0] == "RA---SIN"
+    assert w.wcs.ctype[1] == "DEC--SIN"
+
+
+def test_wcs_getter_positions():
+    """Make a basic wcs object"""
     # TODO: Need some proper tests here. Translate to sky positions etc
     w = generate_stub_wcs_header(
         ra=180, dec=-45, image_shape=(8000, 8000), pixel_scale=0.01
     )
 
     assert isinstance(w, WCS)
+
+    w2 = generate_stub_wcs_header(
+        ra=(180 * u.deg).to(u.rad),
+        dec=-(45 * u.deg).to(u.rad),
+        image_shape=(8000, 8000),
+        pixel_scale=0.01,
+    )
+
+    assert isinstance(w, WCS)
+    assert np.allclose(w.wcs.crval, w2.wcs.crval)
 
 
 def test_wcs_getter_quantity():
