@@ -13,6 +13,7 @@ from flint.utils import (
     estimate_skycoord_centre,
     get_packaged_resource_path,
     generate_stub_wcs_header,
+    generate_strict_stub_wcs_header,
 )
 
 
@@ -26,6 +27,27 @@ def rms_path(tmpdir):
     )
 
     return rms_path
+
+
+def test_generate_strict_wcs_header():
+    image_size = (2000, 2000)
+    w = generate_strict_stub_wcs_header(
+        position_at_image_center=SkyCoord(180, -30, unit=(u.deg, u.deg)),
+        image_size=image_size,
+        pixel_scale=-2.5 * u.arcsec,
+    )
+    assert isinstance(w, WCS)
+    assert w.wcs.ctype[0] == "RA---SIN"
+    assert w.wcs.ctype[1] == "DEC--SIN"
+
+    w = generate_strict_stub_wcs_header(
+        position_at_image_center=SkyCoord(180, -30, unit=(u.deg, u.deg)),
+        image_size=image_size,
+        pixel_scale="2.5arcsec",
+    )
+    assert isinstance(w, WCS)
+    assert w.wcs.ctype[0] == "RA---SIN"
+    assert w.wcs.ctype[1] == "DEC--SIN"
 
 
 def test_wcs_getter():

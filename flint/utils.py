@@ -43,6 +43,61 @@ def get_packaged_resource_path(package: str, filename: str) -> Path:
     return full_path
 
 
+def generate_strict_stub_wcs_header(
+    position_at_image_center: SkyCoord,
+    image_size: Tuple[int, int],
+    pixel_scale: Union[u.Quantity, str],
+) -> WCS:
+    """Create a WCS object using some strict quantities. There
+    are no attempts to cast values appropriately, exception being
+    calling `astropy.units.Quantity` on the `pixel_scale` input
+    should it not be a quantity.
+
+    The supplied `image_size` is used to calculate the center of
+    the image and set the reference pixel value.
+
+    The output projection is SIN.
+
+    Args:
+        position_at_image_center (SkyCoord): The position that will be at the reference pixel
+        image_size (Tuple[int, int]): The size of the image
+        pixel_scale (Union[u.Quantity,str]): Size of the square pixels. If `str` passed will be cast to `Quantity`.
+
+    Raises:
+        TypeError: _description_
+
+    Returns:
+        WCS: _description_
+    """
+
+    if isinstance(pixel_scale, str):
+        pixel_scale = u.Quantity(pixel_scale)
+    elif not isinstance(pixel_scale, u.Quantity):
+        raise TypeError(
+            f"pixel_scale should be of type astro.units.Quantity or str, got {type(pixel_scale)}"
+        )
+
+    # This should be good enough
+    image_center = np.array(image_size, dtype=int) // 2
+
+    header = {
+        "CRVAL1": position_at_image_center.ra.deg,
+        "CRVAL2": position_at_image_center.dec.deg,
+        "CUNIT1": "deg",
+        "CUNIT2": "deg",
+        "CDELT1": -pixel_scale.to(u.rad).value,
+        "CDELT2": pixel_scale.to(u.rad).value,
+        "CRPIX1": image_center[0],
+        "CRPIX2": image_center[1],
+        "CTYPE1": "RA---SIN",
+        "CTYPE2": "DEC--SIN",
+    }
+
+    wcs = WCS(fits.Header(header))
+
+    return wcs
+
+
 def generate_stub_wcs_header(
     ra: Optional[Union[float, u.Quantity]] = None,
     dec: Optional[Union[float, u.Quantity]] = None,
@@ -53,6 +108,9 @@ def generate_stub_wcs_header(
 ) -> WCS:
     """Create a basic WSC header object that can be used to calculate sky positions
     for an example image.
+
+    Care should be taken when using this function as it tries to be too
+    smart for its own good.
 
     Args:
         ra (fUnion[loat,u.Quantuty]): The RA at the reference pixel. if a float is provided it is assumed to be in degrees.
@@ -92,8 +150,14 @@ def generate_stub_wcs_header(
         dec = dec if isinstance(dec, u.Quantity) else dec * u.deg
 
     # Sort out the header. If Path get the header through and construct the WCS
-    if isinstance(base_wcs, Path):
-        base_wcs = WCS(fits.getheader(base_wcs)).celestial
+    if base_wcs is not None:
+        if isinstance(base_wcs, Path):
+            base_wcs = WCS(fits.getheader(base_wcs)).celestial
+
+        assert isinstance(
+            base_wcs, WCS
+        ), f"Expecting base_wcs to be a WCS object by now, instead is {type(base_wcs)}"
+
         if image_shape is None:
             image_shape = base_wcs._naxis
         if ra is None:
@@ -120,6 +184,7 @@ def generate_stub_wcs_header(
     w.wcs.ctype = [f"RA---{projection}", f"DEC--{projection}"]
     w.wcs.cunit = ["deg", "deg"]
     w._naxis = tuple(image_shape)
+
     return w
 
 
