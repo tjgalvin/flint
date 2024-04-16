@@ -65,8 +65,6 @@ def generate_stub_wcs_header(
     Returns:
         WCS: The representative WCS objects
     """
-    # TODO: Handle RA and Dec being Quantities!
-
     # Trust nothing
     assert (
         len(projection) == 3
@@ -88,6 +86,7 @@ def generate_stub_wcs_header(
     ra = ra if isinstance(ra, u.Quantity) else ra * u.deg
     dec = dec if isinstance(dec, u.Quantity) else dec * u.deg
 
+    # Only needs to be approx correct. Off by one pixel should be ok, this pirate thinks
     image_center = np.array(image_shape, dtype=int) // 2
 
     # Sort out the header. If Path get the header through and construct the WCS
@@ -100,7 +99,7 @@ def generate_stub_wcs_header(
     # Nor bring it all together
     w.wcs.crpix = image_center
     w.wcs.cdelt = np.array([-pixel_scale, pixel_scale])
-    w.wcs.crval = [ra.to(u.rad).value, dec.to(u.rad).value]
+    w.wcs.crval = [ra.to(u.deg).value, dec.to(u.deg).value]
     w.wcs.ctype = [f"RA---{projection}", f"DEC--{projection}"]
     w.wcs.cunit = ["deg", "deg"]
     w._naxis1 = image_shape[0]
