@@ -1,18 +1,50 @@
 """Some basic checks around the potato peel functionality"""
 
 import pytest
+import shutil
+from pathlib import Path
 
 import numpy as np
 import astropy.units as u
 from astropy.table import Table
 
-from flint.peel.potato import load_known_peel_sources
+from flint.imager.wsclean import WSCleanOptions
+from flint.peel.potato import find_sources_to_peel, load_known_peel_sources
 from flint.sky_model import (
     generate_pb,
     GaussianResponse,
     SincSquaredResponse,
     AiryResponse,
 )
+from flint.utils import get_packaged_resource_path
+
+
+@pytest.fixture
+def ms_example(tmpdir):
+    ms_zip = Path(
+        get_packaged_resource_path(
+            package="flint.data.tests",
+            filename="SB39400.RACS_0635-31.beam0.small.ms.zip",
+        )
+    )
+    outpath = Path(tmpdir) / "39400"
+
+    shutil.unpack_archive(ms_zip, outpath)
+
+    ms_path = Path(outpath) / "SB39400.RACS_0635-31.beam0.small.ms"
+
+    return ms_path
+
+
+def test_check_sources_to_peel(ms_example):
+    """See whether the peeling constraints work"""
+    image_options = WSCleanOptions(size=8000, scale="2.5arcsec")
+
+    sources = find_sources_to_peel(ms=ms_example, image_options=image_options)
+
+    known_sources = load_known_peel_sources()
+
+    assert len(known_sources) > len(sources)
 
 
 def test_load_peel_sources():

@@ -45,7 +45,7 @@ def get_packaged_resource_path(package: str, filename: str) -> Path:
 
 def generate_strict_stub_wcs_header(
     position_at_image_center: SkyCoord,
-    image_size: Tuple[int, int],
+    image_shape: Tuple[int, int],
     pixel_scale: Union[u.Quantity, str],
 ) -> WCS:
     """Create a WCS object using some strict quantities. There
@@ -78,7 +78,7 @@ def generate_strict_stub_wcs_header(
         )
 
     # This should be good enough
-    image_center = np.array(image_size, dtype=int) // 2
+    image_center = np.array(image_shape, dtype=int) // 2
 
     header = {
         "CRVAL1": position_at_image_center.ra.deg,

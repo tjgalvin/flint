@@ -55,7 +55,7 @@ from flint.imager.wsclean import WSCleanOptions
 from flint.logging import logger
 from flint.ms import MS, get_phase_dir_from_ms, get_freqs_from_ms
 from flint.sky_model import generate_pb
-from flint.utils import get_packaged_resource_path
+from flint.utils import get_packaged_resource_path, generate_strict_stub_wcs_header
 
 
 def load_known_peel_sources() -> Table:
@@ -76,15 +76,52 @@ def load_known_peel_sources() -> Table:
 
 
 def source_within_image_fov(
-    source_coord: SkyCoord, image_options: Union[WSCleanOptions, Path]
+    source_coord: SkyCoord,
+    beam_coord: SkyCoord,
+    image_size: int,
+    pixel_scale: Union[u.Quantity, str],
 ) -> bool:
+    """Evaluate whether a source will be within the field of view
+    of an image.
 
-    return True
+    Args:
+        source_coord (SkyCoord): The source position to consider
+        beam_coord (SkyCoord): The center beam position to consider
+        image_size (int): The image size. This assumes a square image.
+        pixel_scale (Union[u.Quantity, str]): The pixel size, assuming square pixels.
+
+    Returns:
+        bool: Whether the source is expected to be in the field of view
+    """
+    # TODO: Allow the wcs to be passed in
+
+    wcs = generate_strict_stub_wcs_header(
+        position_at_image_center=beam_coord,
+        image_shape=(image_size, image_size),
+        pixel_scale=pixel_scale,
+    )
+
+    x, y = wcs.all_world2pix(source_coord.ra.deg, source_coord.dec.deg, 0)
+
+    # logger.info(
+    #     f"Source coordinate {(source_coord.ra.deg, source_coord.dec.deg ) } for {beam_coord} is at pixel {(x, y)}. "
+    # )
+
+    # Since the reference pixel is at the image center, then the valid domain
+    # is between 0 and image size
+    source_in_image = 0 < x <= image_size and 0 < y <= image_size
+
+    # logger.info(f"The {source_in_image=}")
+    return source_in_image
 
 
 def find_sources_to_peel(
-    ms: MS, field_idx: int = 0, max_sep_deg: float = 5, cutoff: float = 0.1
-) -> Table:
+    ms: MS,
+    image_options: WSCleanOptions,
+    field_idx: int = 0,
+    maximum_offset: float = 30,
+    minimum_apparent_brightness: float = 0.5,
+) -> Union[Table, None]:
     """Obtain a set of sources to peel from a reference candidate set. This will
     evaluate whether a source should be peels based on two criteria:
 
@@ -93,14 +130,21 @@ def find_sources_to_peel(
 
     Args:
         ms (MS): The measurement set that is being considered
+        image_options (WSCleanOptions): The imaging parameters that will be used to compute a placeholder WCS
         field_idx (int, optional): Which field in the MS to draw the position from. Defaults to 0.
-        max_sep_deg (float, optional): The radius from the imaging center a source needs to be (in degrees) for it to be considered a source to peel. Defaults to 5.
-        cutoff (float, optional): The primary beam attentuation level a source needs to be below for it to be considered a source to peel. Defaults to 0.1.
+        maximum_offset (float, optional): The largest separation, in degrees, before a source is ignored. Defaults to 30.0.
+        minimum_apparent_brightness (float, optional): The minimum apparent brightnessm, in Jy, a source should be before attempting to peel. Defaults to 0.5.
 
     Returns:
-        Table: Collection of sources to peel from the reference table. Column names are Name, RA, Dec, Aperture. This is the package table
+        Union[Table,None]: Collection of sources to peel from the reference table. Column names are Name, RA, Dec, Aperture. This is the package table. If no sources need to be peeled None is returned.
     """
-    max_sep = max_sep_deg * u.deg
+    image_size, pixel_scale = None, None
+
+    if isinstance(image_options, WSCleanOptions):
+        image_size = image_options.size
+        pixel_scale = image_options.scale
+    else:
+        raise TypeError(f"{type(image_options)=} is not known. ")
 
     logger.debug(f"Extracting image direction for {field_idx=}")
     image_coord = get_phase_dir_from_ms(ms=ms)
@@ -110,36 +154,44 @@ def find_sources_to_peel(
     peel_srcs_tab = load_known_peel_sources()
 
     freqs = get_freqs_from_ms(ms=ms)
-    nominal_freq = np.mean(freqs)
+    nominal_freq = np.mean(freqs) * u.Hz
     logger.info(f"The nominal frequency is {nominal_freq / 1e6}MHz")
 
     peel_srcs = []
 
     # TODO: Make this a mapping function
     for src in peel_srcs_tab:
-        src_coord = SkyCoord(src["RA"], src["Dec"], unit=(u.hourrangle, u.degree))
+        src_coord = SkyCoord(src["RA"], src["Dec"], unit=(u.hourangle, u.degree))
         offset = image_coord.separation(src_coord)
 
-        if offset > max_sep:
+        if source_within_image_fov(
+            source_coord=src_coord,
+            beam_coord=image_coord,
+            image_size=image_size,
+            pixel_scale=pixel_scale,
+        ):
             logger.debug(
-                f"{src['Name']} offset is {offset}, max separation is {max_sep}"
+                f"Source {src['name']} within image field of view of image with {image_size}x{image_size} and {pixel_scale=}"
             )
             continue
 
         taper = generate_pb(
-            pb_model="airy", freqs=nominal_freq, aperture=12 * u.m, offset=offset
+            pb_type="airy", freqs=nominal_freq, aperture=12 * u.m, offset=offset
         )
-        if taper.atten > cutoff:
-            logger.info(
-                f"{src['Name']} attenuation {taper.atten} is above {cutoff=} (in field of view)"
-            )
+        assert isinstance(taper.atten, float), "Expected a float"
+
+        if offset > maximum_offset * u.deg:
             continue
+
+        # if taper.atten[0] * tab[] > cutoff:
+        #     logger.info(
+        #         f"{src['Name']} attenuation {taper.atten} is above {cutoff=} (in field of view)"
+        #     )
+        #     continue
 
         peel_srcs.append(src)
 
-    peel_tab = Table(peel_srcs)
-
-    return peel_tab
+    return Table(rows=peel_srcs) if peel_srcs else None
 
 
 def prepare_ms_for_potato(ms: MS) -> MS:
@@ -241,6 +293,18 @@ def get_parser() -> ArgumentParser:
     check_parser.add_argument(
         "ms", type=Path, help="Path to the measurement set that will be considered"
     )
+    check_parser.add_argument(
+        "--image-size",
+        type=int,
+        default=8000,
+        help="The number of pixels that make up a square image. Used to determine if a source is within FoV",
+    )
+    check_parser.add_argument(
+        "--pixel-scale",
+        type=str,
+        default="2.5arcsec",
+        help="The size of a pixel in an astropy-understood unit. Used to assess whether a source is within the image FoV. ",
+    )
 
     list_parser = subparser.add_parser(  # noqa
         "list", help="List the known candidate sources available for peeling. "
@@ -281,7 +345,9 @@ def cli():
 
     if args.mode == "check":
         ms = MS(path=args.ms)
-        tab = find_sources_to_peel(ms=ms)
+        image_options = WSCleanOptions(size=args.image_size, scale=args.pixel_scale)
+
+        tab = find_sources_to_peel(ms=ms, image_options=image_options)
         logger.info("Sources to peel")
         logger.info(tab)
 

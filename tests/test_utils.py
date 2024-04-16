@@ -42,7 +42,7 @@ def test_generate_strict_wcs_header():
 
     w = generate_strict_stub_wcs_header(
         position_at_image_center=SkyCoord(180, -30, unit=(u.deg, u.deg)),
-        image_size=image_size,
+        image_shape=image_size,
         pixel_scale="2.5arcsec",
     )
     assert isinstance(w, WCS)
