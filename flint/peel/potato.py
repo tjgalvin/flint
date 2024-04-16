@@ -103,15 +103,10 @@ def source_within_image_fov(
 
     x, y = wcs.all_world2pix(source_coord.ra.deg, source_coord.dec.deg, 0)
 
-    # logger.info(
-    #     f"Source coordinate {(source_coord.ra.deg, source_coord.dec.deg ) } for {beam_coord} is at pixel {(x, y)}. "
-    # )
-
     # Since the reference pixel is at the image center, then the valid domain
     # is between 0 and image size
-    source_in_image = 0 < x <= image_size and 0 < y <= image_size
+    source_in_image = 0 <= x < image_size and 0 <= y < image_size
 
-    # logger.info(f"The {source_in_image=}")
     return source_in_image
 
 
