@@ -47,9 +47,11 @@ $container potato ${TMP_DIR}${obsid}.ms \
 
 """
 
+from __future__ import annotations
+
 from argparse import ArgumentParser
 from pathlib import Path
-from typing import Union, NamedTuple, Collection, Optional
+from typing import Union, Tuple, NamedTuple, Collection, Optional, Dict, Any
 
 from casacore.tables import table
 from astropy.table import Table
@@ -99,22 +101,23 @@ class PotatoConfigOptions(NamedTuple):
 
 class PotatoPeelOptions(NamedTuple):
     """Container class to hold options that go to the potato peel
-    software by Stefan Duchesne. See:
+    software by Stefan Duchesne. FLINT uses the `hot_potato` version.
+    ee:
 
     https://gitlab.com/Sunmish/potato
     """
 
     ms: Path
     """The measurement set that will be examined for peeling"""
-    source_ra: Collection[float]
+    ras: Collection[float]
     """The source RA in degrees to peel"""
-    source_dec: Collection[float]
+    decs: Collection[float]
     """The source Dec in degrees to peel"""
     peel_fovs: Collection[float]
-    """The field-of-views that should be created for the peel source"""
+    """The field-of-views that should be created for the peel source in degrees"""
     image_fov: float
     """The field-of-view in degrees of the main in-field image. If a sources is within this radius it is not peeled (because it would be imaged)"""
-    name: Collection[str]
+    names: Collection[str]
     """Name of the source being peeled"""
     config: Path = None
     """Path to the potatopeel configuration file"""
@@ -132,6 +135,11 @@ class PotatoPeelOptions(NamedTuple):
     """Creates an image after each calibration and subtraction loop to show iterative improvements of the subject peel source"""
     tmp: Path = "peel"
     """Where the temporary wsclean files will be written to"""
+
+    def with_options(self, **kwargs) -> PotatoPeelOptions:
+        items = self._asdict()
+        items.update(**kwargs)
+        return PotatoPeelOptions(**items)
 
 
 def load_known_peel_sources() -> Table:
@@ -262,7 +270,7 @@ def find_sources_to_peel(
 
         peel_srcs.append(src)
 
-    return Table(rows=peel_srcs) if peel_srcs else None
+    return Table(rows=peel_srcs, names=peel_srcs_tab.colnames) if peel_srcs else None
 
 
 def prepare_ms_for_potato(ms: MS) -> MS:
@@ -351,6 +359,10 @@ def _potato_options_to_command(
             logger.debug("bool")
             if value:
                 sub_options += f"--{key} "
+        elif isinstance(value, (tuple, list)):
+            logger.debug("tuple or list")
+            out_value = " ".join(value)
+            sub_options += f"--{key} {out_value}"
         elif isinstance(value, (int, float, str)):
             logger.debug("int flot str")
             sub_options += f"--{key} {value} "
@@ -398,7 +410,7 @@ def _potato_config_command(
     return PotatoConfigCommand(config_path=config_path, command=command)
 
 
-def create_potato_config(
+def create_run_potato_config(
     potato_container: Path,
     ms_path: Union[Path, MS],
     potato_config_options: PotatoConfigOptions,
@@ -419,7 +431,7 @@ def create_potato_config(
     base_potato_path = get_potato_output_base_path(ms_path=ms.path)
     config_path = base_potato_path.parent / (base_potato_path.name + ".config")
     potato_config_command = _potato_config_command(
-        config_path=config_path, potato_config_options=PotatoConfigOptions()
+        config_path=config_path, potato_config_options=potato_config_options
     )
 
     run_singularity_command(
@@ -429,13 +441,102 @@ def create_potato_config(
     return potato_config_command
 
 
-def potato_peel(ms: MS, potato_container: Path) -> MS:
+class PotatoPeelCommand(NamedTuple):
+    """Container to hold the items of the hot potato command"""
+
+    ms: MS
+    """The measurement set that potato has operated against"""
+    command: str
+    """The hot potato command that will be executed"""
+
+
+def _potato_peel_command(
+    ms: MS, potato_peel_options: PotatoPeelOptions
+) -> PotatoPeelCommand:
+
+    command = (
+        "hot_potato "
+        f"{str(ms.path.absolute())} "
+        f"{potato_peel_options.image_fov:.4f} "
+    )
+
+    sub_options = _potato_options_to_command(
+        potato_options=potato_peel_options, skip_keys=("image_fov",)
+    )
+
+    command += sub_options
+
+    return PotatoPeelCommand(ms=ms, command=command)
+
+
+def create_run_potato_peel(
+    ms: MS, potato_peel_options: PotatoPeelOptions
+) -> PotatoPeelCommand:
+
+    potato_peel_command = _potato_peel_command(
+        ms=ms, potato_peel_options=potato_peel_options
+    )
+
+    # TODO: Bind dirs
+    # TODO: Run singularity command
+    # TODO: Return results
+
+
+class NormalisedSources(NamedTuple):
+    """Temporary container to hold the normalised source properties that
+    would be provided to potato
+    """
+
+    source_ras: Tuple[float]
+    """The RAs in degrees"""
+    source_decs: Tuple[float]
+    """The Decs in degrees"""
+    source_fovs: Tuple[float]
+    """The size of each source to image in degress"""
+    source_names: Tuple[str]
+    """The name of each source"""
+
+
+def get_source_props_from_table(table: Table) -> NormalisedSources:
+    """Given the astropy table of known sources to peel, normalise their
+    inputs for the potato peel CLI
+
+    Args:
+        table (Table): Table of sources to peel
+
+    Returns:
+        NormalisedSources: Collection of normalised sources properties that will be provided to `hot_potato`
+    """
+
+    sources_sky = SkyCoord(table["RA"], table["Dec"], unit=(u.hourangle, u.deg))
+
+    source_ras = [source_sky.ra.deg for source_sky in sources_sky]
+    source_decs = [source_sky.dec.deg for source_sky in sources_sky]
+    source_apertures = (table["Aperture"] * u.arcmin).to(u.deg).value
+    source_names = [i.replace(" ", "_") for i in table["Name"].value]
+
+    return NormalisedSources(
+        source_ras=tuple(source_ras),
+        source_decs=tuple(source_decs),
+        source_fovs=tuple(source_apertures),
+        source_names=tuple(source_names),
+    )
+
+
+def potato_peel(
+    ms: MS,
+    potato_container: Path,
+    update_potato_config_options: Optional[Dict[str, Any]] = None,
+    update_potato_peel_options: Optional[Dict[str, Any]] = None,
+) -> MS:
     """Peel out sources from a measurement set using PotatoPeel. Candidate sources
     from a known list of sources (see Table 3 or RACS-Mid paper) are considered.
 
     Args:
         ms (MS): The measurement set to peel out known sources
         potato_container (Path): Location of container with potatopeel software installed
+        update_potato_config_options (Optional[Dict[str, Any]], optional): A dictioanry with values to use to update the default options within the `PotatoConfigOptions`. If None use the defaults. Defaults to None.
+        update_potato_peel_options (Optional[Dict[str, Any]], optional): A dictioanry with values to use to update the default options within the `PotatoPeelOptions`. If None use the defaults. Defaults to None.
 
     Returns:
         MS: Updated measurement set
@@ -451,7 +552,34 @@ def potato_peel(ms: MS, potato_container: Path) -> MS:
         logger.info("No sources to peel. ")
         return ms
 
+    update_potato_config_options = (
+        update_potato_config_options if update_potato_config_options else {}
+    )
+    potato_config_options = PotatoConfigOptions(**update_potato_config_options)
+    potato_config_command = create_run_potato_config(
+        potato_container=potato_container,
+        ms_path=ms,
+        potato_config_options=potato_config_options,
+    )
+
     ms = prepare_ms_for_potato(ms=ms)
+
+    normalised_source_props = get_source_props_from_table(table=peel_tab)
+    potato_peel_options = PotatoPeelOptions(
+        ms=ms.path,
+        ras=normalised_source_props.source_racs,
+        decs=normalised_source_props.source_decs,
+        peel_fovs=normalised_source_props.source_fovs,
+        image_fov=0.01,
+        names=normalised_source_props.source_names,
+        config=potato_config_command.config_path,
+    )
+    if update_potato_peel_options:
+        potato_peel_options = potato_peel_options.with_options(
+            **update_potato_peel_options
+        )
+
+    create_run_potato_peel(ms=ms, potato_peel_options=potato_peel_options)
 
     return ms
 

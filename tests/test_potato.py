@@ -15,6 +15,8 @@ from flint.peel.potato import (
     PotatoConfigOptions,
     _potato_config_command,
     PotatoConfigCommand,
+    NormalisedSources,
+    get_source_props_from_table,
 )
 from flint.sky_model import (
     generate_pb,
@@ -42,6 +44,10 @@ def ms_example(tmpdir):
     return ms_path
 
 
+# TODO: NEED TESTS FOR THE POTATO PEEL OPTIONS
+# TODO: NEED TESTS FOR THE POTATO PEEL COMMAND
+
+
 def test_potato_config_command():
     a = PotatoConfigOptions()
     ex = Path("This/example/SB1234.potato.config")
@@ -52,6 +58,29 @@ def test_potato_config_command():
     assert isinstance(command, PotatoConfigCommand)
     assert command.command == expected
     assert command.config_path == ex
+
+
+def test_normalised_sources_to_peel(ms_example):
+    """See whether the normalisation of sources in a table for potato CLI works"""
+    image_options = WSCleanOptions(size=8000, scale="2.5arcsec")
+
+    sources = find_sources_to_peel(ms=ms_example, image_options=image_options)
+
+    source_props = get_source_props_from_table(table=sources)
+
+    assert isinstance(source_props, NormalisedSources)
+    assert isinstance(source_props.source_ras, tuple)
+    assert isinstance(source_props.source_decs, tuple)
+    assert isinstance(source_props.source_fovs, tuple)
+    assert isinstance(source_props.source_names, tuple)
+
+    assert len(source_props.source_ras) == 2
+    assert len(source_props.source_decs) == 2
+    assert len(source_props.source_fovs) == 2
+    assert len(source_props.source_names) == 2
+
+    assert np.allclose(source_props.source_ras, (83.8249, 79.949), atol=1e-3)
+    assert source_props.source_names == ("Orion_A", "Pictor_A")
 
 
 def test_check_sources_to_peel(ms_example):
