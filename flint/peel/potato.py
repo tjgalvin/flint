@@ -10,6 +10,8 @@ to be in a singularity container. There are several reasons
 for this, but the principal one is that the numba module used
 by potatopeel may be difficult to get working correctly alongside
 dask and flint. Keeping it simple at this point is the main aim. 
+There is also the problem of casatasks + python-casacore not
+jiving in newer python versios. 
 
 The CLI of potatopeel is called across two stages:
 
@@ -27,7 +29,11 @@ $container peel_configuration.py "${configFile}" \
     --peel_minuvl=0 \
     --peel_multiscale
 
-$container potato ${TMP_DIR}${obsid}.ms ${source_ra} ${source_dec} ${peel_fov} ${subtract_rad} \
+$container potato ${TMP_DIR}${obsid}.ms \
+    ${source_ra} \
+    ${source_dec} \
+    ${peel_fov} \
+    ${subtract_rad} \
     --config ${configFile} \
     -solint ${PEEL_SOLINT} \
     -calmode ${PEEL_CALMODE}  \
@@ -43,7 +49,7 @@ $container potato ${TMP_DIR}${obsid}.ms ${source_ra} ${source_dec} ${peel_fov} $
 
 from argparse import ArgumentParser
 from pathlib import Path
-from typing import Union
+from typing import Union, NamedTuple, Collection
 
 from casacore.tables import table
 from astropy.table import Table
@@ -56,6 +62,74 @@ from flint.logging import logger
 from flint.ms import MS, get_phase_dir_from_ms, get_freqs_from_ms
 from flint.sky_model import generate_pb
 from flint.utils import get_packaged_resource_path, generate_strict_stub_wcs_header
+
+
+class PotatoConfigOptions(NamedTuple):
+    """Container class to hold options that go into the potatopy
+    configuration creation software by Stefan Duchesne. See:
+
+    https://gitlab.com/Sunmish/potato
+    """
+
+    image_size: int = 6148
+    """Size of an in-field image"""
+    image_scale: str = "2.5arcsec"
+    """The pixel scale of the in-field image"""
+    image_briggs: float = -1.5
+    """Briggs robust parameter for the in-field image"""
+    image_channels: int = 4
+    """Number of output channels for the in-field image"""
+    image_minuvl: float = 0.0
+    """"Minimum (u,v)- distance in wavelengths for data to be selected"""
+    peel_size: int = 1000
+    """Size of the peel image to make, in pixels"""
+    peel_scale: float = "2.5secsec"
+    """Pixel scale of the peel images"""
+    peel_channels: int = 16
+    """Number of output channels for the peel images"""
+    peel_nmiter: int = 7
+    """Number of major iterations allowed for the peel souces"""
+    peel_minuvl: float = 0.0
+    """"Minimum (u,v)- distance in wavelengths for data to be selected for the peel image"""
+    peel_multiscale: bool = True
+    """Whether multi-scale is to be used for the peel sources"""
+
+
+class PotatoPeelOptions(NamedTuple):
+    """Container class to hold options that go to the potato peel
+    software by Stefan Duchesne. See:
+
+    https://gitlab.com/Sunmish/potato
+    """
+
+    ms: Path
+    """The measurement set that will be examined for peeling"""
+    source_ra: Collection[float]
+    """The source RA in degrees to peel"""
+    source_dec: Collection[float]
+    """The source Dec in degrees to peel"""
+    peel_fovs: Collection[float]
+    """The field-of-views that should be created for the peel source"""
+    image_fov: float
+    """The field-of-view in degrees of the main in-field image. If a sources is within this radius it is not peeled (because it would be imaged)"""
+    name: Collection[str]
+    """Name of the source being peeled"""
+    config: Path = None
+    """Path to the potatopeel configuration file"""
+    solint: str = "30s"
+    """Solution interval to use when applying gaincal"""
+    calmode: str = "P"
+    """Self-calibration mode to use (see casatasks gaincal)"""
+    minpeelflux: float = 0.5
+    """Minimum flux, in Jy, for the peeling procedure (image->selfcal->image)"""
+    refant: int = 1
+    """Referance antenna to use when solving for self-cal solutions"""
+    direct_subtract: bool = True
+    """Whether a direct model subtraction (without self-cal) should be used ift he source is faint"""
+    intermediate_peels: bool = True
+    """Creates an image after each calibration and subtraction loop to show iterative improvements of the subject peel source"""
+    tmp: Path = "peel"
+    """Where the temporary wsclean files will be written to"""
 
 
 def load_known_peel_sources() -> Table:
