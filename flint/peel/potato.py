@@ -61,6 +61,7 @@ from flint.imager.wsclean import WSCleanOptions
 from flint.logging import logger
 from flint.ms import MS, get_phase_dir_from_ms, get_freqs_from_ms
 from flint.naming import get_potato_output_base_path
+from flint.sclient import run_singularity_command
 from flint.sky_model import generate_pb
 from flint.utils import get_packaged_resource_path, generate_strict_stub_wcs_header
 
@@ -364,9 +365,18 @@ def _potato_options_to_command(
     return sub_options
 
 
+class PotatoConfigCommand(NamedTuple):
+    """Container for potato configuration command results"""
+
+    config_path: Path
+    """Path to the configuration file generated"""
+    command: str
+    """The command string that should be executed"""
+
+
 def _potato_config_command(
     config_path: Path, potato_config_options: PotatoConfigOptions
-) -> str:
+) -> PotatoConfigCommand:
     """Create the peel_configuration.py command that will be called
     in the potato singularity image. This is the CLI version of the
     code (not calling the python function).
@@ -376,7 +386,7 @@ def _potato_config_command(
         potato_config_options (PotatoConfigOptions): Instance of all the options to use
 
     Returns:
-        str: The CLI command that will be executed to create a potato configuration file
+        PotatoconfigCommand: The CLI command that will be executed to create a potato configuration file
     """
 
     command = "peel_configuration.py " f"{str(config_path)} "
@@ -385,14 +395,25 @@ def _potato_config_command(
     command = command + sub_options
 
     logger.debug(f"Constructed command {command}")
-    return command
+    return PotatoConfigCommand(config_path=config_path, command=command)
 
 
 def create_potato_config(
     potato_container: Path,
     ms_path: Union[Path, MS],
     potato_config_options: PotatoConfigOptions,
-) -> Path:
+) -> PotatoConfigCommand:
+    """Construct and run a CLI command into the `peel_configuration.py`
+    script of the `potatopeel` package.
+
+    Args:
+        potato_container (Path): Container with the `potatopeel` package installed
+        ms_path (Union[Path, MS]): Path to the measurement set that will be peeled
+        potato_config_options (PotatoConfigOptions): Options to tweak the values in the peel configuration
+
+    Returns:
+        PotatoConfigCommand: Container of the path to the peel configuration file and the corresponding command that generated it
+    """
 
     ms = MS.cast(ms=ms_path)
     base_potato_path = get_potato_output_base_path(ms_path=ms.path)
@@ -401,8 +422,11 @@ def create_potato_config(
         config_path=config_path, potato_config_options=PotatoConfigOptions()
     )
 
-    # Step one: create the options to command string
-    pass
+    run_singularity_command(
+        image=potato_container, bind_dirs=potato_config_command.config_path.parent
+    )
+
+    return potato_config_command
 
 
 def potato_peel(ms: MS, potato_container: Path) -> MS:

@@ -14,6 +14,7 @@ from flint.peel.potato import (
     load_known_peel_sources,
     PotatoConfigOptions,
     _potato_config_command,
+    PotatoConfigCommand,
 )
 from flint.sky_model import (
     generate_pb,
@@ -48,7 +49,9 @@ def test_potato_config_command():
     command = _potato_config_command(config_path=ex, potato_config_options=a)
     expected = "peel_configuration.py This/example/SB1234.potato.config --image_size 6148 --image_scale 0.0006944 --image_briggs -1.5 --image_channels 4 --image_minuvl 0.0 --peel_size 1000 --peel_scale 0.0006944 --peel_channels 16 --peel_nmiter 7 --peel_minuvl 0.0 --peel_multiscale "
 
-    assert command == expected
+    assert isinstance(command, PotatoConfigCommand)
+    assert command.command == expected
+    assert command.config_path == ex
 
 
 def test_check_sources_to_peel(ms_example):
