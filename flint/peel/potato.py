@@ -49,7 +49,7 @@ $container potato ${TMP_DIR}${obsid}.ms \
 
 from argparse import ArgumentParser
 from pathlib import Path
-from typing import Union, NamedTuple, Collection
+from typing import Union, NamedTuple, Collection, Optional
 
 from casacore.tables import table
 from astropy.table import Table
@@ -60,6 +60,7 @@ import numpy as np
 from flint.imager.wsclean import WSCleanOptions
 from flint.logging import logger
 from flint.ms import MS, get_phase_dir_from_ms, get_freqs_from_ms
+from flint.naming import get_potato_output_base_path
 from flint.sky_model import generate_pb
 from flint.utils import get_packaged_resource_path, generate_strict_stub_wcs_header
 
@@ -73,8 +74,8 @@ class PotatoConfigOptions(NamedTuple):
 
     image_size: int = 6148
     """Size of an in-field image"""
-    image_scale: str = "2.5arcsec"
-    """The pixel scale of the in-field image"""
+    image_scale: float = 0.0006944
+    """The pixel scale of the in-field image in degrees"""
     image_briggs: float = -1.5
     """Briggs robust parameter for the in-field image"""
     image_channels: int = 4
@@ -83,8 +84,8 @@ class PotatoConfigOptions(NamedTuple):
     """"Minimum (u,v)- distance in wavelengths for data to be selected"""
     peel_size: int = 1000
     """Size of the peel image to make, in pixels"""
-    peel_scale: float = "2.5secsec"
-    """Pixel scale of the peel images"""
+    peel_scale: float = 0.0006944
+    """Pixel scale of the peel images in degrees"""
     peel_channels: int = 16
     """Number of output channels for the peel images"""
     peel_nmiter: int = 7
@@ -319,6 +320,89 @@ def prepare_ms_for_potato(ms: MS) -> MS:
             tab.removecols("CORRECTED_DATA")
 
     return ms.with_options(column="DATA")
+
+
+def _potato_options_to_command(
+    potato_options: Union[PotatoConfigOptions, PotatoPeelOptions],
+    skip_keys: Optional[Collection[str]] = None,
+) -> str:
+    """Construct the CLI options that would be provided to
+    a potato peel CLI program
+
+    Args:
+        potato_options (Union[PotatoConfigOptions, PotatoPeelOptions]): An instance of one of the option classes to draw from
+        skip_keys (Optional[Collection[str]], optional): A collections of keys to ignore when build the CLI. If None all keys in the provided options instance are used. Defaults ot None.
+    Raises:
+        TypeError: When an unrecognised data type is found in the provided options class
+
+    Returns:
+        str: A string of the CLI options and keys
+    """
+    skip_keys = tuple(skip_keys) if skip_keys else tuple()
+
+    sub_options = ""
+    for key, value in potato_options._asdict().items():
+        logger.debug(f"{key=} {value=} {type(value)=}")
+        if key in skip_keys:
+            logger.debug(f"{key=} in {skip_keys=}, skipping")
+            continue
+        if isinstance(value, bool):
+            logger.debug("bool")
+            if value:
+                sub_options += f"--{key} "
+        elif isinstance(value, (int, float, str)):
+            logger.debug("int flot str")
+            sub_options += f"--{key} {value} "
+        elif isinstance(value, Path):
+            logger.debug("Path")
+            sub_options += f"--{key} {str(value)} "
+        elif value is None:
+            continue
+        else:
+            raise TypeError(f"Unrecognised {key=} {value=} type")
+
+    return sub_options
+
+
+def _potato_config_command(
+    config_path: Path, potato_config_options: PotatoConfigOptions
+) -> str:
+    """Create the peel_configuration.py command that will be called
+    in the potato singularity image. This is the CLI version of the
+    code (not calling the python function).
+
+    Args:
+        config_path (Path): Output location of the configuration file
+        potato_config_options (PotatoConfigOptions): Instance of all the options to use
+
+    Returns:
+        str: The CLI command that will be executed to create a potato configuration file
+    """
+
+    command = "peel_configuration.py " f"{str(config_path)} "
+
+    sub_options = _potato_options_to_command(potato_options=potato_config_options)
+    command = command + sub_options
+
+    logger.debug(f"Constructed command {command}")
+    return command
+
+
+def create_potato_config(
+    potato_container: Path,
+    ms_path: Union[Path, MS],
+    potato_config_options: PotatoConfigOptions,
+) -> Path:
+
+    ms = MS.cast(ms=ms_path)
+    base_potato_path = get_potato_output_base_path(ms_path=ms.path)
+    config_path = base_potato_path.parent / (base_potato_path.name + ".config")
+    potato_config_command = _potato_config_command(
+        config_path=config_path, potato_config_options=PotatoConfigOptions()
+    )
+
+    # Step one: create the options to command string
+    pass
 
 
 def potato_peel(ms: MS, potato_container: Path) -> MS:

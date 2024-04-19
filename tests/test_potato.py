@@ -9,7 +9,12 @@ import astropy.units as u
 from astropy.table import Table
 
 from flint.imager.wsclean import WSCleanOptions
-from flint.peel.potato import find_sources_to_peel, load_known_peel_sources
+from flint.peel.potato import (
+    find_sources_to_peel,
+    load_known_peel_sources,
+    PotatoConfigOptions,
+    _potato_config_command,
+)
 from flint.sky_model import (
     generate_pb,
     GaussianResponse,
@@ -34,6 +39,16 @@ def ms_example(tmpdir):
     ms_path = Path(outpath) / "SB39400.RACS_0635-31.beam0.small.ms"
 
     return ms_path
+
+
+def test_potato_config_command():
+    a = PotatoConfigOptions()
+    ex = Path("This/example/SB1234.potato.config")
+
+    command = _potato_config_command(config_path=ex, potato_config_options=a)
+    expected = "peel_configuration.py This/example/SB1234.potato.config --image_size 6148 --image_scale 0.0006944 --image_briggs -1.5 --image_channels 4 --image_minuvl 0.0 --peel_size 1000 --peel_scale 0.0006944 --peel_channels 16 --peel_nmiter 7 --peel_minuvl 0.0 --peel_multiscale "
+
+    assert command == expected
 
 
 def test_check_sources_to_peel(ms_example):
