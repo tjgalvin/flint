@@ -125,7 +125,7 @@ class PotatoPeelOptions(NamedTuple):
     """Name of the source being peeled"""
     config: Path = None
     """Path to the potatopeel configuration file"""
-    solint: str = "30s"
+    solint: float = 30
     """Solution interval to use when applying gaincal"""
     calmode: str = "P"
     """Self-calibration mode to use (see casatasks gaincal)"""
