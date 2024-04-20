@@ -17,7 +17,12 @@ from flint.peel.potato import (
     PotatoConfigCommand,
     NormalisedSources,
     get_source_props_from_table,
+    PotatoPeelOptions,
+    _potato_peel_command,
+    PotatoPeelCommand,
 )
+
+from flint.ms import MS
 from flint.sky_model import (
     generate_pb,
     GaussianResponse,
@@ -46,6 +51,34 @@ def ms_example(tmpdir):
 
 # TODO: NEED TESTS FOR THE POTATO PEEL OPTIONS
 # TODO: NEED TESTS FOR THE POTATO PEEL COMMAND
+
+
+def test_potato_peel_command(ms_example):
+    """Test to see if the potato peel command can be generated correctly"""
+    ms = MS(path=ms_example, column="DATA")
+
+    # Set up the sources to peel out
+    image_options = WSCleanOptions(size=8000, scale="2.5arcsec")
+    sources = find_sources_to_peel(ms=ms, image_options=image_options)
+    source_props = get_source_props_from_table(table=sources)
+
+    potato_peel_options = PotatoPeelOptions(
+        ms=ms.path,
+        ras=source_props.source_ras,
+        decs=source_props.source_decs,
+        peel_fovs=source_props.source_fovs,
+        names=source_props.source_names,
+        image_fov=1.0,
+    )
+
+    peel_command = _potato_peel_command(ms=ms, potato_peel_options=potato_peel_options)
+
+    assert isinstance(peel_command, PotatoPeelCommand)
+    assert peel_command.ms.path == ms.path
+    assert isinstance(peel_command.command, str)
+
+    expected_command = f"hot_potato {str(ms.path)} 1.0000 --ras 83.82499999999999 79.94999999999999 --decs -5.386388888888889 -45.764722222222225 --peel_fovs 0.11850000000000001 0.105 --names Orion_A Pictor_A --solint 30s --calmode P --minpeelflux 0.5 --refant 1 --direct_subtract --intermediate_peels --tmp peel "
+    assert peel_command.command == expected_command
 
 
 def test_potato_config_command():

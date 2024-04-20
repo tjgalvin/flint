@@ -30,10 +30,11 @@ def rms_path(tmpdir):
 
 
 def test_generate_strict_wcs_header():
-    image_size = (2000, 2000)
+    """Generate an expects WCS header from known inputs"""
+    image_shape = (2000, 2000)
     w = generate_strict_stub_wcs_header(
         position_at_image_center=SkyCoord(180, -30, unit=(u.deg, u.deg)),
-        image_size=image_size,
+        image_shape=image_shape,
         pixel_scale=-2.5 * u.arcsec,
     )
     assert isinstance(w, WCS)
@@ -42,7 +43,7 @@ def test_generate_strict_wcs_header():
 
     w = generate_strict_stub_wcs_header(
         position_at_image_center=SkyCoord(180, -30, unit=(u.deg, u.deg)),
-        image_shape=image_size,
+        image_shape=image_shape,
         pixel_scale="2.5arcsec",
     )
     assert isinstance(w, WCS)

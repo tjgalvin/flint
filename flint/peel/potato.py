@@ -65,7 +65,11 @@ from flint.ms import MS, get_phase_dir_from_ms, get_freqs_from_ms
 from flint.naming import get_potato_output_base_path
 from flint.sclient import run_singularity_command
 from flint.sky_model import generate_pb
-from flint.utils import get_packaged_resource_path, generate_strict_stub_wcs_header
+from flint.utils import (
+    get_packaged_resource_path,
+    generate_strict_stub_wcs_header,
+    create_directory,
+)
 
 
 class PotatoConfigOptions(NamedTuple):
@@ -361,8 +365,8 @@ def _potato_options_to_command(
                 sub_options += f"--{key} "
         elif isinstance(value, (tuple, list)):
             logger.debug("tuple or list")
-            out_value = " ".join(value)
-            sub_options += f"--{key} {out_value}"
+            out_value = " ".join([f"{v}" for v in value])
+            sub_options += f"--{key} {out_value} "
         elif isinstance(value, (int, float, str)):
             logger.debug("int flot str")
             sub_options += f"--{key} {value} "
@@ -453,6 +457,16 @@ class PotatoPeelCommand(NamedTuple):
 def _potato_peel_command(
     ms: MS, potato_peel_options: PotatoPeelOptions
 ) -> PotatoPeelCommand:
+    """Construct the CLI command for `hot_potato`, and appropriately
+    handle the mandatory and optinal arguments.
+
+    Args:
+        ms (MS): The measurement set that will be peeled
+        potato_peel_options (PotatoPeelOptions): The `hot_potato` options to supply
+
+    Returns:
+        PotatoPeelCommand: The `hot_potato` command that was constructed from the input `PotatoPeelOptions`
+    """
 
     command = (
         "hot_potato "
@@ -460,8 +474,9 @@ def _potato_peel_command(
         f"{potato_peel_options.image_fov:.4f} "
     )
 
+    # The skip keys handle the mandatory arguments that are specified above
     sub_options = _potato_options_to_command(
-        potato_options=potato_peel_options, skip_keys=("image_fov",)
+        potato_options=potato_peel_options, skip_keys=("image_fov", "ms")
     )
 
     command += sub_options
@@ -470,16 +485,42 @@ def _potato_peel_command(
 
 
 def create_run_potato_peel(
-    ms: MS, potato_peel_options: PotatoPeelOptions
+    potato_container: Path, ms: MS, potato_peel_options: PotatoPeelOptions
 ) -> PotatoPeelCommand:
+    """Construct and run a `hot_potato` command to peel out sources from
+    a measurement set.
 
+    Args:
+        potato_container (Path): Container with the potato peel software and appropriate tools (including wsclean)
+        ms (MS): The measurement set that contains sources to peel
+        potato_peel_options (PotatoPeelOptions): Options that are supplied to `hot_potato`, including the sources to be peeled
+
+    Returns:
+        PotatoPeelCommand: The executed `hot_potato` command
+    """
+
+    # Construct the command
     potato_peel_command = _potato_peel_command(
         ms=ms, potato_peel_options=potato_peel_options
     )
 
-    # TODO: Bind dirs
-    # TODO: Run singularity command
-    # TODO: Return results
+    # make sure the container can bind to all necessary directories. This
+    # includes the potential directory used by wsclean to temporaily store
+    # files
+    bind_dirs = [
+        ms.path,
+    ]
+    if potato_peel_options.tmp is not None:
+        if not Path(potato_peel_options.tmp).exists():
+            create_directory(directory=potato_peel_options.tmp)
+        bind_dirs.append(potato_peel_options.tmp)
+
+    # Now run the command and hope foe the best you silly pirate
+    run_singularity_command(
+        image=potato_container, command=potato_peel_command.command, bind_dirs=bind_dirs
+    )
+
+    return potato_peel_command
 
 
 class NormalisedSources(NamedTuple):
