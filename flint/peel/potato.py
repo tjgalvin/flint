@@ -338,6 +338,7 @@ def prepare_ms_for_potato(ms: MS) -> MS:
 def _potato_options_to_command(
     potato_options: Union[PotatoConfigOptions, PotatoPeelOptions],
     skip_keys: Optional[Collection[str]] = None,
+    check_double_keys: bool = False,
 ) -> str:
     """Construct the CLI options that would be provided to
     a potato peel CLI program
@@ -345,6 +346,8 @@ def _potato_options_to_command(
     Args:
         potato_options (Union[PotatoConfigOptions, PotatoPeelOptions]): An instance of one of the option classes to draw from
         skip_keys (Optional[Collection[str]], optional): A collections of keys to ignore when build the CLI. If None all keys in the provided options instance are used. Defaults ot None.
+        check_double_leys (bool, optional): Some long form names in `hot_potato` are single dash while others are double dash. This is not the case in the config creation tool. This will check to see if the double should be used. Defaults to False.
+
     Raises:
         TypeError: When an unrecognised data type is found in the provided options class
 
@@ -353,8 +356,13 @@ def _potato_options_to_command(
     """
     skip_keys = tuple(skip_keys) if skip_keys else tuple()
 
+    DOUBLE = ("ras", "decs", "peel_fovs", "intermediate_peels")
+
     sub_options = ""
     for key, value in potato_options._asdict().items():
+        flag = "--"
+        if check_double_keys:
+            flag = "--" if key in DOUBLE else "-"
         logger.debug(f"{key=} {value=} {type(value)=}")
         if key in skip_keys:
             logger.debug(f"{key=} in {skip_keys=}, skipping")
@@ -362,17 +370,17 @@ def _potato_options_to_command(
         if isinstance(value, bool):
             logger.debug("bool")
             if value:
-                sub_options += f"--{key} "
+                sub_options += f"{flag}{key} "
         elif isinstance(value, (tuple, list)):
             logger.debug("tuple or list")
             out_value = " ".join([f"{v}" for v in value])
-            sub_options += f"--{key} {out_value} "
+            sub_options += f"{flag}{key} {out_value} "
         elif isinstance(value, (int, float, str)):
             logger.debug("int flot str")
-            sub_options += f"--{key} {value} "
+            sub_options += f"{flag}{key} {value} "
         elif isinstance(value, Path):
             logger.debug("Path")
-            sub_options += f"--{key} {str(value)} "
+            sub_options += f"{flag}{key} {str(value)} "
         elif value is None:
             continue
         else:
@@ -478,7 +486,9 @@ def _potato_peel_command(
 
     # The skip keys handle the mandatory arguments that are specified above
     sub_options = _potato_options_to_command(
-        potato_options=potato_peel_options, skip_keys=("image_fov", "ms")
+        potato_options=potato_peel_options,
+        skip_keys=("image_fov", "ms"),
+        check_double_keys=True,
     )
 
     command += sub_options
