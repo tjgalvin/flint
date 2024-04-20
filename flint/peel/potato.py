@@ -689,7 +689,7 @@ def cli():
         logger.info("Known candidate sources to peel")
         logger.info(tab)
 
-    if args.mode == "check":
+    elif args.mode == "check":
         ms = MS(path=args.ms)
         image_options = WSCleanOptions(size=args.image_size, scale=args.pixel_scale)
 
@@ -697,10 +697,13 @@ def cli():
         logger.info("Sources to peel")
         logger.info(tab)
 
-    if args.mode == "peel":
+    elif args.mode == "peel":
         ms = MS(path=args.ms, column=args.data_column)
 
         potato_peel(ms=ms, potato_peel=args.potato_container)
+
+    else:
+        parser.print_help()
 
 
 if __name__ == "__main__":
