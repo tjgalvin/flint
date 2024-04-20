@@ -569,6 +569,7 @@ def potato_peel(
     potato_container: Path,
     update_potato_config_options: Optional[Dict[str, Any]] = None,
     update_potato_peel_options: Optional[Dict[str, Any]] = None,
+    image_options: Optional[WSCleanOptions] = None,
 ) -> MS:
     """Peel out sources from a measurement set using PotatoPeel. Candidate sources
     from a known list of sources (see Table 3 or RACS-Mid paper) are considered.
@@ -578,6 +579,7 @@ def potato_peel(
         potato_container (Path): Location of container with potatopeel software installed
         update_potato_config_options (Optional[Dict[str, Any]], optional): A dictioanry with values to use to update the default options within the `PotatoConfigOptions`. If None use the defaults. Defaults to None.
         update_potato_peel_options (Optional[Dict[str, Any]], optional): A dictioanry with values to use to update the default options within the `PotatoPeelOptions`. If None use the defaults. Defaults to None.
+        image_options (Optional[WSCleanOptions], optional): Any imaging options that should be used to determin if sources require peeling (e.g. image size, pixel size)
 
     Returns:
         MS: Updated measurement set
@@ -587,7 +589,11 @@ def potato_peel(
     logger.info(f"Will attempt to peel the {ms=}")
     logger.info(f"Using the potato peel container {potato_container}")
 
-    peel_tab = find_sources_to_peel(ms=ms)
+    if image_options is None:
+        logger.info("No supplied image options, using default WSCleanOptions()")
+        image_options = WSCleanOptions()
+
+    peel_tab = find_sources_to_peel(ms=ms, image_options=image_options)
 
     if len(peel_tab) == 0:
         logger.info("No sources to peel. ")
@@ -675,6 +681,18 @@ def get_parser() -> ArgumentParser:
         default="DATA",
         help="The column name that contains data with a source that needs to be peeled",
     )
+    peel_parser.add_argument(
+        "--image-size",
+        type=int,
+        default=8000,
+        help="The number of pixels that make up a square image. Used to determine if a source is within FoV",
+    )
+    peel_parser.add_argument(
+        "--pixel-scale",
+        type=str,
+        default="2.5arcsec",
+        help="The size of a pixel in an astropy-understood unit. Used to assess whether a source is within the image FoV. ",
+    )
 
     return parser
 
@@ -699,8 +717,11 @@ def cli():
 
     elif args.mode == "peel":
         ms = MS(path=args.ms, column=args.data_column)
+        image_options = WSCleanOptions(size=args.image_size, scale=args.pixel_scale)
 
-        potato_peel(ms=ms, potato_peel=args.potato_container)
+        potato_peel(
+            ms=ms, potato_peel=args.potato_container, image_options=image_options
+        )
 
     else:
         parser.print_help()
