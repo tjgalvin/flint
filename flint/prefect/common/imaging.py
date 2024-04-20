@@ -20,7 +20,7 @@ from flint.calibrate.aocalibrate import (
 from flint.coadd.linmos import LinmosCommand, linmos_images
 from flint.convol import BeamShape, convolve_images, get_common_beam
 from flint.flagging import flag_ms_aoflagger
-from flint.imager.wsclean import ImageSet, WSCleanCommand, wsclean_imager
+from flint.imager.wsclean import ImageSet, WSCleanCommand, WSCleanOptions, wsclean_imager
 from flint.logging import logger
 from flint.masking import (
     MaskingOptions,
@@ -30,6 +30,7 @@ from flint.masking import (
 from flint.ms import MS, preprocess_askap_ms, rename_column_in_ms, split_by_field
 from flint.naming import FITSMaskNames, processed_ms_format
 from flint.options import FieldOptions
+from flint.peel.potato import potato_peel
 from flint.prefect.common.utils import upload_image_as_artifact
 from flint.selfcal.casa import gaincal_applycal_ms
 from flint.source_finding.aegean import AegeanOutputs, run_bane_and_aegean
@@ -54,6 +55,30 @@ task_rename_column_in_ms = task(rename_column_in_ms)
 
 FlagMS = TypeVar("FlagMS", MS, ApplySolutions)
 
+@task
+def task_potato_peel(
+    ms: MS, 
+    potato_container: Path, 
+    update_potato_config_options: Optional[Dict[str, Any]] = None,
+    update_potato_peel_options: Optional[Dict[str, Any]] = None,
+    update_wsclean_options: Optional[WSCleanOptions] = None
+) -> MS:
+
+    logger.info(f"Attempting to peel {ms.path}")
+
+    wsclean_options = WSCleanOptions(**update_wsclean_options)
+
+    ms = potato_peel(
+        ms=ms,
+        potato_container=potato_container,
+        update_potato_config_options=update_potato_config_options,
+        update_potato_peel_options=update_potato_peel_options,
+        image_options=wsclean_options
+    )
+    
+    ms = ms.with_options(column='DATA')
+    
+    return ms
 
 @task
 def task_flag_ms_aoflagger(ms: FlagMS, container: Path) -> FlagMS:

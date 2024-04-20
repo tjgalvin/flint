@@ -226,19 +226,22 @@ def find_sources_to_peel(
     if isinstance(image_options, WSCleanOptions):
         image_size = image_options.size
         pixel_scale = image_options.scale
+        logger.info("Replace known wsclean units with astropy.unit.Quantity version")
+        pixel_scale = pixel_scale.replace("asec","arcsec")
+        pixel_scale = pixel_scale.replace("amin","arcmin")
     else:
         raise TypeError(f"{type(image_options)=} is not known. ")
 
     logger.debug(f"Extracting image direction for {field_idx=}")
     image_coord = get_phase_dir_from_ms(ms=ms)
 
-    logger.info(f"Considering sources to peel around {image_coord=}")
+    logger.info(f"Considering sources to peel around {image_coord=}, {type(image_coord)=}")
 
     peel_srcs_tab = load_known_peel_sources()
 
     freqs = get_freqs_from_ms(ms=ms)
     nominal_freq = np.mean(freqs) * u.Hz
-    logger.info(f"The nominal frequency is {nominal_freq / 1e6}MHz")
+    logger.info(f"The nominal frequency is {nominal_freq.to(u.MHz)}")
 
     peel_srcs = []
 
@@ -299,6 +302,12 @@ def prepare_ms_for_potato(ms: MS) -> MS:
     """
     data_column = ms.column
 
+    logger.info(f"The nominated column is: {data_column=}")
+    logger.warning((
+        "Deleting and renaming columns so final column is DATA. "
+        "PotatoPeel only operates on the DATA column. "
+    ))
+    
     # If the data column already exists and is the nominated column, then we should
     # just return, ya scally-wag
     if data_column == "DATA":
@@ -325,6 +334,9 @@ def prepare_ms_for_potato(ms: MS) -> MS:
             tab.removecols("DATA")
 
         tab.renamecol(data_column, "DATA")
+
+        # Update column names after the delete and rename
+        colnames = tab.colnames()
 
         # Remove any CORRECT_DATA column, should it exist, as
         # potatopeel will create it
@@ -610,6 +622,8 @@ def potato_peel(
     if len(peel_tab) == 0:
         logger.info("No sources to peel. ")
         return ms
+
+    logger.info(f"Will be peeling {len(peel_tab)} objects: {peel_tab["Name"]}")
 
     update_potato_config_options = (
         update_potato_config_options if update_potato_config_options else {}

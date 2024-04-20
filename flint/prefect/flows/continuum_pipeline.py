@@ -39,6 +39,7 @@ from flint.prefect.common.imaging import (
     task_split_by_field,
     task_wsclean_imager,
     task_zip_ms,
+    task_potato_peel
 )
 from flint.prefect.common.utils import (
     task_create_beam_summary,
@@ -171,6 +172,13 @@ def process_science_fields(
     wsclean_init = get_options_from_strategy(
         strategy=strategy, mode="wsclean", round="initial"
     )
+
+    if field_options.potato_container:
+        preprocess_science_mss = task_potato_peel.map(
+            ms=preprocess_science_mss,
+            potato_container=field_options.potato_container,
+            update_wsclean_options=unmapped(wsclean_init)
+        )
 
     wsclean_cmds = task_wsclean_imager.map(
         in_ms=preprocess_science_mss,
@@ -433,6 +441,12 @@ def get_parser() -> ArgumentParser:
         help="Path to the singularity container with yandasoft",
     )
     parser.add_argument(
+        "--potato-container",
+        type=Path,
+        default=None,
+        help="Path to the potato peel singularity container",   
+    )
+    parser.add_argument(
         "--cluster-config",
         type=str,
         default="petrichor",
@@ -527,6 +541,7 @@ def cli() -> None:
         expected_ms=args.expected_ms,
         wsclean_container=args.wsclean_container,
         yandasoft_container=args.yandasoft_container,
+        potato_container=args.potato_container,
         rounds=args.selfcal_rounds,
         zip_ms=args.zip_ms,
         run_aegean=args.run_aegean,
