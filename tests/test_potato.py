@@ -67,7 +67,7 @@ def test_potato_peel_command(ms_example):
         ras=source_props.source_ras,
         decs=source_props.source_decs,
         peel_fovs=source_props.source_fovs,
-        names=source_props.source_names,
+        n=source_props.source_names,
         image_fov=1.0,
     )
 
@@ -77,7 +77,7 @@ def test_potato_peel_command(ms_example):
     assert peel_command.ms.path == ms.path
     assert isinstance(peel_command.command, str)
 
-    expected_command = f"hot_potato {str(ms.path)} 1.0000 --ras 83.82499999999999 79.94999999999999 --decs -5.386388888888889 -45.764722222222225 --peel_fovs 0.11850000000000001 0.105 -names Orion_A Pictor_A -solint 30s -calmode P -minpeelflux 0.5 -refant 1 -direct_subtract --intermediate_peels -tmp peel "
+    expected_command = f"hot_potato {str(ms.path)} 1.0000 --ras 83.82499999999999 79.94999999999999 --decs -5.386388888888889 -45.764722222222225 --peel_fovs 0.11850000000000001 0.105 -n Orion_A Pictor_A -solint 30 -calmode P -minpeelflux 0.5 -refant 1 --direct_subtract --intermediate_peels -T peel "
     assert peel_command.command == expected_command
 
 

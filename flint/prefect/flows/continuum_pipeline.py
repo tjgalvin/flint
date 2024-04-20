@@ -247,6 +247,7 @@ def process_science_fields(
         logger.info("No self-calibration will be performed. Returning")
         return
 
+    # Set up the default value should the user activated mask option is not set
     fits_beam_masks = None
 
     for current_round in range(1, field_options.rounds + 1):

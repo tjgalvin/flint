@@ -623,7 +623,7 @@ def potato_peel(
         logger.info("No sources to peel. ")
         return ms
 
-    logger.info(f"Will be peeling {len(peel_tab)} objects: {peel_tab["Name"]}")
+    logger.info(f"Will be peeling {len(peel_tab)} objects: {peel_tab['Name']}")
 
     update_potato_config_options = (
         update_potato_config_options if update_potato_config_options else {}
