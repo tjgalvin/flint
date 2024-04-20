@@ -514,7 +514,7 @@ def create_run_potato_peel(
     ]
     if potato_peel_options.tmp is not None:
         if not Path(potato_peel_options.tmp).exists():
-            create_directory(directory=potato_peel_options.tmp)
+            create_directory(directory=Path(potato_peel_options.tmp))
         bind_dirs.append(potato_peel_options.tmp)
 
     # Now run the command and hope foe the best you silly pirate

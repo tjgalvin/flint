@@ -40,7 +40,7 @@ def run_singularity_command(
         # Get only unique paths to avoid duplication in bindstring.
         # bind_str = ",".join(set([str(p.absolute().resolve()) for p in bind_dirs]))
         bind = (
-            list(set([str(p.absolute().resolve()) for p in bind_dirs]))
+            list(set([str(Path(p).absolute().resolve()) for p in bind_dirs]))
             if len(bind_dirs) > 0
             else None
         )
