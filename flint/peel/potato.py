@@ -121,9 +121,9 @@ class PotatoPeelOptions(NamedTuple):
     """The field-of-views that should be created for the peel source in degrees"""
     image_fov: float
     """The field-of-view in degrees of the main in-field image. If a sources is within this radius it is not peeled (because it would be imaged)"""
-    names: Collection[str]
+    n: Collection[str]
     """Name of the source being peeled"""
-    config: Path = None
+    c: Path = None
     """Path to the potatopeel configuration file"""
     solint: float = 30
     """Solution interval to use when applying gaincal"""
@@ -356,7 +356,7 @@ def _potato_options_to_command(
     """
     skip_keys = tuple(skip_keys) if skip_keys else tuple()
 
-    DOUBLE = ("ras", "decs", "peel_fovs", "intermediate_peels")
+    DOUBLE = ("ras", "decs", "peel_fovs", "intermediate_peels", "direct_subtract")
 
     sub_options = ""
     for key, value in potato_options._asdict().items():
@@ -522,10 +522,10 @@ def create_run_potato_peel(
     bind_dirs = [
         ms.path,
     ]
-    if potato_peel_options.tmp is not None:
-        if not Path(potato_peel_options.tmp).exists():
-            create_directory(directory=Path(potato_peel_options.tmp))
-        bind_dirs.append(potato_peel_options.tmp)
+    if potato_peel_options.T is not None:
+        if not Path(potato_peel_options.T).exists():
+            create_directory(directory=Path(potato_peel_options.T))
+        bind_dirs.append(potato_peel_options.T)
 
     # Now run the command and hope foe the best you silly pirate
     run_singularity_command(
@@ -630,8 +630,8 @@ def potato_peel(
         decs=normalised_source_props.source_decs,
         peel_fovs=normalised_source_props.source_fovs,
         image_fov=0.01,
-        names=normalised_source_props.source_names,
-        config=potato_config_command.config_path,
+        n=normalised_source_props.source_names,
+        c=potato_config_command.config_path,
     )
     if update_potato_peel_options:
         potato_peel_options = potato_peel_options.with_options(
