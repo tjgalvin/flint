@@ -616,7 +616,7 @@ def potato_peel(
     normalised_source_props = get_source_props_from_table(table=peel_tab)
     potato_peel_options = PotatoPeelOptions(
         ms=ms.path,
-        ras=normalised_source_props.source_racs,
+        ras=normalised_source_props.source_ras,
         decs=normalised_source_props.source_decs,
         peel_fovs=normalised_source_props.source_fovs,
         image_fov=0.01,
