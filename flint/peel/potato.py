@@ -137,7 +137,7 @@ class PotatoPeelOptions(NamedTuple):
     """Whether a direct model subtraction (without self-cal) should be used ift he source is faint"""
     intermediate_peels: bool = True
     """Creates an image after each calibration and subtraction loop to show iterative improvements of the subject peel source"""
-    tmp: Path = "peel"
+    T: Path = "peel"
     """Where the temporary wsclean files will be written to"""
 
     def with_options(self, **kwargs) -> PotatoPeelOptions:
