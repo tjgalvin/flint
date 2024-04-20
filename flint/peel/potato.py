@@ -720,7 +720,7 @@ def cli():
         image_options = WSCleanOptions(size=args.image_size, scale=args.pixel_scale)
 
         potato_peel(
-            ms=ms, potato_peel=args.potato_container, image_options=image_options
+            ms=ms, potato_container=args.potato_container, image_options=image_options
         )
 
     else:
