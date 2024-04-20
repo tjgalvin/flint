@@ -628,7 +628,11 @@ def potato_peel(
             **update_potato_peel_options
         )
 
-    create_run_potato_peel(ms=ms, potato_peel_options=potato_peel_options)
+    create_run_potato_peel(
+        potato_container=potato_container,
+        ms=ms,
+        potato_peel_options=potato_peel_options,
+    )
 
     return ms
 
