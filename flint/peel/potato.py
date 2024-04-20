@@ -439,7 +439,9 @@ def create_run_potato_config(
     )
 
     run_singularity_command(
-        image=potato_container, bind_dirs=potato_config_command.config_path.parent
+        image=potato_container,
+        command=potato_config_command.command,
+        bind_dirs=potato_config_command.config_path.parent,
     )
 
     return potato_config_command
