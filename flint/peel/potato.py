@@ -189,7 +189,7 @@ def source_within_image_fov(
         pixel_scale=pixel_scale,
     )
 
-    x, y = wcs.all_world2pix(source_coord.ra.deg, source_coord.dec.deg, 0)
+    x, y = wcs.world_to_pixel(source_coord)
 
     # Since the reference pixel is at the image center, then the valid domain
     # is between 0 and image size
@@ -204,6 +204,7 @@ def find_sources_to_peel(
     field_idx: int = 0,
     maximum_offset: float = 30,
     minimum_apparent_brightness: float = 0.5,
+    override_beam_position_with: Optional[SkyCoord] = None
 ) -> Union[Table, None]:
     """Obtain a set of sources to peel from a reference candidate set. This will
     evaluate whether a source should be peels based on two criteria:
@@ -217,6 +218,7 @@ def find_sources_to_peel(
         field_idx (int, optional): Which field in the MS to draw the position from. Defaults to 0.
         maximum_offset (float, optional): The largest separation, in degrees, before a source is ignored. Defaults to 30.0.
         minimum_apparent_brightness (float, optional): The minimum apparent brightnessm, in Jy, a source should be before attempting to peel. Defaults to 0.5.
+        override_beam_position_with (Optional[SkyCoord], optional): Ignore the beam position of the input MS, instead use this. Do not rely on this option as it may be taken away. Defaults to None. 
 
     Returns:
         Union[Table,None]: Collection of sources to peel from the reference table. Column names are Name, RA, Dec, Aperture. This is the package table. If no sources need to be peeled None is returned.
@@ -233,7 +235,7 @@ def find_sources_to_peel(
         raise TypeError(f"{type(image_options)=} is not known. ")
 
     logger.debug(f"Extracting image direction for {field_idx=}")
-    image_coord = get_phase_dir_from_ms(ms=ms)
+    image_coord = get_phase_dir_from_ms(ms=ms) if override_beam_position_with is None else override_beam_position_with
 
     logger.info(
         f"Considering sources to peel around {image_coord=}, {type(image_coord)=}"
@@ -251,7 +253,6 @@ def find_sources_to_peel(
     for src in peel_srcs_tab:
         src_coord = SkyCoord(src["RA"], src["Dec"], unit=(u.hourangle, u.degree))
         offset = image_coord.separation(src_coord)
-
         if source_within_image_fov(
             source_coord=src_coord,
             beam_coord=image_coord,

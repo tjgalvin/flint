@@ -24,6 +24,7 @@ from flint.peel.potato import (
     source_within_image_fov,
 )
 
+from flint.logging import logger
 from flint.ms import MS
 from flint.sky_model import (
     generate_pb,
@@ -57,6 +58,8 @@ def ms_example(tmpdir):
 
 def test_source_in_image_fov():
     """Test to see if souce is within an image FoV"""
+    # This comes from a test wsclean produced image. Not sure
+    # why or how a minus crval1 has come out. 
     wcs_dict = dict(
         NAXIS1=8128,
         NAXIS2=8128,
@@ -171,13 +174,23 @@ def test_normalised_sources_to_peel(ms_example):
 
 def test_check_sources_to_peel(ms_example):
     """See whether the peeling constraints work"""
-    image_options = WSCleanOptions(size=8000, scale="2.5arcsec")
+    image_options = WSCleanOptions(size=8128, scale="2.5arcsec")
 
     sources = find_sources_to_peel(ms=ms_example, image_options=image_options)
 
     known_sources = load_known_peel_sources()
 
     assert len(known_sources) > len(sources)
+
+    # See the WCS constructed in the above
+    center_position = SkyCoord(-1.722664244157e02 * u.deg, 2.625771981318e00 * u.deg)
+    sources = find_sources_to_peel(
+        ms=ms_example, 
+        image_options=image_options, 
+        override_beam_position_with=center_position
+    )
+    assert len(sources) == 1
+    assert sources["Name"] == "Virgo A"
 
 
 def test_load_peel_sources():
