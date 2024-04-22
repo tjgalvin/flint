@@ -259,7 +259,7 @@ def find_sources_to_peel(
             pixel_scale=pixel_scale,
         ):
             logger.debug(
-                f"Source {src['name']} within image field of view of image with {image_size}x{image_size} and {pixel_scale=}"
+                f"Source {src['Name']} within image field of view of image with {image_size}x{image_size} and {pixel_scale=}"
             )
             continue
 
