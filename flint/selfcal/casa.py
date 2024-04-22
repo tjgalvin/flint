@@ -96,6 +96,7 @@ def copy_and_clean_ms_casagain(ms: MS, round: int = 1, verify: bool = True) -> M
         MS: Copy of input measurement set with columns removed as required.
     """
     # TODO: Excellent function tto start to get the test framework working from!
+    # On the above: No idea what this pirate is talking about
     # TODO: Update this name creating to a single location
     out_ms_path = get_selfcal_ms_name(in_ms_path=ms.path, round=round)
 
@@ -125,20 +126,23 @@ def copy_and_clean_ms_casagain(ms: MS, round: int = 1, verify: bool = True) -> M
         logger.info("About tto get the colnames")
         colnames = tab.colnames()
         logger.info(f"Column names are: {colnames}")
-        to_delete = ["DATA", "INSTRUMENT_DATA"]
-        for col in to_delete:
-            if col in colnames:
-                logger.info(f"Removing {col=} from {str(out_ms_path)}.")
-                try:
-                    tab.removecols(col)
-                    tab.flush(recursive=True)
-                except Exception as e:
-                    logger.critical(f"Failed to remove {col=}! \nCaptured error: {e}")
-            else:
-                logger.warning(f"Column {col} not found in {str(out_ms_path)}.")
+        if ms.column == "DATA" and "CORRECTED_DATA" not in colnames:
+            logger.info("Data is the nominated column, and CORRECTED_DATA does not exist. Returning. ")
+        else:
+            to_delete = ["DATA", "INSTRUMENT_DATA"]
+            for col in to_delete:
+                if col in colnames:
+                    logger.info(f"Removing {col=} from {str(out_ms_path)}.")
+                    try:
+                        tab.removecols(col)
+                        tab.flush(recursive=True)
+                    except Exception as e:
+                        logger.critical(f"Failed to remove {col=}! \nCaptured error: {e}")
+                else:
+                    logger.warning(f"Column {col} not found in {str(out_ms_path)}.")
 
-        logger.info("Renaming CORRECTED_DATA to DATA. ")
-        tab.renamecol("CORRECTED_DATA", "DATA")
+            logger.info("Renaming CORRECTED_DATA to DATA. ")
+            tab.renamecol("CORRECTED_DATA", "DATA")
 
     ms = ms.with_options(path=out_ms_path, column="DATA")
 
