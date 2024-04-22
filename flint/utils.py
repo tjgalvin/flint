@@ -64,10 +64,10 @@ def generate_strict_stub_wcs_header(
         pixel_scale (Union[u.Quantity,str]): Size of the square pixels. If `str` passed will be cast to `Quantity`.
 
     Raises:
-        TypeError: _description_
+        TypeError: Raised when pixel scale it not a str or astropy.units.Quantity
 
     Returns:
-        WCS: _description_
+        WCS: A WCS header matching the input specs
     """
 
     if isinstance(pixel_scale, str):
