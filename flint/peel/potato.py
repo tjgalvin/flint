@@ -227,15 +227,17 @@ def find_sources_to_peel(
         image_size = image_options.size
         pixel_scale = image_options.scale
         logger.info("Replace known wsclean units with astropy.unit.Quantity version")
-        pixel_scale = pixel_scale.replace("asec","arcsec")
-        pixel_scale = pixel_scale.replace("amin","arcmin")
+        pixel_scale = pixel_scale.replace("asec", "arcsec")
+        pixel_scale = pixel_scale.replace("amin", "arcmin")
     else:
         raise TypeError(f"{type(image_options)=} is not known. ")
 
     logger.debug(f"Extracting image direction for {field_idx=}")
     image_coord = get_phase_dir_from_ms(ms=ms)
 
-    logger.info(f"Considering sources to peel around {image_coord=}, {type(image_coord)=}")
+    logger.info(
+        f"Considering sources to peel around {image_coord=}, {type(image_coord)=}"
+    )
 
     peel_srcs_tab = load_known_peel_sources()
 
@@ -261,13 +263,14 @@ def find_sources_to_peel(
             )
             continue
 
-        taper = generate_pb(
-            pb_type="airy", freqs=nominal_freq, aperture=12 * u.m, offset=offset
-        )
-        assert isinstance(taper.atten, float), "Expected a float"
-
         if offset > maximum_offset * u.deg:
             continue
+
+        # At the moment no brightness is in the known_sources.csv
+        # taper = generate_pb(
+        #     pb_type="airy", freqs=nominal_freq, aperture=12 * u.m, offset=offset
+        # )
+        # assert isinstance(taper.atten, float), "Expected a float"
 
         # if taper.atten[0] * tab[] > cutoff:
         #     logger.info(
@@ -303,11 +306,13 @@ def prepare_ms_for_potato(ms: MS) -> MS:
     data_column = ms.column
 
     logger.info(f"The nominated column is: {data_column=}")
-    logger.warning((
-        "Deleting and renaming columns so final column is DATA. "
-        "PotatoPeel only operates on the DATA column. "
-    ))
-    
+    logger.warning(
+        (
+            "Deleting and renaming columns so final column is DATA. "
+            "PotatoPeel only operates on the DATA column. "
+        )
+    )
+
     # If the data column already exists and is the nominated column, then we should
     # just return, ya scally-wag
     if data_column == "DATA":

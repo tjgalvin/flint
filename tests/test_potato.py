@@ -7,6 +7,7 @@ from pathlib import Path
 import numpy as np
 import astropy.units as u
 from astropy.table import Table
+from astropy.coordinates import SkyCoord
 
 from flint.imager.wsclean import WSCleanOptions
 from flint.peel.potato import (
@@ -20,6 +21,7 @@ from flint.peel.potato import (
     PotatoPeelOptions,
     _potato_peel_command,
     PotatoPeelCommand,
+    source_within_image_fov,
 )
 
 from flint.ms import MS
@@ -51,6 +53,57 @@ def ms_example(tmpdir):
 
 # TODO: NEED TESTS FOR THE POTATO PEEL OPTIONS
 # TODO: NEED TESTS FOR THE POTATO PEEL COMMAND
+
+
+def test_source_in_image_fov():
+    """Test to see if souce is within an image FoV"""
+    wcs_dict = dict(
+        NAXIS1=8128,
+        NAXIS2=8128,
+        ORIGIN="WSClean",
+        CTYPE1="RA---SIN",
+        CRPIX1=4065,
+        CRVAL1=-1.722664244157e02,
+        CDELT1=-6.944444444444e-04,
+        CUNIT1="deg",
+        CTYPE2="DEC--SIN",
+        CRPIX2=4065,
+        CRVAL2=2.625771981318e00,
+        CDELT2=6.944444444444e-04,
+        CUNIT2="deg",
+    )
+    center_position = SkyCoord(wcs_dict["CRVAL1"] * u.deg, wcs_dict["CRVAL2"] * u.deg)
+    known_tato = SkyCoord("12:29:06 02:03:08", unit=(u.hourangle, u.deg))
+    outside_fov = SkyCoord("12:29:06 10:03:08", unit=(u.hourangle, u.deg))
+
+    in_image = source_within_image_fov(
+        source_coord=known_tato,
+        beam_coord=center_position,
+        image_size=wcs_dict["NAXIS1"],
+        pixel_scale=wcs_dict["CRVAL1"] * u.deg,
+    )
+
+    assert in_image == True
+
+    outside_strs = (
+        ("12:29:06 10:03:08", False),
+        ("12:29:06 8:03:08", False),
+        ("12:29:06 6:03:08", False),
+        ("12:29:06 5:30:08", False),
+        ("12:29:06 5:27:08", False),
+        ("12:29:06 5:26:08", True),
+    )
+
+    for outside_str, outside_value in outside_strs:
+        outside_fov = SkyCoord(outside_str, unit=(u.hourangle, u.deg))
+        out_image = source_within_image_fov(
+            source_coord=outside_fov,
+            beam_coord=center_position,
+            image_size=wcs_dict["NAXIS1"],
+            pixel_scale=wcs_dict["CDELT1"] * u.deg,
+        )
+
+        assert out_image == outside_value
 
 
 def test_potato_peel_command(ms_example):

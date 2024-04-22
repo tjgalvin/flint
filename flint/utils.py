@@ -47,6 +47,7 @@ def generate_strict_stub_wcs_header(
     position_at_image_center: SkyCoord,
     image_shape: Tuple[int, int],
     pixel_scale: Union[u.Quantity, str],
+    image_shape_is_center: bool = False,
 ) -> WCS:
     """Create a WCS object using some strict quantities. There
     are no attempts to cast values appropriately, exception being
@@ -60,8 +61,9 @@ def generate_strict_stub_wcs_header(
 
     Args:
         position_at_image_center (SkyCoord): The position that will be at the reference pixel
-        image_size (Tuple[int, int]): The size of the image
+        image_shape (Tuple[int, int]): The size of the image
         pixel_scale (Union[u.Quantity,str]): Size of the square pixels. If `str` passed will be cast to `Quantity`.
+        image_shape_is_center (bool, optional): It True the position specified by `image_shape` is the center reference position. if False, `image_shape` is assumed to be the size of the image, and teh center is computed from this. Defaults to False.
 
     Raises:
         TypeError: Raised when pixel scale it not a str or astropy.units.Quantity
@@ -78,19 +80,23 @@ def generate_strict_stub_wcs_header(
         )
 
     # This should be good enough
-    image_center = np.array(image_shape, dtype=int) // 2
+    image_center = image_shape
+    if not image_shape_is_center:
+        image_center = np.array(image_center) / 2
+        logger.info(f"Constructed WCS {image_center=}")
 
     header = {
         "CRVAL1": position_at_image_center.ra.deg,
         "CRVAL2": position_at_image_center.dec.deg,
         "CUNIT1": "deg",
         "CUNIT2": "deg",
-        "CDELT1": -pixel_scale.to(u.rad).value,
-        "CDELT2": pixel_scale.to(u.rad).value,
+        "CDELT1": -pixel_scale.to(u.deg).value,
+        "CDELT2": pixel_scale.to(u.deg).value,
         "CRPIX1": image_center[0],
         "CRPIX2": image_center[1],
         "CTYPE1": "RA---SIN",
         "CTYPE2": "DEC--SIN",
+        "SPECSYS": "TOPOCENT",
     }
 
     wcs = WCS(fits.Header(header))

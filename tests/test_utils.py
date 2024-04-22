@@ -15,6 +15,7 @@ from flint.utils import (
     generate_stub_wcs_header,
     generate_strict_stub_wcs_header,
 )
+from flint.logging import logger
 
 
 @pytest.fixture
@@ -28,51 +29,59 @@ def rms_path(tmpdir):
 
     return rms_path
 
+
 def test_generate_strict_header_position():
     """Use a reference WCS to calculate the pixel position expected of a source"""
 
     # The following WCS are taken from SB40470, beam 17, and the header produced from wsclean
     # This beam has 3C 298 in it
     wcs_dict = dict(
-        ORIGIN = "WSClean",
-        CTYPE1 = "RA---SIN" ,
-        CRPIX1 = 4065,
-        CRVAL1 = -1.722664244157E+02,
-        CDELT1 = -6.944444444444E-04,
-        CUNIT1 = "deg",
-        CTYPE2 = "DEC--SIN",
-        CRPIX2 = 4065,
-        CRVAL2 = 2.625771981318E+00,
-        CDELT2 = 6.944444444444E-04,
-        CUNIT2 = "deg",
-        CTYPE3 = "FREQ",
-        CRPIX3 = 1,
-        CRVAL3 = 8.874907407407E+08,
-        CDELT3 = 2.880000000000E+08,
-        CUNIT3 = "Hz",
-        CTYPE4 = "STOKES",
-        CRPIX4 = 1,
-        CRVAL4 = 1.000000000000E+00,
-        CDELT4 = 1.000000000000E+00,
-        CUNIT4 = "",
+        NAXIS1=8128,
+        NAXIS2=8128,
+        ORIGIN="WSClean",
+        CTYPE1="RA---SIN",
+        CRPIX1=4065,
+        CRVAL1=-1.722664244157e02,
+        CDELT1=-6.944444444444e-04,
+        CUNIT1="deg",
+        CTYPE2="DEC--SIN",
+        CRPIX2=4065,
+        CRVAL2=2.625771981318e00,
+        CDELT2=6.944444444444e-04,
+        CUNIT2="deg",
+        CTYPE3="FREQ",
+        CRPIX3=1,
+        CRVAL3=8.874907407407e08,
+        CDELT3=2.880000000000e08,
+        CUNIT3="Hz",
+        CTYPE4="STOKES",
+        CRPIX4=1,
+        CRVAL4=1.000000000000e00,
+        CDELT4=1.000000000000e00,
+        CUNIT4="",
     )
-    center_position = SkyCoord(wcs_dict['CRVAL1']*u.deg, wcs_dict["CRVAL2"]*u.deg)
-    
+    center_position = SkyCoord(wcs_dict["CRVAL1"] * u.deg, wcs_dict["CRVAL2"] * u.deg)
+
     wcs = generate_strict_stub_wcs_header(
         position_at_image_center=center_position,
-        image_shape=(int(wcs_dict["CRPIX1"]*2),int(wcs_dict["CRPIX2"]*2),),
-        pixel_scale=wcs_dict["CRVAL2"]*u.deg
+        image_shape=(
+            int(wcs_dict["CRPIX1"]),
+            int(wcs_dict["CRPIX2"]),
+        ),
+        pixel_scale=wcs_dict["CDELT2"] * u.deg,
+        image_shape_is_center=True,
     )
 
+    logger.info(f"{wcs=}")
+
     known_tato = SkyCoord("12:29:06 02:03:08", unit=(u.hourangle, u.deg))
-    
-    pixels = wcs.all_world2pix(known_tato.ra.deg, known_tato.dec.deg, 0)
-    print(pixels)
-    print(len(pixels))
-    pixels = tuple([int(pixels[0]),int(pixels[1])])
-    print(pixels)
-    assert pixels == (4723, 3235)
-    
+
+    pixels = wcs.world_to_pixel(known_tato)
+    logger.info(pixels)
+    pixels = tuple([int(np.round(pixels[0])), int(np.round(pixels[1]))])
+
+    assert pixels == (4724, 3238)
+
 
 def test_generate_strict_wcs_header():
     """Generate an expects WCS header from known inputs"""
