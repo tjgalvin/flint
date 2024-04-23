@@ -129,7 +129,7 @@ def copy_and_clean_ms_casagain(ms: MS, round: int = 1, verify: bool = True) -> M
         if ms.column == "DATA" and "CORRECTED_DATA" not in colnames:
             logger.info("Data is the nominated column, and CORRECTED_DATA does not exist. Returning. ")
         else:
-            to_delete = ["DATA", "INSTRUMENT_DATA"]
+            to_delete = ["DATA", ]
             for col in to_delete:
                 if col in colnames:
                     logger.info(f"Removing {col=} from {str(out_ms_path)}.")
@@ -144,7 +144,10 @@ def copy_and_clean_ms_casagain(ms: MS, round: int = 1, verify: bool = True) -> M
             logger.info("Renaming CORRECTED_DATA to DATA. ")
             tab.renamecol("CORRECTED_DATA", "DATA")
 
-    ms = ms.with_options(path=out_ms_path, column="DATA")
+            # If we have removed original DATA and renamed the CORRECTED_DATA, we need to update
+            # the nominated column (which was previously the CORRECT_DATA and now renamed DATA),
+            # This pirate got confused
+            ms = ms.with_options(path=out_ms_path, column="DATA")
 
     ms = nan_zero_extreme_flag_ms(ms=ms)
 

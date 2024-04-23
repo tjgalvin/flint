@@ -55,7 +55,7 @@ class PotatoConfigOptions(NamedTuple):
     """Briggs robust parameter for the in-field image"""
     image_channels: int = 4
     """Number of output channels for the in-field image"""
-    image_minuvl: float = 0.0
+    image_minuvl: float = 700
     """"Minimum (u,v)- distance in wavelengths for data to be selected"""
     peel_size: int = 1000
     """Size of the peel image to make, in pixels"""
@@ -65,7 +65,7 @@ class PotatoConfigOptions(NamedTuple):
     """Number of output channels for the peel images"""
     peel_nmiter: int = 7
     """Number of major iterations allowed for the peel souces"""
-    peel_minuvl: float = 0.0
+    peel_minuvl: float = 700
     """"Minimum (u,v)- distance in wavelengths for data to be selected for the peel image"""
     peel_multiscale: bool = True
     """Whether multi-scale is to be used for the peel sources"""
@@ -107,6 +107,10 @@ class PotatoPeelOptions(NamedTuple):
     """Creates an image after each calibration and subtraction loop to show iterative improvements of the subject peel source"""
     T: Path = "peel"
     """Where the temporary wsclean files will be written to"""
+    minuvimage: Optional[float] = None
+    """The minimum uv distance in wavelengths to use for imaging"""
+    minuvpeel: Optional[float] = None 
+    """The minimum uv distance in wavelengths to use when attempting to self-calibrate"""
 
     def with_options(self, **kwargs) -> PotatoPeelOptions:
         items = self._asdict()
@@ -310,6 +314,7 @@ def prepare_ms_for_potato(ms: MS) -> MS:
             logger.info("Removing the existing DATA column")
             tab.removecols("DATA")
 
+        logger.info(f"Renaming {data_column} to DATA")
         tab.renamecol(data_column, "DATA")
 
         # Update column names after the delete and rename
@@ -564,6 +569,17 @@ def get_source_props_from_table(table: Table) -> NormalisedSources:
         source_names=tuple(source_names),
     )
 
+def _print_ms_colnames(ms: MS) -> None:
+    """A dummy function to print colnames in a MS table
+    """
+    ms = MS.cast(ms=ms)
+    
+    with table(str(ms.path)) as tab:
+        colnames = tab.colnames()
+
+    logger.critical(f"The MS column names are: {colnames=}")
+
+    return ms
 
 def potato_peel(
     ms: MS,
@@ -593,6 +609,9 @@ def potato_peel(
     if image_options is None:
         logger.info("No supplied image options, using default WSCleanOptions()")
         image_options = WSCleanOptions()
+
+    logger.info("Colnames before potato")
+    _print_ms_colnames(ms=ms)
 
     peel_tab = find_sources_to_peel(ms=ms, image_options=image_options, maximum_offset=6)
 
@@ -635,7 +654,10 @@ def potato_peel(
         potato_peel_options=potato_peel_options,
     )
 
-    return ms
+    logger.info("Column names after potato")
+    _print_ms_colnames(ms=ms)
+
+    return ms.with_options(column="DATA")
 
 
 def get_parser() -> ArgumentParser:

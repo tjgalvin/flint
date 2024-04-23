@@ -68,6 +68,8 @@ def task_potato_peel(
 
     wsclean_options = WSCleanOptions(**update_wsclean_options)
 
+    initial_data_column = ms.column
+
     ms = potato_peel(
         ms=ms,
         potato_container=potato_container,
@@ -76,7 +78,13 @@ def task_potato_peel(
         image_options=wsclean_options
     )
     
-    ms = ms.with_options(column='DATA')
+    post_data_column = ms.column
+
+    logger.info(f"Initial potato data column: {initial_data_column}")
+    logger.info(f"Post potato data column: {post_data_column}")
+    
+    if post_data_column != initial_data_column:
+        logger.critical(f"{ms.path} data column has changed!")
     
     return ms
 
