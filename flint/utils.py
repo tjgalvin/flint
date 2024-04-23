@@ -83,7 +83,7 @@ def generate_strict_stub_wcs_header(
     image_center = image_shape
     if not image_shape_is_center:
         image_center = np.array(image_center) / 2
-        logger.info(f"Constructed WCS {image_center=}")
+        logger.debug(f"Constructed WCS {image_center=}")
 
     header = {
         "CRVAL1": position_at_image_center.ra.deg,

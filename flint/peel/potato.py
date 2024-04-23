@@ -13,38 +13,6 @@ dask and flint. Keeping it simple at this point is the main aim.
 There is also the problem of casatasks + python-casacore not
 jiving in newer python versios. 
 
-The CLI of potatopeel is called across two stages:
-
-configFile="${source_name}_peel.cfg"
-$container peel_configuration.py "${configFile}" \
-    --image_size=${IMSIZE} \
-    --image_scale=${scale} \
-    --image_briggs=${PEEL_BRIGGS} \
-    --image_channels=4 \
-    --image_minuvl=0 \
-    --peel_size=1000 \
-    --peel_scale=${scale} \
-    --peel_channels=${chansOut} \
-    --peel_nmiter=7 \
-    --peel_minuvl=0 \
-    --peel_multiscale
-
-$container potato ${TMP_DIR}${obsid}.ms \
-    ${source_ra} \
-    ${source_dec} \
-    ${peel_fov} \
-    ${subtract_rad} \
-    --config ${configFile} \
-    -solint ${PEEL_SOLINT} \
-    -calmode ${PEEL_CALMODE}  \
-    -minpeelflux ${threshold1} \
-    --name ${source_name} \
-    --refant 1 \
-    --direct_subtract \
-    --no_time \
-    --intermediate_peels \
-    --tmp ${TMP_DIR}
-
 """
 
 from __future__ import annotations
@@ -266,6 +234,9 @@ def find_sources_to_peel(
 
         if offset > maximum_offset * u.deg:
             continue
+        
+        logger.info(f"Source {src['Name']} is {offset} away, below {maximum_offset=} cutoff ")
+        
 
         # At the moment no brightness is in the known_sources.csv
         # taper = generate_pb(
@@ -623,9 +594,9 @@ def potato_peel(
         logger.info("No supplied image options, using default WSCleanOptions()")
         image_options = WSCleanOptions()
 
-    peel_tab = find_sources_to_peel(ms=ms, image_options=image_options)
+    peel_tab = find_sources_to_peel(ms=ms, image_options=image_options, maximum_offset=6)
 
-    if len(peel_tab) == 0:
+    if peel_tab is None or len(peel_tab) == 0:
         logger.info("No sources to peel. ")
         return ms
 
