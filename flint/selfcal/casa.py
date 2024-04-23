@@ -144,10 +144,11 @@ def copy_and_clean_ms_casagain(ms: MS, round: int = 1, verify: bool = True) -> M
             logger.info("Renaming CORRECTED_DATA to DATA. ")
             tab.renamecol("CORRECTED_DATA", "DATA")
 
-            # If we have removed original DATA and renamed the CORRECTED_DATA, we need to update
-            # the nominated column (which was previously the CORRECT_DATA and now renamed DATA),
-            # This pirate got confused
-            ms = ms.with_options(path=out_ms_path, column="DATA")
+    
+    # Note that the out_ms_path needs to be set, even if the data  column is initially DATA. 
+    # Since casa expects DATA, we will force the column to be DATA with the expectation that
+    # previous pirates in the lines above have dealt with the renaming. 
+    ms = ms.with_options(path=out_ms_path, column="DATA")
 
     ms = nan_zero_extreme_flag_ms(ms=ms)
 
