@@ -8,6 +8,7 @@ from numbers import Number
 from pathlib import Path
 from typing import Any, Collection, Dict, List, NamedTuple, Optional, Tuple, Union
 
+from flint.exceptions import CleanDivergenceError
 from flint.logging import logger
 from flint.ms import MS
 from flint.sclient import run_singularity_command
@@ -137,6 +138,13 @@ class WSCleanCommand(NamedTuple):
         _dict.update(**kwargs)
 
         return WSCleanCommand(**_dict)
+
+
+def _wsclean_output_callback(line: str) -> None:
+    """Call back function used to detect clean divergence"""
+
+    if "KJy" in line:
+        raise CleanDivergenceError(f"Clean divergence detected: {line}")
 
 
 def get_wsclean_output_names(
@@ -360,7 +368,10 @@ def run_wsclean_imager(wsclean_cmd: WSCleanCommand, container: Path) -> WSCleanC
 
     bind_dirs = [Path(m.path).parent.absolute() for m in ms]
     run_singularity_command(
-        image=container, command=wsclean_cmd.cmd, bind_dirs=bind_dirs
+        image=container,
+        command=wsclean_cmd.cmd,
+        bind_dirs=bind_dirs,
+        stream_callback_func=_wsclean_output_callback,
     )
 
     prefix = wsclean_cmd.options.name
@@ -452,7 +463,7 @@ def create_template_wsclean_options(
         WSCleanOptions: Template options to use for the wsclean fits header creation
     """
 
-    temmplate_options = WSCleanCommand(
+    template_options = WSCleanCommand(
         size=input_wsclean_options.size,
         channels_out=1,
         nmiter=0,
@@ -461,9 +472,9 @@ def create_template_wsclean_options(
         scale=input_wsclean_options.scale,
         name=f"{input_wsclean_options.name}_template",
     )
-    logger.info(f"Template options are {temmplate_options}")
+    logger.info(f"Template options are {template_options}")
 
-    return temmplate_options
+    return template_options
 
 
 def get_parser() -> ArgumentParser:

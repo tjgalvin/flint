@@ -14,3 +14,9 @@ class GainCalError(Exception):
     """Raised when it appears like the casa gaincal task fails."""
 
     pass
+
+
+class CleanDivergenceError(Exception):
+    """Raised if it is detected that cleaning has diverged."""
+
+    pass
