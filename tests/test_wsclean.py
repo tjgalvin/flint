@@ -13,6 +13,7 @@ from flint.imager.wsclean import (
 
 
 def test_wsclean_divergence():
+    """Make sure the wsclean call back function picks up divergence and raises appropriate errors"""
     good = (
         "Iteration 59228, scale 0 px : -862.94 µJy at 3729,3746",
         "Opening reordered part 0 spw 0 for /scratch3/gal16b/flint_peel/40470/SB40470.RACS_1237+00.beam4.round1.ms",
