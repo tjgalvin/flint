@@ -3,7 +3,7 @@
 from pathlib import Path
 from socket import gethostname
 from subprocess import CalledProcessError
-from typing import Collection, Optional, Union
+from typing import Callable, Collection, Optional, Union
 
 from spython.main import Client as sclient
 
@@ -11,7 +11,10 @@ from flint.logging import logger
 
 
 def run_singularity_command(
-    image: Path, command: str, bind_dirs: Optional[Union[Path, Collection[Path]]] = None
+    image: Path,
+    command: str,
+    bind_dirs: Optional[Union[Path, Collection[Path]]] = None,
+    stream_callback_func: Optional[Callable] = None,
 ) -> None:
     """Executes a command within the context of a nominated singularity
     container
@@ -20,6 +23,7 @@ def run_singularity_command(
         image (Path): The singularity container image to use
         command (str): The command to execute
         bind_dirs (Optional[Union[Path,Collection[Path]]], optional): Specifies a Path, or list of Paths, to bind to in the container. Defaults to None.
+        stream_callback_func (Optional[Callable], optional): Provide a function that is applied to each line of output text when singularity is running and `stream=True`. IF provide it should accept a single (string) parameter. If None, nothing happens. Defaultds to None.
 
     Raises:
         FileNotFoundError: Thrown when container image not found
@@ -60,6 +64,8 @@ def run_singularity_command(
 
         for line in output:
             logger.info(line.rstrip())
+            if stream_callback_func:
+                stream_callback_func(line)
     except CalledProcessError as e:
         logger.error(f"Failed to run command: {command}")
         logger.error(f"Stdout: {e.stdout}")
