@@ -143,7 +143,9 @@ class WSCleanCommand(NamedTuple):
 def _wsclean_output_callback(line: str) -> None:
     """Call back function used to detect clean divergence"""
 
-    if "KJy" in line:
+    assert isinstance(line, str)
+
+    if "Iteration" in line and "KJy" in line:
         raise CleanDivergenceError(f"Clean divergence detected: {line}")
 
 
