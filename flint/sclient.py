@@ -3,7 +3,7 @@
 from pathlib import Path
 from socket import gethostname
 from subprocess import CalledProcessError
-from typing import Collection, Optional, Union, Callable
+from typing import Callable, Collection, Optional, Union
 
 from spython.main import Client as sclient
 
