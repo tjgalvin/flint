@@ -10,7 +10,6 @@ from astropy.coordinates import SkyCoord
 from astropy.table import Table
 
 from flint.imager.wsclean import WSCleanOptions
-from flint.logging import logger
 from flint.ms import MS
 from flint.peel.potato import (
     NormalisedSources,
@@ -85,7 +84,7 @@ def test_source_in_image_fov():
         pixel_scale=wcs_dict["CRVAL1"] * u.deg,
     )
 
-    assert in_image == True
+    assert in_image == True  # noqa
 
     outside_strs = (
         ("12:29:06 10:03:08", False),

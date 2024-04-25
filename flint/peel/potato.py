@@ -32,7 +32,6 @@ from flint.logging import logger
 from flint.ms import MS, get_freqs_from_ms, get_phase_dir_from_ms
 from flint.naming import get_potato_output_base_path
 from flint.sclient import run_singularity_command
-from flint.sky_model import generate_pb
 from flint.utils import (
     create_directory,
     generate_strict_stub_wcs_header,
