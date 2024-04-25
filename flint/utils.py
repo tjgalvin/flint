@@ -5,8 +5,9 @@ for general usage.
 import shutil
 import subprocess
 from pathlib import Path
-from typing import List, Optional
+from typing import List, Optional, Tuple, Union
 
+import astropy.units as u
 import numpy as np
 from astropy.coordinates import SkyCoord
 from astropy.io import fits
@@ -40,6 +41,157 @@ def get_packaged_resource_path(package: str, filename: str) -> Path:
     logger.debug(f"Resolved {full_path=}")
 
     return full_path
+
+
+def generate_strict_stub_wcs_header(
+    position_at_image_center: SkyCoord,
+    image_shape: Tuple[int, int],
+    pixel_scale: Union[u.Quantity, str],
+    image_shape_is_center: bool = False,
+) -> WCS:
+    """Create a WCS object using some strict quantities. There
+    are no attempts to cast values appropriately, exception being
+    calling `astropy.units.Quantity` on the `pixel_scale` input
+    should it not be a quantity.
+
+    The supplied `image_size` is used to calculate the center of
+    the image and set the reference pixel value.
+
+    The output projection is SIN.
+
+    Args:
+        position_at_image_center (SkyCoord): The position that will be at the reference pixel
+        image_shape (Tuple[int, int]): The size of the image
+        pixel_scale (Union[u.Quantity,str]): Size of the square pixels. If `str` passed will be cast to `Quantity`.
+        image_shape_is_center (bool, optional): It True the position specified by `image_shape` is the center reference position. if False, `image_shape` is assumed to be the size of the image, and teh center is computed from this. Defaults to False.
+
+    Raises:
+        TypeError: Raised when pixel scale it not a str or astropy.units.Quantity
+
+    Returns:
+        WCS: A WCS header matching the input specs
+    """
+
+    if isinstance(pixel_scale, str):
+        pixel_scale = u.Quantity(pixel_scale)
+    elif not isinstance(pixel_scale, u.Quantity):
+        raise TypeError(
+            f"pixel_scale should be of type astro.units.Quantity or str, got {type(pixel_scale)}"
+        )
+
+    # This should be good enough
+    image_center = image_shape
+    if not image_shape_is_center:
+        image_center = np.array(image_center) / 2
+        logger.debug(f"Constructed WCS {image_center=}")
+
+    header = {
+        "CRVAL1": position_at_image_center.ra.deg,
+        "CRVAL2": position_at_image_center.dec.deg,
+        "CUNIT1": "deg",
+        "CUNIT2": "deg",
+        "CDELT1": -pixel_scale.to(u.deg).value,
+        "CDELT2": pixel_scale.to(u.deg).value,
+        "CRPIX1": image_center[0],
+        "CRPIX2": image_center[1],
+        "CTYPE1": "RA---SIN",
+        "CTYPE2": "DEC--SIN",
+        "SPECSYS": "TOPOCENT",
+    }
+
+    wcs = WCS(fits.Header(header))
+
+    return wcs
+
+
+def generate_stub_wcs_header(
+    ra: Optional[Union[float, u.Quantity]] = None,
+    dec: Optional[Union[float, u.Quantity]] = None,
+    image_shape: Optional[Tuple[int, int]] = None,
+    pixel_scale: Optional[Union[u.Quantity, str, float]] = None,
+    projection: str = "SIN",
+    base_wcs: Optional[Union[Path, WCS]] = None,
+) -> WCS:
+    """Create a basic WSC header object that can be used to calculate sky positions
+    for an example image.
+
+    Care should be taken when using this function as it tries to be too
+    smart for its own good.
+
+    Args:
+        ra (fUnion[loat,u.Quantuty]): The RA at the reference pixel. if a float is provided it is assumed to be in degrees.
+        dec (Union[float,u.Quantuty]): The Dec at the reference pizel. if a float is provided it is assumed to be in degrees.
+        image_shape (Tuple[int, int]): Size of the representative image
+        pixel_scale (Union[u.Quantity, str, float]): The size of the square pixels. if a `float` it is assumed to be arcseconds. If `str`, parsing is hangled by `astropy.units.Quantity`.
+        projection (str, optional): Project scheme to encode in the header. Defaults to "SIN".
+        base_wcs (Optional[Union[Path, WCS]], optional): Overload an existing WCS object with argument properties. If a `Path` the WCS is obtained from the fits file. If `None` WCS is built from arguments. Defaults to None.
+
+    Returns:
+        WCS: The representative WCS objects
+    """
+    # Trust nothing
+    assert (
+        len(projection) == 3
+    ), f"Projection should be three characters, received {projection}"
+
+    # Handle all the pixels you rotten seadog
+    if pixel_scale is not None:
+        if isinstance(pixel_scale, str):
+            pixel_scale = u.Quantity(pixel_scale)
+        elif isinstance(pixel_scale, float):
+            pixel_scale = pixel_scale * u.arcsec
+
+        # Trust nothing even more
+        assert isinstance(
+            pixel_scale, u.Quantity
+        ), f"pixel_scale is not an quantity, instead {type(pixel_scale)}"
+        pixel_scale = np.abs(pixel_scale.to(u.rad).value)
+
+        pixel_scale = np.array([-pixel_scale, pixel_scale])
+
+    # Handle the ref position
+    if ra is not None:
+        ra = ra if isinstance(ra, u.Quantity) else ra * u.deg
+    if dec is not None:
+        dec = dec if isinstance(dec, u.Quantity) else dec * u.deg
+
+    # Sort out the header. If Path get the header through and construct the WCS
+    if base_wcs is not None:
+        if isinstance(base_wcs, Path):
+            base_wcs = WCS(fits.getheader(base_wcs)).celestial
+
+        assert isinstance(
+            base_wcs, WCS
+        ), f"Expecting base_wcs to be a WCS object by now, instead is {type(base_wcs)}"
+
+        if image_shape is None:
+            image_shape = base_wcs._naxis
+        if ra is None:
+            ra = base_wcs.wcs.crval[0] * u.Unit(base_wcs.wcs.cunit[0])
+        if dec is None:
+            dec = base_wcs.wcs.crval[1] * u.Unit(base_wcs.wcs.cunit[1])
+        if pixel_scale is None:
+            pixel_scale = base_wcs.wcs.cdelt
+
+    # Only needs to be approx correct. Off by one pixel should be ok, this pirate thinks
+    if image_shape is not None:
+        image_center = np.array(image_shape, dtype=int) // 2
+
+    # The celestial guarantees only two axis
+    w = base_wcs.celestial if base_wcs else WCS(naxis=2)
+
+    if any([i is None for i in (image_shape, ra, dec, pixel_scale)]):
+        raise ValueError("Something is unset, and unable to form wcs object. ")
+
+    # Nor bring it all together
+    w.wcs.crpix = image_center
+    w.wcs.cdelt = pixel_scale
+    w.wcs.crval = [ra.to(u.deg).value, dec.to(u.deg).value]
+    w.wcs.ctype = [f"RA---{projection}", f"DEC--{projection}"]
+    w.wcs.cunit = ["deg", "deg"]
+    w._naxis = tuple(image_shape)
+
+    return w
 
 
 def estimate_skycoord_centre(

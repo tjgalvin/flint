@@ -66,6 +66,8 @@ class FieldOptions(NamedTuple):
     """Path to the singularity wsclean container"""
     yandasoft_container: Optional[Path] = None
     """Path to the singularity yandasoft container"""
+    potato_container: Optional[Path] = None
+    """Path to the singularity potato peel container"""
     holofile: Optional[Path] = None
     """Path to the holography FITS cube that will be used when co-adding beams"""
     rounds: int = 2

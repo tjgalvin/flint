@@ -32,6 +32,7 @@ from flint.prefect.common.imaging import (
     task_gaincal_applycal_ms,
     task_get_common_beam,
     task_linmos_images,
+    task_potato_peel,
     task_preprocess_askap_ms,
     task_rename_column_in_ms,
     task_run_bane_and_aegean,
@@ -172,6 +173,13 @@ def process_science_fields(
         strategy=strategy, mode="wsclean", round="initial"
     )
 
+    if field_options.potato_container:
+        preprocess_science_mss = task_potato_peel.map(
+            ms=preprocess_science_mss,
+            potato_container=field_options.potato_container,
+            update_wsclean_options=unmapped(wsclean_init),
+        )
+
     wsclean_cmds = task_wsclean_imager.map(
         in_ms=preprocess_science_mss,
         wsclean_container=field_options.wsclean_container,
@@ -239,6 +247,7 @@ def process_science_fields(
         logger.info("No self-calibration will be performed. Returning")
         return
 
+    # Set up the default value should the user activated mask option is not set
     fits_beam_masks = None
 
     for current_round in range(1, field_options.rounds + 1):
@@ -433,6 +442,12 @@ def get_parser() -> ArgumentParser:
         help="Path to the singularity container with yandasoft",
     )
     parser.add_argument(
+        "--potato-container",
+        type=Path,
+        default=None,
+        help="Path to the potato peel singularity container",
+    )
+    parser.add_argument(
         "--cluster-config",
         type=str,
         default="petrichor",
@@ -527,6 +542,7 @@ def cli() -> None:
         expected_ms=args.expected_ms,
         wsclean_container=args.wsclean_container,
         yandasoft_container=args.yandasoft_container,
+        potato_container=args.potato_container,
         rounds=args.selfcal_rounds,
         zip_ms=args.zip_ms,
         run_aegean=args.run_aegean,

@@ -13,10 +13,22 @@ from flint.naming import (
     extract_beam_from_name,
     extract_components_from_name,
     get_aocalibrate_output_path,
+    get_potato_output_base_path,
     get_sbid_from_path,
     processed_ms_format,
     raw_ms_format,
 )
+
+
+def test_potato_output_name():
+    ms = Path("/some/made/up/path/SB123.Tim.beam33.round2.ms")
+    potato = get_potato_output_base_path(ms_path=ms)
+
+    assert isinstance(potato, Path)
+    assert potato == Path("/some/made/up/path/SB123.Tim.beam33.potato")
+
+    config = potato.parent / (potato.name + ".config")
+    assert config == Path("/some/made/up/path/SB123.Tim.beam33.potato.config")
 
 
 def test_add_timestamp_to_path():

@@ -347,6 +347,27 @@ def get_sbid_from_path(path: Path) -> int:
     return int(sbid)
 
 
+def get_potato_output_base_path(ms_path: Path) -> Path:
+    """Return the base name for potato peel.
+
+    Args:
+        ms_path (Path): Input measurement set that follows the FLINT style process name format
+
+    Returns:
+        Path: Output base name to use
+    """
+
+    ms_components = processed_ms_format(in_name=ms_path)
+    output_components = (
+        f"SB{ms_components.sbid}.{ms_components.field}.beam{ms_components.beam}.potato"
+    )
+
+    output_path = ms_path.parent / output_components
+    logger.info(f"Output potato base name: {output_path}")
+
+    return output_path
+
+
 def get_aocalibrate_output_path(
     ms_path: Path, include_preflagger: bool, include_smoother: bool
 ) -> Path:
