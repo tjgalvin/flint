@@ -13,10 +13,10 @@ from flint.naming import (
     extract_beam_from_name,
     extract_components_from_name,
     get_aocalibrate_output_path,
+    get_potato_output_base_path,
     get_sbid_from_path,
     processed_ms_format,
     raw_ms_format,
-    get_potato_output_base_path,
 )
 
 

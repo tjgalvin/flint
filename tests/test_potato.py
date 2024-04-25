@@ -1,36 +1,35 @@
 """Some basic checks around the potato peel functionality"""
 
-import pytest
 import shutil
 from pathlib import Path
 
-import numpy as np
 import astropy.units as u
-from astropy.table import Table
+import numpy as np
+import pytest
 from astropy.coordinates import SkyCoord
+from astropy.table import Table
 
 from flint.imager.wsclean import WSCleanOptions
-from flint.peel.potato import (
-    find_sources_to_peel,
-    load_known_peel_sources,
-    PotatoConfigOptions,
-    _potato_config_command,
-    PotatoConfigCommand,
-    NormalisedSources,
-    get_source_props_from_table,
-    PotatoPeelOptions,
-    _potato_peel_command,
-    PotatoPeelCommand,
-    source_within_image_fov,
-)
-
 from flint.logging import logger
 from flint.ms import MS
+from flint.peel.potato import (
+    NormalisedSources,
+    PotatoConfigCommand,
+    PotatoConfigOptions,
+    PotatoPeelCommand,
+    PotatoPeelOptions,
+    _potato_config_command,
+    _potato_peel_command,
+    find_sources_to_peel,
+    get_source_props_from_table,
+    load_known_peel_sources,
+    source_within_image_fov,
+)
 from flint.sky_model import (
-    generate_pb,
+    AiryResponse,
     GaussianResponse,
     SincSquaredResponse,
-    AiryResponse,
+    generate_pb,
 )
 from flint.utils import get_packaged_resource_path
 
@@ -59,7 +58,7 @@ def ms_example(tmpdir):
 def test_source_in_image_fov():
     """Test to see if souce is within an image FoV"""
     # This comes from a test wsclean produced image. Not sure
-    # why or how a minus crval1 has come out. 
+    # why or how a minus crval1 has come out.
     wcs_dict = dict(
         NAXIS1=8128,
         NAXIS2=8128,
@@ -185,9 +184,9 @@ def test_check_sources_to_peel(ms_example):
     # See the WCS constructed in the above
     center_position = SkyCoord(-1.722664244157e02 * u.deg, 2.625771981318e00 * u.deg)
     sources = find_sources_to_peel(
-        ms=ms_example, 
-        image_options=image_options, 
-        override_beam_position_with=center_position
+        ms=ms_example,
+        image_options=image_options,
+        override_beam_position_with=center_position,
     )
     assert len(sources) == 1
     assert sources["Name"] == "Virgo A"

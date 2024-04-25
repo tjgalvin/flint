@@ -32,6 +32,7 @@ from flint.prefect.common.imaging import (
     task_gaincal_applycal_ms,
     task_get_common_beam,
     task_linmos_images,
+    task_potato_peel,
     task_preprocess_askap_ms,
     task_rename_column_in_ms,
     task_run_bane_and_aegean,
@@ -39,7 +40,6 @@ from flint.prefect.common.imaging import (
     task_split_by_field,
     task_wsclean_imager,
     task_zip_ms,
-    task_potato_peel
 )
 from flint.prefect.common.utils import (
     task_create_beam_summary,
@@ -177,7 +177,7 @@ def process_science_fields(
         preprocess_science_mss = task_potato_peel.map(
             ms=preprocess_science_mss,
             potato_container=field_options.potato_container,
-            update_wsclean_options=unmapped(wsclean_init)
+            update_wsclean_options=unmapped(wsclean_init),
         )
 
     wsclean_cmds = task_wsclean_imager.map(
@@ -445,7 +445,7 @@ def get_parser() -> ArgumentParser:
         "--potato-container",
         type=Path,
         default=None,
-        help="Path to the potato peel singularity container",   
+        help="Path to the potato peel singularity container",
     )
     parser.add_argument(
         "--cluster-config",

@@ -7,8 +7,8 @@ import subprocess
 from pathlib import Path
 from typing import List, Optional, Tuple, Union
 
-import numpy as np
 import astropy.units as u
+import numpy as np
 from astropy.coordinates import SkyCoord
 from astropy.io import fits
 from astropy.wcs import WCS

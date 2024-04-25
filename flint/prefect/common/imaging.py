@@ -20,7 +20,12 @@ from flint.calibrate.aocalibrate import (
 from flint.coadd.linmos import LinmosCommand, linmos_images
 from flint.convol import BeamShape, convolve_images, get_common_beam
 from flint.flagging import flag_ms_aoflagger
-from flint.imager.wsclean import ImageSet, WSCleanCommand, WSCleanOptions, wsclean_imager
+from flint.imager.wsclean import (
+    ImageSet,
+    WSCleanCommand,
+    WSCleanOptions,
+    wsclean_imager,
+)
 from flint.logging import logger
 from flint.masking import (
     MaskingOptions,
@@ -55,15 +60,15 @@ task_rename_column_in_ms = task(rename_column_in_ms)
 
 FlagMS = TypeVar("FlagMS", MS, ApplySolutions)
 
+
 @task
 def task_potato_peel(
-    ms: MS, 
-    potato_container: Path, 
+    ms: MS,
+    potato_container: Path,
     update_potato_config_options: Optional[Dict[str, Any]] = None,
     update_potato_peel_options: Optional[Dict[str, Any]] = None,
-    update_wsclean_options: Optional[WSCleanOptions] = None
+    update_wsclean_options: Optional[WSCleanOptions] = None,
 ) -> MS:
-
     logger.info(f"Attempting to peel {ms.path}")
 
     wsclean_options = WSCleanOptions(**update_wsclean_options)
@@ -75,18 +80,19 @@ def task_potato_peel(
         potato_container=potato_container,
         update_potato_config_options=update_potato_config_options,
         update_potato_peel_options=update_potato_peel_options,
-        image_options=wsclean_options
+        image_options=wsclean_options,
     )
-    
+
     post_data_column = ms.column
 
     logger.info(f"Initial potato data column: {initial_data_column}")
     logger.info(f"Post potato data column: {post_data_column}")
-    
+
     if post_data_column != initial_data_column:
         logger.critical(f"{ms.path} data column has changed!")
-    
+
     return ms
+
 
 @task
 def task_flag_ms_aoflagger(ms: FlagMS, container: Path) -> FlagMS:

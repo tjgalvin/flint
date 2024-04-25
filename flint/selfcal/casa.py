@@ -127,9 +127,13 @@ def copy_and_clean_ms_casagain(ms: MS, round: int = 1, verify: bool = True) -> M
         colnames = tab.colnames()
         logger.info(f"Column names are: {colnames}")
         if ms.column == "DATA" and "CORRECTED_DATA" not in colnames:
-            logger.info("Data is the nominated column, and CORRECTED_DATA does not exist. Returning. ")
+            logger.info(
+                "Data is the nominated column, and CORRECTED_DATA does not exist. Returning. "
+            )
         else:
-            to_delete = ["DATA", ]
+            to_delete = [
+                "DATA",
+            ]
             for col in to_delete:
                 if col in colnames:
                     logger.info(f"Removing {col=} from {str(out_ms_path)}.")
@@ -137,17 +141,18 @@ def copy_and_clean_ms_casagain(ms: MS, round: int = 1, verify: bool = True) -> M
                         tab.removecols(col)
                         tab.flush(recursive=True)
                     except Exception as e:
-                        logger.critical(f"Failed to remove {col=}! \nCaptured error: {e}")
+                        logger.critical(
+                            f"Failed to remove {col=}! \nCaptured error: {e}"
+                        )
                 else:
                     logger.warning(f"Column {col} not found in {str(out_ms_path)}.")
 
             logger.info("Renaming CORRECTED_DATA to DATA. ")
             tab.renamecol("CORRECTED_DATA", "DATA")
 
-    
-    # Note that the out_ms_path needs to be set, even if the data  column is initially DATA. 
+    # Note that the out_ms_path needs to be set, even if the data  column is initially DATA.
     # Since casa expects DATA, we will force the column to be DATA with the expectation that
-    # previous pirates in the lines above have dealt with the renaming. 
+    # previous pirates in the lines above have dealt with the renaming.
     ms = ms.with_options(path=out_ms_path, column="DATA")
 
     ms = nan_zero_extreme_flag_ms(ms=ms)

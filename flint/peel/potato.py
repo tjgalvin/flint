@@ -3,15 +3,15 @@ peeling sources in racs. The repository is available at:
 
 https://gitlab.com/Sunmish/potato/-/tree/main
 
-Potato stands for "Peel Out That Annoying Terrible Object". 
+Potato stands for "Peel Out That Annoying Terrible Object".
 
 Although this is a python module, for the moment it is expected
-to be in a singularity container. There are several reasons 
+to be in a singularity container. There are several reasons
 for this, but the principal one is that the numba module used
 by potatopeel may be difficult to get working correctly alongside
-dask and flint. Keeping it simple at this point is the main aim. 
+dask and flint. Keeping it simple at this point is the main aim.
 There is also the problem of casatasks + python-casacore not
-jiving in newer python versios. 
+jiving in newer python versios.
 
 """
 
@@ -19,24 +19,24 @@ from __future__ import annotations
 
 from argparse import ArgumentParser
 from pathlib import Path
-from typing import Union, Tuple, NamedTuple, Collection, Optional, Dict, Any
+from typing import Any, Collection, Dict, NamedTuple, Optional, Tuple, Union
 
-from casacore.tables import table
-from astropy.table import Table
 import astropy.units as u
-from astropy.coordinates import SkyCoord
 import numpy as np
+from astropy.coordinates import SkyCoord
+from astropy.table import Table
+from casacore.tables import table
 
 from flint.imager.wsclean import WSCleanOptions
 from flint.logging import logger
-from flint.ms import MS, get_phase_dir_from_ms, get_freqs_from_ms
+from flint.ms import MS, get_freqs_from_ms, get_phase_dir_from_ms
 from flint.naming import get_potato_output_base_path
 from flint.sclient import run_singularity_command
 from flint.sky_model import generate_pb
 from flint.utils import (
-    get_packaged_resource_path,
-    generate_strict_stub_wcs_header,
     create_directory,
+    generate_strict_stub_wcs_header,
+    get_packaged_resource_path,
 )
 
 
@@ -109,7 +109,7 @@ class PotatoPeelOptions(NamedTuple):
     """Where the temporary wsclean files will be written to"""
     minuvimage: Optional[float] = None
     """The minimum uv distance in wavelengths to use for imaging"""
-    minuvpeel: Optional[float] = None 
+    minuvpeel: Optional[float] = None
     """The minimum uv distance in wavelengths to use when attempting to self-calibrate"""
 
     def with_options(self, **kwargs) -> PotatoPeelOptions:
@@ -176,7 +176,7 @@ def find_sources_to_peel(
     field_idx: int = 0,
     maximum_offset: float = 30,
     minimum_apparent_brightness: float = 0.5,
-    override_beam_position_with: Optional[SkyCoord] = None
+    override_beam_position_with: Optional[SkyCoord] = None,
 ) -> Union[Table, None]:
     """Obtain a set of sources to peel from a reference candidate set. This will
     evaluate whether a source should be peels based on two criteria:
@@ -190,7 +190,7 @@ def find_sources_to_peel(
         field_idx (int, optional): Which field in the MS to draw the position from. Defaults to 0.
         maximum_offset (float, optional): The largest separation, in degrees, before a source is ignored. Defaults to 30.0.
         minimum_apparent_brightness (float, optional): The minimum apparent brightnessm, in Jy, a source should be before attempting to peel. Defaults to 0.5.
-        override_beam_position_with (Optional[SkyCoord], optional): Ignore the beam position of the input MS, instead use this. Do not rely on this option as it may be taken away. Defaults to None. 
+        override_beam_position_with (Optional[SkyCoord], optional): Ignore the beam position of the input MS, instead use this. Do not rely on this option as it may be taken away. Defaults to None.
 
     Returns:
         Union[Table,None]: Collection of sources to peel from the reference table. Column names are Name, RA, Dec, Aperture. This is the package table. If no sources need to be peeled None is returned.
@@ -207,7 +207,11 @@ def find_sources_to_peel(
         raise TypeError(f"{type(image_options)=} is not known. ")
 
     logger.debug(f"Extracting image direction for {field_idx=}")
-    image_coord = get_phase_dir_from_ms(ms=ms) if override_beam_position_with is None else override_beam_position_with
+    image_coord = (
+        get_phase_dir_from_ms(ms=ms)
+        if override_beam_position_with is None
+        else override_beam_position_with
+    )
 
     logger.info(
         f"Considering sources to peel around {image_coord=}, {type(image_coord)=}"
@@ -238,9 +242,10 @@ def find_sources_to_peel(
 
         if offset > maximum_offset * u.deg:
             continue
-        
-        logger.info(f"Source {src['Name']} is {offset} away, below {maximum_offset=} cutoff ")
-        
+
+        logger.info(
+            f"Source {src['Name']} is {offset} away, below {maximum_offset=} cutoff "
+        )
 
         # At the moment no brightness is in the known_sources.csv
         # taper = generate_pb(
@@ -569,17 +574,18 @@ def get_source_props_from_table(table: Table) -> NormalisedSources:
         source_names=tuple(source_names),
     )
 
+
 def _print_ms_colnames(ms: MS) -> None:
-    """A dummy function to print colnames in a MS table
-    """
+    """A dummy function to print colnames in a MS table"""
     ms = MS.cast(ms=ms)
-    
+
     with table(str(ms.path)) as tab:
         colnames = tab.colnames()
 
     logger.critical(f"The MS column names are: {colnames=}")
 
     return ms
+
 
 def potato_peel(
     ms: MS,
@@ -613,7 +619,9 @@ def potato_peel(
     logger.info("Colnames before potato")
     _print_ms_colnames(ms=ms)
 
-    peel_tab = find_sources_to_peel(ms=ms, image_options=image_options, maximum_offset=6)
+    peel_tab = find_sources_to_peel(
+        ms=ms, image_options=image_options, maximum_offset=6
+    )
 
     if peel_tab is None or len(peel_tab) == 0:
         logger.info("No sources to peel. ")

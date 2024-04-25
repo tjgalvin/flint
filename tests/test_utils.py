@@ -1,21 +1,21 @@
 """Basic tests for utility functions"""
 
-import pytest
 from pathlib import Path
 
 import astropy.units as u
 import numpy as np
+import pytest
 from astropy.coordinates import SkyCoord
-from astropy.wcs import WCS
 from astropy.io import fits
+from astropy.wcs import WCS
 
+from flint.logging import logger
 from flint.utils import (
     estimate_skycoord_centre,
-    get_packaged_resource_path,
-    generate_stub_wcs_header,
     generate_strict_stub_wcs_header,
+    generate_stub_wcs_header,
+    get_packaged_resource_path,
 )
-from flint.logging import logger
 
 
 @pytest.fixture
