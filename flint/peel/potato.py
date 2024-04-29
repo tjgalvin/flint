@@ -226,7 +226,7 @@ def find_sources_to_peel(
 
     # TODO: Make this a mapping function
     for src in peel_srcs_tab:
-        src_coord = SkyCoord(src["RA"], src["Dec"], unit=(u.hourangle, u.degree))
+        src_coord = SkyCoord(src["RA"], src["Dec"], unit=(u.degree, u.degree))
         offset = image_coord.separation(src_coord)
         if source_within_image_fov(
             source_coord=src_coord,
@@ -559,7 +559,7 @@ def get_source_props_from_table(table: Table) -> NormalisedSources:
         NormalisedSources: Collection of normalised sources properties that will be provided to `hot_potato`
     """
 
-    sources_sky = SkyCoord(table["RA"], table["Dec"], unit=(u.hourangle, u.deg))
+    sources_sky = SkyCoord(table["RA"], table["Dec"], unit=(u.deg, u.deg))
 
     source_ras = [source_sky.ra.deg for source_sky in sources_sky]
     source_decs = [source_sky.dec.deg for source_sky in sources_sky]
