@@ -9,7 +9,7 @@ Yarrrr-Harrrr fiddley-dee!
 
 ## About
 
-As a toy, this `flint` package is trying to get a minimum start-to-finish workflow written for `RACS` style data. `python` functions are used to do the work, and `prefect` is used to orchestrate their usage into a larger pipeline.
+This `flint` package is trying to get a minimum start-to-finish calibration and imaging workflow written for `RACS` style ASKAP data. `python` functions are used to do the work, and `prefect` is used to orchestrate their usage into a larger pipeline.
 
 Most of the `python` routines have a CLI that can be used to test them in a piecewise sense. These entry points are installed as programs available on the command line. They are listed below with a brief description:
 - `flint_skymodel`: derives a sky-model using a reference catalogue suitable to perform bandpass calibration against. Note that it is not "science quality" as it assumes an ideal primary beam response and the reference catalogues do not incorporate spectral information.
@@ -24,11 +24,13 @@ Most of the `python` routines have a CLI that can be used to test them in a piec
 - `flint_config`: The beginnings of a configuration-based scheme to specify options throughout a workflow.
 - `flint_aegean`: Simple interface to execute BANE and aegean against a provided image. These tools are expected to be packaged in a singularity container.
 - `flint_validation_plot`: Create a simple, quick look figure that expresses the key quality statistics of an image. It is intended to be used against a full continuum field image, but in-principal be used for a per beam image.
+- `flint_potato`: Attempt to peel out known sources from a measurement set using [potatopeel](
+https://gitlab.com/Sunmish/potato/-/tree/main). Criteria used to assess which sources to peel is fairly minimumal, and at the time of writing only the reference set of sources paackaged within `flint` are considered. 
 
 The following commands use the `prefect` framework to link together individual tasks together (outlined above) into a single data-processing pipeline.
 - `flint_flow_bandpass_calibrate`: Executes a prefect flow run that will calibrate a set of ASKAP measurement sets taken during a normal bandpass observation sequence.
 - `flint_flow_continuum_pipeline`: Performs bandpass calibration, solution copying, imaging, self-calibration and mosaicing.
-- `flint_flow_cointinuum_mask_pipeline`: Performs bandpass calibration, solution copying, imaging, self-calibration and mosaicing. In this flow a process to construct a robust clean mask is performed by exploiting an initial imaging round. The field image is constructed across all beams, S/N clipping is performed, then guard masks on a per-beam basis are extracted.
+- `flint_flow_cointinuum_mask_pipeline`: Performs bandpass calibration, solution copying, imaging, self-calibration and mosaicing. In this flow a process to construct a robust clean mask is performed by exploiting an initial imaging round. The field image is constructed across all beams, S/N clipping is performed, then guard masks on a per-beam basis are extracted. This pipeline has fallen out of use and could be removed. 
 
 ## Sky-model catalogues
 
@@ -49,6 +51,8 @@ In a nutshell, the containers used throughout are passed in as command line argu
 - flagging: this should contain `aoflagger`, which is installable via a `apt install aoflagger` within ubunutu.
 - imaging: this should contain `wsclean`. This should be at least version 3. At the moment a modified version is being used (which implements a `-force-mask-round` option).
 - source finding: `aegeam` is used for basic component catalogue creation. It is not intedended to be used to produce final source catalogues, but to help construct quick-look data products. A minimal set of `BANE` and `aegean` options are used.
+- source peeling: `potatopeel` is a package that uses `wsclean`, `casa` and a customisable rule set to peel out troublesome annoying objects. Although it is a python installable and importable package, there are potential conflicts with the `casatasks` and `python-casacore` modules that `flint` uses. See [potatopeel's github repository for more information](
+https://gitlab.com/Sunmish/potato/-/tree/main)
 
 ## Validation Plots
 
