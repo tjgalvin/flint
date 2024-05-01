@@ -251,7 +251,7 @@ def process_science_fields(
     fits_beam_masks = None
 
     for current_round in range(1, field_options.rounds + 1):
-        with tags(f"selfcal-{round}"):
+        with tags(f"selfcal-{current_round}"):
             final_round = round == field_options.rounds
 
             gain_cal_options = get_options_from_strategy(
