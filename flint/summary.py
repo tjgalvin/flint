@@ -28,6 +28,7 @@ from flint.ms import (
     describe_ms,
     get_telescope_location_from_ms,
     get_times_from_ms,
+    get_pol_axis_from_ms,
 )
 from flint.naming import get_sbid_from_path, processed_ms_format
 from flint.source_finding.aegean import AegeanOutputs
@@ -81,12 +82,29 @@ class FieldSummary(NamedTuple):
     """Summary information from each beam. Contains MSSummary, ImageSet and other information."""
     linmos_image: Optional[Path] = None
     """The path to the linmos image of all beams"""
+    pol_axis: Optional[float] = None
+    """The orientation of the ASKAP third-axis in radians. """
 
     def with_options(self, **kwargs) -> FieldSummary:
         prop = self._asdict()
         prop.update(**kwargs)
 
         return FieldSummary(**prop)
+
+
+def _get_pol_axis_as_rad(ms: Union[MS, Path]) -> float:
+    """Helper to get the appropriate pol_axis out of a MS. Prioritises the instrumental third-axis imprinted from fixms"""
+    ms = MS.cast(ms=ms)
+
+    # The INSTRUMENT_RECEPTOR_ANGLE comes from fixms and is
+    # inserted to preserve the original orientation.
+
+    try:
+        pol_axis = get_pol_axis_from_ms(ms=ms, col="INSTRUMENT_RECEPTOR_ANGLE")
+    except ValueError:
+        pol_axis = get_pol_axis_from_ms(ms=ms, col="RECEPTOR_ANGLE")
+
+    return pol_axis.to(u.rad).value
 
 
 # TODO: Need to establise a MSLike type
@@ -126,11 +144,16 @@ def add_ms_summaries(
     hour_angles = centre_altaz.az.to(u.hourangle)
     elevations = centre_altaz.alt.to(u.deg)
 
+    # The INSTRUMENT_RECEPTOR_ANGLE comes from fixms and is
+    # inserted to preserve the original orientation.
+    pol_axis = _get_pol_axis_as_rad(ms=mss[0])
+
     field_summary = field_summary.with_options(
         ms_summaries=ms_summaries,
         centre=centre,
         hour_angles=hour_angles,
         elevations=elevations,
+        pol_axis=pol_axis,
     )
 
     return field_summary
@@ -253,10 +276,6 @@ def create_field_summary(
     Returns:
         FieldSummary: A summary of a field
     """
-    # TODO: Maybe this should be changed to accept all MSs as
-    # the input argument in place of a singular ms. In otherwords
-    # all measdurement sets that have gone into the field. Need ale.
-    # Will talk to the parrot.
 
     logger.info("Creating field summary object")
 
@@ -279,6 +298,8 @@ def create_field_summary(
     integration = ms_times.ptp().to(u.second).value
     location = get_telescope_location_from_ms(ms=ms)
 
+    pol_axis = _get_pol_axis_as_rad(ms=ms)
+
     field_summary = FieldSummary(
         sbid=sbid,
         field_name=field,
@@ -287,6 +308,7 @@ def create_field_summary(
         integration_time=integration,
         holography_path=holography_path,
         ms_times=Time([ms_times.min(), ms_times.max()]),
+        pol_axis=pol_axis,
         **kwargs,
     )
 

@@ -397,6 +397,7 @@ def task_linmos_images(
     sbid: Optional[int] = None,
     parset_output_path: Optional[str] = None,
     cutoff: float = 0.05,
+    field_summary: Optional[FieldSummary] = None,
 ) -> LinmosCommand:
     """Run the yandasoft linmos task against a set of input images
 
@@ -410,6 +411,7 @@ def task_linmos_images(
         sbid (Optional[int], optional): SBID of the data being imaged. Defaults to None.
         parset_output_path (Optional[str], optional): Location to write the linmos parset file to. Defaults to None.
         cutoff (float, optional): The primary beam attenuation cutoff supplied to linmos when coadding. Defaults to 0.05.
+        field_summary (Optional[FieldSummary], optional): The summary of the field, including (importantly) to orientation of the third-axis. Defaults to None.
 
     Returns:
         LinmosCommand: The linmos command and associated meta-data
@@ -446,6 +448,8 @@ def task_linmos_images(
     parset_output_path = out_dir / Path(parset_output_path)
     logger.info(f"Parsert output path is {parset_output_path}")
 
+    pol_axis = field_summary.pol_axis if field_summary else None
+
     linmos_cmd = linmos_images(
         images=filter_images,
         parset_output_path=Path(parset_output_path),
@@ -453,6 +457,7 @@ def task_linmos_images(
         container=container,
         holofile=holofile,
         cutoff=cutoff,
+        pol_axis=pol_axis,
     )
 
     return linmos_cmd
@@ -464,6 +469,7 @@ def _convolve_linmos_residuals(
     field_options: FieldOptions,
     linmos_suffix_str: str,
     cutoff: float = 0.05,
+    field_summary: Optional[FieldSummary] = None,
 ) -> LinmosCommand:
     """An internal function that launches the convolution to a common resolution
     and subsequent linmos of the wsclean residual images.
@@ -474,6 +480,7 @@ def _convolve_linmos_residuals(
         field_options (FieldOptions): Options related to the processing of the field
         linmos_suffix_str (str): The suffix string passed to the linmos parset name
         cutoff (float, optional): The primary beam attenuation cutoff supplied to linmos when coadding. Defaults to 0.05.
+        field_summary (Optional[FieldSummary], optional): The summary of the field, including (importantly) to orientation of the third-axis. Defaults to None.
 
     Returns:
         LinmosCommand: Resulting linmos command parset
@@ -491,6 +498,7 @@ def _convolve_linmos_residuals(
         suffix_str=linmos_suffix_str,
         holofile=field_options.holofile,
         cutoff=cutoff,
+        field_summary=field_summary,
     )
 
     return parset

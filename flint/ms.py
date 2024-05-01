@@ -318,6 +318,53 @@ def get_telescope_location_from_ms(ms: Union[MS, Path]) -> EarthLocation:
     return pos
 
 
+def get_pol_axis_from_ms(
+    ms: Union[MS, Path], feed_idx: Optional[int] = None, col: str = "RECEPTOR_ANGLE"
+) -> u.Quantity:
+    """Get the polarization axis from the ASKAP MS. Checks are performed
+    to ensure this polarisation axis angle is constant throughout the observation.
+
+
+    Args:
+        ms (Union[MS, Path]): The path to the measurement set that will be inspected
+        feed_idx (Optional[int], optional): Specify the entery in the FEED
+        table of `ms` to return. This might be required when a subset of a
+        measurement set has been extracted from an observation with a varying
+        orientation.
+        col (str, optional): The column to extract the polarization angle from.
+
+    Returns:
+        astropy.units.Quantity: The rotation of the PAF throughout the observing.
+    """
+    ms = MS.cast(ms=ms)
+
+    # The INSTRUMENT_RECEPTOR_ANGLE is inserted from fixms.
+    _known_cols = ("RECEPTOR_ANGLE", "INSTRUMENT_RECEPTOR_ANGLE")
+    if col not in _known_cols:
+        raise ValueError(f"Unknown column {col=}, please use one of {_known_cols}")
+
+    with table((ms.path / "FEED").as_posix(), readonly=True, ack=False) as tf:
+        if col not in tf.colnames():
+            raise ValueError(f"{col=} not in the column names available. ")
+
+        ms_feed = tf.getcol(col) * u.rad
+        # PAF is at 45deg to feeds
+        # 45 - feed_angle = pol_angle
+        pol_axes = -(ms_feed - 45.0 * u.deg)
+
+    if feed_idx is None:
+        assert (ms_feed[:, 0] == ms_feed[0, 0]).all() & (
+            ms_feed[:, 1] == ms_feed[0, 1]
+        ).all(), f"The {col} changes with time, please check the MS"
+
+        feed_idx = 0
+
+    logger.debug(f"Extracting the third-axis orientation for {feed_idx=}")
+    pol_ang = pol_axes[feed_idx, 0].to(u.deg)
+
+    return pol_ang
+
+
 # TODO: Inline with other changing conventions this should be
 # changed to `create_ms_summary`
 def describe_ms(ms: Union[MS, Path], verbose: bool = False) -> MSSummary:

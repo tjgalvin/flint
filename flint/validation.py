@@ -1052,7 +1052,9 @@ def plot_field_info(
 
     hour_angles = field_summary.hour_angles
     elevations = field_summary.elevations
-
+    pol_axis_str = (
+        f"{field_summary.pol_axis:.3f} rad" if field_summary.pol_axis else "Unknown"
+    )
     field_text = "\n".join(
         (
             f"Field name: {field_summary.field_name}",
@@ -1068,6 +1070,7 @@ def plot_field_info(
             f"- Median rms uJy    : {rms_info.median*1e6:.1f}",
             f"- Components        : {len(askap_table)}",
             f"- Processing date   : {Time.now().fits}",
+            f"- Pol. axis         : {pol_axis_str}",
         )
     )
     props = dict(boxstyle="square", facecolor="none", edgecolor="tab:red", pad=2)

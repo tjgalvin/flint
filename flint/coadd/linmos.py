@@ -11,6 +11,10 @@ from flint.logging import logger
 from flint.naming import LinmosNames, create_linmos_names, extract_beam_from_name
 from flint.sclient import run_singularity_command
 
+# This is the expected orientation of the third-axis and footprint (remember the footprint
+# can be electronically rotated).
+EXPECTED_HOLOGRAPHY_ROTATION_CONSTANT_RADIANS = -np.pi / 8
+
 
 class LinmosCommand(NamedTuple):
     cmd: str
@@ -218,6 +222,7 @@ def generate_linmos_parameter_set(
     weight_list: Optional[str] = None,
     holofile: Optional[Path] = None,
     cutoff: float = 0.001,
+    pol_axis: Optional[float] = None,
 ) -> Path:
     """Generate a parset file that will be used with the
     yandasoft linmos task.
@@ -229,10 +234,13 @@ def generate_linmos_parameter_set(
         weight_list (str, optional): If not None, this string will be embedded into the yandasoft linmos parset as-is. It should represent the formatted string pointing to weight files, and should be equal length of the input images. If None it is internally generated. Defaults to None.
         holofile (Optional[Path], optional): Path to a FITS cube produced by the holography processing pipeline. Used by linmos to appropriate primary-beam correct the images. Defaults to None.
         cutoff (float, optional): Pixels whose primary beam attenuation is below this cutoff value are blanked. Defaults to 0.001.
+        pol_axis (Optional[float], optional): The physical orientation of the ASKAP third-axis. This is provided (with some assumptions about the orientation of the holography) to correctly rotate the attentuation of the beams when coadding. If None we hope for the best. Defaults to None.
 
     Returns:
         Path: Path to the output parset file.
     """
+
+    # TODO: Add the alpha linmos param
 
     img_str: List[str] = list(
         [str(p).replace(".fits", "") for p in images if p.exists()]
@@ -240,8 +248,8 @@ def generate_linmos_parameter_set(
     logger.info(f"{len(img_str)} unique images from {len(images)} input collection. ")
     img_list: str = "[" + ",".join(img_str) + "]"
 
-    assert (
-        len(set(img_str)) == len(images)
+    assert len(set(img_str)) == len(
+        images
     ), "Some images were dropped from the linmos image string. Something is bad, walk the plank. "
 
     # If no weights_list has been provided (and therefore no optimal
@@ -258,6 +266,15 @@ def generate_linmos_parameter_set(
     # so it needs to be dropped from the Path objects. Using the Path.stem
     # attribute drops the parent directory (absolute directory).
     parent_dir = linmos_names.image_fits.parent
+
+    # Work out the appropriate rotation to provide linmos. This should
+    # be the differential pol. axis. rotation between the science field
+    # and the holography. At the moment this holography rotation is
+    # unknown to us (not stored in the cube header).
+    alpha = None
+    if pol_axis:
+        alpha = pol_axis - EXPECTED_HOLOGRAPHY_ROTATION_CONSTANT_RADIANS
+        logger.info(f"Differential rotation is: {alpha} rad")
 
     # Parameters are taken from arrakis
     parset = (
@@ -289,6 +306,8 @@ def generate_linmos_parameter_set(
             # f"linmos.primarybeam.ASKAP_PB.alpha = {paf_alpha}\n"
             f"linmos.removeleakage    = true\n"
         )
+        if alpha:
+            parset += f"linmos.primarybeam.ASKAP_PB.alpha = {alpha} # in radians\n"
 
     # Now write the file, me hearty
     logger.info(f"Writing parset to {str(parset_output_path)}.")
@@ -310,6 +329,7 @@ def linmos_images(
     holofile: Optional[Path] = None,
     container: Path = Path("yandasoft.sif"),
     cutoff: float = 0.001,
+    pol_axis: Optional[float] = None,
 ) -> LinmosCommand:
     """Create a linmos parset file and execute it.
 
@@ -321,6 +341,7 @@ def linmos_images(
         holofile (Optional[Path], optional): Path to a FITS cube produced by the holography processing pipeline. Used by linmos to appropriate primary-beam correct the images. Defaults to None.
         container (Path, optional): Path to the singularity container that has the yandasoft tools. Defaults to Path('yandasoft.sif').
         cutoff (float, optional): Pixels whose primary beam attenuation is below this cutoff value are blanked. Defaults to 0.001.
+        pol_axis (Optional[float], optional): The physical oritentation of the ASKAP third-axis in radians. Defaults to None.
 
     Returns:
         LinmosCommand: The linmos command executed and the associated parset file
@@ -339,6 +360,7 @@ def linmos_images(
         weight_list=weight_list,
         holofile=holofile,
         cutoff=cutoff,
+        pol_axis=pol_axis,
     )
 
     linmos_cmd_str = f"linmos -c {str(linmos_parset)}"

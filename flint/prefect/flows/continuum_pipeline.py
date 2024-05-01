@@ -317,6 +317,7 @@ def process_science_fields(
             suffix_str=f"round{current_round}",
             holofile=field_options.holofile,
             cutoff=field_options.pb_cutoff,
+            field_summary=field_summary,
         )
 
         if field_options.linmos_residuals:
@@ -326,6 +327,7 @@ def process_science_fields(
                 field_options=field_options,
                 linmos_suffix_str=f"round{current_round}.residual",
                 cutoff=field_options.pb_cutoff,
+                field_summary=field_summary,
             )
 
         if final_round and run_aegean:
