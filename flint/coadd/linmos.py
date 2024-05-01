@@ -273,6 +273,10 @@ def generate_linmos_parameter_set(
     # unknown to us (not stored in the cube header).
     alpha = None
     if pol_axis:
+        logger.info(
+            f"The constant assumed holography pol_axis + footprint rotation is: {EXPECTED_HOLOGRAPHY_ROTATION_CONSTANT_RADIANS:.4f} radians"
+        )
+        logger.info(f"The extracted pol_axis of the field: {pol_axis:.4f} radians")
         alpha = pol_axis - EXPECTED_HOLOGRAPHY_ROTATION_CONSTANT_RADIANS
         logger.info(f"Differential rotation is: {alpha} rad")
 
