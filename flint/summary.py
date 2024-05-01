@@ -101,8 +101,10 @@ def _get_pol_axis_as_rad(ms: Union[MS, Path]) -> float:
 
     try:
         pol_axis = get_pol_axis_from_ms(ms=ms, col="INSTRUMENT_RECEPTOR_ANGLE")
+        logger.info(f"INSTRUMENT_RECEPTOR_ANGLE obtained {pol_axis=}")
     except ValueError:
         pol_axis = get_pol_axis_from_ms(ms=ms, col="RECEPTOR_ANGLE")
+        logger.info(f"RECEPTOR_ANGLE obtained {pol_axis=}")
 
     return pol_axis.to(u.rad).value
 
