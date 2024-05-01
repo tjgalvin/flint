@@ -13,7 +13,7 @@ from flint.sclient import run_singularity_command
 
 # This is the expected orientation of the third-axis and footprint (remember the footprint
 # can be electronically rotated).
-EXPECTED_HOLOGRAPHY_ROTATION_CONSTANT_RADIANS = -np.pi / 8
+EXPECTED_HOLOGRAPHY_ROTATION_CONSTANT_RADIANS = -2 * np.pi / 8
 
 
 class LinmosCommand(NamedTuple):
