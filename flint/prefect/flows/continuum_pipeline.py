@@ -215,6 +215,7 @@ def process_science_fields(
             suffix_str="noselfcal",
             holofile=field_options.holofile,
             cutoff=field_options.pb_cutoff,
+            field_summary=field_summary,
         )
 
         if run_aegean:
@@ -241,6 +242,7 @@ def process_science_fields(
                 field_options=field_options,
                 linmos_suffix_str="residual.noselfcal",
                 cutoff=field_options.pb_cutoff,
+                field_summary=field_summary,
             )
 
     if field_options.rounds is None:
