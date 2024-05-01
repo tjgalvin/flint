@@ -193,6 +193,23 @@ def grow_low_snr_mask(
     return low_snr_mask
 
 
+def _verify_set_positive_seed_clip(
+    positive_seed_clip: float, signal: np.ndarray
+) -> float:
+    """Ensure that the positive seed clip is handled appropriately"""
+    max_signal = np.max(signal)
+    if max_signal < positive_seed_clip:
+        logger.critical(
+            (
+                f"The maximum signal {max_signal:.4f} is below the provided {positive_seed_clip=}. "
+                "Setting clip to 90 percent of maximum. "
+            )
+        )
+        positive_seed_clip = max_signal * 0.9
+
+    return positive_seed_clip
+
+
 def reverse_negative_flood_fill(
     image: Optional[np.ndarray] = None,
     rms: Optional[np.ndarray] = None,
@@ -259,6 +276,11 @@ def reverse_negative_flood_fill(
 
     signal = _get_signal_image(
         image=image, rms=rms, background=background, signal=signal
+    )
+
+    # Sanity check the upper clip level, you rotten seadog
+    positive_seed_clip = _verify_set_positive_seed_clip(
+        positive_seed_clip=positive_seed_clip, signal=signal
     )
 
     # This Pirate thinks provided the background is handled

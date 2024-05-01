@@ -4,7 +4,11 @@ import numpy as np
 import pytest
 from astropy.io import fits
 
-from flint.masking import MaskingOptions, create_snr_mask_from_fits
+from flint.masking import (
+    MaskingOptions,
+    create_snr_mask_from_fits,
+    _verify_set_positive_seed_clip,
+)
 from flint.naming import FITSMaskNames
 
 SHAPE = (100, 100)
@@ -37,6 +41,19 @@ def test_make_masking_options():
 
     masking_options = masking_options.with_options(base_snr_clip=-1)
     assert masking_options.base_snr_clip == -1
+
+
+def test_verify_set_seed_clip():
+    """Make sure the flood seed clip handles items above all possible values"""
+    signal = np.ones((100, 100)) * 10.0
+
+    flood_clip = _verify_set_positive_seed_clip(signal=signal, positive_seed_clip=9.0)
+
+    assert flood_clip == 9.0
+    flood_clip = _verify_set_positive_seed_clip(
+        signal=signal, positive_seed_clip=999999.0
+    )
+    assert flood_clip == 9.0
 
 
 def test_fits_masking(fits_dir):
