@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Union
 
 from configargparse import ArgumentParser
-from prefect import flow, unmapped
+from prefect import flow, tags, unmapped
 
 from flint.calibrate.aocalibrate import find_existing_solutions
 from flint.configuration import (
@@ -215,6 +215,7 @@ def process_science_fields(
             suffix_str="noselfcal",
             holofile=field_options.holofile,
             cutoff=field_options.pb_cutoff,
+            field_summary=field_summary,
         )
 
         if run_aegean:
@@ -241,6 +242,7 @@ def process_science_fields(
                 field_options=field_options,
                 linmos_suffix_str="residual.noselfcal",
                 cutoff=field_options.pb_cutoff,
+                field_summary=field_summary,
             )
 
     if field_options.rounds is None:
@@ -251,98 +253,104 @@ def process_science_fields(
     fits_beam_masks = None
 
     for current_round in range(1, field_options.rounds + 1):
-        final_round = round == field_options.rounds
+        with tags(f"selfcal-{current_round}"):
+            final_round = current_round == field_options.rounds
 
-        gain_cal_options = get_options_from_strategy(
-            strategy=strategy, mode="gaincal", round=current_round
-        )
-        wsclean_options = get_options_from_strategy(
-            strategy=strategy, mode="wsclean", round=current_round
-        )
-
-        cal_mss = task_gaincal_applycal_ms.map(
-            wsclean_cmd=wsclean_cmds,
-            round=current_round,
-            update_gain_cal_options=unmapped(gain_cal_options),
-            archive_input_ms=field_options.zip_ms,
-            wait_for=[
-                field_summary
-            ],  # To make sure field summary is created with unzipped MSs
-        )
-
-        if (
-            field_options.use_beam_masks
-            and current_round >= field_options.use_beam_masks_from
-        ):
-            beam_aegean_outputs = task_run_bane_and_aegean.map(
-                image=wsclean_cmds,
-                aegean_container=unmapped(field_options.aegean_container),
+            gain_cal_options = get_options_from_strategy(
+                strategy=strategy, mode="gaincal", round=current_round
             )
-            fits_beam_masks = task_create_image_mask_model.map(
-                image=wsclean_cmds,
-                image_products=beam_aegean_outputs,
-                min_snr=3.5,
+            wsclean_options = get_options_from_strategy(
+                strategy=strategy, mode="wsclean", round=current_round
             )
 
-        wsclean_cmds = task_wsclean_imager.map(
-            in_ms=cal_mss,
-            wsclean_container=field_options.wsclean_container,
-            update_wsclean_options=unmapped(wsclean_options),
-            fits_mask=fits_beam_masks,
-        )
-
-        # Do source finding on the last round of self-cal'ed images
-        if round == field_options.rounds and run_aegean:
-            task_run_bane_and_aegean.map(
-                image=wsclean_cmds,
-                aegean_container=unmapped(field_options.aegean_container),
-            )
-
-        beam_shape = task_get_common_beam.submit(
-            wsclean_cmds=wsclean_cmds, cutoff=field_options.beam_cutoff, filter="-MFS-"
-        )
-        conv_images = task_convolve_image.map(
-            wsclean_cmd=wsclean_cmds,
-            beam_shape=unmapped(beam_shape),
-            cutoff=field_options.beam_cutoff,
-            filter="-MFS-",
-        )
-        if field_options.yandasoft_container is None:
-            logger.info("No yandasoft container supplied, not linmosing. ")
-            continue
-
-        parset = task_linmos_images.submit(
-            images=conv_images,
-            container=field_options.yandasoft_container,
-            suffix_str=f"round{current_round}",
-            holofile=field_options.holofile,
-            cutoff=field_options.pb_cutoff,
-        )
-
-        if field_options.linmos_residuals:
-            _convolve_linmos_residuals(
-                wsclean_cmds=wsclean_cmds,
-                beam_shape=beam_shape,
-                field_options=field_options,
-                linmos_suffix_str=f"round{current_round}.residual",
-                cutoff=field_options.pb_cutoff,
-            )
-
-        if final_round and run_aegean:
-            aegean_outputs = task_run_bane_and_aegean.submit(
-                image=parset, aegean_container=unmapped(field_options.aegean_container)
-            )
-            linmos_field_summary = task_update_field_summary.submit(
-                field_summary=linmos_field_summary,
-                aegean_outputs=aegean_outputs,
+            cal_mss = task_gaincal_applycal_ms.map(
+                wsclean_cmd=wsclean_cmds,
                 round=current_round,
+                update_gain_cal_options=unmapped(gain_cal_options),
+                archive_input_ms=field_options.zip_ms,
+                wait_for=[
+                    field_summary
+                ],  # To make sure field summary is created with unzipped MSs
             )
-            if run_validation:
-                _validation_items(
+
+            if (
+                field_options.use_beam_masks
+                and current_round >= field_options.use_beam_masks_from
+            ):
+                beam_aegean_outputs = task_run_bane_and_aegean.map(
+                    image=wsclean_cmds,
+                    aegean_container=unmapped(field_options.aegean_container),
+                )
+                fits_beam_masks = task_create_image_mask_model.map(
+                    image=wsclean_cmds,
+                    image_products=beam_aegean_outputs,
+                    min_snr=3.5,
+                )
+
+            wsclean_cmds = task_wsclean_imager.map(
+                in_ms=cal_mss,
+                wsclean_container=field_options.wsclean_container,
+                update_wsclean_options=unmapped(wsclean_options),
+                fits_mask=fits_beam_masks,
+            )
+
+            # Do source finding on the last round of self-cal'ed images
+            if round == field_options.rounds and run_aegean:
+                task_run_bane_and_aegean.map(
+                    image=wsclean_cmds,
+                    aegean_container=unmapped(field_options.aegean_container),
+                )
+
+            beam_shape = task_get_common_beam.submit(
+                wsclean_cmds=wsclean_cmds,
+                cutoff=field_options.beam_cutoff,
+                filter="-MFS-",
+            )
+            conv_images = task_convolve_image.map(
+                wsclean_cmd=wsclean_cmds,
+                beam_shape=unmapped(beam_shape),
+                cutoff=field_options.beam_cutoff,
+                filter="-MFS-",
+            )
+            if field_options.yandasoft_container is None:
+                logger.info("No yandasoft container supplied, not linmosing. ")
+                continue
+
+            parset = task_linmos_images.submit(
+                images=conv_images,
+                container=field_options.yandasoft_container,
+                suffix_str=f"round{current_round}",
+                holofile=field_options.holofile,
+                cutoff=field_options.pb_cutoff,
+                field_summary=field_summary,
+            )
+
+            if field_options.linmos_residuals:
+                _convolve_linmos_residuals(
+                    wsclean_cmds=wsclean_cmds,
+                    beam_shape=beam_shape,
+                    field_options=field_options,
+                    linmos_suffix_str=f"round{current_round}.residual",
+                    cutoff=field_options.pb_cutoff,
+                    field_summary=field_summary,
+                )
+
+            if final_round and run_aegean:
+                aegean_outputs = task_run_bane_and_aegean.submit(
+                    image=parset,
+                    aegean_container=unmapped(field_options.aegean_container),
+                )
+                linmos_field_summary = task_update_field_summary.submit(
                     field_summary=linmos_field_summary,
                     aegean_outputs=aegean_outputs,
-                    reference_catalogue_directory=field_options.reference_catalogue_directory,
+                    round=current_round,
                 )
+                if run_validation:
+                    _validation_items(
+                        field_summary=linmos_field_summary,
+                        aegean_outputs=aegean_outputs,
+                        reference_catalogue_directory=field_options.reference_catalogue_directory,
+                    )
 
     # zip up the final measurement set, which is not included in the above loop
     if field_options.zip_ms:
