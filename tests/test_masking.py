@@ -6,8 +6,8 @@ from astropy.io import fits
 
 from flint.masking import (
     MaskingOptions,
-    create_snr_mask_from_fits,
     _verify_set_positive_seed_clip,
+    create_snr_mask_from_fits,
 )
 from flint.naming import FITSMaskNames
 

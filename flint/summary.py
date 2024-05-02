@@ -26,9 +26,9 @@ from flint.ms import (
     MS,
     MSSummary,
     describe_ms,
+    get_pol_axis_from_ms,
     get_telescope_location_from_ms,
     get_times_from_ms,
-    get_pol_axis_from_ms,
 )
 from flint.naming import get_sbid_from_path, processed_ms_format
 from flint.source_finding.aegean import AegeanOutputs

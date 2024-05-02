@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Union
 
 from configargparse import ArgumentParser
-from prefect import flow, unmapped, tags
+from prefect import flow, tags, unmapped
 
 from flint.calibrate.aocalibrate import find_existing_solutions
 from flint.configuration import (
