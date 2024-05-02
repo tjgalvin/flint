@@ -254,7 +254,7 @@ def process_science_fields(
 
     for current_round in range(1, field_options.rounds + 1):
         with tags(f"selfcal-{current_round}"):
-            final_round = round == field_options.rounds
+            final_round = current_round == field_options.rounds
 
             gain_cal_options = get_options_from_strategy(
                 strategy=strategy, mode="gaincal", round=current_round
