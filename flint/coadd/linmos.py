@@ -248,8 +248,8 @@ def generate_linmos_parameter_set(
     logger.info(f"{len(img_str)} unique images from {len(images)} input collection. ")
     img_list: str = "[" + ",".join(img_str) + "]"
 
-    assert (
-        len(set(img_str)) == len(images)
+    assert len(set(img_str)) == len(
+        images
     ), "Some images were dropped from the linmos image string. Something is bad, walk the plank. "
 
     # If no weights_list has been provided (and therefore no optimal
@@ -274,7 +274,7 @@ def generate_linmos_parameter_set(
     alpha = None
     if pol_axis:
         logger.info(
-            f"The constant assumed holography pol_axis + footprint rotation is: {EXPECTED_HOLOGRAPHY_ROTATION_CONSTANT_RADIANS:.4f} radians"
+            f"The constant assumed holography rotation is: {EXPECTED_HOLOGRAPHY_ROTATION_CONSTANT_RADIANS:.4f} radians"
         )
         logger.info(f"The extracted pol_axis of the field: {pol_axis:.4f} radians")
         alpha = pol_axis - EXPECTED_HOLOGRAPHY_ROTATION_CONSTANT_RADIANS
