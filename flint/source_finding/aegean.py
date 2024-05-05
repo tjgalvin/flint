@@ -52,7 +52,7 @@ def run_bane_and_aegean(
     logger.debug(f"{aegean_names=}")
 
     bane_command_str = (
-        f"BANE {str(image)} --cores {cores} --stripes {cores//2} --grid 2 --box 20"
+        f"BANE {str(image)} --cores {cores} --stripes {cores//2} --grid 2 2 --box 20 20"
     )
     logger.info("Constructed BANE command. ")
 
