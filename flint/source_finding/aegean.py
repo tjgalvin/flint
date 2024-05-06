@@ -2,7 +2,7 @@
 
 from argparse import ArgumentParser
 from pathlib import Path
-from typing import NamedTuple, Tuple
+from typing import NamedTuple, Tuple, Optional
 
 from AegeanTools import BANE
 from AegeanTools.catalogs import save_catalog
@@ -12,6 +12,31 @@ from astropy.io import fits
 from flint.logging import logger
 from flint.naming import create_aegean_names
 from flint.sclient import run_singularity_command
+
+
+class BANEOptions(NamedTuple):
+    """Container for basic BANE related options. Only a subclass of BANE options are supported."""
+
+    grid_size: Tuple[int, int] = (2, 2)
+    """The step interval of each box, in units of synthesised beams"""
+    box_size: Tuple[int, int] = (10, 10)
+    """The size of the box, which is in units of the grid size"""
+
+
+class AegeanOptions(NamedTuple):
+    """Container for basic aegean options. Only a subclass of aegean options are supported.
+
+    Of note is the lack of a tables option (corresponding to --tables). This is dependent on knowing the base output name
+    and relying on aegean to also append a suffic of sorts to the outputs. For that reason
+    the aegean command generated will always create the table option.
+    """
+
+    nocov: bool = True
+    """Whether aegean should attempt to model the co-variance of pixels. If true aegean does not. """
+    maxsummits: int = 4
+    """The maximum number of components an island is allowed to have before it is ignored. """
+    autoload: bool = True
+    """Attempt to load precomputed background and rms maps. """
 
 
 class AegeanOutputs(NamedTuple):
@@ -29,8 +54,46 @@ class AegeanOutputs(NamedTuple):
     """The input image that was used to source find against"""
 
 
+def _get_bane_command(image: Path, cores: int, bane_options: BANEOptions) -> str:
+    """Create the BANE command to run"""
+    # The stripes is purposely set lower than the cores due to an outstanding bane bug that can cause a deadlock.
+    bane_command_str = f"BANE {str(image)} --cores {cores} --stripes {cores//2} --grid {bane_options.grid_size[0]} {bane_options.grid_size[1]} --box {bane_options.box_size[0]} {bane_options.box_size[1]}"
+    logger.info("Constructed bane command.")
+
+    return bane_command_str
+
+
+def _get_aegean_command(
+    image: Path, base_output: str, aegean_options: AegeanOptions
+) -> str:
+    """Create the aegean command to run"""
+    aegean_command = f"aegean {str(image)} "
+    if aegean_options.autoload:
+        aegean_command += "--autoload "
+    if aegean_options.nocov:
+        aegean_command += "--nocov "
+
+    # NOTE: Aegean will add the '_comp' component to the output tables. So, if we want
+    # basename_comp.fits
+    # to be the output component table then we want to pass
+    # --table basename.fits
+    # and have to rely on aegean doing the right thing.
+    aegean_command += (
+        f"--maxsummits {aegean_options.maxsummits} --table {base_output}.fits"
+    )
+
+    logger.info("Constructed aegean command. ")
+    logger.debug(f"{aegean_command=}")
+
+    return aegean_command
+
+
 def run_bane_and_aegean(
-    image: Path, aegean_container: Path, cores: int = 8
+    image: Path,
+    aegean_container: Path,
+    cores: int = 8,
+    bane_options: Optional[BANEOptions] = None,
+    aegean_options: Optional[AegeanOptions] = None,
 ) -> AegeanOutputs:
     """Run BANE, the background and noise estimator, and aegean, the source finder,
     against an input image. This function attempts to hook into the AegeanTools
@@ -40,10 +103,15 @@ def run_bane_and_aegean(
         image (Path): The input image that BANE will calculate a background and RMS map for
         aegean_container (Path): Path to a singularity container that was the AegeanTools packages installed.
         cores (int, optional): The number of cores to allow BANE to use. Internally BANE will create a number of sub-processes. Defaults to 8.
+        bane_options (Optional[BANEOptions], optional): The options that are provided to BANE. If None defaults of BANEOptions are used. Defaults to None.
+        aegean_options (Optional[AegeanOptions], optional): The options that are provided to Aegean. if None defaults of AegeanOptions are used. Defaults to None.
 
     Returns:
         AegeanOutputs: The newly created BANE products
     """
+    bane_options = bane_options if bane_options else BANEOptions()
+    aegean_options = aegean_options if aegean_options else AegeanOptions()
+
     image = image.absolute()
     base_output = str(image.parent / image.stem)
     logger.info(f"Using base output name of: {base_output}")
@@ -51,25 +119,18 @@ def run_bane_and_aegean(
     aegean_names = create_aegean_names(base_output=base_output)
     logger.debug(f"{aegean_names=}")
 
-    bane_command_str = (
-        f"BANE {str(image)} --cores {cores} --stripes {cores//2} --grid 2 2 --box 20 20"
+    bane_command_str = _get_bane_command(
+        image=image, cores=cores, bane_options=bane_options
     )
-    logger.info("Constructed BANE command. ")
 
     bind_dir = [image.absolute().parent]
     run_singularity_command(
         image=aegean_container, command=bane_command_str, bind_dirs=bind_dir
     )
 
-    # NOTE: Aegean will add the '_comp' component to the output tables. So, if we want
-    # basename_comp.fits
-    # to be the output component table then we want to pass
-    # --table basename.fits
-    # and have to rely on aegean doing the right thing.
-    aegean_command = f"aegean {str(image)} --autoload --nocov --maxsummits 4 --table {base_output}.fits"
-    logger.info("Constructed aegean command. ")
-    logger.debug(f"{aegean_command=}")
-
+    aegean_command = _get_aegean_command(
+        image=image, base_output=base_output, aegean_options=aegean_options
+    )
     run_singularity_command(
         image=aegean_container, command=aegean_command, bind_dirs=bind_dir
     )
