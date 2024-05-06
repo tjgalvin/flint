@@ -403,7 +403,7 @@ def create_snr_mask_from_fits(
             negative_seed_clip=masking_options.suppress_artefacts_negative_seed_clip,
             guard_negative_dilation=masking_options.suppress_artefacts_guard_negative_dilation,
             grow_low_island=masking_options.grow_low_snr_island,
-            grow_low_snr=masking_options.grow_low_snr_island_clip,
+            grow_low_island_snr=masking_options.grow_low_snr_island_clip,
             grow_low_island_size=masking_options.grow_low_snr_island_size,
         )
         mask_data = mask_data.reshape(signal_data.shape)
