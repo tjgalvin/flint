@@ -187,6 +187,7 @@ def process_science_fields(
     )
     beam_summaries = task_create_beam_summary.map(ms=flagged_mss, imageset=wsclean_cmds)
 
+    beam_aegean_outputs = None
     if run_aegean:
         beam_aegean_outputs = task_run_bane_and_aegean.map(
             image=wsclean_cmds,
@@ -277,6 +278,10 @@ def process_science_fields(
                 field_options.use_beam_masks
                 and current_round >= field_options.use_beam_masks_from
             ):
+                masking_options = get_options_from_strategy(
+                    strategy=strategy, mode="masking", round=current_round
+                )
+                # NOTE: This might be run twice against the first set of images created
                 beam_aegean_outputs = task_run_bane_and_aegean.map(
                     image=wsclean_cmds,
                     aegean_container=unmapped(field_options.aegean_container),
@@ -285,6 +290,7 @@ def process_science_fields(
                     image=wsclean_cmds,
                     image_products=beam_aegean_outputs,
                     min_snr=3.5,
+                    update_masking_options=unmapped(masking_options),
                 )
 
             wsclean_cmds = task_wsclean_imager.map(

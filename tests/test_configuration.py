@@ -136,6 +136,31 @@ def test_get_options(strategy):
     assert wsclean["data_column"] == "CORRECTED_DATA"
 
 
+def test_get_mask_options(package_strategy):
+    """Basic test to prove masking operation behaves well"""
+    masking = get_options_from_strategy(
+        strategy=package_strategy, mode="masking", round="initial"
+    )
+
+    assert isinstance(masking, dict)
+    assert masking["flood_fill_positive_seed_clip"] == 4.5
+
+    masking2 = get_options_from_strategy(
+        strategy=package_strategy, mode="masking", round=1
+    )
+
+    print(strategy)
+
+    assert isinstance(masking2, dict)
+    assert masking2["flood_fill_positive_seed_clip"] == 40
+
+    for k in masking.keys():
+        if k == "flood_fill_positive_seed_clip":
+            continue
+
+        assert masking[k] == masking2[k]
+
+
 def test_get_modes(package_strategy):
     # makes sure defaults for these modes are return when reuestion options
     # on a self-cal round without them set

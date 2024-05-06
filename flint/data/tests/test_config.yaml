@@ -68,7 +68,9 @@ selfcal:
     wsclean:
       data_column: "EXAMPLE"
     gaincal: {}
-    masking: {}
+    masking:
+      flood_fill_positive_seed_clip: 40
+      flood_fill_positive_flood_clip: 1.5
   2:
     wsclean:
       multiscale: false
