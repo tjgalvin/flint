@@ -17,10 +17,10 @@ from flint.sclient import run_singularity_command
 class BANEOptions(NamedTuple):
     """Container for basic BANE related options. Only a subclass of BANE options are supported."""
 
-    grid_size: Tuple[int, int] = (2, 2)
-    """The step interval of each box, in units of synthesised beams"""
-    box_size: Tuple[int, int] = (10, 10)
-    """The size of the box, which is in units of the grid size"""
+    grid_size: Tuple[int, int] = (8, 8)
+    """The step interval of each box, in pixels"""
+    box_size: Tuple[int, int] = (96, 96)
+    """The size of the box in pixels"""
 
 
 class AegeanOptions(NamedTuple):
