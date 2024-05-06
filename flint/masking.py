@@ -44,9 +44,9 @@ class MaskingOptions(NamedTuple):
     """The significance level of a negative island for the sidelobe suppresion to be activated. This should be a positive number (the signal map is internally inverted)"""
     suppress_artefacts_guard_negative_dilation: float = 40
     """The minimum positive signifance pixels should have to be guarded when attempting to suppress artefacts around bright sources"""
-    grow_low_snr_islands: bool = True
+    grow_low_snr_island: bool = False
     """Whether to attempt to grow a mask to capture islands of low SNR (e.g. diffuse emission)"""
-    grow_low_snr_clip: float = 1.75
+    grow_low_snr_island_clip: float = 1.75
     """The minimum signifance levels of pixels to be to seed low SNR islands for consideration"""
     grow_low_snr_island_size: int = 768
     """The number of pixels an island has to be for it to be accepted"""
@@ -220,7 +220,8 @@ def reverse_negative_flood_fill(
     suppress_artefacts: bool = False,
     negative_seed_clip: float = 5,
     guard_negative_dilation: float = 50,
-    grow_low_snr: Optional[float] = 2,
+    grow_low_island: bool = False,
+    grow_low_island_snr: float = 2,
     grow_low_island_size: int = 512,
 ) -> np.ndarray:
     """Attempt to:
@@ -261,7 +262,8 @@ def reverse_negative_flood_fill(
         suppress_artefacts (boo, optional): Attempt to suppress regions around presumed artefacts. Defaults to False.
         negative_seed_clip (Optional[float], optional): Initial clip of negative pixels. This operation is on the inverted signal mask (so this value should be a positive number). If None this second operation is not performed. Defaults to 5.
         guard_negative_dilation (float, optional): Positive pixels from the computed signal mask will be above this threshold to be protect from the negative island mask dilation. Defaults to 50.
-        grow_low__snr (Optional[float], optional): Attempt to grow islands of contigous pixels above thius low SNR ration. If None this is not performed. Defaults to 2.
+        grow_low_island (bool, optional): Whether to grow islands of pixels with low SNR. Defaults to False.
+        grow_low_island_snr (float, optional): The minimum SNR of contigous pixels for an island ot be grown from. Defaults to 2.
         grow_low_island_size (int, optional): The number of pixels a low SNR should be in order to be considered valid. Defaults to 512.
 
     Returns:
@@ -319,10 +321,10 @@ def reverse_negative_flood_fill(
         # and here we set the presumable nasty islands to False
         positive_dilated_mask[negative_dilated_mask] = False
 
-    if grow_low_snr:
+    if grow_low_island:
         low_snr_mask = grow_low_snr_mask(
             signal=signal,
-            grow_low_snr=grow_low_snr,
+            grow_low_snr=grow_low_island_snr,
             grow_low_island_size=grow_low_island_size,
             region_mask=negative_dilated_mask,
         )
@@ -400,7 +402,8 @@ def create_snr_mask_from_fits(
             suppress_artefacts=masking_options.suppress_artefacts,
             negative_seed_clip=masking_options.suppress_artefacts_negative_seed_clip,
             guard_negative_dilation=masking_options.suppress_artefacts_guard_negative_dilation,
-            grow_low_snr=masking_options.grow_low_snr_clip,
+            grow_low_island=masking_options.grow_low_snr_island,
+            grow_low_snr=masking_options.grow_low_snr_island_clip,
             grow_low_island_size=masking_options.grow_low_snr_island_size,
         )
         mask_data = mask_data.reshape(signal_data.shape)
