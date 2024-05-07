@@ -1,15 +1,15 @@
 """Tests around BANE and aegean, which are one of the source finding
 tools used in flint. BANE is also used to derive signal maps that ultimately
-feed the clean mask creation. 
+feed the clean mask creation.
 """
 
 from pathlib import Path
 
 from flint.source_finding.aegean import (
-    BANEOptions,
-    _get_bane_command,
     AegeanOptions,
+    BANEOptions,
     _get_aegean_command,
+    _get_bane_command,
 )
 
 

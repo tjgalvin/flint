@@ -2,7 +2,7 @@
 
 from argparse import ArgumentParser
 from pathlib import Path
-from typing import NamedTuple, Tuple, Optional
+from typing import NamedTuple, Optional, Tuple
 
 from AegeanTools import BANE
 from AegeanTools.catalogs import save_catalog
