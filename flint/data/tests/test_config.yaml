@@ -58,8 +58,8 @@ defaults:
     suppress_artefacts: true
     suppress_artefacts_negative_seed_clip: 5
     suppress_artefacts_guard_negative_dilation: 40
-    grow_low_snr_islands: true
-    grow_low_snr_clip: 1.75
+    grow_low_snr_island: true
+    grow_low_snr_island_clip: 1.75
     grow_low_snr_island_size: 768
 initial:
   wsclean: {}
@@ -68,7 +68,9 @@ selfcal:
     wsclean:
       data_column: "EXAMPLE"
     gaincal: {}
-    masking: {}
+    masking:
+      flood_fill_positive_seed_clip: 40
+      flood_fill_positive_flood_clip: 1.5
   2:
     wsclean:
       multiscale: false

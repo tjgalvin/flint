@@ -110,6 +110,10 @@ class WSCleanOptions(NamedTuple):
     """Path to a FITS file that encodes a cleaning mask"""
     deconvolution_channels: Optional[int] = None
     """The channels out will be averaged down to this many sub-band images during deconvolution"""
+    parallel_deconvolution: Optional[int] = None
+    """If not none, then this is the number of sub-regions wsclean will attempt to divide and clean"""
+    parallel_gridding: Optional[int] = None
+    """If not none, then this is the number of channel images that will be gridded in parallel"""
 
     def with_options(self, **kwargs) -> WSCleanOptions:
         """Return a new instance of WSCleanOptions with updated components"""
