@@ -17,9 +17,9 @@ from flint.sclient import run_singularity_command
 class BANEOptions(NamedTuple):
     """Container for basic BANE related options. Only a subclass of BANE options are supported."""
 
-    grid_size: Tuple[int, int] = (8, 8)
+    grid_size: Optional[Tuple[int, int]] = None  # (8, 8)
     """The step interval of each box, in pixels"""
-    box_size: Tuple[int, int] = (196, 196)
+    box_size: Optional[Tuple[int, int]] = None  # (196, 196)
     """The size of the box in pixels"""
 
 
@@ -57,7 +57,16 @@ class AegeanOutputs(NamedTuple):
 def _get_bane_command(image: Path, cores: int, bane_options: BANEOptions) -> str:
     """Create the BANE command to run"""
     # The stripes is purposely set lower than the cores due to an outstanding bane bug that can cause a deadlock.
-    bane_command_str = f"BANE {str(image)} --cores {cores} --stripes {cores//2} --grid {bane_options.grid_size[0]} {bane_options.grid_size[1]} --box {bane_options.box_size[0]} {bane_options.box_size[1]}"
+    bane_command_str = f"BANE {str(image)} --cores {cores} --stripes {cores//2} "
+    if bane_options.grid_size:
+        bane_command_str += (
+            f"--grid {bane_options.grid_size[0]} {bane_options.grid_size[1]} "
+        )
+    if bane_options.box_size:
+        bane_command_str += (
+            f"--box {bane_options.box_size[0]} {bane_options.box_size[1]}"
+        )
+    bane_command_str = bane_command_str.rstrip()
     logger.info("Constructed bane command.")
 
     return bane_command_str

@@ -28,6 +28,28 @@ def test_bane_options():
     assert expected == bane_str
 
 
+def test_bane_options_with_defaults():
+    bane_opts = BANEOptions()
+
+    assert isinstance(bane_opts, BANEOptions)
+
+    bane_str = _get_bane_command(
+        image=Path("this/is/a/test.fits"), cores=8, bane_options=bane_opts
+    )
+
+    assert isinstance(bane_str, str)
+
+    expected = "BANE this/is/a/test.fits --cores 8 --stripes 4"
+    assert expected == bane_str
+
+    bane_opts = BANEOptions(box_size=(3, 5))
+    bane_str = _get_bane_command(
+        image=Path("this/is/a/test.fits"), cores=8, bane_options=bane_opts
+    )
+    expected = "BANE this/is/a/test.fits --cores 8 --stripes 4 --box 3 5"
+    assert expected == bane_str
+
+
 def test_aegean_options():
     """Testing basic aegean options creation and expected command"""
     aegean_options = AegeanOptions(nocov=True, maxsummits=4, autoload=True)
