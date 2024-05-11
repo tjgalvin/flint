@@ -17,9 +17,9 @@ from flint.sclient import run_singularity_command
 class BANEOptions(NamedTuple):
     """Container for basic BANE related options. Only a subclass of BANE options are supported."""
 
-    grid_size: Optional[Tuple[int, int]] = None  # (8, 8)
+    grid_size: Optional[Tuple[int, int]] = (16, 16)
     """The step interval of each box, in pixels"""
-    box_size: Optional[Tuple[int, int]] = None  # (196, 196)
+    box_size: Optional[Tuple[int, int]] = (224, 224)
     """The size of the box in pixels"""
 
 
@@ -161,80 +161,6 @@ def run_bane_and_aegean(
         comp=aegean_names.comp_cat,
         beam_shape=image_beam,
         image=image,
-    )
-
-    logger.info(f"Aegeam finished running. {aegean_outputs=}")
-
-    return aegean_outputs
-
-
-def python_run_bane_and_aegean(image: Path, cores: int = 8) -> AegeanOutputs:
-    """Run BANE, the background and noise estimator, and aegean, the source finder,
-    against an input image. This function attempts to hook into the AegeanTools
-    module directly, which does not work with dask daemon processes.
-
-    Args:
-        image (Path): The input image that BANE will calculate a background and RMS map for
-        cores (int, optional): The number of cores to allow BANE to use. Internally BANE will create a number of sub-processes. Defaults to 8.
-
-    Returns:
-        AegeanOutputs: The newly created BANE products
-    """
-    base_output = str(image.stem)
-    logger.info(f"Using base output name of: {base_output}")
-
-    aegean_names = create_aegean_names(base_output=base_output)
-
-    # Note the cores and slices below. In BANE 2.3.0 there
-    # was a bug that could get into a deadlock when attempting
-    # to multi-process. Explcitly setting cores to be more
-    # than nslices resolves.
-    BANE.filter_image(
-        im_name=str(image), out_base=base_output, cores=cores, nslice=cores - 3
-    )
-    # These are the bane outputs
-    bkg_image_path = aegean_names.bkg_image
-    rms_image_path = aegean_names.rms_image
-
-    logger.info("Have finished running BANE. ")
-    assert (
-        bkg_image_path.exists()
-    ), f"BANE output image {bkg_image_path} does not exists. "
-    assert (
-        rms_image_path.exists()
-    ), f"BANE output image {rms_image_path} does not exists. "
-
-    # TODO: These options need to have an associated class
-    logger.info("About to run aegean. ")
-    source_finder = SourceFinder()
-    _ = source_finder.find_sources_in_image(
-        filename=str(image),
-        hdu_index=0,
-        cube_index=0,
-        max_summits=10,
-        innerclip=5,
-        outerclip=3,
-        rmsin=str(rms_image_path),
-        bkgin=str(bkg_image_path),
-    )
-
-    save_catalog(
-        filename=str(aegean_names.comp_cat),
-        catalog=source_finder.sources,
-    )
-
-    image_header = fits.getheader(image)
-    image_beam = (
-        image_header["BMAJ"],
-        image_header["BMIN"],
-        image_header["BPA"],
-    )
-
-    aegean_outputs = AegeanOutputs(
-        bkg=bkg_image_path,
-        rms=rms_image_path,
-        comp=aegean_names.comp_cat,
-        beam_shape=image_beam,
     )
 
     logger.info(f"Aegeam finished running. {aegean_outputs=}")
