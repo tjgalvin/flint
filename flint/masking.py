@@ -22,6 +22,7 @@ from scipy.ndimage import label
 
 from flint.logging import logger
 from flint.naming import FITSMaskNames, create_fits_mask_names
+from flint.utils import get_pixels_per_beam
 
 
 class MaskingOptions(NamedTuple):
@@ -40,7 +41,7 @@ class MaskingOptions(NamedTuple):
     """Clipping level used to grow seeded islands down to"""
     suppress_artefacts: bool = True
     """Whether to attempt artefacts based on the presence of sigificant negatives"""
-    suppress_artefacts_negative_seed_clip: Optional[float] = 5
+    suppress_artefacts_negative_seed_clip: float = 5
     """The significance level of a negative island for the sidelobe suppresion to be activated. This should be a positive number (the signal map is internally inverted)"""
     suppress_artefacts_guard_negative_dilation: float = 40
     """The minimum positive signifance pixels should have to be guarded when attempting to suppress artefacts around bright sources"""
@@ -223,6 +224,7 @@ def reverse_negative_flood_fill(
     grow_low_island: bool = False,
     grow_low_island_snr: float = 2,
     grow_low_island_size: int = 512,
+    pixels_per_beam: Optional[float] = None,
 ) -> np.ndarray:
     """Attempt to:
 
@@ -265,6 +267,7 @@ def reverse_negative_flood_fill(
         grow_low_island (bool, optional): Whether to grow islands of pixels with low SNR. Defaults to False.
         grow_low_island_snr (float, optional): The minimum SNR of contigous pixels for an island ot be grown from. Defaults to 2.
         grow_low_island_size (int, optional): The number of pixels a low SNR should be in order to be considered valid. Defaults to 512.
+        pixels_per_beam (Optional[float], optional): The number of pixels that cover a beam. Defaults to None.
 
     Returns:
         np.ndarray: Mask of the pixels to clean
@@ -311,6 +314,18 @@ def reverse_negative_flood_fill(
     # main source but nuke the fask positive islands
     if suppress_artefacts:
         negative_mask = negative_signal > negative_seed_clip
+
+        if pixels_per_beam:
+            mask_labels, no_labels = label(negative_mask, structure=np.ones((3, 3)))
+            _, counts = np.unique(mask_labels.flatten(), return_counts=True)
+
+            small_islands = [
+                idx
+                for idx, count in enumerate(counts)
+                if count > 2 * pixels_per_beam and idx > 0
+            ]
+            negative_mask[~np.isin(mask_labels, small_islands)] = False
+
         negative_dilated_mask = scipy_binary_dilation(
             input=negative_mask,
             mask=signal < guard_negative_dilation,
@@ -388,6 +403,8 @@ def create_snr_mask_from_fits(
             overwrite=overwrite,
         )
 
+    pixels_per_beam = get_pixels_per_beam(fits_path=fits_image_path)
+
     # Following the help in wsclean:
     # WSClean accepts masks in CASA format and in fits file format. A mask is a
     # normal, single polarization image file, where all zero values are interpreted
@@ -395,6 +412,7 @@ def create_snr_mask_from_fits(
     # case of a fits file, the file may either contain a single frequency or it may
     # contain a cube of images.
     if masking_options.flood_fill:
+        # TODO: This function should really just accept a MaskingOptions directly
         mask_data = reverse_negative_flood_fill(
             signal=np.squeeze(signal_data),
             positive_seed_clip=masking_options.flood_fill_positive_seed_clip,
@@ -405,6 +423,7 @@ def create_snr_mask_from_fits(
             grow_low_island=masking_options.grow_low_snr_island,
             grow_low_island_snr=masking_options.grow_low_snr_island_clip,
             grow_low_island_size=masking_options.grow_low_snr_island_size,
+            pixels_per_beam=pixels_per_beam,
         )
         mask_data = mask_data.reshape(signal_data.shape)
     else:

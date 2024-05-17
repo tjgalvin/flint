@@ -29,7 +29,7 @@ def test_bane_options():
 
 
 def test_bane_options_with_defaults():
-    bane_opts = BANEOptions()
+    bane_opts = BANEOptions(box_size=None, grid_size=None)
 
     assert isinstance(bane_opts, BANEOptions)
 
@@ -42,7 +42,7 @@ def test_bane_options_with_defaults():
     expected = "BANE this/is/a/test.fits --cores 8 --stripes 4"
     assert expected == bane_str
 
-    bane_opts = BANEOptions(box_size=(3, 5))
+    bane_opts = BANEOptions(box_size=(3, 5), grid_size=None)
     bane_str = _get_bane_command(
         image=Path("this/is/a/test.fits"), cores=8, bane_options=bane_opts
     )

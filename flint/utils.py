@@ -17,21 +17,27 @@ from flint.logging import logger
 from flint.convol import BeamShape
 
 
-def get_beam_shape(fits_path: Path) -> BeamShape:
+# TODO: This Captain is aware that there is a common fits getheader between
+# a couple of functions that interact with tasks. Perhaps a common FITS properties
+# struct should be considered. The the astropy.io.fits.Header might be
+# appropriate to pass around between dask / prefect delayed functions. Something
+# that only opens the FITS file once and places things into common field names.
+
+
+def get_beam_shape(fits_path: Path) -> Optional[BeamShape]:
     """Construct and return a beam shape from the fields in a FITS image
 
     Args:
         fits_path (Path): FITS image to extract the beam information from
 
     Returns:
-        BeamShape: Shape of the beam stored in the FITS image
+        Optional[BeamShape]: Shape of the beam stored in the FITS image. None is returned if the beam is not found.
     """
 
     header = fits.getheader(filename=fits_path)
 
-    assert all(
-        [key in header for key in ("BMAJ", "BMIN", "BPA")]
-    ), f"Beam parameters missing from {fits_path} header"
+    if not all([key in header for key in ("BMAJ", "BMIN", "BPA")]):
+        return None
 
     beam_shape = BeamShape(
         bmaj_arcsec=header["BMAJ"] * 3600,
@@ -42,7 +48,7 @@ def get_beam_shape(fits_path: Path) -> BeamShape:
     return beam_shape
 
 
-def get_pixels_per_beam(fits_path: Path) -> float:
+def get_pixels_per_beam(fits_path: Path) -> Optional[float]:
     """Given a image with beam information, return the number of pixels
     per beam. The beam is taken from the FITS header. This is evaluated
     for pixels at the reference pixel position.
@@ -51,10 +57,13 @@ def get_pixels_per_beam(fits_path: Path) -> float:
         fits_path (Path): FITS iamge to consideer
 
     Returns:
-        float: Number of pixels per beam
+        Optional[float]: Number of pixels per beam. If beam is not in header then None is returned.
     """
 
     beam_shape = get_beam_shape(fits_path=fits_path)
+
+    if beam_shape is None:
+        return None
 
     header = fits.getheader(filename=fits_path)
 
