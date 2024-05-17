@@ -127,9 +127,11 @@ def _get_signal_image(
             logger.info("No background supplied, assuming zeros. ")
             background = np.zeros_like(image)
 
-        signal = (image - background) / rms
+        out_signal = (image - background) / rms
+    else:
+        out_signal = signal
 
-    return signal
+    return out_signal
 
 
 def grow_low_snr_mask(
@@ -140,7 +142,7 @@ def grow_low_snr_mask(
     grow_low_snr: float = 2.0,
     grow_low_island_size: int = 512,
     region_mask: Optional[np.ndarray] = None,
-) -> np.array:
+) -> np.ndarray:
     """There may be cases where normal thresholding operations based on simple pixel-wise SNR
     cuts fail to pick up diffuse, low surface brightness regions of emission. When some type
     of masking operation is used there may be instances where these regions are never cleaned.
@@ -163,7 +165,7 @@ def grow_low_snr_mask(
         region_mask (Optional[np.ndarray], optional): Whether some region should be masked out before the island size constraint is applied. Defaults to None.
 
     Returns:
-        np.array: The derived mask of objects with low-surface brightness
+        np.ndarray: The derived mask of objects with low-surface brightness
     """
     # TODO: The `grow_low_island_size` should be represented in solid angle relative to the restoring beam
 
@@ -192,6 +194,61 @@ def grow_low_snr_mask(
     low_snr_mask[np.isin(mask_labels, small_islands)] = False
 
     return low_snr_mask
+
+
+def suppress_artefact_mask(
+    signal: np.ndarray,
+    negative_seed_clip: float,
+    guard_negative_dilation: float,
+    pixels_per_beam: Optional[float] = None,
+) -> np.ndarray:
+    """Attempt to grow mask that sepresses artefacts around bright sources. Small islands
+    of negative emission seed pixels, which then grow out. Bright positive pixels are not
+    allowed to change (which presumably are the source of negative artetfacts).
+
+    The assumption here is that:
+
+    - no genuine source of negative sky emission
+    - negative islands are around bright sources with deconvolution/calibration errors
+    - if there are brightish negative islands there is also positive brightish arteefact islands nearby
+
+    For this reason the guard mask should be sufficently high to protect the main source but nuke the fask positive islands
+
+
+    Args:
+        signal (np.ndarray): The signal mask,
+        negative_seed_clip (float): The minimum signficance level to seed. This is a positive number (as it is applied to the inverted signal).
+        guard_negative_dilation (float): Regions of positive emission above this are protected. This is positive.
+        pixels_per_beam (Optional[float], optional): The number of pixels per beam. If not None, seed islands larger than this many pixels are removed. Defaults to None.
+
+    Returns:
+        np.ndarray: The artefact suppression mask
+    """
+    # This Pirate thinks provided the background is handled
+    # that taking the inverse is correct
+    negative_signal = -1 * signal
+
+    negative_mask = negative_signal > negative_seed_clip
+
+    if pixels_per_beam:
+        mask_labels, no_labels = label(negative_mask, structure=np.ones((3, 3)))
+        _, counts = np.unique(mask_labels.flatten(), return_counts=True)
+
+        small_islands = [
+            idx
+            for idx, count in enumerate(counts)
+            if count > 2 * pixels_per_beam and idx > 0
+        ]
+        negative_mask[~np.isin(mask_labels, small_islands)] = False
+
+    negative_dilated_mask = scipy_binary_dilation(
+        input=negative_mask,
+        mask=signal < guard_negative_dilation,
+        iterations=10,
+        structure=np.ones((3, 3)),
+    )
+
+    return negative_dilated_mask
 
 
 def _verify_set_positive_seed_clip(
@@ -288,10 +345,6 @@ def reverse_negative_flood_fill(
         positive_seed_clip=positive_seed_clip, signal=signal
     )
 
-    # This Pirate thinks provided the background is handled
-    # that taking the inverse is correct
-    negative_signal = -1 * signal
-
     # Here we create the mask image that will start the binary dilation
     # process, and we will ensure only pixels above the `positive_flood_clip`
     # are allowed to be dilated. In other words we are growing the mask
@@ -303,34 +356,13 @@ def reverse_negative_flood_fill(
         structure=np.ones((3, 3)),
     )
 
-    # TODO: This function should be divided up
     negative_dilated_mask = None
-
-    # Now do the same but on negative islands. The assumption here is that:
-    # - no genuine source of negative sky emission
-    # - negative islands are around bright sources with deconvolution/calibration errors
-    # - if there are brightish negative islands there is also positive brightish arteefact islands nearby
-    # For this reason the guard mask should be sufficently high to protect the
-    # main source but nuke the fask positive islands
     if suppress_artefacts:
-        negative_mask = negative_signal > negative_seed_clip
-
-        if pixels_per_beam:
-            mask_labels, no_labels = label(negative_mask, structure=np.ones((3, 3)))
-            _, counts = np.unique(mask_labels.flatten(), return_counts=True)
-
-            small_islands = [
-                idx
-                for idx, count in enumerate(counts)
-                if count > 2 * pixels_per_beam and idx > 0
-            ]
-            negative_mask[~np.isin(mask_labels, small_islands)] = False
-
-        negative_dilated_mask = scipy_binary_dilation(
-            input=negative_mask,
-            mask=signal < guard_negative_dilation,
-            iterations=10,
-            structure=np.ones((3, 3)),
+        negative_dilated_mask = suppress_artefact_mask(
+            signal=signal,
+            negative_seed_clip=negative_seed_clip,
+            guard_negative_dilation=guard_negative_dilation,
+            pixels_per_beam=pixels_per_beam,
         )
 
         # and here we set the presumable nasty islands to False
