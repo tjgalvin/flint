@@ -14,6 +14,59 @@ from astropy.io import fits
 from astropy.wcs import WCS
 
 from flint.logging import logger
+from flint.convol import BeamShape
+
+
+def get_beam_shape(fits_path: Path) -> BeamShape:
+    """Construct and return a beam shape from the fields in a FITS image
+
+    Args:
+        fits_path (Path): FITS image to extract the beam information from
+
+    Returns:
+        BeamShape: Shape of the beam stored in the FITS image
+    """
+
+    header = fits.getheader(filename=fits_path)
+
+    assert all(
+        [key in header for key in ("BMAJ", "BMIN", "BPA")]
+    ), f"Beam parameters missing from {fits_path} header"
+
+    beam_shape = BeamShape(
+        bmaj_arcsec=header["BMAJ"] * 3600,
+        bmin_arcsec=header["BMIN"] * 3600,
+        bpa_deg=header["BPA"],
+    )
+
+    return beam_shape
+
+
+def get_pixels_per_beam(fits_path: Path) -> float:
+    """Given a image with beam information, return the number of pixels
+    per beam. The beam is taken from the FITS header. This is evaluated
+    for pixels at the reference pixel position.
+
+    Args:
+        fits_path (Path): FITS iamge to consideer
+
+    Returns:
+        float: Number of pixels per beam
+    """
+
+    beam_shape = get_beam_shape(fits_path=fits_path)
+
+    header = fits.getheader(filename=fits_path)
+
+    pixel_ra = np.abs(header["CDELT1"] * 3600)
+    pixel_dec = np.abs(header["CDELT2"] * 3600)
+
+    beam_area = beam_shape.bmaj_arcsec * beam_shape.bmin_arcsec * np.pi
+    pixel_area = pixel_ra * pixel_dec
+
+    no_pixels = beam_area / pixel_area
+
+    return no_pixels
 
 
 def get_packaged_resource_path(package: str, filename: str) -> Path:
