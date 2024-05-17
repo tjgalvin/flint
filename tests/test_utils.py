@@ -10,16 +10,16 @@ from astropy.coordinates import SkyCoord
 from astropy.io import fits
 from astropy.wcs import WCS
 
+from flint.convol import BeamShape
 from flint.logging import logger
 from flint.utils import (
-    get_beam_shape,
-    get_pixels_per_beam,
     estimate_skycoord_centre,
     generate_strict_stub_wcs_header,
     generate_stub_wcs_header,
+    get_beam_shape,
     get_packaged_resource_path,
+    get_pixels_per_beam,
 )
-from flint.convol import BeamShape
 
 
 @pytest.fixture
