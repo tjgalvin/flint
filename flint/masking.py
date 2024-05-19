@@ -237,7 +237,7 @@ def suppress_artefact_mask(
         small_islands = [
             idx
             for idx, count in enumerate(counts)
-            if count > 2 * pixels_per_beam and idx > 0
+            if count > 5 * pixels_per_beam and idx > 0
         ]
         negative_mask[~np.isin(mask_labels, small_islands)] = False
 
