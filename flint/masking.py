@@ -238,7 +238,7 @@ def suppress_artefact_mask(
 
         clip_pixels_threshold = large_island_threshold * pixels_per_beam
         logger.info(
-            f"Removing negative islands larger than {clip_pixels_threshold} with {large_island_threshold=}, {pixels_per_beam=}"
+            f"Removing negative islands larger than {clip_pixels_threshold} pixels with {large_island_threshold=}, {pixels_per_beam=}"
         )
 
         large_islands = [
