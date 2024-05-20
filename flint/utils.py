@@ -13,9 +13,8 @@ from astropy.coordinates import SkyCoord
 from astropy.io import fits
 from astropy.wcs import WCS
 
-from flint.logging import logger
 from flint.convol import BeamShape
-
+from flint.logging import logger
 
 # TODO: This Captain is aware that there is a common fits getheader between
 # a couple of functions that interact with tasks. Perhaps a common FITS properties
