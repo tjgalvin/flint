@@ -16,7 +16,7 @@ class BANEOptions(NamedTuple):
 
     grid_size: Optional[Tuple[int, int]] = (16, 16)
     """The step interval of each box, in pixels"""
-    box_size: Optional[Tuple[int, int]] = (224, 224)
+    box_size: Optional[Tuple[int, int]] = (196, 196)
     """The size of the box in pixels"""
 
 
