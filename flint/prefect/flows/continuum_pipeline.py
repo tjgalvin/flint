@@ -220,19 +220,19 @@ def process_science_fields(
         )
 
         if run_aegean:
-            aegean_outputs = task_run_bane_and_aegean.submit(
+            aegean_field_output = task_run_bane_and_aegean.submit(
                 image=parset, aegean_container=unmapped(field_options.aegean_container)
             )
             linmos_field_summary = task_update_field_summary.submit(
                 field_summary=field_summary,
-                aegean_outputs=aegean_outputs,
+                aegean_outputs=aegean_field_output,
                 linmos_command=parset,
             )
 
-            if run_validation:
+            if run_validation and field_options.reference_catalogue_directory:
                 _validation_items(
                     field_summary=linmos_field_summary,
-                    aegean_outputs=aegean_outputs,
+                    aegean_outputs=aegean_field_output,
                     reference_catalogue_directory=field_options.reference_catalogue_directory,
                 )
 
@@ -281,10 +281,16 @@ def process_science_fields(
                 masking_options = get_options_from_strategy(
                     strategy=strategy, mode="masking", round=current_round
                 )
-                # NOTE: This might be run twice against the first set of images created
-                beam_aegean_outputs = task_run_bane_and_aegean.map(
-                    image=wsclean_cmds,
-                    aegean_container=unmapped(field_options.aegean_container),
+                # The is intended to only run the beam wise aegean if it has not alread
+                # been done. Immedidatedly after the first round of shallow cleaning
+                # aegean could be run.
+                beam_aegean_outputs = (
+                    task_run_bane_and_aegean.map(
+                        image=wsclean_cmds,
+                        aegean_container=unmapped(field_options.aegean_container),
+                    )
+                    if (current_round >= 2 or not beam_aegean_outputs)
+                    else beam_aegean_outputs
                 )
                 fits_beam_masks = task_create_image_mask_model.map(
                     image=wsclean_cmds,
