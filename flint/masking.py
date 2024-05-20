@@ -201,6 +201,7 @@ def suppress_artefact_mask(
     negative_seed_clip: float,
     guard_negative_dilation: float,
     pixels_per_beam: Optional[float] = None,
+    large_island_threshold: float = 1.0,
 ) -> np.ndarray:
     """Attempt to grow mask that sepresses artefacts around bright sources. Small islands
     of negative emission seed pixels, which then grow out. Bright positive pixels are not
@@ -220,6 +221,7 @@ def suppress_artefact_mask(
         negative_seed_clip (float): The minimum signficance level to seed. This is a positive number (as it is applied to the inverted signal).
         guard_negative_dilation (float): Regions of positive emission above this are protected. This is positive.
         pixels_per_beam (Optional[float], optional): The number of pixels per beam. If not None, seed islands larger than this many pixels are removed. Defaults to None.
+        large_island_threshold (float, optional): The number of beams required for a large island of negative pixels to be dropped as an artefact seed. Only used if `pixels_per_beam` is set. Defaults to 1.0.
 
     Returns:
         np.ndarray: The artefact suppression mask
@@ -234,12 +236,18 @@ def suppress_artefact_mask(
         mask_labels, no_labels = label(negative_mask, structure=np.ones((3, 3)))
         _, counts = np.unique(mask_labels.flatten(), return_counts=True)
 
-        small_islands = [
+        clip_pixels_threshold = large_island_threshold * pixels_per_beam
+        logger.info(
+            f"Removing negative islands larger than {clip_pixels_threshold} with {large_island_threshold=}, {pixels_per_beam=}"
+        )
+
+        large_islands = [
             idx
             for idx, count in enumerate(counts)
-            if count > 5 * pixels_per_beam and idx > 0
+            if count > clip_pixels_threshold and idx > 0
         ]
-        negative_mask[~np.isin(mask_labels, small_islands)] = False
+        logger.info(f"Removing islands with labels: {large_islands=}")
+        negative_mask[np.isin(mask_labels, large_islands)] = False
 
     negative_dilated_mask = scipy_binary_dilation(
         input=negative_mask,
