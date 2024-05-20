@@ -45,6 +45,8 @@ class MaskingOptions(NamedTuple):
     """The significance level of a negative island for the sidelobe suppresion to be activated. This should be a positive number (the signal map is internally inverted)"""
     suppress_artefacts_guard_negative_dilation: float = 40
     """The minimum positive signifance pixels should have to be guarded when attempting to suppress artefacts around bright sources"""
+    suppress_artefacts_large_island_threshold: float = 1.0
+    """Threshold in units of beams for an island of negative pixels to be considered large"""
     grow_low_snr_island: bool = False
     """Whether to attempt to grow a mask to capture islands of low SNR (e.g. diffuse emission)"""
     grow_low_snr_island_clip: float = 1.75
@@ -277,18 +279,11 @@ def _verify_set_positive_seed_clip(
 
 
 def reverse_negative_flood_fill(
+    masking_options: MaskingOptions,
     image: Optional[np.ndarray] = None,
     rms: Optional[np.ndarray] = None,
     background: Optional[np.ndarray] = None,
     signal: Optional[np.ndarray] = None,
-    positive_seed_clip: float = 4,
-    positive_flood_clip: float = 2,
-    suppress_artefacts: bool = False,
-    negative_seed_clip: float = 5,
-    guard_negative_dilation: float = 50,
-    grow_low_island: bool = False,
-    grow_low_island_snr: float = 2,
-    grow_low_island_size: int = 512,
     pixels_per_beam: Optional[float] = None,
 ) -> np.ndarray:
     """Attempt to:
@@ -320,18 +315,11 @@ def reverse_negative_flood_fill(
     parameters.
 
     Args:
+        masking_options (MaskingOptions): Options to carry out masking.
         image (Optional[np.ndarray], optional): The total intensity pixels to have the mask for. Defaults to None.
         rms (Optional[np.ndarray], optional): The noise across the image. Defaults to None.
         background (Optional[np.ndarray], optional): The background acros the image. If None, zeros are assumed. Defaults to None.
         signal(Optional[np.ndarray], optional): A signal map. Defaults to None.
-        positive_seed_clip (float, optional): Initial clip of the mask before islands are grown. Defaults to 4.
-        positive_flood_clip (float, optional): Pixels above `positive_seed_clip` are dilated to this threshold. Defaults to 2.
-        suppress_artefacts (boo, optional): Attempt to suppress regions around presumed artefacts. Defaults to False.
-        negative_seed_clip (Optional[float], optional): Initial clip of negative pixels. This operation is on the inverted signal mask (so this value should be a positive number). If None this second operation is not performed. Defaults to 5.
-        guard_negative_dilation (float, optional): Positive pixels from the computed signal mask will be above this threshold to be protect from the negative island mask dilation. Defaults to 50.
-        grow_low_island (bool, optional): Whether to grow islands of pixels with low SNR. Defaults to False.
-        grow_low_island_snr (float, optional): The minimum SNR of contigous pixels for an island ot be grown from. Defaults to 2.
-        grow_low_island_size (int, optional): The number of pixels a low SNR should be in order to be considered valid. Defaults to 512.
         pixels_per_beam (Optional[float], optional): The number of pixels that cover a beam. Defaults to None.
 
     Returns:
@@ -339,10 +327,7 @@ def reverse_negative_flood_fill(
     """
 
     logger.info("Will be reversing flood filling")
-    logger.info(f"{positive_seed_clip=} ")
-    logger.info(f"{positive_flood_clip=} ")
-    logger.info(f"{negative_seed_clip=} ")
-    logger.info(f"{guard_negative_dilation=}")
+    logger.info(f"{masking_options=} ")
 
     signal = _get_signal_image(
         image=image, rms=rms, background=background, signal=signal
@@ -350,7 +335,7 @@ def reverse_negative_flood_fill(
 
     # Sanity check the upper clip level, you rotten seadog
     positive_seed_clip = _verify_set_positive_seed_clip(
-        positive_seed_clip=positive_seed_clip, signal=signal
+        positive_seed_clip=masking_options.flood_fill_positive_seed_clip, signal=signal
     )
 
     # Here we create the mask image that will start the binary dilation
@@ -359,28 +344,29 @@ def reverse_negative_flood_fill(
     positive_mask = signal >= positive_seed_clip
     positive_dilated_mask = scipy_binary_dilation(
         input=positive_mask,
-        mask=signal > positive_flood_clip,
+        mask=signal > masking_options.flood_fill_positive_flood_clip,
         iterations=1000,
         structure=np.ones((3, 3)),
     )
 
     negative_dilated_mask = None
-    if suppress_artefacts:
+    if masking_options.suppress_artefacts:
         negative_dilated_mask = suppress_artefact_mask(
             signal=signal,
-            negative_seed_clip=negative_seed_clip,
-            guard_negative_dilation=guard_negative_dilation,
+            negative_seed_clip=masking_options.suppress_artefacts_negative_seed_clip,
+            guard_negative_dilation=masking_options.suppress_artefacts_guard_negative_dilation,
             pixels_per_beam=pixels_per_beam,
+            large_island_threshold=masking_options.suppress_artefacts_large_island_threshold,
         )
 
         # and here we set the presumable nasty islands to False
         positive_dilated_mask[negative_dilated_mask] = False
 
-    if grow_low_island:
+    if masking_options.grow_low_snr_island:
         low_snr_mask = grow_low_snr_mask(
             signal=signal,
-            grow_low_snr=grow_low_island_snr,
-            grow_low_island_size=grow_low_island_size,
+            grow_low_snr=masking_options.grow_low_snr_island_clip,
+            grow_low_island_size=masking_options.grow_low_snr_island_size,
             region_mask=negative_dilated_mask,
         )
         positive_dilated_mask[low_snr_mask] = True
@@ -455,14 +441,7 @@ def create_snr_mask_from_fits(
         # TODO: This function should really just accept a MaskingOptions directly
         mask_data = reverse_negative_flood_fill(
             signal=np.squeeze(signal_data),
-            positive_seed_clip=masking_options.flood_fill_positive_seed_clip,
-            positive_flood_clip=masking_options.flood_fill_positive_flood_clip,
-            suppress_artefacts=masking_options.suppress_artefacts,
-            negative_seed_clip=masking_options.suppress_artefacts_negative_seed_clip,
-            guard_negative_dilation=masking_options.suppress_artefacts_guard_negative_dilation,
-            grow_low_island=masking_options.grow_low_snr_island,
-            grow_low_island_snr=masking_options.grow_low_snr_island_clip,
-            grow_low_island_size=masking_options.grow_low_snr_island_size,
+            masking_options=masking_options,
             pixels_per_beam=pixels_per_beam,
         )
         mask_data = mask_data.reshape(signal_data.shape)
