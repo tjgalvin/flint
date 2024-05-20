@@ -3,6 +3,7 @@
 from pathlib import Path
 from socket import gethostname
 from subprocess import CalledProcessError
+from time import sleep
 from typing import Callable, Collection, Optional, Union
 
 from spython.main import Client as sclient
@@ -66,6 +67,10 @@ def run_singularity_command(
             logger.info(line.rstrip())
             if stream_callback_func:
                 stream_callback_func(line)
+
+        # Sleep for a few moments. If the command created files (often they do), give the lustre a moment
+        # to properly register them. You dirty sea dog.
+        sleep(2.0)
     except CalledProcessError as e:
         logger.error(f"Failed to run command: {command}")
         logger.error(f"Stdout: {e.stdout}")

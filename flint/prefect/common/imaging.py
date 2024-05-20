@@ -67,9 +67,12 @@ def task_potato_peel(
     potato_container: Path,
     update_potato_config_options: Optional[Dict[str, Any]] = None,
     update_potato_peel_options: Optional[Dict[str, Any]] = None,
-    update_wsclean_options: Optional[WSCleanOptions] = None,
+    update_wsclean_options: Optional[Dict[str, Any]] = None,
 ) -> MS:
     logger.info(f"Attempting to peel {ms.path}")
+
+    if update_wsclean_options is None:
+        update_wsclean_options = {}
 
     wsclean_options = WSCleanOptions(**update_wsclean_options)
 

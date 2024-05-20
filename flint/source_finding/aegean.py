@@ -4,9 +4,6 @@ from argparse import ArgumentParser
 from pathlib import Path
 from typing import NamedTuple, Optional, Tuple
 
-from AegeanTools import BANE
-from AegeanTools.catalogs import save_catalog
-from AegeanTools.source_finder import SourceFinder
 from astropy.io import fits
 
 from flint.logging import logger

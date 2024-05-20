@@ -1,5 +1,6 @@
 """Basic tests for utility functions"""
 
+import math
 from pathlib import Path
 
 import astropy.units as u
@@ -9,12 +10,15 @@ from astropy.coordinates import SkyCoord
 from astropy.io import fits
 from astropy.wcs import WCS
 
+from flint.convol import BeamShape
 from flint.logging import logger
 from flint.utils import (
     estimate_skycoord_centre,
     generate_strict_stub_wcs_header,
     generate_stub_wcs_header,
+    get_beam_shape,
     get_packaged_resource_path,
+    get_pixels_per_beam,
 )
 
 
@@ -28,6 +32,24 @@ def rms_path(tmpdir):
     )
 
     return rms_path
+
+
+def test_pixels_per_beam(rms_path):
+    """Confirm pixels per beam is working"""
+    no_pixels = get_pixels_per_beam(fits_path=rms_path)
+
+    assert np.isclose(math.floor(no_pixels), 51.0)
+    assert no_pixels > 0.0
+
+
+def test_get_beam_shape(rms_path):
+    """Test to ensure the beam can be extracted from input image"""
+    beam = get_beam_shape(fits_path=rms_path)
+
+    assert isinstance(beam, BeamShape)
+    assert np.isclose(10.90918, beam.bmaj_arcsec)
+    assert np.isclose(9.346510, beam.bmin_arcsec)
+    assert np.isclose(56.2253417, beam.bpa_deg)
 
 
 def test_generate_strict_header_position():
