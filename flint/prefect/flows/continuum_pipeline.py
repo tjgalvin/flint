@@ -6,7 +6,7 @@
 """
 
 from pathlib import Path
-from typing import Union
+from typing import Union, List, Any
 
 from configargparse import ArgumentParser
 from prefect import flow, tags, unmapped
@@ -83,6 +83,8 @@ def process_science_fields(
     output_split_science_path = (
         Path(split_path / science_folder_name).absolute().resolve()
     )
+
+    archive_wait_for: List[Any] = []
 
     if output_split_science_path.exists():
         logger.critical(
@@ -188,6 +190,8 @@ def process_science_fields(
     )
     beam_summaries = task_create_beam_summary.map(ms=flagged_mss, imageset=wsclean_cmds)
 
+    archive_wait_for.extend(wsclean_cmds)
+
     beam_aegean_outputs = None
     if run_aegean:
         beam_aegean_outputs = task_run_bane_and_aegean.map(
@@ -229,7 +233,8 @@ def process_science_fields(
                 aegean_outputs=aegean_field_output,
                 linmos_command=parset,
             )
-
+            archive_wait_for.extend(linmos_field_summary)
+            
             if run_validation and field_options.reference_catalogue_directory:
                 _validation_items(
                     field_summary=linmos_field_summary,
@@ -307,7 +312,8 @@ def process_science_fields(
                 update_wsclean_options=unmapped(wsclean_options),
                 fits_mask=fits_beam_masks,
             )
-
+            archive_wait_for.extend(wsclean_cmds)
+            
             # Do source finding on the last round of self-cal'ed images
             if round == field_options.rounds and run_aegean:
                 task_run_bane_and_aegean.map(
@@ -338,6 +344,7 @@ def process_science_fields(
                 cutoff=field_options.pb_cutoff,
                 field_summary=field_summary,
             )
+            archive_wait_for.extend(parset)
 
             if field_options.linmos_residuals:
                 _convolve_linmos_residuals(
@@ -359,30 +366,25 @@ def process_science_fields(
                     aegean_outputs=aegean_outputs,
                     round=current_round,
                 )
-                val_results = None
                 if run_validation:
                     val_results = _validation_items(
                         field_summary=linmos_field_summary,
                         aegean_outputs=aegean_outputs,
                         reference_catalogue_directory=field_options.reference_catalogue_directory,
                     )
+                    archive_wait_for.append(val_results))
+                    
 
     # zip up the final measurement set, which is not included in the above loop
     if field_options.zip_ms:
         task_zip_ms.map(in_item=wsclean_cmds)
 
     if field_options.sbid_archive_path or field_options.sbid_copy_path and run_aegean:
-        # TODO: refine how this is 'waited for'
-        wait_for = (
-            (val_results, linmos_field_summary)
-            if val_results
-            else (linmos_field_summary,)
-        )
         task_archive_sbid.submit(
             science_folder_path=output_split_science_path,
             archive_path=field_options.sbid_archive_path,
             copy_path=field_options.sbid_copy_path,
-            wait_for=wait_for,
+            wait_for=archive_wait_for,
         )
 
 
