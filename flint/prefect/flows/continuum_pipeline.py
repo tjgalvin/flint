@@ -233,7 +233,7 @@ def process_science_fields(
                 aegean_outputs=aegean_field_output,
                 linmos_command=parset,
             )
-            archive_wait_for.extend(linmos_field_summary)
+            archive_wait_for.append(linmos_field_summary)
 
             if run_validation and field_options.reference_catalogue_directory:
                 _validation_items(
@@ -410,6 +410,8 @@ def setup_run_process_science_field(
         split_path=split_path,
         field_options=field_options,
     )
+
+    # TODO: Put the archive stuff here?
 
 
 def get_parser() -> ArgumentParser:
