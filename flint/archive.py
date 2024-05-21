@@ -145,7 +145,7 @@ def get_parser() -> ArgumentParser:
         nargs="+",
         default=DEFAULT_GLOB_EXPRESSIONS,
         type=str,
-        help="The glob expressions to evaluate",
+        help="The glob expressions to evaluate inside the base path directory",
     )
 
     return parser
@@ -155,6 +155,8 @@ def cli() -> None:
     parser = get_parser()
 
     args = parser.parse_args()
+
+    logger.info(args)
 
     if args.mode == "list":
         archive_options = ArchiveOptions(file_globs=args.file_globs)
