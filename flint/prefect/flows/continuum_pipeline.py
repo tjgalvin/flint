@@ -258,7 +258,6 @@ def process_science_fields(
 
     # Set up the default value should the user activated mask option is not set
     fits_beam_masks = None
-    linmos_field_summary = None
 
     for current_round in range(1, field_options.rounds + 1):
         with tags(f"selfcal-{current_round}"):
