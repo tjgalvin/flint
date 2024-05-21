@@ -26,6 +26,7 @@ Most of the `python` routines have a CLI that can be used to test them in a piec
 - `flint_validation_plot`: Create a simple, quick look figure that expresses the key quality statistics of an image. It is intended to be used against a full continuum field image, but in-principal be used for a per beam image.
 - `flint_potato`: Attempt to peel out known sources from a measurement set using [potatopeel](
 https://gitlab.com/Sunmish/potato/-/tree/main). Criteria used to assess which sources to peel is fairly minimumal, and at the time of writing only the reference set of sources paackaged within `flint` are considered.
+-`flint_archive`: Operations around archiving and copying final data products into place.
 
 The following commands use the `prefect` framework to link together individual tasks together (outlined above) into a single data-processing pipeline.
 - `flint_flow_bandpass_calibrate`: Executes a prefect flow run that will calibrate a set of ASKAP measurement sets taken during a normal bandpass observation sequence.
