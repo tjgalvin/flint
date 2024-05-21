@@ -1,6 +1,7 @@
 """Operations around preserving files and products from an flint run"""
 
 import tarfile
+import shutil
 from argparse import ArgumentParser
 from glob import glob
 from pathlib import Path
@@ -18,6 +19,7 @@ DEFAULT_GLOB_EXPRESSIONS = (
     "*png",
     "*.ms.zip",
 )
+DEFAULT_COPY_GLOB_EXPRESSIONS = ("*linmos*fits", "*png")
 
 
 class ArchiveOptions(NamedTuple):
@@ -25,6 +27,8 @@ class ArchiveOptions(NamedTuple):
 
     file_globs: Collection[str] = DEFAULT_GLOB_EXPRESSIONS
     """Glob expressions to use to collect files that should be tarballed"""
+    copy_file_globs: Collection[str] = DEFAULT_COPY_GLOB_EXPRESSIONS
+    """Glob expressions used to identify files to copy into a final location (not tarred)"""
 
 
 def resolve_glob_expressions(
@@ -53,7 +57,42 @@ def resolve_glob_expressions(
         f"Resolved {len(resolved_files)} files from {len(file_globs)} expressions in {base_path=}"
     )
 
-    return tuple(set(resolved_files))
+    return tuple([Path(p) for p in set(resolved_files)])
+
+
+def copy_files_into(copy_out_path: Path, files_to_copy: Collection[Path]) -> Path:
+    """Copy a set of specified files into an output directory
+
+    Args:
+        copy_out_path (Path): Path to copy files into
+        files_to_copy (Collection[Path]): Files that shall be copied
+
+    Returns:
+        Path: The path files were copied into
+    """
+
+    copy_out_path = Path(copy_out_path)
+
+    copy_out_path.mkdir(parents=True, exist_ok=True)
+    total = len(files_to_copy)
+    not_copied: List[Path] = []
+
+    logger.info(f"Copying {total} files into {copy_out_path}")
+    for count, file in enumerate(files_to_copy):
+        logger.info(f"{count+1} of {total}, copying {file}")
+
+        if not file.is_file():
+            # TODO: Support folders
+            not_copied.append(file)
+            logger.critical(f"{file} is not a file. Skipping. ")
+            continue
+
+        shutil.copy(file, copy_out_path)
+
+    if not_copied:
+        logger.critical(f"Did not copy {len(not_copied)} files, {not_copied=}")
+
+    return copy_out_path
 
 
 # TODO: Add a clobber option
@@ -113,6 +152,32 @@ def create_sbid_tar_archive(
     return tar_out_path
 
 
+def copy_sbid_files_archive(
+    copy_out_path: Path, base_path: Path, archive_options: ArchiveOptions
+) -> Path:
+    """Copy files from an SBID processing folder into a final location. Uses the
+    `copy_file_globs` set of expressions to identify files to copy.
+
+    Args:
+        copy_out_path (Path): The output location of the tarball to write
+        base_path (Path): The base directory that contains files to archive
+        archive_options (ArchiveOptions): Options relating to how files are found and archived
+
+    Returns:
+        Path: Output tarball directory
+    """
+
+    files_to_copy = resolve_glob_expressions(
+        base_path=base_path, file_globs=archive_options.copy_file_globs
+    )
+
+    copy_out_path = copy_files_into(
+        copy_out_path=copy_out_path, files_to_copy=files_to_copy
+    )
+
+    return copy_out_path
+
+
 def get_parser() -> ArgumentParser:
     parser = ArgumentParser(description="Operations around archiving")
 
@@ -151,6 +216,29 @@ def get_parser() -> ArgumentParser:
         "--file-globs",
         nargs="+",
         default=DEFAULT_GLOB_EXPRESSIONS,
+        type=str,
+        help="The glob expressions to evaluate inside the base path directory",
+    )
+
+    create_parser = subparser.add_parser(
+        "copy", help="Copy a set of files into a output directory"
+    )
+    create_parser.add_argument(
+        "copy_out_path",
+        type=Path,
+        help="Path of the output folder that files will be copied into",
+    )
+    create_parser.add_argument(
+        "--base-path",
+        type=Path,
+        default=Path("."),
+        help="Base directory to perform glob expressions",
+    )
+
+    create_parser.add_argument(
+        "--copy-file-globs",
+        nargs="+",
+        default=DEFAULT_COPY_GLOB_EXPRESSIONS,
         type=str,
         help="The glob expressions to evaluate inside the base path directory",
     )

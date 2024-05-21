@@ -10,6 +10,7 @@ from flint.archive import (
     resolve_glob_expressions,
     get_parser,
     tar_files_into,
+    copy_files_into,
     DEFAULT_GLOB_EXPRESSIONS,
 )
 
@@ -40,6 +41,20 @@ def temp_files(glob_files):
     )
 
     return (base_dir, resolved)
+
+
+def test_copy_files_into(tmpdir, temp_files):
+    """Basic sanity checks to the copying process"""
+    base_dir, files = temp_files
+
+    tmpdir = Path(tmpdir)
+    copy_out = tmpdir / "copy_location"
+
+    copy_files_into(copy_out_path=copy_out, files_to_copy=files)
+
+    files_copied = list(copy_out.glob("*"))
+    assert len(files_copied) == len(files)
+    assert len(files_copied) > 0
 
 
 def test_glob_expressions(glob_files):
