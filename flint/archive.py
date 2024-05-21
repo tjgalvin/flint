@@ -72,10 +72,12 @@ def tar_files_into(tar_out_path: Path, files_to_tar: Collection[Path]) -> Path:
     # Create the output directory in case it does not exist
     tar_out_path.parent.mkdir(parents=True, exist_ok=True)
 
+    total = len(files_to_tar)
+    logger.info(f"Taring {total} files")
     logger.info(f"Opening {tar_out_path}")
     with tarfile.open(tar_out_path, "w") as tar:
-        for file in files_to_tar:
-            logger.info(f"Adding {str(file)}")
+        for count, file in enumerate(files_to_tar):
+            logger.info(f"{count+1} of {total}, adding {str(file)}")
             tar.add(file, arcname=file.name)
 
     return tar_out_path
