@@ -253,6 +253,7 @@ def process_science_fields(
 
     # Set up the default value should the user activated mask option is not set
     fits_beam_masks = None
+    linmos_field_summary = None
 
     for current_round in range(1, field_options.rounds + 1):
         with tags(f"selfcal-{current_round}"):
@@ -370,12 +371,18 @@ def process_science_fields(
     if field_options.zip_ms:
         task_zip_ms.map(in_item=wsclean_cmds)
 
-    if field_options.sbid_archive_path or field_options.sbid_copy_path:
+    if field_options.sbid_archive_path or field_options.sbid_copy_path and run_aegean:
+        # TODO: refine how this is 'waited for'
+        wait_for = (
+            (val_results, linmos_field_summary)
+            if val_results
+            else (linmos_field_summary,)
+        )
         task_archive_sbid.submit(
             science_folder_path=output_split_science_path,
             archive_path=field_options.sbid_archive_path,
             copy_path=field_options.sbid_copy_path,
-            wait_for=(val_results, linmos_field_summary),  # type: ignore
+            wait_for=wait_for,
         )
 
 
