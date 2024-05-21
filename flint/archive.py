@@ -268,6 +268,14 @@ def cli() -> None:
             base_path=args.base_path,
             archive_options=archive_options,
         )
+    elif args.mode == "copy":
+        archive_options = ArchiveOptions(copy_file_globs=args.copy_file_globs)
+
+        copy_sbid_files_archive(
+            copy_out_path=args.copy_out_path,
+            base_path=args.base_path,
+            archive_options=archive_options,
+        )
 
     else:
         parser.print_help()
