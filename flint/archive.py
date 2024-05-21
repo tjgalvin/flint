@@ -156,8 +156,6 @@ def cli() -> None:
 
     args = parser.parse_args()
 
-    logger.info(args)
-
     if args.mode == "list":
         archive_options = ArchiveOptions(file_globs=args.file_globs)
 
