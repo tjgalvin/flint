@@ -42,6 +42,7 @@ from flint.prefect.common.imaging import (
     task_zip_ms,
 )
 from flint.prefect.common.utils import (
+    task_archive_sbid,
     task_create_beam_summary,
     task_create_field_summary,
     task_flatten,
@@ -357,8 +358,9 @@ def process_science_fields(
                     aegean_outputs=aegean_outputs,
                     round=current_round,
                 )
+                val_results = None
                 if run_validation:
-                    _validation_items(
+                    val_results = _validation_items(
                         field_summary=linmos_field_summary,
                         aegean_outputs=aegean_outputs,
                         reference_catalogue_directory=field_options.reference_catalogue_directory,
@@ -367,6 +369,14 @@ def process_science_fields(
     # zip up the final measurement set, which is not included in the above loop
     if field_options.zip_ms:
         task_zip_ms.map(in_item=wsclean_cmds)
+
+    if field_options.sbid_archive_path or field_options.sbid_copy_path:
+        task_archive_sbid.submit(
+            science_folder_path=output_split_science_path,
+            archive_path=field_options.sbid_archive_path,
+            copy_path=field_options.sbid_copy_path,
+            wait_for=(val_results, linmos_field_summary),  # type: ignore
+        )
 
 
 def setup_run_process_science_field(
@@ -541,6 +551,18 @@ def get_parser() -> ArgumentParser:
         type=int,
         help="If --use-beam-masks is provided, this option specifies from which round of self-calibration the masking operation will be used onwards from. ",
     )
+    parser.add_argument(
+        "--sbid-archive-path",
+        type=Path,
+        default=None,
+        help="Path that SBID archive tarballs will be created under. If None no archive tarballs are created. See ArchiveOptions. ",
+    )
+    parser.add_argument(
+        "--sbid-copy-path",
+        type=Path,
+        default=None,
+        help="Path that final processed products will be copied into. If None no copying of file products is performed. See ArchiveOptions. ",
+    )
 
     return parser
 
@@ -576,6 +598,8 @@ def cli() -> None:
         use_beam_masks=args.use_beam_masks,
         use_beam_masks_from=args.use_beam_masks_from,
         imaging_strategy=args.imaging_strategy,
+        sbid_archive_path=args.sbid_archive_path,
+        sbid_copy_path=args.sbid_copy_path,
     )
 
     setup_run_process_science_field(

@@ -100,3 +100,7 @@ class FieldOptions(NamedTuple):
     """If `use_beam_masks` is True, start using them from this round of self-calibration"""
     imaging_strategy: Optional[Path] = None
     """Path to a FLINT imaging yaml file that contains settings to use throughout imaging"""
+    sbid_archive_path: Optional[Path] = None
+    """Path that SBID archive tarballs will be created under. If None no archive tarballs are created. See ArchiveOptions. """
+    sbid_copy_path: Optional[Path] = None
+    """Path that final processed products will be copied into. If None no copying of file products is performed. See ArchiveOptions. """
