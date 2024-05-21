@@ -10,7 +10,14 @@ from sklearn import base
 
 from flint.logging import logger
 
-DEFAULT_GLOB_EXPRESSIONS = ("*fits", "*png", "*.ms.zip")
+DEFAULT_GLOB_EXPRESSIONS = (
+    "*image*fits",
+    "*linmos*",
+    "*yaml",
+    "*.txt",
+    "*png",
+    "*.ms.zip",
+)
 
 
 class ArchiveOptions(NamedTuple):
