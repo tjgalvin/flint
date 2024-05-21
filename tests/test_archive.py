@@ -1,12 +1,15 @@
 """Tests around archives"""
 
 import pytest
+import tarfile
 from pathlib import Path
 
 from flint.archive import (
     ArchiveOptions,
+    create_sbid_tar_archive,
     resolve_glob_expressions,
     get_parser,
+    tar_files_into,
     DEFAULT_GLOB_EXPRESSIONS,
 )
 
@@ -24,6 +27,19 @@ def glob_files(tmpdir):
             out_file.write("example\n")
 
     return (tmpdir, FILES)
+
+
+@pytest.fixture
+def temp_files(glob_files):
+    base_dir, files = glob_files
+
+    archive_options = ArchiveOptions()
+
+    resolved = resolve_glob_expressions(
+        base_path=base_dir, file_globs=archive_options.file_globs
+    )
+
+    return (base_dir, resolved)
 
 
 def test_glob_expressions(glob_files):
@@ -85,3 +101,30 @@ def test_archive_parser(glob_files):
     assert isinstance(args.base_path, Path)
     assert args.base_path == example_path
     assert args.file_globs == ["*pdf"]
+
+
+def test_tar_ball_files(temp_files):
+    """Ensure that the tarballing works"""
+    base_dir, files = temp_files
+
+    tar_out_path = Path(base_dir) / "some_tarball.tar"
+    _ = tar_files_into(tar_out_path=tar_out_path, files_to_tar=files)
+
+    assert tarfile.is_tarfile(tar_out_path)
+
+    with pytest.raises(FileExistsError):
+        _ = tar_files_into(tar_out_path=tar_out_path, files_to_tar=files)
+
+
+def test_create_sbid_archive(glob_files):
+    """Attempts to ensure the entire find files and tarball creation works"""
+    base_dir, files = glob_files
+
+    archive_options = ArchiveOptions()
+    tar_out_path = Path(base_dir) / "example_tarball_2.tar"
+
+    _ = create_sbid_tar_archive(
+        base_path=base_dir, tar_out_path=tar_out_path, archive_options=archive_options
+    )
+
+    assert tarfile.is_tarfile(tar_out_path)

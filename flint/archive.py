@@ -49,6 +49,61 @@ def resolve_glob_expressions(
     return tuple(set(resolved_files))
 
 
+# TODO: Add a clobber option
+def tar_files_into(tar_out_path: Path, files_to_tar: Collection[Path]) -> Path:
+    """Create a tar file given a desired output path and list of files to tar.
+
+    Args:
+        tar_out_path (Path): The output path of the tarball. The parent directory will be created if necessary.
+        files_to_tar (Collection[Path]): All the files to tarball up
+
+    Raises:
+        FileExistsError: The path of the tarball created
+
+    Returns:
+        Path: There exists a tarball of the same name
+    """
+
+    tar_out_path = Path(tar_out_path)
+
+    if tar_out_path.exists():
+        raise FileExistsError(f"{tar_out_path} already exists. ")
+
+    # Create the output directory in case it does not exist
+    tar_out_path.parent.mkdir(parents=True, exist_ok=True)
+
+    logger.info(f"Opening {tar_out_path}")
+    with tarfile.open(tar_out_path, "w") as tar:
+        for file in files_to_tar:
+            logger.info(f"Adding {str(file)}")
+            tar.add(file, arcname=file.name)
+
+    return tar_out_path
+
+
+def create_sbid_tar_archive(
+    tar_out_path: Path, base_path: Path, archive_options: ArchiveOptions
+) -> Path:
+    """Create a tar file of key products in a SBID folder.
+
+    Args:
+        tar_out_path (Path): The output location of the tarball to write
+        base_path (Path): The base directory that contains files to archive
+        archive_options (ArchiveOptions): Options relating to how files are found and archived
+
+    Returns:
+        Path: Output tarball directory
+    """
+
+    files_to_tar = resolve_glob_expressions(
+        base_path=base_path, file_globs=archive_options.file_globs
+    )
+
+    tar_out_path = tar_files_into(tar_out_path=tar_out_path, files_to_tar=files_to_tar)
+
+    return tar_out_path
+
+
 def get_parser() -> ArgumentParser:
     parser = ArgumentParser(description="Operations around archiving")
 
@@ -65,6 +120,25 @@ def get_parser() -> ArgumentParser:
     )
 
     list_parser.add_argument(
+        "--file-globs",
+        nargs="+",
+        default=DEFAULT_GLOB_EXPRESSIONS,
+        type=str,
+        help="The glob expressions to evaluate",
+    )
+
+    create_parser = subparser.add_parser("create", help="Create a tarfile archive")
+    create_parser.add_argument(
+        "tar_out_path", type=Path, help="Path of the output tar file to be created"
+    )
+    create_parser.add_argument(
+        "--base-path",
+        type=Path,
+        default=Path("."),
+        help="Base directory to perform glob expressions",
+    )
+
+    create_parser.add_argument(
         "--file-globs",
         nargs="+",
         default=DEFAULT_GLOB_EXPRESSIONS,
@@ -89,6 +163,17 @@ def cli() -> None:
 
         for file in sorted(files):
             logger.info(f"{file}")
+    elif args.mode == "create":
+        archive_options = ArchiveOptions(file_globs=args.file_globs)
+
+        create_sbid_tar_archive(
+            tar_out_path=args.tar_out_path,
+            base_path=args.base_path,
+            archive_options=archive_options,
+        )
+
+    else:
+        parser.print_help()
 
 
 if __name__ == "__main__":
