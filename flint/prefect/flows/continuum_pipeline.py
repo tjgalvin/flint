@@ -234,7 +234,7 @@ def process_science_fields(
                 linmos_command=parset,
             )
             archive_wait_for.extend(linmos_field_summary)
-            
+
             if run_validation and field_options.reference_catalogue_directory:
                 _validation_items(
                     field_summary=linmos_field_summary,
@@ -313,7 +313,7 @@ def process_science_fields(
                 fits_mask=fits_beam_masks,
             )
             archive_wait_for.extend(wsclean_cmds)
-            
+
             # Do source finding on the last round of self-cal'ed images
             if round == field_options.rounds and run_aegean:
                 task_run_bane_and_aegean.map(
@@ -372,8 +372,7 @@ def process_science_fields(
                         aegean_outputs=aegean_outputs,
                         reference_catalogue_directory=field_options.reference_catalogue_directory,
                     )
-                    archive_wait_for.append(val_results))
-                    
+                    archive_wait_for.append(val_results)
 
     # zip up the final measurement set, which is not included in the above loop
     if field_options.zip_ms:
