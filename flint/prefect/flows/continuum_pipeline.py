@@ -344,7 +344,7 @@ def process_science_fields(
                 cutoff=field_options.pb_cutoff,
                 field_summary=field_summary,
             )
-            archive_wait_for.extend(parset)
+            archive_wait_for.append(parset)
 
             if field_options.linmos_residuals:
                 _convolve_linmos_residuals(
