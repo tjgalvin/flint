@@ -1,17 +1,18 @@
 """Tests around archives"""
 
-import pytest
 import tarfile
 from pathlib import Path
 
+import pytest
+
 from flint.archive import (
-    ArchiveOptions,
-    create_sbid_tar_archive,
-    resolve_glob_expressions,
-    get_parser,
-    tar_files_into,
-    copy_files_into,
     DEFAULT_GLOB_EXPRESSIONS,
+    ArchiveOptions,
+    copy_files_into,
+    create_sbid_tar_archive,
+    get_parser,
+    resolve_glob_expressions,
+    tar_files_into,
 )
 
 FILES = [f"some_file_{a:02d}-image.fits" for a in range(36)] + [

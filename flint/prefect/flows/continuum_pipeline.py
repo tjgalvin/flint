@@ -6,7 +6,7 @@
 """
 
 from pathlib import Path
-from typing import Union, List, Any
+from typing import Any, List, Union
 
 from configargparse import ArgumentParser
 from prefect import flow, tags, unmapped

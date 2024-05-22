@@ -1,11 +1,11 @@
 """Operations around preserving files and products from an flint run"""
 
-import tarfile
 import shutil
+import tarfile
 from argparse import ArgumentParser
 from glob import glob
 from pathlib import Path
-from typing import NamedTuple, Collection, List, Tuple
+from typing import Collection, List, NamedTuple, Tuple
 
 from sklearn import base
 
