@@ -8,7 +8,13 @@ from uuid import UUID
 from prefect import task
 from prefect.artifacts import create_markdown_artifact
 
+from flint.archive import (
+    ArchiveOptions,
+    copy_sbid_files_archive,
+    create_sbid_tar_archive,
+)
 from flint.logging import logger
+from flint.naming import add_timestamp_to_path, get_sbid_from_path
 from flint.summary import (
     create_beam_summary,
     create_field_summary,
@@ -63,6 +69,44 @@ task_create_beam_summary = task(create_beam_summary)
 
 # Intended to represent objects with a .with_options() interface
 T = TypeVar("T")
+
+
+@task
+def task_archive_sbid(
+    science_folder_path: Path,
+    archive_path: Optional[Path] = None,
+    copy_path: Optional[Path] = None,
+) -> Path:
+    """Create a tarbal of files, or copy files, from a processing folder.
+
+    Args:
+        science_folder_path (Path): Path that contains the imaged produced
+        archive_path (Optional[Path], optional): Location to create and store the tar ball at. If None no tarball is created. Defaults to None.
+        copy_path (Optional[Path], optional): Location to copy selected files into. If None no files are copied. Defaults to None.
+
+    Returns:
+        Path: The science folder files were copied from
+    """
+
+    sbid = get_sbid_from_path(path=science_folder_path)
+
+    archive_options = ArchiveOptions()
+    if archive_path:
+        tar_file_name = add_timestamp_to_path(Path(archive_path) / f"{sbid}.tar")
+        create_sbid_tar_archive(
+            tar_out_path=tar_file_name,
+            base_path=science_folder_path,
+            archive_options=archive_options,
+        )
+
+    if copy_path:
+        copy_sbid_files_archive(
+            copy_out_path=copy_path,
+            base_path=science_folder_path,
+            archive_options=archive_options,
+        )
+
+    return science_folder_path
 
 
 @task

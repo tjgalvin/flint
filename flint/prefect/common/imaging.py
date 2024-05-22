@@ -702,13 +702,15 @@ def _validation_items(
         reference_catalogue_directory (Path): Location of directory containing the reference known NVSS, SUMSS and ICRS catalogues
     """
 
-    task_create_validation_plot.submit(
+    val_plot_path = task_create_validation_plot.submit(
         field_summary=field_summary,
         aegean_outputs=aegean_outputs,
         reference_catalogue_directory=reference_catalogue_directory,
     )
-    task_create_validation_tables.submit(
+    validate_tables = task_create_validation_tables.submit(
         field_summary=field_summary,
         aegean_outputs=aegean_outputs,
         reference_catalogue_directory=reference_catalogue_directory,
     )
+
+    return (val_plot_path, validate_tables)

@@ -6,7 +6,7 @@
 """
 
 from pathlib import Path
-from typing import Union
+from typing import Any, List, Union
 
 from configargparse import ArgumentParser
 from prefect import flow, tags, unmapped
@@ -42,6 +42,7 @@ from flint.prefect.common.imaging import (
     task_zip_ms,
 )
 from flint.prefect.common.utils import (
+    task_archive_sbid,
     task_create_beam_summary,
     task_create_field_summary,
     task_flatten,
@@ -82,6 +83,8 @@ def process_science_fields(
     output_split_science_path = (
         Path(split_path / science_folder_name).absolute().resolve()
     )
+
+    archive_wait_for: List[Any] = []
 
     if output_split_science_path.exists():
         logger.critical(
@@ -187,6 +190,8 @@ def process_science_fields(
     )
     beam_summaries = task_create_beam_summary.map(ms=flagged_mss, imageset=wsclean_cmds)
 
+    archive_wait_for.extend(wsclean_cmds)
+
     beam_aegean_outputs = None
     if run_aegean:
         beam_aegean_outputs = task_run_bane_and_aegean.map(
@@ -228,6 +233,7 @@ def process_science_fields(
                 aegean_outputs=aegean_field_output,
                 linmos_command=parset,
             )
+            archive_wait_for.append(linmos_field_summary)
 
             if run_validation and field_options.reference_catalogue_directory:
                 _validation_items(
@@ -305,6 +311,7 @@ def process_science_fields(
                 update_wsclean_options=unmapped(wsclean_options),
                 fits_mask=fits_beam_masks,
             )
+            archive_wait_for.extend(wsclean_cmds)
 
             # Do source finding on the last round of self-cal'ed images
             if round == field_options.rounds and run_aegean:
@@ -336,6 +343,7 @@ def process_science_fields(
                 cutoff=field_options.pb_cutoff,
                 field_summary=field_summary,
             )
+            archive_wait_for.append(parset)
 
             if field_options.linmos_residuals:
                 _convolve_linmos_residuals(
@@ -358,15 +366,24 @@ def process_science_fields(
                     round=current_round,
                 )
                 if run_validation:
-                    _validation_items(
+                    val_results = _validation_items(
                         field_summary=linmos_field_summary,
                         aegean_outputs=aegean_outputs,
                         reference_catalogue_directory=field_options.reference_catalogue_directory,
                     )
+                    archive_wait_for.append(val_results)
 
     # zip up the final measurement set, which is not included in the above loop
     if field_options.zip_ms:
         task_zip_ms.map(in_item=wsclean_cmds)
+
+    if field_options.sbid_archive_path or field_options.sbid_copy_path and run_aegean:
+        task_archive_sbid.submit(
+            science_folder_path=output_split_science_path,
+            archive_path=field_options.sbid_archive_path,
+            copy_path=field_options.sbid_copy_path,
+            wait_for=archive_wait_for,
+        )
 
 
 def setup_run_process_science_field(
@@ -392,6 +409,8 @@ def setup_run_process_science_field(
         split_path=split_path,
         field_options=field_options,
     )
+
+    # TODO: Put the archive stuff here?
 
 
 def get_parser() -> ArgumentParser:
@@ -541,6 +560,18 @@ def get_parser() -> ArgumentParser:
         type=int,
         help="If --use-beam-masks is provided, this option specifies from which round of self-calibration the masking operation will be used onwards from. ",
     )
+    parser.add_argument(
+        "--sbid-archive-path",
+        type=Path,
+        default=None,
+        help="Path that SBID archive tarballs will be created under. If None no archive tarballs are created. See ArchiveOptions. ",
+    )
+    parser.add_argument(
+        "--sbid-copy-path",
+        type=Path,
+        default=None,
+        help="Path that final processed products will be copied into. If None no copying of file products is performed. See ArchiveOptions. ",
+    )
 
     return parser
 
@@ -576,6 +607,8 @@ def cli() -> None:
         use_beam_masks=args.use_beam_masks,
         use_beam_masks_from=args.use_beam_masks_from,
         imaging_strategy=args.imaging_strategy,
+        sbid_archive_path=args.sbid_archive_path,
+        sbid_copy_path=args.sbid_copy_path,
     )
 
     setup_run_process_science_field(
