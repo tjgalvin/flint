@@ -3,11 +3,8 @@
 import shutil
 import tarfile
 from argparse import ArgumentParser
-from glob import glob
 from pathlib import Path
 from typing import Collection, List, NamedTuple, Tuple
-
-from sklearn import base
 
 from flint.logging import logger
 
