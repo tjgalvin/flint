@@ -14,10 +14,12 @@ from flint.archive import (
     copy_sbid_files_archive,
 )
 from flint.logging import logger
+from flint.naming import get_sbid_from_path
 from flint.summary import (
     create_beam_summary,
     create_field_summary,
     update_field_summary,
+    FieldSummary,
 )
 
 T = TypeVar("T")
@@ -73,6 +75,7 @@ T = TypeVar("T")
 @task
 def task_archive_sbid(
     science_folder_path: Path,
+    field_summary: FieldSummary,
     archive_path: Optional[Path] = None,
     copy_path: Optional[Path] = None,
 ) -> Path:
@@ -87,10 +90,15 @@ def task_archive_sbid(
         Path: The science folder files were copied from
     """
 
+    sbid = field_summary.sbid
+    p_sbid = get_sbid_from_path(path=science_folder_path)
+
+    logger.info(f"{sbid} {p_sbid}")
+
     archive_options = ArchiveOptions()
     if archive_path:
         create_sbid_tar_archive(
-            tar_out_path=archive_path,
+            tar_out_path=Path(archive_path) / f"{sbid}.tar",
             base_path=science_folder_path,
             archive_options=archive_options,
         )
