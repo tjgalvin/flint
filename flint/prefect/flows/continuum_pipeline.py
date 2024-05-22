@@ -382,7 +382,6 @@ def process_science_fields(
             science_folder_path=output_split_science_path,
             archive_path=field_options.sbid_archive_path,
             copy_path=field_options.sbid_copy_path,
-            field_summary=field_summary,
             wait_for=archive_wait_for,
         )
 
