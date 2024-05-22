@@ -102,7 +102,7 @@ def task_archive_sbid(
             archive_options=archive_options,
         )
 
-    return science_folder
+    return science_folder_path
 
 
 @task
