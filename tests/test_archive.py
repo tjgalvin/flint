@@ -103,7 +103,7 @@ def test_archive_parser(glob_files):
     args = parser.parse_args("list".split())
 
     assert isinstance(args.base_path, Path)
-    assert args.file_globs == DEFAULT_TAR_RE_PATTERNS
+    assert args.file_patterns == DEFAULT_TAR_RE_PATTERNS
 
     example_path = Path("this/no/exist")
     args = parser.parse_args(f"list --base-path {str(example_path)}".split())
@@ -112,11 +112,11 @@ def test_archive_parser(glob_files):
 
     example_path = Path(base_dir)
     args = parser.parse_args(
-        f"list --base-path {str(example_path)} --file-globs *pdf".split()
+        f"list --base-path {str(example_path)} --file-patterns *pdf".split()
     )
     assert isinstance(args.base_path, Path)
     assert args.base_path == example_path
-    assert args.file_globs == ["*pdf"]
+    assert args.file_patterns == ["*pdf"]
 
 
 def test_tar_ball_files(temp_files):
