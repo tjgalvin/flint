@@ -74,7 +74,7 @@ def resolve_glob_expressions(
         f"Resolved {len(resolved_files)} files from {len(file_re_patterns)} expressions in {base_path=}"
     )
 
-    return tuple([Path(p) for p in set(resolved_files)])
+    return tuple(sorted([Path(p) for p in set(resolved_files)]))
 
 
 def copy_files_into(copy_out_path: Path, files_to_copy: Collection[Path]) -> Path:
