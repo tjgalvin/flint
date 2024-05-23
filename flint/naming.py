@@ -100,7 +100,9 @@ class ProcessedNameComponents(NamedTuple):
     """The self-calibration round detected. This might be represented as 'noselfcal' in some image products, e.g. linmos. """
 
 
-def processed_ms_format(in_name: Union[str, Path]) -> ProcessedNameComponents:
+def processed_ms_format(
+    in_name: Union[str, Path]
+) -> Union[ProcessedNameComponents, None]:
     """Will take a formatted name (i.e. one derived from the flint.naming.create_ms_name)
     and attempt to extract its main components. This includes the SBID, field, beam and spw.
 
@@ -108,7 +110,7 @@ def processed_ms_format(in_name: Union[str, Path]) -> ProcessedNameComponents:
         in_name (Union[str, Path]): The name that needs to be broken down into components
 
     Returns:
-        FormatedNameComponents: A structure container the sbid, field, beam and spw
+        Union[FormatedNameComponents,None': A structure container the sbid, field, beam and spw. None is returned if can not be parsed.
     """
 
     in_name = in_name.name if isinstance(in_name, Path) else in_name

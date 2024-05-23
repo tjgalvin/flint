@@ -1,5 +1,6 @@
 """Operations around preserving files and products from an flint run"""
 
+import re
 import shutil
 import tarfile
 from argparse import ArgumentParser
@@ -9,12 +10,12 @@ from typing import Collection, List, NamedTuple, Tuple
 from flint.logging import logger
 
 DEFAULT_GLOB_EXPRESSIONS = (
-    "*image*fits",
-    "*linmos*",
-    "*yaml",
-    "*.txt",
-    "*png",
-    "*.ms.zip",
+    r".*image.*fits",
+    r".*linmos.*",
+    r".*yaml",
+    r".*\.txt",
+    r".*png",
+    r".*\.ms\.zip",
 )
 DEFAULT_COPY_GLOB_EXPRESSIONS = ("*linmos*fits", "*png")
 
@@ -47,9 +48,14 @@ def resolve_glob_expressions(
 
     logger.info(f"Searching {base_path=}")
 
+    all_files = list(base_path.glob("*"))
+    logger.info(f"{len(all_files)} total files and {len(file_globs)} to consider")
+
     for glob_expression in file_globs:
         logger.info(f"Using expression: {glob_expression}")
-        resolved_files.extend(list(base_path.glob(glob_expression)))
+        resolved_files.extend(
+            [f for f in all_files if re.search(glob_expression, str(f.name))]
+        )
 
     logger.info(
         f"Resolved {len(resolved_files)} files from {len(file_globs)} expressions in {base_path=}"

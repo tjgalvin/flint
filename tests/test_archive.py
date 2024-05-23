@@ -77,7 +77,7 @@ def test_glob_expressions_uniq(glob_files):
     """Make sure that the uniqueness is correct"""
     base_dir, files = glob_files
 
-    archive_options = ArchiveOptions(file_globs=("*png", "*png"))
+    archive_options = ArchiveOptions(file_globs=(".*png", ".*png"))
     resolved = resolve_glob_expressions(
         base_path=base_dir, file_globs=archive_options.file_globs
     )
@@ -88,7 +88,7 @@ def test_glob_expressions_empty(glob_files):
     """Make sure that the uniqueness is correct"""
     base_dir, files = glob_files
 
-    archive_options = ArchiveOptions(file_globs=("*doesnotexist",))
+    archive_options = ArchiveOptions(file_globs=(".*doesnotexist",))
     resolved = resolve_glob_expressions(
         base_path=base_dir, file_globs=archive_options.file_globs
     )
