@@ -101,7 +101,7 @@ class ProcessedNameComponents(NamedTuple):
 
 
 def processed_ms_format(
-    in_name: Union[str, Path]
+    in_name: Union[str, Path],
 ) -> Union[ProcessedNameComponents, None]:
     """Will take a formatted name (i.e. one derived from the flint.naming.create_ms_name)
     and attempt to extract its main components. This includes the SBID, field, beam and spw.
