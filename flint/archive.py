@@ -184,7 +184,9 @@ def copy_sbid_files_archive(
 
 
 def get_parser() -> ArgumentParser:
-    parser = ArgumentParser(description="Operations around archiving")
+    parser = ArgumentParser(
+        description="Operations around archiving. Patterns are specified as regular expressions (not globs). "
+    )
 
     subparser = parser.add_subparsers(
         dest="mode", help="Operation mode of flint_archive"
