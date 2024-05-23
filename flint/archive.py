@@ -9,7 +9,6 @@ import shutil
 import tarfile
 from argparse import ArgumentParser
 from pathlib import Path
-from turtle import update
 from typing import Collection, List, NamedTuple, Tuple
 
 from flint.logging import logger
