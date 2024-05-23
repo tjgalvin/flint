@@ -257,7 +257,7 @@ def cli() -> None:
     args = parser.parse_args()
 
     if args.mode == "list":
-        archive_options = ArchiveOptions(tar_file_re_patterns=args.file_globs)
+        archive_options = ArchiveOptions(tar_file_re_patterns=args.file_patters)
 
         files = resolve_glob_expressions(
             base_path=args.base_path,

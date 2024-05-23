@@ -110,6 +110,9 @@ def test_archive_parser(glob_files):
     assert isinstance(args.base_path, Path)
     assert args.base_path == example_path
 
+    args = parser.parse_args(r"list --file-patterns '.*linmos.*' '.*MFS.*'".split())
+    assert len(args.file_patterns) == 2
+
     example_path = Path(base_dir)
     args = parser.parse_args(
         f"list --base-path {str(example_path)} --file-patterns *pdf".split()
