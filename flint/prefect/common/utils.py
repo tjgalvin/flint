@@ -84,6 +84,7 @@ def task_archive_sbid(
         science_folder_path (Path): Path that contains the imaged produced
         archive_path (Optional[Path], optional): Location to create and store the tar ball at. If None no tarball is created. Defaults to None.
         copy_path (Optional[Path], optional): Location to copy selected files into. If None no files are copied. Defaults to None.
+        max_round (Optional[int], optional): The last self-calibration round peformed. If provied some files form this round are copied (assuming wsclean imaging). If None, the default file patterns in ArchiveOptions are used. Defaults to None.
 
     Returns:
         Path: The science folder files were copied from
@@ -93,9 +94,14 @@ def task_archive_sbid(
 
     archive_options = ArchiveOptions()
 
+    # TODO: What should this be? Just general new regexs passed through,
+    # or is this fine?
     if max_round:
-        additional_file_patterns = (
-            f".*beam[0-9]+\\.round{max_round}-[0-9]{4}-image\\.fits"
+        updated_file_patterns = tuple(archive_options.tar_file_re_patterns) + (
+            f".*beam[0-9]+\\.round{max_round}-[0-9]{4}-image\\.fits",
+        )
+        archive_options = archive_options.with_options(
+            tar_file_re_patterns=updated_file_patterns
         )
 
     if archive_path:
