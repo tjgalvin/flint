@@ -266,8 +266,8 @@ def cli() -> None:
             file_re_patterns=archive_options.tar_file_re_patterns,
         )
 
-        for file in sorted(files):
-            logger.info(f"{file}")
+        for count, file in enumerate(sorted(files)):
+            logger.info(f"{count} of {len(files)}, {file}")
     elif args.mode == "create":
         archive_options = ArchiveOptions(tar_file_re_patterns=args.tar_file_patterns)
 
