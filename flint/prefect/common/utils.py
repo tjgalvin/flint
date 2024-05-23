@@ -92,7 +92,7 @@ def task_archive_sbid(
 
     archive_options = ArchiveOptions()
     if archive_path:
-        tar_file_name = add_timestamp_to_path(Path(archive_path) / f"{sbid}.tar")
+        tar_file_name = add_timestamp_to_path(Path(archive_path) / f"SB{sbid}.tar")
         create_sbid_tar_archive(
             tar_out_path=tar_file_name,
             base_path=science_folder_path,

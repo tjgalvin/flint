@@ -48,6 +48,7 @@ def resolve_glob_expressions(
     logger.info(f"Searching {base_path=}")
 
     for glob_expression in file_globs:
+        logger.info(f"Using expression: {glob_expression}")
         resolved_files.extend(list(base_path.glob(glob_expression)))
 
     logger.info(
