@@ -14,6 +14,8 @@ from typing import Collection, List, NamedTuple, Tuple
 
 from flint.logging import logger
 
+# TODO: Perhaps move these to flint.naming, and can be built up
+# based on rules, e.g. imager used, source finder etc.
 DEFAULT_TAR_RE_PATTERNS = (
     r".*MFS.*image.*fits",
     r".*linmos.*",
