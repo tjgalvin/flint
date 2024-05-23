@@ -118,6 +118,10 @@ def test_archive_parser(glob_files):
     assert args.base_path == example_path
     assert args.file_patterns == ["*pdf"]
 
+    cmd = r"create --tar-file-patterns '.*linmos.*' '.*MFS.*' '.*beam[0-9]+\.round4-????-image\.fits' --base-path 39420 test_archive_tarball/39420.tar"
+    args = parser.parse_args(cmd.split())
+    assert len(args.tar_file_patterns) == 3
+
 
 def test_tar_ball_files(temp_files):
     """Ensure that the tarballing works"""

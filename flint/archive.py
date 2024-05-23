@@ -267,7 +267,7 @@ def cli() -> None:
         for file in sorted(files):
             logger.info(f"{file}")
     elif args.mode == "create":
-        archive_options = ArchiveOptions(tar_file_re_patterns=args.file_globs)
+        archive_options = ArchiveOptions(tar_file_re_patterns=args.tar_file_patterns)
 
         create_sbid_tar_archive(
             tar_out_path=args.tar_out_path,
