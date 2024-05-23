@@ -15,7 +15,7 @@ from flint.archive import (
     tar_files_into,
 )
 
-FILES = [f"some_file_{a:02d}-image.fits" for a in range(36)] + [
+FILES = [f"some_file_{a:02d}-MFS-image.fits" for a in range(36)] + [
     f"a_validation.{ext}" for ext in ("png", "jpeg", "pdf")
 ]
 
@@ -151,3 +151,17 @@ def test_create_sbid_archive(glob_files):
     )
 
     assert tarfile.is_tarfile(tar_out_path)
+
+
+def test_archive_new_tar_patterns():
+    """Some sanity checks around this archive options tuple updating"""
+    archive_options = ArchiveOptions()
+    before_count = len(archive_options.tar_file_re_patterns)
+
+    additional_file_patterns = (r".*beam[0-9]+\.round4-[0-9]{4}-image\.fits",)
+    new_patterns = archive_options.tar_file_re_patterns + additional_file_patterns
+
+    new_archive_options = archive_options.with_options(
+        tar_file_re_patterns=new_patterns
+    )
+    assert len(new_archive_options.tar_file_re_patterns) == before_count + 1

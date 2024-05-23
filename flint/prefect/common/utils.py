@@ -76,6 +76,7 @@ def task_archive_sbid(
     science_folder_path: Path,
     archive_path: Optional[Path] = None,
     copy_path: Optional[Path] = None,
+    max_round: Optional[int] = None,
 ) -> Path:
     """Create a tarbal of files, or copy files, from a processing folder.
 
@@ -91,6 +92,12 @@ def task_archive_sbid(
     sbid = get_sbid_from_path(path=science_folder_path)
 
     archive_options = ArchiveOptions()
+
+    if max_round:
+        additional_file_patterns = (
+            f".*beam[0-9]+\\.round{max_round}-[0-9]{4}-image\\.fits"
+        )
+
     if archive_path:
         tar_file_name = add_timestamp_to_path(Path(archive_path) / f"SB{sbid}.tar")
         create_sbid_tar_archive(

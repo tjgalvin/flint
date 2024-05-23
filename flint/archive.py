@@ -1,16 +1,21 @@
 """Operations around preserving files and products from an flint run"""
 
+from __future__ import (  # Used for mypy/pylance to like the return type of MS.with_options
+    annotations,
+)
+
 import re
 import shutil
 import tarfile
 from argparse import ArgumentParser
 from pathlib import Path
+from turtle import update
 from typing import Collection, List, NamedTuple, Tuple
 
 from flint.logging import logger
 
 DEFAULT_TAR_RE_PATTERNS = (
-    r".*image.*fits",
+    r".*MFS.*image.*fits",
     r".*linmos.*",
     r".*yaml",
     r".*\.txt",
@@ -27,6 +32,12 @@ class ArchiveOptions(NamedTuple):
     """Regular-expressions to use to collect files that should be tarballed"""
     copy_file_re_patterns: Collection[str] = DEFAULT_COPY_RE_PATTERNS
     """Regular-expressions used to identify files to copy into a final location (not tarred)"""
+
+    def with_options(self, **kwargs) -> ArchiveOptions:
+        opts = self._asdict()
+        opts.update(**kwargs)
+
+        return ArchiveOptions(**opts)
 
 
 def resolve_glob_expressions(
