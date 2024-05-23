@@ -48,7 +48,7 @@ def resolve_glob_expressions(
 
     logger.info(f"Searching {base_path=}")
 
-    all_files = list(base_path.glob("*"))
+    all_files = list(base_path.iterdir())
     logger.info(f"{len(all_files)} total files and {len(file_re_patterns)} to consider")
 
     for reg_expression in file_re_patterns:
