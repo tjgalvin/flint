@@ -6,7 +6,7 @@ from pathlib import Path
 import pytest
 
 from flint.archive import (
-    DEFAULT_GLOB_EXPRESSIONS,
+    DEFAULT_TAR_RE_PATTERNS,
     ArchiveOptions,
     copy_files_into,
     create_sbid_tar_archive,
@@ -38,7 +38,7 @@ def temp_files(glob_files):
     archive_options = ArchiveOptions()
 
     resolved = resolve_glob_expressions(
-        base_path=base_dir, file_globs=archive_options.file_globs
+        base_path=base_dir, file_re_patterns=archive_options.tar_file_re_patterns
     )
 
     return (base_dir, resolved)
@@ -63,10 +63,10 @@ def test_glob_expressions(glob_files):
     base_dir, files = glob_files
 
     archive_options = ArchiveOptions()
-    assert len(archive_options.file_globs) > 0
+    assert len(archive_options.tar_file_re_patterns) > 0
 
     resolved = resolve_glob_expressions(
-        base_path=base_dir, file_globs=archive_options.file_globs
+        base_path=base_dir, file_re_patterns=archive_options.tar_file_re_patterns
     )
 
     assert all([isinstance(p, Path) for p in resolved])
@@ -77,9 +77,9 @@ def test_glob_expressions_uniq(glob_files):
     """Make sure that the uniqueness is correct"""
     base_dir, files = glob_files
 
-    archive_options = ArchiveOptions(file_globs=(".*png", ".*png"))
+    archive_options = ArchiveOptions(tar_file_re_patterns=(".*png", ".*png"))
     resolved = resolve_glob_expressions(
-        base_path=base_dir, file_globs=archive_options.file_globs
+        base_path=base_dir, file_re_patterns=archive_options.tar_file_re_patterns
     )
     assert len(resolved) == 1
 
@@ -88,9 +88,9 @@ def test_glob_expressions_empty(glob_files):
     """Make sure that the uniqueness is correct"""
     base_dir, files = glob_files
 
-    archive_options = ArchiveOptions(file_globs=(".*doesnotexist",))
+    archive_options = ArchiveOptions(tar_file_re_patterns=(".*doesnotexist",))
     resolved = resolve_glob_expressions(
-        base_path=base_dir, file_globs=archive_options.file_globs
+        base_path=base_dir, file_re_patterns=archive_options.tar_file_re_patterns
     )
     assert len(resolved) == 0
 
@@ -103,7 +103,7 @@ def test_archive_parser(glob_files):
     args = parser.parse_args("list".split())
 
     assert isinstance(args.base_path, Path)
-    assert args.file_globs == DEFAULT_GLOB_EXPRESSIONS
+    assert args.file_globs == DEFAULT_TAR_RE_PATTERNS
 
     example_path = Path("this/no/exist")
     args = parser.parse_args(f"list --base-path {str(example_path)}".split())
