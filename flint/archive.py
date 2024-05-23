@@ -130,6 +130,7 @@ def tar_files_into(tar_out_path: Path, files_to_tar: Collection[Path]) -> Path:
             logger.info(f"{count+1} of {total}, adding {str(file)}")
             tar.add(file, arcname=file.name)
 
+    logger.info(f"Created {tar_out_path}")
     return tar_out_path
 
 
@@ -198,11 +199,11 @@ def get_parser() -> ArgumentParser:
     )
 
     list_parser.add_argument(
-        "--file-globs",
+        "--file-patterns",
         nargs="+",
         default=DEFAULT_TAR_RE_PATTERNS,
         type=str,
-        help="The glob expressions to evaluate",
+        help="The regular expression patterns to evaluate",
     )
 
     create_parser = subparser.add_parser("create", help="Create a tarfile archive")
@@ -217,11 +218,11 @@ def get_parser() -> ArgumentParser:
     )
 
     create_parser.add_argument(
-        "--file-globs",
+        "--tar-file-patterns",
         nargs="+",
         default=DEFAULT_TAR_RE_PATTERNS,
         type=str,
-        help="The glob expressions to evaluate inside the base path directory",
+        help="The regular expression patterns to evaluate inside the base path directory",
     )
 
     create_parser = subparser.add_parser(
@@ -240,11 +241,11 @@ def get_parser() -> ArgumentParser:
     )
 
     create_parser.add_argument(
-        "--copy-file-globs",
+        "--copy-file-patterns",
         nargs="+",
         default=DEFAULT_COPY_RE_PATTERNS,
         type=str,
-        help="The glob expressions to evaluate inside the base path directory",
+        help="The regular expression patterns to evaluate inside the base path directory",
     )
 
     return parser
