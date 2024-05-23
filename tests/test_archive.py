@@ -6,7 +6,7 @@ from pathlib import Path
 import pytest
 
 from flint.archive import (
-    DEFAULT_GLOB_EXPRESSIONS,
+    DEFAULT_TAR_RE_PATTERNS,
     ArchiveOptions,
     copy_files_into,
     create_sbid_tar_archive,
@@ -15,7 +15,7 @@ from flint.archive import (
     tar_files_into,
 )
 
-FILES = [f"some_file_{a:02d}-image.fits" for a in range(36)] + [
+FILES = [f"some_file_{a:02d}-MFS-image.fits" for a in range(36)] + [
     f"a_validation.{ext}" for ext in ("png", "jpeg", "pdf")
 ]
 
@@ -38,7 +38,7 @@ def temp_files(glob_files):
     archive_options = ArchiveOptions()
 
     resolved = resolve_glob_expressions(
-        base_path=base_dir, file_globs=archive_options.file_globs
+        base_path=base_dir, file_re_patterns=archive_options.tar_file_re_patterns
     )
 
     return (base_dir, resolved)
@@ -63,10 +63,10 @@ def test_glob_expressions(glob_files):
     base_dir, files = glob_files
 
     archive_options = ArchiveOptions()
-    assert len(archive_options.file_globs) > 0
+    assert len(archive_options.tar_file_re_patterns) > 0
 
     resolved = resolve_glob_expressions(
-        base_path=base_dir, file_globs=archive_options.file_globs
+        base_path=base_dir, file_re_patterns=archive_options.tar_file_re_patterns
     )
 
     assert all([isinstance(p, Path) for p in resolved])
@@ -77,9 +77,9 @@ def test_glob_expressions_uniq(glob_files):
     """Make sure that the uniqueness is correct"""
     base_dir, files = glob_files
 
-    archive_options = ArchiveOptions(file_globs=("*png", "*png"))
+    archive_options = ArchiveOptions(tar_file_re_patterns=(".*png", ".*png"))
     resolved = resolve_glob_expressions(
-        base_path=base_dir, file_globs=archive_options.file_globs
+        base_path=base_dir, file_re_patterns=archive_options.tar_file_re_patterns
     )
     assert len(resolved) == 1
 
@@ -88,9 +88,9 @@ def test_glob_expressions_empty(glob_files):
     """Make sure that the uniqueness is correct"""
     base_dir, files = glob_files
 
-    archive_options = ArchiveOptions(file_globs=("*doesnotexist",))
+    archive_options = ArchiveOptions(tar_file_re_patterns=(".*doesnotexist",))
     resolved = resolve_glob_expressions(
-        base_path=base_dir, file_globs=archive_options.file_globs
+        base_path=base_dir, file_re_patterns=archive_options.tar_file_re_patterns
     )
     assert len(resolved) == 0
 
@@ -103,20 +103,27 @@ def test_archive_parser(glob_files):
     args = parser.parse_args("list".split())
 
     assert isinstance(args.base_path, Path)
-    assert args.file_globs == DEFAULT_GLOB_EXPRESSIONS
+    assert args.file_patterns == DEFAULT_TAR_RE_PATTERNS
 
     example_path = Path("this/no/exist")
     args = parser.parse_args(f"list --base-path {str(example_path)}".split())
     assert isinstance(args.base_path, Path)
     assert args.base_path == example_path
 
+    args = parser.parse_args(r"list --file-patterns '.*linmos.*' '.*MFS.*'".split())
+    assert len(args.file_patterns) == 2
+
     example_path = Path(base_dir)
     args = parser.parse_args(
-        f"list --base-path {str(example_path)} --file-globs *pdf".split()
+        f"list --base-path {str(example_path)} --file-patterns *pdf".split()
     )
     assert isinstance(args.base_path, Path)
     assert args.base_path == example_path
-    assert args.file_globs == ["*pdf"]
+    assert args.file_patterns == ["*pdf"]
+
+    cmd = r"create --tar-file-patterns '.*linmos.*' '.*MFS.*' '.*beam[0-9]+\.round4-????-image\.fits' --base-path 39420 test_archive_tarball/39420.tar"
+    args = parser.parse_args(cmd.split())
+    assert len(args.tar_file_patterns) == 3
 
 
 def test_tar_ball_files(temp_files):
@@ -144,3 +151,17 @@ def test_create_sbid_archive(glob_files):
     )
 
     assert tarfile.is_tarfile(tar_out_path)
+
+
+def test_archive_new_tar_patterns():
+    """Some sanity checks around this archive options tuple updating"""
+    archive_options = ArchiveOptions()
+    before_count = len(archive_options.tar_file_re_patterns)
+
+    additional_file_patterns = (r".*beam[0-9]+\.round4-[0-9]{4}-image\.fits",)
+    new_patterns = archive_options.tar_file_re_patterns + additional_file_patterns
+
+    new_archive_options = archive_options.with_options(
+        tar_file_re_patterns=new_patterns
+    )
+    assert len(new_archive_options.tar_file_re_patterns) == before_count + 1
