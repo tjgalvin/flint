@@ -17,6 +17,7 @@ from flint.logging import logger
 from flint.masking import MaskingOptions
 from flint.naming import add_timestamp_to_path
 from flint.selfcal.casa import GainCalOptions
+from flint.source_finding.aegean import BANEOptions, AegeanOptions
 
 KNOWN_HEADERS = ("defaults", "initial", "selfcal", "version")
 FORMAT_VERSION = 0.1
@@ -25,7 +26,13 @@ MODE_OPTIONS_MAPPING = {
     "gaincal": GainCalOptions,
     "masking": MaskingOptions,
     "archive": ArchiveOptions,
+    "bane": BANEOptions,
+    "aegean": AegeanOptions,
 }
+
+
+def _create_mode_mapping_defaults() -> Dict[str, Any]:
+    return {k: i()._asdict() for k, i in MODE_OPTIONS_MAPPING.items()}
 
 
 # A simple representation to pass around. Will help the type
@@ -391,6 +398,7 @@ def write_strategy_to_yaml(strategy: Strategy, output_path: Path) -> Path:
     return output_path
 
 
+# TODO: Create the file only for a subset of known defaults
 def create_default_yaml(
     output_yaml: Path, selfcal_rounds: Optional[int] = None
 ) -> Path:
@@ -411,12 +419,7 @@ def create_default_yaml(
 
     strategy["version"] = FORMAT_VERSION
 
-    strategy["defaults"] = {
-        "wsclean": WSCleanOptions()._asdict(),
-        "gaincal": GainCalOptions()._asdict(),
-        "masking": MaskingOptions()._asdict(),
-        "archive": ArchiveOptions()._asdict(),
-    }
+    strategy["defaults"] = _create_mode_mapping_defaults()
 
     strategy["initial"] = {"wsclean": {}}
 
