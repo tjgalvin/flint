@@ -32,6 +32,11 @@ MODE_OPTIONS_MAPPING = {
 
 
 def _create_mode_mapping_defaults() -> Dict[str, Any]:
+    """Create the default key-values for each of the registered Option classes
+
+    Returns:
+        Dict[str, Any]: Name of mode and the supported keys and default values for each
+    """
     return {k: i()._asdict() for k, i in MODE_OPTIONS_MAPPING.items()}
 
 
