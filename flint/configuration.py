@@ -11,6 +11,7 @@ from typing import Any, Dict, Optional, Union
 
 import yaml
 
+from flint.archive import ArchiveOptions
 from flint.imager.wsclean import WSCleanOptions
 from flint.logging import logger
 from flint.masking import MaskingOptions
@@ -23,6 +24,7 @@ MODE_OPTIONS_MAPPING = {
     "wsclean": WSCleanOptions,
     "gaincal": GainCalOptions,
     "masking": MaskingOptions,
+    "archive": ArchiveOptions,
 }
 
 
@@ -413,6 +415,7 @@ def create_default_yaml(
         "wsclean": WSCleanOptions()._asdict(),
         "gaincal": GainCalOptions()._asdict(),
         "masking": MaskingOptions()._asdict(),
+        "archive": ArchiveOptions()._asdict(),
     }
 
     strategy["initial"] = {"wsclean": {}}
