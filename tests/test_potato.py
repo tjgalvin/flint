@@ -11,11 +11,13 @@ from astropy.table import Table
 
 from flint.imager.wsclean import WSCleanOptions
 from flint.ms import MS
+from flint.peel import potato
 from flint.peel.potato import (
     NormalisedSources,
     PotatoConfigCommand,
     PotatoConfigOptions,
     PotatoPeelCommand,
+    PotatoPeelArguments,
     PotatoPeelOptions,
     _potato_config_command,
     _potato_peel_command,
@@ -116,7 +118,7 @@ def test_potato_peel_command(ms_example):
     sources = find_sources_to_peel(ms=ms, image_options=image_options)
     source_props = get_source_props_from_table(table=sources)
 
-    potato_peel_options = PotatoPeelOptions(
+    potato_peel_arguments = PotatoPeelArguments(
         ms=ms.path,
         ras=source_props.source_ras,
         decs=source_props.source_decs,
@@ -124,8 +126,13 @@ def test_potato_peel_command(ms_example):
         n=source_props.source_names,
         image_fov=1.0,
     )
+    potato_peel_options = PotatoPeelOptions()
 
-    peel_command = _potato_peel_command(ms=ms, potato_peel_options=potato_peel_options)
+    peel_command = _potato_peel_command(
+        ms=ms,
+        potato_peel_arguments=potato_peel_arguments,
+        potato_peel_options=potato_peel_options,
+    )
 
     assert isinstance(peel_command, PotatoPeelCommand)
     assert peel_command.ms.path == ms.path
