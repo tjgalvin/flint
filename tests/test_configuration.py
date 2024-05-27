@@ -5,6 +5,7 @@ import pytest
 
 from flint.configuration import (
     Strategy,
+    _create_mode_mapping_defaults,
     copy_and_timestamp_strategy_file,
     create_default_yaml,
     get_image_options_from_yaml,
@@ -120,6 +121,12 @@ def test_load_yaml_none():
         _ = load_strategy_yaml(input_yaml=None)
 
 
+def test_mode_options_mapping_creation():
+    """Test that for each of the options in MODE_OPTIONS_MAPPING options can be default created"""
+    defaults = _create_mode_mapping_defaults()
+    assert isinstance(defaults, dict)
+
+
 def test_get_options(strategy):
     # test to make sure we can generate a default strategy (see pytest fixture)
     # read it backinto a dict and then access some attributes
@@ -134,6 +141,16 @@ def test_get_options(strategy):
     assert isinstance(wsclean, dict)
     # example options
     assert wsclean["data_column"] == "CORRECTED_DATA"
+
+    archive = get_options_from_strategy(
+        strategy=strategy, mode="archive", round="initial"
+    )
+    assert isinstance(archive, dict)
+    assert len(archive) > 0
+
+    archive = get_options_from_strategy(strategy=strategy, mode="archive")
+    assert isinstance(archive, dict)
+    assert len(archive) > 0
 
 
 def test_get_mask_options(package_strategy):
