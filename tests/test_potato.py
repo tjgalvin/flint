@@ -11,7 +11,6 @@ from astropy.table import Table
 
 from flint.imager.wsclean import WSCleanOptions
 from flint.ms import MS
-from flint.peel import potato
 from flint.peel.potato import (
     NormalisedSources,
     PotatoConfigCommand,
