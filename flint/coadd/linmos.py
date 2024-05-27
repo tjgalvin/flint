@@ -223,6 +223,7 @@ def generate_linmos_parameter_set(
     holofile: Optional[Path] = None,
     cutoff: float = 0.001,
     pol_axis: Optional[float] = None,
+    overwrite: bool = True,
 ) -> Path:
     """Generate a parset file that will be used with the
     yandasoft linmos task.
@@ -235,6 +236,7 @@ def generate_linmos_parameter_set(
         holofile (Optional[Path], optional): Path to a FITS cube produced by the holography processing pipeline. Used by linmos to appropriate primary-beam correct the images. Defaults to None.
         cutoff (float, optional): Pixels whose primary beam attenuation is below this cutoff value are blanked. Defaults to 0.001.
         pol_axis (Optional[float], optional): The physical orientation of the ASKAP third-axis. This is provided (with some assumptions about the orientation of the holography) to correctly rotate the attentuation of the beams when coadding. If None we hope for the best. Defaults to None.
+        overwrite (bool, optional): If True and the parset file already exists, overwrite it. Otherwise a FileExistsError is raised should the parset exist. Defaults to True.
 
     Returns:
         Path: Path to the output parset file.
@@ -248,8 +250,8 @@ def generate_linmos_parameter_set(
     logger.info(f"{len(img_str)} unique images from {len(images)} input collection. ")
     img_list: str = "[" + ",".join(img_str) + "]"
 
-    assert (
-        len(set(img_str)) == len(images)
+    assert len(set(img_str)) == len(
+        images
     ), "Some images were dropped from the linmos image string. Something is bad, walk the plank. "
 
     # If no weights_list has been provided (and therefore no optimal
@@ -316,9 +318,10 @@ def generate_linmos_parameter_set(
     # Now write the file, me hearty
     logger.info(f"Writing parset to {str(parset_output_path)}.")
     logger.info(f"{parset}")
-    assert not Path(
-        parset_output_path
-    ).exists(), f"The parset {parset_output_path} already exists!"
+    if overwrite:
+        assert not Path(
+            parset_output_path
+        ).exists(), f"The parset {parset_output_path} already exists!"
     with open(parset_output_path, "w") as parset_file:
         parset_file.write(parset)
 
