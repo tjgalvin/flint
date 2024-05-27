@@ -17,7 +17,7 @@ from flint.logging import logger
 from flint.masking import MaskingOptions
 from flint.naming import add_timestamp_to_path
 from flint.selfcal.casa import GainCalOptions
-from flint.source_finding.aegean import BANEOptions, AegeanOptions
+from flint.source_finding.aegean import AegeanOptions, BANEOptions
 
 KNOWN_HEADERS = ("defaults", "initial", "selfcal", "version")
 FORMAT_VERSION = 0.1

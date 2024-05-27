@@ -4,8 +4,8 @@ from pathlib import Path
 import pytest
 
 from flint.configuration import (
-    _create_mode_mapping_defaults,
     Strategy,
+    _create_mode_mapping_defaults,
     copy_and_timestamp_strategy_file,
     create_default_yaml,
     get_image_options_from_yaml,
