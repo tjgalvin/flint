@@ -209,7 +209,7 @@ def minimum_boxcar_artefact_mask(
     signal: np.ndarray,
     island_mask: np.ndarray,
     boxcar_size: int,
-    increase_factor: float = 1.2,
+    increase_factor: float = 2.0,
 ) -> np.ndarray:
     """Attempt to remove islands from a potential clean mask by
     examining surronding pixels. A boxcar is applied to find the
@@ -225,7 +225,7 @@ def minimum_boxcar_artefact_mask(
         signal (np.ndarray): The input signl to use
         island_mask (np.ndarray): The current island mask derived by other methods
         boxcar_size (int): Size of the minimum boxcar size
-        increase_factor (float, optional): Factor to increase the minimum signal by. Defaults to 1.2.
+        increase_factor (float, optional): Factor to increase the minimum signal by. Defaults to 2.0.
 
     Returns:
         np.ndarray: _description_
