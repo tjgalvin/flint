@@ -204,6 +204,7 @@ def grow_low_snr_mask(
     return low_snr_mask
 
 
+# TODO> Allow box car size to be scaled in proportion to beam size
 def minimum_boxcar_artefact_mask(
     signal: np.ndarray,
     island_mask: np.ndarray,
