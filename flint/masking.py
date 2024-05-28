@@ -57,7 +57,7 @@ class MaskingOptions(NamedTuple):
     """Use the boxcar minimum threshold to compare to remove artefacts"""
     minimum_boxcar_size: int = 100
     """Size of the boxcar filter"""
-    minimum_boxcar_factor: float = 1.2
+    minimum_boxcar_increase_factor: float = 1.2
     """The factor used to construct minimum positive signal threshold for an island """
 
     def with_options(self, **kwargs) -> MaskingOptions:
@@ -416,6 +416,14 @@ def reverse_negative_flood_fill(
         iterations=1000,
         structure=np.ones((3, 3)),
     )
+
+    if masking_options.minimum_boxcar:
+        positive_dilated_mask = minimum_boxcar_artefact_mask(
+            signal=signal,
+            island_mask=positive_dilated_mask,
+            boxcar_size=masking_options.minimum_boxcar_size,
+            increase_factor=masking_options.minimum_boxcar_increase_factor,
+        )
 
     negative_dilated_mask = None
     if masking_options.suppress_artefacts:
