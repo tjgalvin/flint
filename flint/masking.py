@@ -239,20 +239,24 @@ def minimum_boxcar_artefact_mask(
     mask = island_mask.copy()
 
     # label each of the islands with a id
-    mask_labels, no_labels = label(island_mask, structure=np.ones((3, 3)))  # type: ignore
+    mask_labels, _ = label(island_mask, structure=np.ones((3, 3)))  # type: ignore
+    uniq_labels = np.unique(mask)
 
     rolling_min = minimum_filter(signal, boxcar_size)
 
     # For each island work out the maximum signal in the island and the minimum signal
     # at the island in the output of the boxcar.
-    island_max = {k: np.max(signal[mask == k]) for k in mask_labels if k != 0}
+    island_max = {k: np.max(signal[mask_labels == k]) for k in uniq_labels if k != 0}
     island_min = {
-        k: np.min(rolling_min[island_mask == k]) for k in mask_labels if k != 0
+        k: np.min(rolling_min[mask_labels == k]) for k in uniq_labels if k != 0
     }
 
     # Nuke the weak ones, mask and report
     eliminate = [
-        k for k in island_max if island_max[k] < np.abs(increase_factor * island_min[k])
+        k
+        for k in island_max
+        if island_max[k] < np.abs(increase_factor * island_min[k])
+        and island_min[k] < 0.0
     ]
     # Walk the plank
     island_mask[np.isin(mask_labels, eliminate)] = False
