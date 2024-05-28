@@ -262,6 +262,8 @@ def minimum_boxcar_artefact_mask(
     island_mask[np.isin(mask_labels, eliminate)] = False
 
     logger.info(f"Eliminated {len(eliminate)} islands")
+    for idx in eliminate:
+        logger.info(f"Island ID: {idx}, size {np.sum(mask_labels==idx)}")
 
     return mask
 
