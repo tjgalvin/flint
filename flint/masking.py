@@ -18,7 +18,7 @@ from scipy.ndimage import (
 from scipy.ndimage import (
     binary_erosion as scipy_binary_erosion,  # Rename to distinguish from skimage
 )
-from scipy.ndimage import label
+from scipy.ndimage import label, minimum_filter
 
 from flint.logging import logger
 from flint.naming import FITSMaskNames, create_fits_mask_names
@@ -53,6 +53,12 @@ class MaskingOptions(NamedTuple):
     """The minimum signifance levels of pixels to be to seed low SNR islands for consideration"""
     grow_low_snr_island_size: int = 768
     """The number of pixels an island has to be for it to be accepted"""
+    minimum_boxcar: bool = True
+    """Use the boxcar minimum threshold to compare to remove artefacts"""
+    minimum_boxcar_size: int = 100
+    """Size of the boxcar filter"""
+    minimum_boxcar_factor: float = 1.2
+    """The factor used to construct minimum positive signal threshold for an island """
 
     def with_options(self, **kwargs) -> MaskingOptions:
         """Return a new instance of the MaskingOptions"""
@@ -196,6 +202,63 @@ def grow_low_snr_mask(
     low_snr_mask[np.isin(mask_labels, small_islands)] = False
 
     return low_snr_mask
+
+
+def minimum_boxcar_artefact_mask(
+    signal: np.ndarray,
+    island_mask: np.ndarray,
+    boxcar_size: int,
+    increase_factor: float = 1.2,
+) -> np.ndarray:
+    """Attempt to remove islands from a potential clean mask by
+    examining surronding pixels. A boxcar is applied to find the
+    minimum signal to noise in a small localised region. For each
+    island the maximum signal is considered.
+
+    If the absolute minimum signal increased by a factor in an
+    island region is larger to the maximum signal then that island
+    is ommited.
+
+
+    Args:
+        signal (np.ndarray): The input signl to use
+        island_mask (np.ndarray): The current island mask derived by other methods
+        boxcar_size (int): Size of the minimum boxcar size
+        increase_factor (float, optional): Factor to increase the minimum signal by. Defaults to 1.2.
+
+    Returns:
+        np.ndarray: _description_
+    """
+
+    logger.info(
+        f"Running boxcar minimum island clip with {boxcar_size=} {increase_factor=}"
+    )
+
+    # Make a copy of the original island mask to avoid unintended persistence
+    mask = island_mask.copy()
+
+    # label each of the islands with a id
+    mask_labels, no_labels = label(island_mask, structure=np.ones((3, 3)))  # type: ignore
+
+    rolling_min = minimum_filter(signal, boxcar_size)
+
+    # For each island work out the maximum signal in the island and the minimum signal
+    # at the island in the output of the boxcar.
+    island_max = {k: np.max(signal[mask == k]) for k in mask_labels if k != 0}
+    island_min = {
+        k: np.min(rolling_min[island_mask == k]) for k in mask_labels if k != 0
+    }
+
+    # Nuke the weak ones, mask and report
+    eliminate = [
+        k for k in island_max if island_max[k] < np.abs(increase_factor * island_min[k])
+    ]
+    # Walk the plank
+    island_mask[np.isin(mask_labels, eliminate)] = False
+
+    logger.info(f"Eliminated {len(eliminate)} islands")
+
+    return mask
 
 
 def suppress_artefact_mask(
