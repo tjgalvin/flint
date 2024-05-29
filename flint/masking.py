@@ -246,10 +246,17 @@ def minimum_boxcar_artefact_mask(
 
     # For each island work out the maximum signal in the island and the minimum signal
     # at the island in the output of the boxcar.
-    island_max = {k: np.max(signal[mask_labels == k]) for k in uniq_labels if k != 0}
-    island_min = {
-        k: np.min(rolling_min[mask_labels == k]) for k in uniq_labels if k != 0
-    }
+    island_min, island_max = {}, {}
+    for island_id in uniq_labels:
+        if island_id == 0:
+            continue
+
+        # compute the mask once. These could be a dixt comprehension
+        # but then this mask is computed twice
+        island_id_mask = mask_labels == island_id
+
+        island_max[island_id] = np.max(signal[island_id_mask])
+        island_min[island_id] = np.min(rolling_min[island_id_mask])
 
     # Nuke the weak ones, mask and report
     eliminate = [
