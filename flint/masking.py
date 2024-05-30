@@ -267,7 +267,7 @@ def minimum_boxcar_artefact_mask(
         and island_min[k] < 0.0
     ]
     # Walk the plank
-    island_mask[np.isin(mask_labels, eliminate)] = False
+    mask[np.isin(mask_labels, eliminate)] = False
 
     logger.info(f"Eliminated {len(eliminate)} islands")
 
