@@ -1,3 +1,4 @@
+from ast import increment_lineno
 from pathlib import Path
 
 import numpy as np
@@ -28,12 +29,31 @@ def test_minimum_boxcar_artefact():
         signal=img, island_mask=img_mask, boxcar_size=10
     )
     assert np.all(img_mask == out_mask)
+    assert img_mask is not out_mask
 
     img[41:45, 30:40] = -20
     out_mask = minimum_boxcar_artefact_mask(
         signal=img, island_mask=img_mask, boxcar_size=10
     )
     assert not np.all(img_mask == out_mask)
+
+
+def test_minimum_boxcar_artefact_blanked():
+    """See if the minimum box care artefact suppressor can suppress the
+    bright artefact when a bright negative artefact
+    """
+    img = np.zeros((SHAPE))
+
+    img[30:40, 30:40] = 10
+    img[41:45, 30:40] = -20
+
+    img_mask = img > 5
+
+    out_mask = minimum_boxcar_artefact_mask(
+        signal=img, island_mask=img_mask, boxcar_size=10, increase_factor=1000
+    )
+    assert out_mask is not img_mask
+    assert np.all(out_mask[30:40, 30:40] == False)  # noqa
 
 
 def test_minimum_boxcar_large_bright_island():
