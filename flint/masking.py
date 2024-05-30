@@ -241,6 +241,7 @@ def minimum_boxcar_artefact_mask(
     # label each of the islands with a id
     mask_labels, _ = label(island_mask, structure=np.ones((3, 3)))  # type: ignore
     uniq_labels = np.unique(mask_labels)
+    logger.info(f"Number of unique islands: {len(uniq_labels)}")
 
     rolling_min = minimum_filter(signal, boxcar_size)
 
@@ -269,8 +270,6 @@ def minimum_boxcar_artefact_mask(
     island_mask[np.isin(mask_labels, eliminate)] = False
 
     logger.info(f"Eliminated {len(eliminate)} islands")
-    for idx in eliminate:
-        logger.info(f"Island ID: {idx}, size {np.sum(mask_labels==idx)}")
 
     return mask
 
