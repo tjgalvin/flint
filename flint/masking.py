@@ -240,7 +240,7 @@ def minimum_boxcar_artefact_mask(
 
     # label each of the islands with a id
     mask_labels, _ = label(island_mask, structure=np.ones((3, 3)))  # type: ignore
-    uniq_labels = np.unique(mask)
+    uniq_labels = np.unique(mask_labels)
 
     rolling_min = minimum_filter(signal, boxcar_size)
 
