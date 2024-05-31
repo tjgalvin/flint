@@ -39,6 +39,8 @@ class MaskingOptions(NamedTuple):
     """The clipping level to seed islands that will be grown to lower SNR"""
     flood_fill_positive_flood_clip: float = 1.5
     """Clipping level used to grow seeded islands down to"""
+    flood_fill_use_mbc: bool = False
+    """If True, the clipping levels are used as the `increase_factor` when using a minimum absolute clip"""
     suppress_artefacts: bool = True
     """Whether to attempt artefacts based on the presence of sigificant negatives"""
     suppress_artefacts_negative_seed_clip: float = 5
@@ -337,6 +339,29 @@ def suppress_artefact_mask(
     return negative_dilated_mask
 
 
+def minimum_absolute_clip(
+    image: np.ndarray, increase_factor: float = 2.0, box_size: int = 100
+) -> np.ndarray:
+    """Given an input image or signal array, construct a simple image mask by applying a
+    rolling boxcar minimum filter, and then selecting pixels above a cut of
+    the absolute value value scaled by `increase_factor`. This is a pixel-wise operation.
+
+    Args:
+        image (np.ndarray): The input array to consider
+        increase_factor (float, optional): How large to scale the absolute minimum by. Defaults to 2.0.
+        box_size (int, optional): Size of the rolling boxcar minimum filtr. Defaults to 100.
+
+    Returns:
+        np.ndarray: The mask of pixels above the locally varying threshold
+    """
+    logger.info(f"Minimum absolute clip, {increase_factor=}")
+    rolling_box_min = minimum_filter(image, box_size)
+
+    image_mask = image > (increase_factor * np.abs(rolling_box_min))
+
+    return image_mask
+
+
 def _verify_set_positive_seed_clip(
     positive_seed_clip: float, signal: np.ndarray
 ) -> float:
@@ -409,18 +434,28 @@ def reverse_negative_flood_fill(
         image=image, rms=rms, background=background, signal=signal
     )
 
-    # Sanity check the upper clip level, you rotten seadog
-    positive_seed_clip = _verify_set_positive_seed_clip(
-        positive_seed_clip=masking_options.flood_fill_positive_seed_clip, signal=signal
-    )
+    if masking_options.flood_fill_use_mbc:
+        positive_mask = minimum_absolute_clip(
+            image=image, increase_factor=masking_options.flood_fill_positive_seed_clip
+        )
+        flood_floor_mask = minimum_absolute_clip(
+            image=image, increase_factor=masking_options.flood_fill_positive_flood_clip
+        )
+    else:
+        # Sanity check the upper clip level, you rotten seadog
+        positive_seed_clip = _verify_set_positive_seed_clip(
+            positive_seed_clip=masking_options.flood_fill_positive_seed_clip,
+            signal=signal,
+        )
+        # Here we create the mask image that will start the binary dilation
+        # process, and we will ensure only pixels above the `positive_flood_clip`
+        # are allowed to be dilated. In other words we are growing the mask
+        positive_mask = signal >= positive_seed_clip
+        flood_floor_mask = signal > masking_options.flood_fill_positive_flood_clip
 
-    # Here we create the mask image that will start the binary dilation
-    # process, and we will ensure only pixels above the `positive_flood_clip`
-    # are allowed to be dilated. In other words we are growing the mask
-    positive_mask = signal >= positive_seed_clip
     positive_dilated_mask = scipy_binary_dilation(
         input=positive_mask,
-        mask=signal > masking_options.flood_fill_positive_flood_clip,
+        mask=flood_floor_mask,
         iterations=1000,
         structure=np.ones((3, 3)),
     )
