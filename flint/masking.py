@@ -132,7 +132,7 @@ def _get_signal_image(
     if all([item is None for item in (image, background, rms, signal)]):
         raise ValueError("No input maps have been provided. ")
 
-    if signal is None:
+    if signal is None and image and rms:
         if background is None:
             logger.info("No background supplied, assuming zeros. ")
             background = np.zeros_like(image)
@@ -434,7 +434,7 @@ def reverse_negative_flood_fill(
         image=image, rms=rms, background=background, signal=signal
     )
 
-    if masking_options.flood_fill_use_mbc:
+    if masking_options.flood_fill_use_mbc and image:
         positive_mask = minimum_absolute_clip(
             image=image, increase_factor=masking_options.flood_fill_positive_seed_clip
         )
@@ -560,6 +560,7 @@ def create_snr_mask_from_fits(
         # TODO: This function should really just accept a MaskingOptions directly
         mask_data = reverse_negative_flood_fill(
             signal=np.squeeze(signal_data),
+            image=np.squeeze(fits.getdata(fits_image_path)),
             masking_options=masking_options,
             pixels_per_beam=pixels_per_beam,
         )
