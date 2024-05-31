@@ -132,7 +132,7 @@ def _get_signal_image(
     if all([item is None for item in (image, background, rms, signal)]):
         raise ValueError("No input maps have been provided. ")
 
-    if signal is None and image and rms:
+    if signal is None and image is not None and rms is not None:
         if background is None:
             logger.info("No background supplied, assuming zeros. ")
             background = np.zeros_like(image)
@@ -434,7 +434,7 @@ def reverse_negative_flood_fill(
         image=image, rms=rms, background=background, signal=signal
     )
 
-    if masking_options.flood_fill_use_mbc and image:
+    if masking_options.flood_fill_use_mbc and image is not None:
         positive_mask = minimum_absolute_clip(
             image=image, increase_factor=masking_options.flood_fill_positive_seed_clip
         )
