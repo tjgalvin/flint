@@ -22,6 +22,7 @@ DEFAULT_TAR_RE_PATTERNS = (
     r".*\.txt",
     r".*png",
     r".*\.ms\.zip",
+    r".*\.caltable",
 )
 DEFAULT_COPY_RE_PATTERNS = (r".*linmos.*fits", r".*png")
 
