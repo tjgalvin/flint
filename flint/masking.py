@@ -18,7 +18,7 @@ from scipy.ndimage import (
 from scipy.ndimage import (
     binary_erosion as scipy_binary_erosion,  # Rename to distinguish from skimage
 )
-from scipy.ndimage import label
+from scipy.ndimage import label, minimum_filter
 
 from flint.logging import logger
 from flint.naming import FITSMaskNames, create_fits_mask_names
@@ -39,6 +39,8 @@ class MaskingOptions(NamedTuple):
     """The clipping level to seed islands that will be grown to lower SNR"""
     flood_fill_positive_flood_clip: float = 1.5
     """Clipping level used to grow seeded islands down to"""
+    flood_fill_use_mbc: bool = False
+    """If True, the clipping levels are used as the `increase_factor` when using a minimum absolute clip"""
     suppress_artefacts: bool = True
     """Whether to attempt artefacts based on the presence of sigificant negatives"""
     suppress_artefacts_negative_seed_clip: float = 5
@@ -53,6 +55,12 @@ class MaskingOptions(NamedTuple):
     """The minimum signifance levels of pixels to be to seed low SNR islands for consideration"""
     grow_low_snr_island_size: int = 768
     """The number of pixels an island has to be for it to be accepted"""
+    minimum_boxcar: bool = True
+    """Use the boxcar minimum threshold to compare to remove artefacts"""
+    minimum_boxcar_size: int = 100
+    """Size of the boxcar filter"""
+    minimum_boxcar_increase_factor: float = 1.2
+    """The factor used to construct minimum positive signal threshold for an island """
 
     def with_options(self, **kwargs) -> MaskingOptions:
         """Return a new instance of the MaskingOptions"""
@@ -124,7 +132,7 @@ def _get_signal_image(
     if all([item is None for item in (image, background, rms, signal)]):
         raise ValueError("No input maps have been provided. ")
 
-    if signal is None:
+    if signal is None and image is not None and rms is not None:
         if background is None:
             logger.info("No background supplied, assuming zeros. ")
             background = np.zeros_like(image)
@@ -198,6 +206,76 @@ def grow_low_snr_mask(
     return low_snr_mask
 
 
+# TODO> Allow box car size to be scaled in proportion to beam size
+def minimum_boxcar_artefact_mask(
+    signal: np.ndarray,
+    island_mask: np.ndarray,
+    boxcar_size: int,
+    increase_factor: float = 2.0,
+) -> np.ndarray:
+    """Attempt to remove islands from a potential clean mask by
+    examining surronding pixels. A boxcar is applied to find the
+    minimum signal to noise in a small localised region. For each
+    island the maximum signal is considered.
+
+    If the absolute minimum signal increased by a factor in an
+    island region is larger to the maximum signal then that island
+    is ommited.
+
+
+    Args:
+        signal (np.ndarray): The input signl to use
+        island_mask (np.ndarray): The current island mask derived by other methods
+        boxcar_size (int): Size of the minimum boxcar size
+        increase_factor (float, optional): Factor to increase the minimum signal by. Defaults to 2.0.
+
+    Returns:
+        np.ndarray: _description_
+    """
+
+    logger.info(
+        f"Running boxcar minimum island clip with {boxcar_size=} {increase_factor=}"
+    )
+
+    # Make a copy of the original island mask to avoid unintended persistence
+    mask = island_mask.copy()
+
+    # label each of the islands with a id
+    mask_labels, _ = label(island_mask, structure=np.ones((3, 3)))  # type: ignore
+    uniq_labels = np.unique(mask_labels)
+    logger.info(f"Number of unique islands: {len(uniq_labels)}")
+
+    rolling_min = minimum_filter(signal, boxcar_size)
+
+    # For each island work out the maximum signal in the island and the minimum signal
+    # at the island in the output of the boxcar.
+    island_min, island_max = {}, {}
+    for island_id in uniq_labels:
+        if island_id == 0:
+            continue
+
+        # compute the mask once. These could be a dixt comprehension
+        # but then this mask is computed twice
+        island_id_mask = mask_labels == island_id
+
+        island_max[island_id] = np.max(signal[island_id_mask])
+        island_min[island_id] = np.min(rolling_min[island_id_mask])
+
+    # Nuke the weak ones, mask and report
+    eliminate = [
+        k
+        for k in island_max
+        if island_max[k] < np.abs(increase_factor * island_min[k])
+        and island_min[k] < 0.0
+    ]
+    # Walk the plank
+    mask[np.isin(mask_labels, eliminate)] = False
+
+    logger.info(f"Eliminated {len(eliminate)} islands")
+
+    return mask
+
+
 def suppress_artefact_mask(
     signal: np.ndarray,
     negative_seed_clip: float,
@@ -259,6 +337,29 @@ def suppress_artefact_mask(
     )
 
     return negative_dilated_mask
+
+
+def minimum_absolute_clip(
+    image: np.ndarray, increase_factor: float = 2.0, box_size: int = 100
+) -> np.ndarray:
+    """Given an input image or signal array, construct a simple image mask by applying a
+    rolling boxcar minimum filter, and then selecting pixels above a cut of
+    the absolute value value scaled by `increase_factor`. This is a pixel-wise operation.
+
+    Args:
+        image (np.ndarray): The input array to consider
+        increase_factor (float, optional): How large to scale the absolute minimum by. Defaults to 2.0.
+        box_size (int, optional): Size of the rolling boxcar minimum filtr. Defaults to 100.
+
+    Returns:
+        np.ndarray: The mask of pixels above the locally varying threshold
+    """
+    logger.info(f"Minimum absolute clip, {increase_factor=}")
+    rolling_box_min = minimum_filter(image, box_size)
+
+    image_mask = image > (increase_factor * np.abs(rolling_box_min))
+
+    return image_mask
 
 
 def _verify_set_positive_seed_clip(
@@ -333,21 +434,39 @@ def reverse_negative_flood_fill(
         image=image, rms=rms, background=background, signal=signal
     )
 
-    # Sanity check the upper clip level, you rotten seadog
-    positive_seed_clip = _verify_set_positive_seed_clip(
-        positive_seed_clip=masking_options.flood_fill_positive_seed_clip, signal=signal
-    )
+    if masking_options.flood_fill_use_mbc and image is not None:
+        positive_mask = minimum_absolute_clip(
+            image=image, increase_factor=masking_options.flood_fill_positive_seed_clip
+        )
+        flood_floor_mask = minimum_absolute_clip(
+            image=image, increase_factor=masking_options.flood_fill_positive_flood_clip
+        )
+    else:
+        # Sanity check the upper clip level, you rotten seadog
+        positive_seed_clip = _verify_set_positive_seed_clip(
+            positive_seed_clip=masking_options.flood_fill_positive_seed_clip,
+            signal=signal,
+        )
+        # Here we create the mask image that will start the binary dilation
+        # process, and we will ensure only pixels above the `positive_flood_clip`
+        # are allowed to be dilated. In other words we are growing the mask
+        positive_mask = signal >= positive_seed_clip
+        flood_floor_mask = signal > masking_options.flood_fill_positive_flood_clip
 
-    # Here we create the mask image that will start the binary dilation
-    # process, and we will ensure only pixels above the `positive_flood_clip`
-    # are allowed to be dilated. In other words we are growing the mask
-    positive_mask = signal >= positive_seed_clip
     positive_dilated_mask = scipy_binary_dilation(
         input=positive_mask,
-        mask=signal > masking_options.flood_fill_positive_flood_clip,
+        mask=flood_floor_mask,
         iterations=1000,
         structure=np.ones((3, 3)),
     )
+
+    if masking_options.minimum_boxcar:
+        positive_dilated_mask = minimum_boxcar_artefact_mask(
+            signal=signal,
+            island_mask=positive_dilated_mask,
+            boxcar_size=masking_options.minimum_boxcar_size,
+            increase_factor=masking_options.minimum_boxcar_increase_factor,
+        )
 
     negative_dilated_mask = None
     if masking_options.suppress_artefacts:
@@ -441,6 +560,7 @@ def create_snr_mask_from_fits(
         # TODO: This function should really just accept a MaskingOptions directly
         mask_data = reverse_negative_flood_fill(
             signal=np.squeeze(signal_data),
+            image=np.squeeze(fits.getdata(fits_image_path)),
             masking_options=masking_options,
             pixels_per_beam=pixels_per_beam,
         )

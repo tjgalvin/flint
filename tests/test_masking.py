@@ -8,10 +8,66 @@ from flint.masking import (
     MaskingOptions,
     _verify_set_positive_seed_clip,
     create_snr_mask_from_fits,
+    minimum_boxcar_artefact_mask,
 )
 from flint.naming import FITSMaskNames
 
 SHAPE = (100, 100)
+
+
+def test_minimum_boxcar_artefact():
+    """See if the minimum box care artefact suppressor can suppress the
+    bright artefact when a bright negative artefact
+    """
+    img = np.zeros((SHAPE))
+
+    img[30:40, 30:40] = 10
+    img_mask = img > 5
+
+    out_mask = minimum_boxcar_artefact_mask(
+        signal=img, island_mask=img_mask, boxcar_size=10
+    )
+    assert np.all(img_mask == out_mask)
+    assert img_mask is not out_mask
+
+    img[41:45, 30:40] = -20
+    out_mask = minimum_boxcar_artefact_mask(
+        signal=img, island_mask=img_mask, boxcar_size=10
+    )
+    assert not np.all(img_mask == out_mask)
+
+
+def test_minimum_boxcar_artefact_blanked():
+    """See if the minimum box care artefact suppressor can suppress the
+    bright artefact when a bright negative artefact
+    """
+    img = np.zeros((SHAPE))
+
+    img[30:40, 30:40] = 10
+    img[41:45, 30:40] = -20
+
+    img_mask = img > 5
+
+    out_mask = minimum_boxcar_artefact_mask(
+        signal=img, island_mask=img_mask, boxcar_size=10, increase_factor=1000
+    )
+    assert out_mask is not img_mask
+    assert np.all(out_mask[30:40, 30:40] == False)  # noqa
+
+
+def test_minimum_boxcar_large_bright_island():
+    """This one checks to make sure that if the boxcar is smaller than
+    a positive islane that the island is not the island_min
+    """
+
+    img = np.zeros(SHAPE)
+    img[30:40, 30:40] = 10
+    img_mask = img > 5
+
+    out_mask = minimum_boxcar_artefact_mask(
+        signal=img, island_mask=img_mask, boxcar_size=2
+    )
+    assert np.all(img_mask == out_mask)
 
 
 @pytest.fixture
