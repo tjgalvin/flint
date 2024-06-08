@@ -8,6 +8,7 @@ from argparse import ArgumentParser
 from pathlib import Path
 from typing import NamedTuple, Optional
 
+from matplotlib.dviread import Box
 import numpy as np
 from astropy.io import fits
 from astropy.wcs import WCS
@@ -356,7 +357,7 @@ def minimum_absolute_clip(
     Returns:
         np.ndarray: The mask of pixels above the locally varying threshold
     """
-    logger.info(f"Minimum absolute clip, {increase_factor=}")
+    logger.info(f"Minimum absolute clip, {increase_factor=} {box_size=}")
     rolling_box_min = minimum_filter(image, box_size)
 
     image_mask = image > (increase_factor * np.abs(rolling_box_min))
