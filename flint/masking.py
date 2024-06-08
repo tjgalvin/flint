@@ -41,6 +41,8 @@ class MaskingOptions(NamedTuple):
     """Clipping level used to grow seeded islands down to"""
     flood_fill_use_mbc: bool = False
     """If True, the clipping levels are used as the `increase_factor` when using a minimum absolute clip"""
+    flood_fill_use_mbc_box_size: int = 75
+    """The size of the mbc box size should mbc be used"""
     suppress_artefacts: bool = True
     """Whether to attempt artefacts based on the presence of sigificant negatives"""
     suppress_artefacts_negative_seed_clip: float = 5
@@ -436,10 +438,14 @@ def reverse_negative_flood_fill(
 
     if masking_options.flood_fill_use_mbc and image is not None:
         positive_mask = minimum_absolute_clip(
-            image=image, increase_factor=masking_options.flood_fill_positive_seed_clip
+            image=image,
+            increase_factor=masking_options.flood_fill_positive_seed_clip,
+            box_size=masking_options.flood_fill_use_mbc_box_size,
         )
         flood_floor_mask = minimum_absolute_clip(
-            image=image, increase_factor=masking_options.flood_fill_positive_flood_clip
+            image=image,
+            increase_factor=masking_options.flood_fill_positive_flood_clip,
+            box_size=masking_options.flood_fill_use_mbc_box_size,
         )
     else:
         # Sanity check the upper clip level, you rotten seadog
