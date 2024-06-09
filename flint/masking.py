@@ -203,7 +203,11 @@ def grow_low_snr_mask(
     mask_labels, no_labels = label(low_snr_mask, structure=np.ones((3, 3)))
     _, counts = np.unique(mask_labels.flatten(), return_counts=True)
 
-    small_islands = [idx for idx, count in enumerate(counts) if count < 512 and idx > 0]
+    small_islands = [
+        idx
+        for idx, count in enumerate(counts)
+        if count < grow_low_island_size and idx > 0
+    ]
     low_snr_mask[np.isin(mask_labels, small_islands)] = False
 
     return low_snr_mask
