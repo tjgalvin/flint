@@ -282,9 +282,10 @@ def process_science_fields(
             )
 
             fits_beam_masks = None
-            if field_options.use_beam_masks and consider_beam_mask_round(
+            if consider_beam_mask_round(
                 current_round=current_round,
                 mask_rounds=field_options.use_beam_mask_rounds,
+                allow_beam_masks=field_options.use_beam_masks,
             ):
                 masking_options = get_options_from_strategy(
                     strategy=strategy, mode="masking", round=current_round

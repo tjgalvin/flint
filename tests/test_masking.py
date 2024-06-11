@@ -31,6 +31,13 @@ def test_consider_beam_masking_round():
 
     assert not consider_beam_mask_round(current_round=3, mask_rounds=None)
 
+    assert not consider_beam_mask_round(
+        current_round=3, mask_rounds=1, allow_beam_masks=False
+    )
+    assert consider_beam_mask_round(
+        current_round=3, mask_rounds=1, allow_beam_masks=True
+    )
+
 
 def test_minimum_boxcar_artefact():
     """See if the minimum box care artefact suppressor can suppress the
