@@ -5,10 +5,10 @@ thought being towards FITS images.
 from __future__ import annotations
 
 from argparse import ArgumentParser
+from collections import Iterable
 from pathlib import Path
-from typing import NamedTuple, Optional
+from typing import NamedTuple, Optional, Collection, Union
 
-from matplotlib.dviread import Box
 import numpy as np
 from astropy.io import fits
 from astropy.wcs import WCS
@@ -71,6 +71,33 @@ class MaskingOptions(NamedTuple):
         _dict.update(**kwargs)
 
         return MaskingOptions(**_dict)
+
+
+def consider_beam_mask_round(
+    current_round: int, mask_rounds: Union[str, Collection[int], int]
+) -> bool:
+    """Evaluate whether a self-calibration round should have a beam clean mask
+    constructed. Rules are:
+
+    - if `mask_rounds` is a string and is "all", all rounds will have a beam mask
+    - if 'mask_rounds' is a single integer, so long as `current_round` is larger it will have a beam mask
+    - if `mask_rounds` is iterable and contains `current_round` it will have a beam mask
+
+    Args:
+        current_round (int): The current self-calibration round that is being performed
+        mask_rounds (Union[str, Collection[int], int]): The rules to consider whether a beam mask is needed
+
+    Returns:
+        bool: _description_
+    """
+    if mask_rounds is None:
+        return False
+
+    return (
+        (isinstance(mask_rounds, str) and mask_rounds.lower() == "all")
+        or (isinstance(mask_rounds, int) and current_round > mask_rounds)
+        or (isinstance(mask_rounds, Iterable) and current_round in mask_rounds)  # type: ignore
+    )
 
 
 def extract_beam_mask_from_mosaic(
@@ -364,7 +391,9 @@ def minimum_absolute_clip(
     logger.info(f"Minimum absolute clip, {increase_factor=} {box_size=}")
     rolling_box_min = minimum_filter(image, box_size)
 
-    image_mask = image > (increase_factor * np.abs(rolling_box_min))
+    image_mask = (image > (increase_factor * np.abs(rolling_box_min))) | (
+        (image > 0.0) & (rolling_box_min > 0.0)
+    )
 
     return image_mask
 

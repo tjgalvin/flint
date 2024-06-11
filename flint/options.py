@@ -3,7 +3,7 @@ set of flint processing related options.
 """
 
 from pathlib import Path
-from typing import NamedTuple, Optional
+from typing import NamedTuple, Optional, Union, Collection
 
 
 class BandpassOptions(NamedTuple):
@@ -96,8 +96,8 @@ class FieldOptions(NamedTuple):
     """Whether to apply (or search for solutions with) a bandpass smoothing operation applied"""
     use_beam_masks: bool = True
     """Construct beam masks from MFS images to use for the next round of imaging. """
-    use_beam_masks_from: int = 2
-    """If `use_beam_masks` is True, start using them from this round of self-calibration"""
+    use_beam_mask_rounds: Union[str, Collection[int], int] = 1
+    """If `use_beam_masks` is True, this sets which rounds should have a mask applied"""
     imaging_strategy: Optional[Path] = None
     """Path to a FLINT imaging yaml file that contains settings to use throughout imaging"""
     sbid_archive_path: Optional[Path] = None

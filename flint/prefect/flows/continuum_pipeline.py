@@ -18,6 +18,7 @@ from flint.configuration import (
     load_strategy_yaml,
 )
 from flint.logging import logger
+from flint.masking import consider_beam_mask_round
 from flint.ms import MS
 from flint.naming import get_sbid_from_path
 from flint.options import FieldOptions
@@ -280,9 +281,9 @@ def process_science_fields(
                 ],  # To make sure field summary is created with unzipped MSs
             )
 
-            if (
-                field_options.use_beam_masks
-                and current_round >= field_options.use_beam_masks_from
+            if field_options.use_beam_masks and consider_beam_mask_round(
+                current_round=current_round,
+                mask_rounds=field_options.use_beam_mask_rounds,
             ):
                 masking_options = get_options_from_strategy(
                     strategy=strategy, mode="masking", round=current_round
@@ -555,9 +556,17 @@ def get_parser() -> ArgumentParser:
         action="store_true",
         help="Construct a clean mask from an MFS image for the next round of imaging. May adjust some of the imaging options per found if activated. ",
     )
-    parser.add_argument(
+    beam_mask_options = parser.add_mutually_exclusive_group()
+    beam_mask_options.add_argument(
+        "--use-beam-mask-rounds",
+        default=None,
+        type=int,
+        nargs="+",
+        help="If --use-beam-masks is provided, this option specifies from which round of self-calibration the masking operation will be used onwards from. Specific rounds can be set here. ",
+    )
+    beam_mask_options.add_argument(
         "--use-beam-masks-from",
-        default=2,
+        default=None,
         type=int,
         help="If --use-beam-masks is provided, this option specifies from which round of self-calibration the masking operation will be used onwards from. ",
     )
@@ -606,7 +615,11 @@ def cli() -> None:
         pb_cutoff=args.pb_cutoff,
         use_preflagger=args.use_preflagger,
         use_beam_masks=args.use_beam_masks,
-        use_beam_masks_from=args.use_beam_masks_from,
+        use_beam_mask_rounds=(
+            args.use_beam_mask_rounds
+            if args.use_beam_mask_rounds
+            else args.use_beam_masks_from
+        ),
         imaging_strategy=args.imaging_strategy,
         sbid_archive_path=args.sbid_archive_path,
         sbid_copy_path=args.sbid_copy_path,
