@@ -96,6 +96,7 @@ def consider_beam_mask_round(
     """
     logger.info(f"Considering {current_round=} {mask_rounds=} {allow_beam_masks=}")
 
+    # The return below was getting silly to meantally parse
     if not allow_beam_masks:
         return False
 
