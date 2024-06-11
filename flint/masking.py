@@ -90,10 +90,9 @@ def consider_beam_mask_round(
     Returns:
         bool: _description_
     """
-    if mask_rounds is None:
-        return False
+    logger.info(f"Considering {current_round=} {mask_rounds=}")
 
-    return (
+    return mask_rounds is not None and (
         (isinstance(mask_rounds, str) and mask_rounds.lower() == "all")
         or (isinstance(mask_rounds, int) and current_round > mask_rounds)
         or (isinstance(mask_rounds, Iterable) and current_round in mask_rounds)  # type: ignore
