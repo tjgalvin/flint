@@ -281,6 +281,7 @@ def process_science_fields(
                 ],  # To make sure field summary is created with unzipped MSs
             )
 
+            fits_beam_masks = None
             if field_options.use_beam_masks and consider_beam_mask_round(
                 current_round=current_round,
                 mask_rounds=field_options.use_beam_mask_rounds,
