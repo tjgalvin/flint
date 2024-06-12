@@ -582,7 +582,7 @@ def get_parser() -> ArgumentParser:
     )
     beam_mask_options.add_argument(
         "--use-beam-masks-from",
-        default=None,
+        default=1,
         type=int,
         help="If --use-beam-masks is provided, this option specifies from which round of self-calibration the masking operation will be used onwards from. ",
     )
