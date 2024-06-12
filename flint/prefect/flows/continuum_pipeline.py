@@ -272,11 +272,17 @@ def process_science_fields(
                 strategy=strategy, mode="wsclean", round=current_round
             )
 
+            skip_gaincal_current_round = consider_skip_selfcal_on_round(
+                current_round=current_round,
+                skip_selfcal_on_rounds=field_options.skip_selfcal_on_rounds,
+            )
+
             cal_mss = task_gaincal_applycal_ms.map(
                 wsclean_cmd=wsclean_cmds,
                 round=current_round,
                 update_gain_cal_options=unmapped(gain_cal_options),
                 archive_input_ms=field_options.zip_ms,
+                skip_selfcal=skip_gaincal_current_round,
                 wait_for=[
                     field_summary
                 ],  # To make sure field summary is created with unzipped MSs
@@ -504,7 +510,7 @@ def get_parser() -> ArgumentParser:
         help="The number of selfcalibration rounds to perfrom. ",
     )
     parser.add_argument(
-        "--skip_selfcal_on_rounds",
+        "--skip-selfcal-on-rounds",
         type=int,
         nargs="+",
         default=None,

@@ -242,6 +242,10 @@ def gaincal_applycal_ms(
     # Pirates like easy things though.
     cal_ms = copy_and_clean_ms_casagain(ms=ms, round=round)
 
+    # Archive straight after copying incase we skip the gaincal and return
+    if archive_input_ms:
+        zip_folder(in_path=ms.path)
+
     # No need to do work me, hardy
     if skip_selfcal:
         logger.info(f"{skip_selfcal=}, not calibrating the MS. ")
@@ -301,9 +305,6 @@ def gaincal_applycal_ms(
         # At the time of writing merge_spws_in_ms returns the ms_path=,
         # but this pirate trusts no one.
         cal_ms = cal_ms.with_options(path=cal_ms_path)
-
-    if archive_input_ms:
-        zip_folder(in_path=ms.path)
 
     return cal_ms.with_options(column="CORRECTED_DATA")
 
