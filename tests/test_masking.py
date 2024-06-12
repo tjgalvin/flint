@@ -19,7 +19,9 @@ SHAPE = (100, 100)
 def test_consider_beam_masking_round():
     """Test to ensure the beam mask consideration log is correct"""
     lower = ("all", "ALL", "aLl")
-    states = (consider_beam_mask_round(current_round=1, mask_rounds=l) for l in lower)
+    states = (
+        consider_beam_mask_round(current_round=1, mask_rounds=low) for low in lower
+    )
 
     assert all(states)
 

@@ -9,7 +9,6 @@ from argparse import ArgumentParser
 from pathlib import Path
 from shutil import copytree
 from typing import Any, Dict, NamedTuple, Optional
-from unittest import skip
 
 from casacore.tables import table
 from casatasks import applycal, cvel, gaincal, mstransform
