@@ -2,7 +2,7 @@
 across different packages.
 """
 
-from typing import Union, List
+from typing import List, Union
 from unittest import skip
 
 from flint.logging import logger

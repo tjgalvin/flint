@@ -3,7 +3,7 @@ set of flint processing related options.
 """
 
 from pathlib import Path
-from typing import NamedTuple, Optional, Union, List
+from typing import List, NamedTuple, Optional, Union
 
 
 class BandpassOptions(NamedTuple):

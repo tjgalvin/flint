@@ -7,7 +7,7 @@ from __future__ import annotations
 from argparse import ArgumentParser
 from collections import Iterable
 from pathlib import Path
-from typing import NamedTuple, Optional, Collection, Union
+from typing import Collection, NamedTuple, Optional, Union
 
 import numpy as np
 from astropy.io import fits

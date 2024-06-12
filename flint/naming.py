@@ -3,7 +3,6 @@ products.
 """
 
 import re
-
 from datetime import datetime
 from pathlib import Path
 from typing import Any, List, NamedTuple, Optional, Union

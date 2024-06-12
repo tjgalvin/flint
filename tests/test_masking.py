@@ -7,9 +7,9 @@ from astropy.io import fits
 from flint.masking import (
     MaskingOptions,
     _verify_set_positive_seed_clip,
+    consider_beam_mask_round,
     create_snr_mask_from_fits,
     minimum_boxcar_artefact_mask,
-    consider_beam_mask_round,
 )
 from flint.naming import FITSMaskNames
 
