@@ -636,7 +636,7 @@ def cli() -> None:
             args.use_beam_mask_rounds
             if args.use_beam_mask_rounds
             else args.use_beam_masks_from
-        ),
+        ),  # defaults value of args.use_beam_masks_from is 1
         imaging_strategy=args.imaging_strategy,
         sbid_archive_path=args.sbid_archive_path,
         sbid_copy_path=args.sbid_copy_path,
