@@ -3,11 +3,42 @@ products.
 """
 
 import re
+
 from datetime import datetime
 from pathlib import Path
 from typing import Any, List, NamedTuple, Optional, Union
 
 from flint.logging import logger
+
+
+def get_selfcal_ms_name(in_ms_path: Path, round: int = 1) -> Path:
+    """Create the new output MS path that will be used for self-calibration. The
+    output measurement set path will include a roundN.ms suffix, where N is the
+    round. If such a suffic already exists from an earlier self-calibration round,
+    it will be removed and replaced.
+
+    Args:
+        in_ms_path (Path): The measurement set that will go through self-calibration
+        round (int, optional): The self-calibration round number that is currently being used. Defaults to 1.
+
+    Returns:
+        Path: Output measurement set path to use
+    """
+    res = re.search("\\.round[0-9]+.ms", str(in_ms_path.name))
+    if res:
+        logger.info("Detected a previous round of self-calibration. ")
+        span = res.span()
+        name_str = str(in_ms_path.name)
+        name = f"{name_str[:span[0]]}.round{round}.ms"
+    else:
+        name = f"{str(in_ms_path.stem)}.round{round}.ms"
+    out_ms_path = in_ms_path.parent / name
+
+    assert (
+        in_ms_path != out_ms_path
+    ), f"{in_ms_path=} and {out_ms_path=} match. Something went wrong when creating new self-cal name. "
+
+    return out_ms_path
 
 
 def add_timestamp_to_path(

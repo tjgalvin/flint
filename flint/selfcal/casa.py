@@ -9,8 +9,8 @@ from argparse import ArgumentParser
 from pathlib import Path
 from shutil import copytree
 from typing import Any, Dict, NamedTuple, Optional
+from unittest import skip
 
-import regex
 from casacore.tables import table
 from casatasks import applycal, cvel, gaincal, mstransform
 
@@ -18,6 +18,7 @@ from flint.exceptions import GainCalError
 from flint.flagging import nan_zero_extreme_flag_ms
 from flint.logging import logger
 from flint.ms import MS
+from flint.naming import get_selfcal_ms_name
 from flint.utils import remove_files_folders, rsync_copy_directory, zip_folder
 
 
@@ -49,36 +50,6 @@ class GainCalOptions(NamedTuple):
         _dict.update(**kwargs)
 
         return GainCalOptions(**_dict)
-
-
-def get_selfcal_ms_name(in_ms_path: Path, round: int = 1) -> Path:
-    """Create the new output MS path that will be used for self-calibration. The
-    output measurement set path will include a roundN.ms suffix, where N is the
-    round. If such a suffic already exists from an earlier self-calibration round,
-    it will be removed and replaced.
-
-    Args:
-        in_ms_path (Path): The measurement set that will go through self-calibration
-        round (int, optional): The self-calibration round number that is currently being used. Defaults to 1.
-
-    Returns:
-        Path: Output measurement set path to use
-    """
-    res = regex.search("\\.round[0-9]+.ms", str(in_ms_path.name))
-    if res:
-        logger.info("Detected a previous round of self-calibration. ")
-        span = res.span()
-        name_str = str(in_ms_path.name)
-        name = f"{name_str[:span[0]]}.round{round}.ms"
-    else:
-        name = f"{str(in_ms_path.stem)}.round{round}.ms"
-    out_ms_path = in_ms_path.parent / name
-
-    assert (
-        in_ms_path != out_ms_path
-    ), f"{in_ms_path=} and {out_ms_path=} match. Something went wrong when creating new self-cal name. "
-
-    return out_ms_path
 
 
 def copy_and_clean_ms_casagain(ms: MS, round: int = 1, verify: bool = True) -> MS:
@@ -239,6 +210,7 @@ def gaincal_applycal_ms(
     update_gain_cal_options: Optional[Dict[str, Any]] = None,
     archive_input_ms: bool = False,
     raise_error_on_fail: bool = True,
+    skip_selfcal: bool = False,
 ) -> MS:
     """Perform self-calibration using casa's gaincal and applycal tasks against
     an input measurement set.
@@ -250,6 +222,7 @@ def gaincal_applycal_ms(
         update_gain_cal_options (Optional[Dict[str, Any]], optional): Update the gain_cal_options with these. Defaults to None.
         archive_input_ms (bool, optional): If True, the input measurement set will be compressed into a single file. Defaults to False.
         raise_error_on_fail (bool, optional): If gaincal does not converge raise en error. if False and gain cal fails return the input ms. Defaults to True.
+        skip_selfcal (bool, optional): Should this self-cal be skipped. If `True`, the a new MS is created but not calibrated the appropriate new name and returned.
 
     Raises:
         GainCallError: Raised when raise_error_on_fail is True and gaincal does not converge.
@@ -265,7 +238,14 @@ def gaincal_applycal_ms(
         logger.info(f"Updating gaincal options with: {update_gain_cal_options}")
         gain_cal_options = gain_cal_options.with_options(**update_gain_cal_options)
 
+    # TODO: If the skip_selfcal is True we should just symlink, maybe?
+    # Pirates like easy things though.
     cal_ms = copy_and_clean_ms_casagain(ms=ms, round=round)
+
+    # No need to do work me, hardy
+    if skip_selfcal:
+        logger.info(f"{skip_selfcal=}, not calibrating the MS. ")
+        return cal_ms
 
     cal_table = cal_ms.path.absolute().parent / cal_ms.path.with_suffix(".caltable")
     logger.info(f"Will create calibration table {cal_table}.")
