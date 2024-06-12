@@ -1,5 +1,8 @@
 # Change log
 
+# Dev
+- added in skip rounds for masking and selfcal
+
 ## 0.2.4
 
 - Added new masking modes
