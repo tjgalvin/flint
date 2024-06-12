@@ -78,16 +78,33 @@ class CASDANameComponents(NamedTuple):
     """If multiple MS were written as the data were in a high-frequency resolution mode, which segment"""
     alias: Optional[str] = None
     """Older ASKAP MSs could be packed with multiple fields. The ASKAP pipeline holds this field as an alias. They are now the same in almost all cases as the field. """
+    format: str = "science"
+    """What the format / type of the data the MS is. """
 
 
-def casda_ms_format(in_name: str) -> Union[CASDANameComponents, None]:
+def casda_ms_format(in_name: Union[str, Path]) -> Union[CASDANameComponents, None]:
+    """Break up a CASDA sty;e MS name (really the askap pipeline format) into its recognised parts.
+    if a match fails a `None` is returned.
+
+    Example of a CASDA style MS:
+
+    - `scienceData.RACS_1237+00.SB40470.RACS_1237+00.beam35_averaged_cal.leakage.ms`
+
+    Args:
+        in_name (Union[str, Path]): The path to or name of the MS to consider
+
+    Returns:
+        Union[CASDANameComponents, None]: The returned components of the MS. If this fails a `None` is returned.
+    """
+
+    in_name = Path(in_name).name
 
     # An example
     # scienceData.RACS_1237+00.SB40470.RACS_1237+00.beam35_averaged_cal.leakage.ms
 
     logger.debug(f"Matching {in_name}")
     regex = re.compile(
-        r"^(?P<format>.*)\.(?P<field>.*)\.SB(?P<sbid>[0-9]+)\.(?P<alias>.*)\.beam(?P<beam>[0-9]+)_.*"
+        r"^(?P<format>.*)\.(?P<field>.*)\.SB(?P<sbid>[0-9]+)\.(?P<alias>.*)\.beam(?P<beam>[0-9]+)_.*ms"
     )
     results = regex.match(in_name)
 
@@ -100,6 +117,7 @@ def casda_ms_format(in_name: str) -> Union[CASDANameComponents, None]:
         field=results["field"],
         beam=results["beam"],
         alias=results["alias"],
+        format=results["format"],
     )
 
 
