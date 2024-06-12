@@ -50,6 +50,7 @@ from flint.prefect.common.utils import (
     task_update_field_summary,
     task_update_with_options,
 )
+from flint.selfcal.utils import consider_skip_selfcal_on_round
 
 
 @flow(name="Flint Continuum Pipeline")
@@ -503,6 +504,13 @@ def get_parser() -> ArgumentParser:
         help="The number of selfcalibration rounds to perfrom. ",
     )
     parser.add_argument(
+        "--skip_selfcal_on_rounds",
+        type=int,
+        nargs="+",
+        default=None,
+        help="Do not perform the derive and apply self-calibration solutions on these rounds",
+    )
+    parser.add_argument(
         "--zip-ms",
         action="store_true",
         help="Zip up measurement sets as imaging and self-calibration is carried out.",
@@ -607,6 +615,7 @@ def cli() -> None:
         yandasoft_container=args.yandasoft_container,
         potato_container=args.potato_container,
         rounds=args.selfcal_rounds,
+        skip_selfcal_on_rounds=args.skip_selfcal_on_rounds,
         zip_ms=args.zip_ms,
         run_aegean=args.run_aegean,
         aegean_container=args.aegean_container,

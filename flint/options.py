@@ -71,7 +71,9 @@ class FieldOptions(NamedTuple):
     holofile: Optional[Path] = None
     """Path to the holography FITS cube that will be used when co-adding beams"""
     rounds: int = 2
-    """Number of required rouds of self-calibration to perform"""
+    """Number of required rouds of self-calibration and imaging to perform"""
+    skip_selfcal_on_rounds: Optional[List[int]] = None
+    """Do not perform the derive and apply self-calibration solutions on these rounds"""
     zip_ms: bool = False
     """Whether to zip measurement sets once they are no longer required"""
     run_aegean: bool = False
@@ -82,8 +84,6 @@ class FieldOptions(NamedTuple):
     """Whether to skip the imaging process (including self-calibration)"""
     reference_catalogue_directory: Optional[Path] = None
     """Path to the directory container the refernce catalogues, used to generate valiation plots"""
-    butterworth_filter: bool = False
-    """Whether a Butterworth filter should be used when constructing the clean mask"""
     linmos_residuals: bool = False
     """Linmos the cleaning residuals together into a field image"""
     beam_cutoff: float = 150
