@@ -2,12 +2,15 @@
 
 from datetime import datetime
 from pathlib import Path
+from re import I
 
 from flint.naming import (
+    CASDANameComponents,
     FITSMaskNames,
     ProcessedNameComponents,
     RawNameComponents,
     add_timestamp_to_path,
+    casda_ms_format,
     create_fits_mask_names,
     create_ms_name,
     extract_beam_from_name,
@@ -19,6 +22,29 @@ from flint.naming import (
     processed_ms_format,
     raw_ms_format,
 )
+
+
+def test_casda_ms_format():
+    """Checks around the name format form CASDA"""
+    ex = "scienceData.RACS_1237+00.SB40470.RACS_1237+00.beam35_averaged_cal.leakage.ms"
+
+    res = casda_ms_format(in_name=ex)
+    assert res is not None
+    assert isinstance(res, CASDANameComponents)
+    assert res.sbid == 40470
+    assert res.beam == "35"
+    assert res.field == "RACS_1237+00"
+    assert res.alias == "RACS_1237+00"
+
+    # Confirm None is returned in silly cases
+    exs = [
+        "scienceData.fdgdfdfg.RACS_1237+00.SBaveraged_cal.leakage.ms",
+        "SB12349.RACS_1234+45.ms",
+        "SB12349.RACS_1234+45.round2.ms",
+    ]
+    for ex in exs:
+        res = casda_ms_format(in_name=ex)
+        assert res is None
 
 
 def test_self_cal_name():

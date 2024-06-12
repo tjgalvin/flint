@@ -64,6 +64,45 @@ def add_timestamp_to_path(
     return output_path
 
 
+class CASDANameComponents(NamedTuple):
+    """Container for the components of a CASDA MS. These are really those
+    processed by the ASKAP pipeline"""
+
+    sbid: int
+    """The sbid of the observation"""
+    field: str
+    """The name of the field extracted"""
+    beam: str
+    """Beam number of the data"""
+    spw: Optional[str] = None
+    """If multiple MS were written as the data were in a high-frequency resolution mode, which segment"""
+    alias: Optional[str] = None
+    """Older ASKAP MSs could be packed with multiple fields. The ASKAP pipeline holds this field as an alias. They are now the same in almost all cases as the field. """
+
+
+def casda_ms_format(in_name: str) -> Union[CASDANameComponents, None]:
+
+    # An example
+    # scienceData.RACS_1237+00.SB40470.RACS_1237+00.beam35_averaged_cal.leakage.ms
+
+    logger.debug(f"Matching {in_name}")
+    regex = re.compile(
+        r"^(?P<format>.*)\.(?P<field>.*)\.SB(?P<sbid>[0-9]+)\.(?P<alias>.*)\.beam(?P<beam>[0-9]+)_.*"
+    )
+    results = regex.match(in_name)
+
+    if results is None:
+        logger.debug(f"No casda_ms_format results to {in_name} found")
+        return None
+
+    return CASDANameComponents(
+        sbid=int(results["sbid"]),
+        field=results["field"],
+        beam=results["beam"],
+        alias=results["alias"],
+    )
+
+
 class RawNameComponents(NamedTuple):
     date: str
     """Date that the data were taken, of the form YYYY-MM-DD"""
