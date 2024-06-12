@@ -24,6 +24,20 @@ from flint.naming import (
 )
 
 
+def test_casda_ms_format_1934():
+    """Checks around the name format form CASDA  considering 1934"""
+    exs = [
+        "1934.SB40470.beam35.ms",
+        Path("1934.SB40470.beam35.ms"),
+    ]
+    for ex in exs:
+        res = casda_ms_format(in_name=ex)
+        assert res is not None
+        assert res.format == "1934"
+        assert res.sbid == 40470
+        assert res.beam == "35"
+
+
 def test_casda_ms_format():
     """Checks around the name format form CASDA"""
     exs = [
@@ -40,6 +54,7 @@ def test_casda_ms_format():
         assert res.beam == "35"
         assert res.field == "RACS_1237+00"
         assert res.alias == "RACS_1237+00"
+        assert res.format == "scienceData"
 
     # Confirm None is returned in silly cases
     exs = [

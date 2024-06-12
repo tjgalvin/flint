@@ -104,7 +104,7 @@ def casda_ms_format(in_name: Union[str, Path]) -> Union[CASDANameComponents, Non
 
     logger.debug(f"Matching {in_name}")
     regex = re.compile(
-        r"^(?P<format>.*)\.(?P<field>.*)\.SB(?P<sbid>[0-9]+)\.(?P<alias>.*)\.beam(?P<beam>[0-9]+)_.*ms"
+        r"^(?P<format>(scienceData|1934))(\.(?P<field>.*)){0,1}\.SB(?P<sbid>[0-9]+)(\.(?P<alias>.*)){0,1}\.beam(?P<beam>[0-9]+).*ms"
     )
     results = regex.match(in_name)
 
