@@ -210,6 +210,7 @@ def task_gaincal_applycal_ms(
     round: int,
     update_gain_cal_options: Optional[Dict[str, Any]] = None,
     archive_input_ms: bool = False,
+    skip_selfcal: bool = False,
 ) -> MS:
     """Perform self-calibration using CASA gaincal and applycal.
 
@@ -218,6 +219,7 @@ def task_gaincal_applycal_ms(
         round (int): Counter indication which self-calibration round is being performed. A name is included based on this.
         update_gain_cal_options (Optional[Dict[str, Any]], optional): Options used to overwrite the default ``gaincal`` options. Defaults to None.
         archive_input_ms (bool, optional): If True the input measurement set is zipped. Defaults to False.
+        skip_selfcal (bool, optional): Should this self-cal be skipped. If `True`, the a new MS is created but not calibrated the appropriate new name and returned.
 
     Raises:
         ValueError: Raised when a ``.ms`` attribute can not be obtained
@@ -239,6 +241,7 @@ def task_gaincal_applycal_ms(
         round=round,
         update_gain_cal_options=update_gain_cal_options,
         archive_input_ms=archive_input_ms,
+        skip_selfcal=skip_selfcal,
     )
 
 

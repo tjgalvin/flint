@@ -7,12 +7,38 @@ from astropy.io import fits
 from flint.masking import (
     MaskingOptions,
     _verify_set_positive_seed_clip,
+    consider_beam_mask_round,
     create_snr_mask_from_fits,
     minimum_boxcar_artefact_mask,
 )
 from flint.naming import FITSMaskNames
 
 SHAPE = (100, 100)
+
+
+def test_consider_beam_masking_round():
+    """Test to ensure the beam mask consideration log is correct"""
+    lower = ("all", "ALL", "aLl")
+    states = (
+        consider_beam_mask_round(current_round=1, mask_rounds=low) for low in lower
+    )
+
+    assert all(states)
+
+    assert consider_beam_mask_round(current_round=3, mask_rounds=1)
+    assert not consider_beam_mask_round(current_round=0, mask_rounds=1)
+
+    assert consider_beam_mask_round(current_round=3, mask_rounds=(1, 2, 3, 4, 5))
+    assert not consider_beam_mask_round(current_round=3, mask_rounds=(1, 2, 4, 5))
+
+    assert not consider_beam_mask_round(current_round=3, mask_rounds=None)
+
+    assert not consider_beam_mask_round(
+        current_round=3, mask_rounds=1, allow_beam_masks=False
+    )
+    assert consider_beam_mask_round(
+        current_round=3, mask_rounds=1, allow_beam_masks=True
+    )
 
 
 def test_minimum_boxcar_artefact():

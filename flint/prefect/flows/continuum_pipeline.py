@@ -18,6 +18,7 @@ from flint.configuration import (
     load_strategy_yaml,
 )
 from flint.logging import logger
+from flint.masking import consider_beam_mask_round
 from flint.ms import MS
 from flint.naming import get_sbid_from_path
 from flint.options import FieldOptions
@@ -49,6 +50,7 @@ from flint.prefect.common.utils import (
     task_update_field_summary,
     task_update_with_options,
 )
+from flint.selfcal.utils import consider_skip_selfcal_on_round
 
 
 @flow(name="Flint Continuum Pipeline")
@@ -270,19 +272,27 @@ def process_science_fields(
                 strategy=strategy, mode="wsclean", round=current_round
             )
 
+            skip_gaincal_current_round = consider_skip_selfcal_on_round(
+                current_round=current_round,
+                skip_selfcal_on_rounds=field_options.skip_selfcal_on_rounds,
+            )
+
             cal_mss = task_gaincal_applycal_ms.map(
                 wsclean_cmd=wsclean_cmds,
                 round=current_round,
                 update_gain_cal_options=unmapped(gain_cal_options),
                 archive_input_ms=field_options.zip_ms,
+                skip_selfcal=skip_gaincal_current_round,
                 wait_for=[
                     field_summary
                 ],  # To make sure field summary is created with unzipped MSs
             )
 
-            if (
-                field_options.use_beam_masks
-                and current_round >= field_options.use_beam_masks_from
+            fits_beam_masks = None
+            if consider_beam_mask_round(
+                current_round=current_round,
+                mask_rounds=field_options.use_beam_mask_rounds,
+                allow_beam_masks=field_options.use_beam_masks,
             ):
                 masking_options = get_options_from_strategy(
                     strategy=strategy, mode="masking", round=current_round
@@ -500,6 +510,13 @@ def get_parser() -> ArgumentParser:
         help="The number of selfcalibration rounds to perfrom. ",
     )
     parser.add_argument(
+        "--skip-selfcal-on-rounds",
+        type=int,
+        nargs="+",
+        default=None,
+        help="Do not perform the derive and apply self-calibration solutions on these rounds",
+    )
+    parser.add_argument(
         "--zip-ms",
         action="store_true",
         help="Zip up measurement sets as imaging and self-calibration is carried out.",
@@ -555,9 +572,17 @@ def get_parser() -> ArgumentParser:
         action="store_true",
         help="Construct a clean mask from an MFS image for the next round of imaging. May adjust some of the imaging options per found if activated. ",
     )
-    parser.add_argument(
+    beam_mask_options = parser.add_mutually_exclusive_group()
+    beam_mask_options.add_argument(
+        "--use-beam-mask-rounds",
+        default=None,
+        type=int,
+        nargs="+",
+        help="If --use-beam-masks is provided, this option specifies from which round of self-calibration the masking operation will be used onwards from. Specific rounds can be set here. ",
+    )
+    beam_mask_options.add_argument(
         "--use-beam-masks-from",
-        default=2,
+        default=1,
         type=int,
         help="If --use-beam-masks is provided, this option specifies from which round of self-calibration the masking operation will be used onwards from. ",
     )
@@ -596,6 +621,7 @@ def cli() -> None:
         yandasoft_container=args.yandasoft_container,
         potato_container=args.potato_container,
         rounds=args.selfcal_rounds,
+        skip_selfcal_on_rounds=args.skip_selfcal_on_rounds,
         zip_ms=args.zip_ms,
         run_aegean=args.run_aegean,
         aegean_container=args.aegean_container,
@@ -606,7 +632,11 @@ def cli() -> None:
         pb_cutoff=args.pb_cutoff,
         use_preflagger=args.use_preflagger,
         use_beam_masks=args.use_beam_masks,
-        use_beam_masks_from=args.use_beam_masks_from,
+        use_beam_mask_rounds=(
+            args.use_beam_mask_rounds
+            if args.use_beam_mask_rounds
+            else args.use_beam_masks_from
+        ),  # defaults value of args.use_beam_masks_from is 1
         imaging_strategy=args.imaging_strategy,
         sbid_archive_path=args.sbid_archive_path,
         sbid_copy_path=args.sbid_copy_path,

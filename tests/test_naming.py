@@ -15,9 +15,34 @@ from flint.naming import (
     get_aocalibrate_output_path,
     get_potato_output_base_path,
     get_sbid_from_path,
+    get_selfcal_ms_name,
     processed_ms_format,
     raw_ms_format,
 )
+
+
+def test_self_cal_name():
+    """Checks around where the self-calibration naming is working, and the
+    correct slicing"""
+
+    ms = Path("SB12349.RACS_1234+45.ms")
+    e_ms = Path("SB12349.RACS_1234+45.round1.ms")
+    out_ms = get_selfcal_ms_name(in_ms_path=ms, round=1)
+    assert out_ms == e_ms
+
+    ms = Path("SB12349.RACS_1234+45.round1.ms")
+    e_ms = Path("SB12349.RACS_1234+45.round2.ms")
+    out_ms = get_selfcal_ms_name(in_ms_path=ms, round=2)
+    assert out_ms == e_ms
+
+    ms = Path(
+        "/some/other/directory/SB12349.RACS_1234+45.verrrrryyylonnnnnnnhhhhh.round1.ms"
+    )
+    e_ms = Path(
+        "/some/other/directory/SB12349.RACS_1234+45.verrrrryyylonnnnnnnhhhhh.round2.ms"
+    )
+    out_ms = get_selfcal_ms_name(in_ms_path=ms, round=2)
+    assert out_ms == e_ms
 
 
 def test_potato_output_name():
