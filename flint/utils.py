@@ -339,7 +339,7 @@ def rsync_copy_directory(target_path: Path, out_path: Path) -> Path:
     return out_path
 
 
-def copy_folder(
+def copy_directory(
     input_directory: Path,
     output_directory: Path,
     verify: bool = False,

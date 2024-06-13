@@ -22,7 +22,7 @@ from fixms.fix_ms_dir import fix_ms_dir
 from flint.exceptions import MSError
 from flint.logging import logger
 from flint.naming import create_ms_name
-from flint.utils import copy_folder, remove_files_folders, rsync_copy_directory
+from flint.utils import copy_directory, remove_files_folders, rsync_copy_directory
 
 
 class MS(NamedTuple):
@@ -726,7 +726,7 @@ def copy_and_preprocess_casda_askap_ms(
 
     out_ms_path = output_directory / create_ms_name(ms_path=ms.path)
     logger.info(f"New MS name: {out_ms_path}")
-    out_ms_path = copy_folder(input_directory=ms.path, output_directory=out_ms_path)
+    out_ms_path = copy_directory(input_directory=ms.path, output_directory=out_ms_path)
 
     ms = ms.with_options(path=out_ms_path)
 

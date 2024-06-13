@@ -20,7 +20,7 @@ from flint.utils import (
     get_beam_shape,
     get_packaged_resource_path,
     get_pixels_per_beam,
-    copy_folder,
+    copy_directory,
 )
 
 
@@ -41,19 +41,19 @@ def ms_example(tmpdir):
     return ms_path
 
 
-def test_copy_folder(ms_example, tmpdir):
+def test_copy_directory(ms_example, tmpdir):
     """See if we can copy folders"""
     out = Path(tmpdir) / "2"
     out.mkdir(exist_ok=True)
     out = out / ms_example.name
 
-    copy_folder(input_directory=ms_example, output_directory=out)
+    copy_directory(input_directory=ms_example, output_directory=out)
     # Ensure overwrite works
-    copy_folder(input_directory=ms_example, output_directory=out, overwrite=True)
+    copy_directory(input_directory=ms_example, output_directory=out, overwrite=True)
     with pytest.raises(FileExistsError):
-        copy_folder(input_directory=ms_example, output_directory=out)
+        copy_directory(input_directory=ms_example, output_directory=out)
 
-    copy_folder(
+    copy_directory(
         input_directory=ms_example, output_directory=out, overwrite=True, verify=True
     )
 
