@@ -339,6 +339,46 @@ def rsync_copy_directory(target_path: Path, out_path: Path) -> Path:
     return out_path
 
 
+def copy_folder(
+    input_directory: Path,
+    output_directory: Path,
+    verify: bool = False,
+    overwrite: bool = False,
+) -> Path:
+    """Copy a directory into a new location.
+
+    Args:
+        input_directory (Path): The source directory to copy
+        output_directory (Path): The location of the source directory to copy to
+        verify (bool, optional): Attempt to run `rsync` to verify copy worked. Defaults to False.
+        overwrite (bool, optional): Remove the target direcrtory if it exists. Defaults to False.
+
+    Returns:
+        Path: Location of output directory
+    """
+
+    input_directory = Path(input_directory)
+    output_directory = Path(output_directory)
+
+    assert (
+        input_directory.is_dir()
+    ), f"Currently only supprts copying directories, {input_directory=} is a file. "
+
+    logger.info(f"Copying {input_directory} to {output_directory}.")
+
+    if output_directory.exists():
+        if overwrite:
+            logger.warning(f"{output_directory} already exists. Removing it. ")
+            remove_files_folders(output_directory)
+
+    shutil.copytree(input_directory, output_directory)
+
+    if verify:
+        rsync_copy_directory(input_directory, output_directory)
+
+    return output_directory
+
+
 def remove_files_folders(*paths_to_remove: Path) -> List[Path]:
     """Will remove a set of paths from the file system. If a Path points
     to a folder, it will be recursively removed. Otherwise it is simply
@@ -372,7 +412,7 @@ def remove_files_folders(*paths_to_remove: Path) -> List[Path]:
     return files_removed
 
 
-def create_directory(directory: Path) -> Path:
+def create_directory(directory: Path, parents: bool = True) -> Path:
     """Will attempt to safely create a directory. Should it
     not exist it will be created. if this creates an exception,
     which might happen in a multi-process environment, it is
@@ -380,6 +420,7 @@ def create_directory(directory: Path) -> Path:
 
     Args:
         directory (Path): Path to directory to create
+        parents (bool, optional): Create parent directories if necessary. Defaults to True.
 
     Returns:
         Path: The directory created
@@ -387,12 +428,9 @@ def create_directory(directory: Path) -> Path:
 
     directory = Path(directory)
 
-    if directory.exists():
-        return directory
-
     logger.info(f"Creating {str(directory)}")
     try:
-        directory.mkdir(parents=True)
+        directory.mkdir(parents=parents, exist_ok=True)
     except Exception as e:
         logger.error(f"Failed to create {str(directory)} {e}.")
 

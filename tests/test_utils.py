@@ -1,6 +1,7 @@
 """Basic tests for utility functions"""
 
 import math
+import shutil
 from pathlib import Path
 
 import astropy.units as u
@@ -19,7 +20,42 @@ from flint.utils import (
     get_beam_shape,
     get_packaged_resource_path,
     get_pixels_per_beam,
+    copy_folder,
 )
+
+
+@pytest.fixture
+def ms_example(tmpdir):
+    ms_zip = Path(
+        get_packaged_resource_path(
+            package="flint.data.tests",
+            filename="SB39400.RACS_0635-31.beam0.small.ms.zip",
+        )
+    )
+    outpath = Path(tmpdir) / "39400"
+
+    shutil.unpack_archive(ms_zip, outpath)
+
+    ms_path = Path(outpath) / "SB39400.RACS_0635-31.beam0.small.ms"
+
+    return ms_path
+
+
+def test_copy_folder(ms_example, tmpdir):
+    """See if we can copy folders"""
+    out = Path(tmpdir) / "2"
+    out.mkdir(exist_ok=True)
+    out = out / ms_example.name
+
+    copy_folder(input_directory=ms_example, output_directory=out)
+    # Ensure overwrite works
+    copy_folder(input_directory=ms_example, output_directory=out, overwrite=True)
+    with pytest.raises(FileExistsError):
+        copy_folder(input_directory=ms_example, output_directory=out)
+
+    copy_folder(
+        input_directory=ms_example, output_directory=out, overwrite=True, verify=True
+    )
 
 
 @pytest.fixture

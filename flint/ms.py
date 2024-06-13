@@ -6,9 +6,9 @@ from __future__ import (  # Used for mypy/pylance to like the return type of MS.
 
 from argparse import ArgumentParser
 from contextlib import contextmanager
-from os import PathLike, read
+from os import PathLike
 from pathlib import Path
-from shutil import rmtree
+from shutil import rmtree, copytree
 from typing import List, NamedTuple, Optional, Union
 
 import astropy.units as u
@@ -22,7 +22,7 @@ from fixms.fix_ms_dir import fix_ms_dir
 from flint.exceptions import MSError
 from flint.logging import logger
 from flint.naming import create_ms_name
-from flint.utils import rsync_copy_directory
+from flint.utils import copy_folder, remove_files_folders, rsync_copy_directory
 
 
 class MS(NamedTuple):
@@ -691,13 +691,17 @@ def preprocess_askap_ms(
     return ms.with_options(column=data_column)
 
 
-def preprocess_casda_askap_ms(
-    ms: Union[MS, Path],
+def copy_and_preprocess_casda_askap_ms(
+    casda_ms: Union[MS, Path],
     data_column: str = "DATA",
     instrument_column: str = "INSTRUMENT_DATA",
     fix_stokes_factor: bool = True,
+    output_directory: Path = Path("./"),
 ) -> MS:
-    """Apply preprocessing operations to a measurement set processed by the
+    """Convert an ASKAP pipeline MS from CASDA into a FLINT form. This involves
+    making a copy of it, updating its name, and then preprocessing.
+
+    When applying preprocessing operations to a measurement set processed by the
     ASKAP pipeline and uploaded onto CASDA. These MSs typically are:
 
     - bandpass calibrated
@@ -709,15 +713,22 @@ def preprocess_casda_askap_ms(
     and scaled to make them compatible with certain imaging packages (e.g. wsclean).
 
     Args:
-        ms (Union[MS, Path]): The measurement set to preprocess
+        casda_ms (Union[MS, Path]): The measurement set to preprocess
         data_column (str, optional): The column with data to preprocess. Defaults to "DATA".
         instrument_column (str, optional): The name of the column to be created with data in the instrument frame. Defaults to "INSTRUMENT_DATA".
         fix_stokes_factor (bool, optional): Whether to scale the visibilities to account for the factor of 2 error. Defaults to True.
+        output_directory (Path, optional): The output directory that the preprocessed MS will be placed into. Defaults to Path("./").
 
     Returns:
         MS: a corrected and preprocessed measurement set
     """
-    ms = MS.cast(ms)
+    ms = MS.cast(casda_ms)
+
+    out_ms_path = output_directory / create_ms_name(ms_path=ms.path)
+    logger.info(f"New MS name: {out_ms_path}")
+    out_ms_path = copy_folder(input_directory=ms.path, output_directory=out_ms_path)
+
+    ms = ms.with_options(path=out_ms_path)
 
     logger.info(
         f"Will be running CASDA ASKAP MS conversion operations against {str(ms.path)}."
