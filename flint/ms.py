@@ -792,6 +792,23 @@ def get_parser() -> ArgumentParser:
         "ms2", type=Path, help="The second measurement set to consider. "
     )
 
+    casda_parser = subparser.add_parser(
+        "casda",
+        help="Apply preprocessing operations to the CASDA ASKAP pipeline MS so it can be used outside of yandasoft",
+    )
+
+    casda_parser.add_argument(
+        "casda_ms",
+        type=Path,
+        help="Path to the ASKAP pipeline produced MS obtained through casda",
+    )
+    casda_parser.add_argument(
+        "--output-directory",
+        type=Path,
+        default=Path("./"),
+        help="Directory to write the new FLINT MS to",
+    )
+
     return parser
 
 
@@ -814,6 +831,10 @@ def cli() -> None:
             logger.info(f"{args.ms1} is compatible with {args.ms2}")
         else:
             logger.info(f"{args.ms1} is not compatible with {args.ms2}")
+    if args.mode == "casda":
+        copy_and_preprocess_casda_askap_ms(
+            casda_ms=Path(args.casda_ms), output_directory=Path(args.output_directory)
+        )
 
 
 if __name__ == "__main__":
