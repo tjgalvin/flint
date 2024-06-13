@@ -312,7 +312,6 @@ def create_ms_name(
     ms_name_list: List[Any] = []
 
     format_components = extract_components_from_name(name=ms_path)
-    print(format_components)
 
     # Use the explicit SBID is provided, otherwise attempt
     # to extract it
