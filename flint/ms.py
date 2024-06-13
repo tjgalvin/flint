@@ -6,7 +6,7 @@ from __future__ import (  # Used for mypy/pylance to like the return type of MS.
 
 from argparse import ArgumentParser
 from contextlib import contextmanager
-from os import PathLike
+from os import PathLike, read
 from pathlib import Path
 from shutil import rmtree
 from typing import List, NamedTuple, Optional, Union
@@ -689,6 +689,62 @@ def preprocess_askap_ms(
     )
 
     return ms.with_options(column=data_column)
+
+
+def preprocess_casda_askap_ms(
+    ms: Union[MS, Path],
+    data_column: str = "DATA",
+    instrument_column: str = "INSTRUMENT_DATA",
+    fix_stokes_factor: bool = True,
+) -> MS:
+    """Apply preprocessing operations to a measurement set processed by the
+    ASKAP pipeline and uploaded onto CASDA. These MSs typically are:
+
+    - bandpass calibrated
+    - self-calibrated
+    - in the instrument frame
+    - has factor of 2 scaling
+
+    This function attempts to craft the MS so that the data column has had visibilities rotated
+    and scaled to make them compatible with certain imaging packages (e.g. wsclean).
+
+    Args:
+        ms (Union[MS, Path]): The measurement set to preprocess
+        data_column (str, optional): The column with data to preprocess. Defaults to "DATA".
+        instrument_column (str, optional): The name of the column to be created with data in the instrument frame. Defaults to "INSTRUMENT_DATA".
+        fix_stokes_factor (bool, optional): Whether to scale the visibilities to account for the factor of 2 error. Defaults to True.
+
+    Returns:
+        MS: a corrected and preprocessed measurement set
+    """
+    ms = MS.cast(ms)
+
+    logger.info(
+        f"Will be running CASDA ASKAP MS conversion operations against {str(ms.path)}."
+    )
+
+    with table(str(ms.path), ack=False, readonly=False) as tab:
+        column_names = tab.colnames()
+        assert (
+            data_column in column_names and instrument_column not in column_names
+        ), f"{ms.path} column names failed. {data_column=} {instrument_column=} {column_names=}"
+        tab.renamecol(data_column, instrument_column)
+
+    logger.info("Correcting directions. ")
+    fix_ms_dir(ms=str(ms.path))
+
+    logger.info("Applying roation matrix to correlations. ")
+    logger.info(
+        f"Rotating visibilities for {ms.path} with data_column={instrument_column} amd corrected_data_column={data_column}"
+    )
+    fix_ms_corrs(
+        ms=ms.path,
+        data_column=instrument_column,
+        corrected_data_column=data_column,
+        fix_stokes_factor=fix_stokes_factor,
+    )
+
+    return ms.with_options(data_column=data_column)
 
 
 def get_parser() -> ArgumentParser:
