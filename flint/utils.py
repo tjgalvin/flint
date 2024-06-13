@@ -361,8 +361,8 @@ def copy_directory(
     output_directory = Path(output_directory)
 
     assert (
-        input_directory.is_dir()
-    ), f"Currently only supprts copying directories, {input_directory=} is a file. "
+        input_directory.exists() and input_directory.is_dir()
+    ), f"Currently only supprts copying directories, {input_directory=} is a file or does not exist. "
 
     logger.info(f"Copying {input_directory} to {output_directory}.")
 
