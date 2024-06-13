@@ -7,6 +7,7 @@ from pathlib import Path
 
 import numpy as np
 import pytest
+from regex import D
 
 from flint.calibrate.aocalibrate import ApplySolutions
 from flint.exceptions import MSError
@@ -34,6 +35,23 @@ def casda_example(tmpdir):
     return ms_path
 
 
+def _test_the_data(ms):
+    from casacore.tables import table
+
+    with table(str(ms), ack=False) as tab:
+        data = tab.getcol("INSTRUMENT_DATA")
+        colnames = tab.colnames()
+        # TODO: Do this expected data test for some preprocessed / rotated data
+
+    assert all([col in colnames for col in ("DATA", "INSTRUMENT_DATA")])
+
+    expexted_data = np.array(
+        [5.131794 - 23.130766j, 45.26275 - 45.140232j, 0.80312335 + 0.41873842j],
+        dtype=np.complex64,
+    )
+    assert np.allclose(data[:, 10, 0], expexted_data, rtol=1)
+
+
 def test_copy_preprocess_ms(casda_example, tmpdir):
     """Run the copying and preprocessing for the casda askap. This is not testing the actual contents or the
     output visibility file yet. Just sanity around the process."""
@@ -43,6 +61,7 @@ def test_copy_preprocess_ms(casda_example, tmpdir):
     new_ms = copy_and_preprocess_casda_askap_ms(
         casda_ms=Path(casda_example), output_directory=output_path
     )
+    _test_the_data(ms=new_ms.path)
 
     # wjem file format not recgonised
     with pytest.raises(ValueError):
