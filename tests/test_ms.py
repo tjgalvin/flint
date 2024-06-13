@@ -36,20 +36,28 @@ def casda_example(tmpdir):
 
 
 def _test_the_data(ms):
+    """Some very simple tests for the rotation. The expected numbers come from manually
+    stabbing the MSs"""
     from casacore.tables import table
 
     with table(str(ms), ack=False) as tab:
-        data = tab.getcol("INSTRUMENT_DATA")
+        data = tab.getcol("DATA")
+        inst_data = tab.getcol("INSTRUMENT_DATA")
         colnames = tab.colnames()
-        # TODO: Do this expected data test for some preprocessed / rotated data
 
     assert all([col in colnames for col in ("DATA", "INSTRUMENT_DATA")])
 
-    expexted_data = np.array(
+    expected_inst_data = np.array(
         [5.131794 - 23.130766j, 45.26275 - 45.140232j, 0.80312335 + 0.41873842j],
         dtype=np.complex64,
     )
-    assert np.allclose(data[:, 10, 0], expexted_data, rtol=1)
+    assert np.allclose(inst_data[:, 10, 0], expected_inst_data)
+
+    expected_data = np.array(
+        [-12.364758 - 59.172283j, -10.334289 - 97.017624j, 1.022179 - 0.18529199j],
+        dtype=np.complex64,
+    )
+    assert np.allclose(data[:, 10, 0], expected_data)
 
 
 def test_copy_preprocess_ms(casda_example, tmpdir):
