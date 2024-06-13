@@ -755,7 +755,7 @@ def copy_and_preprocess_casda_askap_ms(
         fix_stokes_factor=fix_stokes_factor,
     )
 
-    return ms.with_options(data_column=data_column)
+    return ms.with_options(column=data_column)
 
 
 def get_parser() -> ArgumentParser:
