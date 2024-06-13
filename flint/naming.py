@@ -228,7 +228,7 @@ def processed_ms_format(
 
 def extract_components_from_name(
     name: Union[str, Path],
-) -> Union[RawNameComponents, ProcessedNameComponents]:
+) -> Union[RawNameComponents, ProcessedNameComponents, CASDANameComponents]:
     """Attempts to break down a file name of a recognised format into its principal compobnents.
     Presumably this is a measurement set or something derived from it (i.e. images).
 
@@ -246,23 +246,29 @@ def extract_components_from_name(
         ValueError: Raised if the name was not was not successfully matched against the known format
 
     Returns:
-        Union[RawNameComponents,ProcessedNameComponents]: The extracted name components within a name
+        Union[RawNameComponents,ProcessedNameComponents,CASDANamedComponents]: The extracted name components within a name
     """
-    name = str(name.name) if isinstance(name, Path) else name
+    name = str(Path(name).name)
     results_raw = raw_ms_format(in_name=name)
     results_formatted = processed_ms_format(in_name=name)
+    results_casda = casda_ms_format(in_name=name)
 
-    if results_raw is None and results_formatted is None:
+    if all([res is None for res in (results_raw, results_formatted, results_casda)]):
         raise ValueError(f"Unrecognised file name format for {name=}. ")
 
-    if results_raw is not None and results_formatted is not None:
+    matched = [
+        res
+        for res in (results_raw, results_formatted, results_casda)
+        if res is not None
+    ]
+
+    if len(matched) > 1:
         logger.info(
-            f"The {name=} was recognised as both a RawNameComponent and ProcessedNameComponent. Taking the latter. "
+            f"The {name=} was recognised as more than one format. Selecting the simplest.  "
         )
         logger.info(f"{results_raw=} {results_formatted=} ")
-        results = results_formatted
 
-    results = results_raw if results_raw else results_formatted
+    results = matched[0]
 
     return results
 
@@ -302,32 +308,46 @@ def create_ms_name(
         str: The filename of the measurement set
     """
 
-    # TODO: What to do if the MS does not work with RawMSComponents?
-
     ms_path = Path(ms_path).absolute()
     ms_name_list: List[Any] = []
+
+    format_components = extract_components_from_name(name=ms_path)
+    print(format_components)
 
     # Use the explicit SBID is provided, otherwise attempt
     # to extract it
     sbid_text = "SB0000"
     if sbid:
         sbid_text = f"SB{sbid}"
+    elif (
+        not isinstance(format_components, RawNameComponents) and format_components.sbid
+    ):
+        sbid_text = f"SB{format_components.sbid}"
     else:
         try:
             sbid = get_sbid_from_path(path=ms_path)
             sbid_text = f"SB{sbid}"
         except Exception as e:
-            logger.error(e)
+            logger.warning(f"{e}, using default {sbid_text}")
     ms_name_list.append(sbid_text)
 
+    field = (
+        field
+        if field
+        else (
+            format_components.field
+            if not isinstance(format_components, RawNameComponents)
+            and format_components.field
+            else None
+        )
+    )
     if field:
         ms_name_list.append(field)
 
-    components = raw_ms_format(in_name=ms_path.name)
-    if components:
-        ms_name_list.append(f"beam{components.beam}")
-        if components.spw:
-            ms_name_list.append(f"spw{components.spw}")
+    if format_components:
+        ms_name_list.append(f"beam{format_components.beam}")
+        if format_components.spw:
+            ms_name_list.append(f"spw{format_components.spw}")
 
     ms_name_list.append("ms")
     ms_name = ".".join(ms_name_list)
