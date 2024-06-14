@@ -255,7 +255,9 @@ def process_science_fields(
         wsclean_container=field_options.wsclean_container,
         update_wsclean_options=unmapped(wsclean_init),
     )
-    beam_summaries = task_create_beam_summary.map(ms=flagged_mss, imageset=wsclean_cmds)
+    beam_summaries = task_create_beam_summary.map(
+        ms=preprocess_science_mss, imageset=wsclean_cmds
+    )
 
     archive_wait_for.extend(wsclean_cmds)
 
