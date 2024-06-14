@@ -666,7 +666,7 @@ def get_parser() -> ArgumentParser:
         help="Path that final processed products will be copied into. If None no copying of file products is performed. See ArchiveOptions. ",
     )
     parser.add_argument(
-        "--no-bandpass-check",
+        "--skip-bandpass-check",
         default=False,
         action="store_true",
         help="Skip checking whether the path containing bandpass solutions exists (e.g. if solutions have already been applied)",
