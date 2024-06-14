@@ -6,7 +6,7 @@
 """
 
 from pathlib import Path
-from typing import Any, List, Union
+from typing import Any, List, Union, Optional
 
 from configargparse import ArgumentParser
 from prefect import flow, tags, unmapped
@@ -104,6 +104,16 @@ def _check_create_output_split_science_path(
 def _load_and_copy_strategy(
     output_split_science_path: Path, imaging_strategy: Optional[Path] = None
 ) -> Union[Strategy, None]:
+    """Load a strategy file and copy a timestamped version into the output directory
+    that would contain the science processing.
+
+    Args:
+        output_split_science_path (Path): Where the strategy file should be copied to (where the data would be processed)
+        imaging_strategy (Optional[Path], optional): Location of the strategy file. Defaults to None.
+
+    Returns:
+        Union[Strategy, None]: The loadded strategy file if provided, `None` otherwise
+    """
     return (
         load_strategy_yaml(
             input_yaml=copy_and_timestamp_strategy_file(
