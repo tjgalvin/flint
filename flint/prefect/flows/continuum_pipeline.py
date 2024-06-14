@@ -470,7 +470,7 @@ def setup_run_process_science_field(
     field_options: FieldOptions,
     skip_bandpass_check: bool = False,
 ) -> None:
-    if skip_bandpass_check:
+    if not skip_bandpass_check:
         assert (
             bandpass_path.exists() and bandpass_path.is_dir()
         ), f"{bandpass_path=} needs to exist and be a directory! "
