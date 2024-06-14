@@ -11,8 +11,29 @@ from regex import D
 
 from flint.calibrate.aocalibrate import ApplySolutions
 from flint.exceptions import MSError
-from flint.ms import MS, get_phase_dir_from_ms, copy_and_preprocess_casda_askap_ms
+from flint.ms import (
+    MS,
+    find_mss,
+    get_phase_dir_from_ms,
+    copy_and_preprocess_casda_askap_ms,
+)
 from flint.utils import get_packaged_resource_path
+
+
+def test_find_mss(tmpdir):
+    tmpdir = Path(tmpdir)
+    for name in range(45):
+        new_ms = tmpdir / f"SB1234.Pirate_1234+456.beam{name}.ms"
+        new_ms.mkdir()
+
+        new_folder = tmpdir / f"not_and_ms_{name}.folder"
+        new_folder.mkdir()
+
+    res = find_mss(mss_parent_path=tmpdir, expected_ms_count=45)
+    assert len(res) == 45
+
+    with pytest.raises(AssertionError):
+        _ = find_mss(mss_parent_path=tmpdir, expected_ms_count=49005)
 
 
 @pytest.fixture

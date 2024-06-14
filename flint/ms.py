@@ -783,7 +783,7 @@ def find_mss(
     if expected_ms_count:
         assert (
             len(found_mss) == expected_ms_count
-        ), f"Expected to find {expected_ms_count} in {str(mss_parent_path)}, found {len(science_mss)}."
+        ), f"Expected to find {expected_ms_count} in {str(mss_parent_path)}, found {len(found_mss)}."
 
     return found_mss
 
