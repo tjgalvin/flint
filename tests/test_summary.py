@@ -86,6 +86,28 @@ def test_create_field_summary_beam_summary(ms_example, aegean_outputs_example):
     assert len(field_summary.beam_summaries) == 36
 
 
+def test_create_field_summary_beam_summary_nocalid(ms_example, aegean_outputs_example):
+    """Make sure the summary will work when an empty of non-existent calid is passed in,
+    which may happen for MSs downloaded through casda"""
+    mss = [ms_example for _ in range(36)]
+
+    image_set = ImageSet(prefix="Example", image=[aegean_outputs_example.rms])
+
+    beam_summaries = [
+        create_beam_summary(
+            ms=ms_example, imageset=image_set, components=aegean_outputs_example
+        )
+        for _ in range(36)
+    ]
+
+    for item in (None, "None", "none"):
+        field_summary = create_field_summary(
+            mss=mss, cal_sbid_path=item, beam_summaries=beam_summaries
+        )
+        assert field_summary.beam_summaries is not None
+        assert len(field_summary.beam_summaries) == 36
+
+
 def test_field_summary_beam_summary_make_psf(
     ms_example, aegean_outputs_example, tmpdir
 ):
