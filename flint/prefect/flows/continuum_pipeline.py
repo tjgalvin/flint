@@ -468,10 +468,12 @@ def setup_run_process_science_field(
     bandpass_path: Path,
     split_path: Path,
     field_options: FieldOptions,
+    skip_bandpass_check: bool = False,
 ) -> None:
-    assert (
-        bandpass_path.exists() and bandpass_path.is_dir()
-    ), f"{bandpass_path=} needs to exist and be a directory! "
+    if skip_bandpass_check:
+        assert (
+            bandpass_path.exists() and bandpass_path.is_dir()
+        ), f"{bandpass_path=} needs to exist and be a directory! "
 
     science_sbid = get_sbid_from_path(path=science_path)
 
@@ -663,6 +665,12 @@ def get_parser() -> ArgumentParser:
         default=None,
         help="Path that final processed products will be copied into. If None no copying of file products is performed. See ArchiveOptions. ",
     )
+    parser.add_argument(
+        "--no-bandpass-check",
+        default=False,
+        action="store_true",
+        help="Skip checking whether the path containing bandpass solutions exists (e.g. if solutions have already been applied)",
+    )
 
     return parser
 
@@ -713,6 +721,7 @@ def cli() -> None:
         bandpass_path=args.calibrated_bandpass_path,
         split_path=args.split_path,
         field_options=field_options,
+        skip_bandpass_check=args.skip_bandpass_check,
     )
 
 
