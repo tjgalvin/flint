@@ -21,13 +21,18 @@ from flint.configuration import (
 from flint.logging import logger
 from flint.masking import consider_beam_mask_round
 from flint.ms import find_mss
-from flint.naming import get_sbid_from_path
+from flint.naming import (
+    CASDANameComponents,
+    extract_components_from_name,
+    get_sbid_from_path,
+)
 from flint.options import FieldOptions
 from flint.prefect.clusters import get_dask_runner
 from flint.prefect.common.imaging import (
     _convolve_linmos_residuals,
     _validation_items,
     task_convolve_image,
+    task_copy_and_preprocess_casda_askap_ms,
     task_create_apply_solutions_cmd,
     task_create_image_mask_model,
     task_flag_ms_aoflagger,
@@ -163,49 +168,59 @@ def process_science_fields(
 
     logger.info(f"Found the following raw measurement sets: {science_mss}")
 
-    # TODO: This will likely need to be expanded should any
-    # other calibration strategies get added
-    # Scan the existing bandpass directory for the existing solutions
-    calibrate_cmds = find_existing_solutions(
-        bandpass_directory=bandpass_path,
-        use_preflagged=field_options.use_preflagger,
-        use_smoothed=field_options.use_smoothed,
-    )
+    # TODO: This feels a little too much like that feeling of being out
+    # at sea for to long. Should refactor (or mask a EMU only).
+    if isinstance(
+        extract_components_from_name(name=science_mss[0].path), CASDANameComponents
+    ):
+        preprocess_science_mss = task_copy_and_preprocess_casda_askap_ms.map(
+            casda_ms=science_mss, output_directory=output_split_science_path
+        )
+    else:
 
-    logger.info(f"Constructed the following {calibrate_cmds=}")
+        # TODO: This will likely need to be expanded should any
+        # other calibration strategies get added
+        # Scan the existing bandpass directory for the existing solutions
+        calibrate_cmds = find_existing_solutions(
+            bandpass_directory=bandpass_path,
+            use_preflagged=field_options.use_preflagger,
+            use_smoothed=field_options.use_smoothed,
+        )
 
-    split_science_mss = task_split_by_field.map(
-        ms=science_mss,
-        field=None,
-        out_dir=unmapped(output_split_science_path),
-        column=unmapped("DATA"),
-    )
+        logger.info(f"Constructed the following {calibrate_cmds=}")
 
-    # This will block until resolved
-    flat_science_mss = task_flatten.submit(split_science_mss).result()
+        split_science_mss = task_split_by_field.map(
+            ms=science_mss,
+            field=None,
+            out_dir=unmapped(output_split_science_path),
+            column=unmapped("DATA"),
+        )
 
-    solutions_paths = task_select_solution_for_ms.map(
-        calibrate_cmds=unmapped(calibrate_cmds), ms=flat_science_mss
-    )
-    apply_solutions_cmds = task_create_apply_solutions_cmd.map(
-        ms=flat_science_mss,
-        solutions_file=solutions_paths,
-        container=field_options.calibrate_container,
-    )
-    flagged_mss = task_flag_ms_aoflagger.map(
-        ms=apply_solutions_cmds, container=field_options.flagger_container
-    )
-    column_rename_mss = task_rename_column_in_ms.map(
-        ms=flagged_mss,
-        original_column_name=unmapped("DATA"),
-        new_column_name=unmapped("INSTRUMENT_DATA"),
-    )
-    preprocess_science_mss = task_preprocess_askap_ms.map(
-        ms=column_rename_mss,
-        data_column=unmapped("CORRECTED_DATA"),
-        instrument_column=unmapped("DATA"),
-        overwrite=True,
-    )
+        # This will block until resolved
+        flat_science_mss = task_flatten.submit(split_science_mss).result()
+
+        solutions_paths = task_select_solution_for_ms.map(
+            calibrate_cmds=unmapped(calibrate_cmds), ms=flat_science_mss
+        )
+        apply_solutions_cmds = task_create_apply_solutions_cmd.map(
+            ms=flat_science_mss,
+            solutions_file=solutions_paths,
+            container=field_options.calibrate_container,
+        )
+        flagged_mss = task_flag_ms_aoflagger.map(
+            ms=apply_solutions_cmds, container=field_options.flagger_container
+        )
+        column_rename_mss = task_rename_column_in_ms.map(
+            ms=flagged_mss,
+            original_column_name=unmapped("DATA"),
+            new_column_name=unmapped("INSTRUMENT_DATA"),
+        )
+        preprocess_science_mss = task_preprocess_askap_ms.map(
+            ms=column_rename_mss,
+            data_column=unmapped("CORRECTED_DATA"),
+            instrument_column=unmapped("DATA"),
+            overwrite=True,
+        )
 
     if field_options.no_imaging:
         logger.info(
