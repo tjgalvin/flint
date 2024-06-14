@@ -13,13 +13,14 @@ from prefect import flow, tags, unmapped
 
 from flint.calibrate.aocalibrate import find_existing_solutions
 from flint.configuration import (
+    Strategy,
     copy_and_timestamp_strategy_file,
     get_options_from_strategy,
     load_strategy_yaml,
 )
 from flint.logging import logger
 from flint.masking import consider_beam_mask_round
-from flint.ms import MS
+from flint.ms import find_mss
 from flint.naming import get_sbid_from_path
 from flint.options import FieldOptions
 from flint.prefect.clusters import get_dask_runner
@@ -53,13 +54,7 @@ from flint.prefect.common.utils import (
 from flint.selfcal.utils import consider_skip_selfcal_on_round
 
 
-@flow(name="Flint Continuum Pipeline")
-def process_science_fields(
-    science_path: Path,
-    bandpass_path: Path,
-    split_path: Path,
-    field_options: FieldOptions,
-) -> None:
+def _check_field_options(field_options: FieldOptions) -> None:
     run_aegean = (
         False if field_options.aegean_container is None else field_options.run_aegean
     )
@@ -68,27 +63,33 @@ def process_science_fields(
             "run_aegean and aegean container both need to be set is beam masks is being used. "
         )
 
-    run_validation = field_options.reference_catalogue_directory is not None
 
-    assert (
-        science_path.exists() and science_path.is_dir()
-    ), f"{str(science_path)} does not exist or is not a folder. "
-    science_mss = list(
-        [MS.cast(ms_path) for ms_path in sorted(science_path.glob("*.ms"))]
-    )
-    assert (
-        len(science_mss) == field_options.expected_ms
-    ), f"Expected to find {field_options.expected_ms} in {str(science_path)}, found {len(science_mss)}."
+def _check_create_output_split_science_path(
+    science_path: Path, split_path: Path, check_exists: bool = True
+) -> Path:
+    """Create the output path that the science MSs will be placed.
+
+    Args:
+        science_path (Path): The directory that contains the MSs for science processing
+        split_path (Path): Where the output MSs will be written to and processed
+        check_exists (bool, optional): Should we check to make sure output directory does not exist. Defaults to True.
+
+    Raises:
+        ValueError: Raised when the output directory exists
+
+    Returns:
+        Path: The output directory
+    """
 
     science_folder_name = science_path.name
-
+    assert str(
+        science_folder_name
+    ).isdigit(), f"We require the parent directory to be the SBID (all digits), got {science_folder_name=}"
     output_split_science_path = (
         Path(split_path / science_folder_name).absolute().resolve()
     )
 
-    archive_wait_for: List[Any] = []
-
-    if output_split_science_path.exists():
+    if check_exists and output_split_science_path.exists():
         logger.critical(
             f"{output_split_science_path=} already exists. It should not. Exiting. "
         )
@@ -97,16 +98,55 @@ def process_science_fields(
     logger.info(f"Creating {str(output_split_science_path)}")
     output_split_science_path.mkdir(parents=True)
 
-    strategy = (
+    return output_split_science_path
+
+
+def _load_and_copy_strategy(
+    output_split_science_path: Path, imaging_strategy: Optional[Path] = None
+) -> Union[Strategy, None]:
+    return (
         load_strategy_yaml(
             input_yaml=copy_and_timestamp_strategy_file(
                 output_dir=output_split_science_path,
-                input_yaml=field_options.imaging_strategy,
+                input_yaml=imaging_strategy,
             ),
             verify=True,
         )
-        if field_options.imaging_strategy
+        if imaging_strategy
         else None
+    )
+
+
+@flow(name="Flint Continuum Pipeline")
+def process_science_fields(
+    science_path: Path,
+    bandpass_path: Path,
+    split_path: Path,
+    field_options: FieldOptions,
+) -> None:
+
+    # Verify no nasty incompatible options
+    _check_field_options(field_options=field_options)
+
+    # Get some placeholder names
+    run_aegean = (
+        False if field_options.aegean_container is None else field_options.run_aegean
+    )  # This is also in check_field_options
+    run_validation = field_options.reference_catalogue_directory is not None
+
+    science_mss = find_mss(
+        mss_parent_path=science_path, expected_ms_count=field_options.expected_ms
+    )
+
+    output_split_science_path = _check_create_output_split_science_path(
+        science_path=science_path, split_path=split_path, check_exists=True
+    )
+
+    archive_wait_for: List[Any] = []
+
+    strategy = _load_and_copy_strategy(
+        output_split_science_path=output_split_science_path,
+        imaging_strategy=field_options.imaging_strategy,
     )
 
     logger.info(f"{field_options=}")

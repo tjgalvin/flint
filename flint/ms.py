@@ -8,8 +8,8 @@ from argparse import ArgumentParser
 from contextlib import contextmanager
 from os import PathLike
 from pathlib import Path
-from shutil import rmtree, copytree
-from typing import List, NamedTuple, Optional, Union
+from shutil import rmtree
+from typing import List, NamedTuple, Optional, Union, Tuple
 
 import astropy.units as u
 import numpy as np
@@ -756,6 +756,36 @@ def copy_and_preprocess_casda_askap_ms(
     )
 
     return ms.with_options(column=data_column)
+
+
+def find_mss(
+    mss_parent_path: Path, expected_ms_count: Optional[int] = 36
+) -> Tuple[MS, ...]:
+    """Search a directory to find measurement sets via a simple
+    `*.ms` glob expression. An expected number of MSs can be enforced
+    via the `expected_ms_count` option.
+
+    Args:
+        mss_parent_path (Path): The parent directory that will be globbed to search for MSs.
+        expected_ms_count (Optional[int], optional): The number of MSs that should be there. If None no check is performed. Defaults to 36.
+
+    Returns:
+        Tuple[MS, ...]: Collection of found MSs
+    """
+    assert (
+        mss_parent_path.exists() and mss_parent_path.is_dir()
+    ), f"{str(mss_parent_path)} does not exist or is not a folder. "
+
+    found_mss = tuple(
+        [MS.cast(ms_path) for ms_path in sorted(mss_parent_path.glob("*.ms"))]
+    )
+
+    if expected_ms_count:
+        assert (
+            len(found_mss) == expected_ms_count
+        ), f"Expected to find {expected_ms_count} in {str(mss_parent_path)}, found {len(science_mss)}."
+
+    return found_mss
 
 
 def get_parser() -> ArgumentParser:
