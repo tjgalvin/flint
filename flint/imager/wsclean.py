@@ -119,7 +119,7 @@ class WSCleanOptions(NamedTuple):
     """If not none, then this is the number of sub-regions wsclean will attempt to divide and clean"""
     parallel_gridding: Optional[int] = None
     """If not none, then this is the number of channel images that will be gridded in parallel"""
-    temp_dir: Optional[Path] = None
+    temp_dir: Optional[Union[str, Path]] = None
     """The path to a temporary directory where files will be wrritten. """
 
     def with_options(self, **kwargs) -> WSCleanOptions:
