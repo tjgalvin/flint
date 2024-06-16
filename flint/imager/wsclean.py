@@ -324,7 +324,11 @@ def create_wsclean_cmd(
         key = key.replace("_", "-")
         logger.debug(f"{key=} {value=} {type(value)=}")
 
-        value = value if value[0] != "$" else get_environment_variable(variable=value)
+        value = (
+            get_environment_variable(variable=value)
+            if isinstance(value, str) and value[0] == "$"
+            else value
+        )
 
         if key == "size":
             cmd += f"-size {value} {value} "
