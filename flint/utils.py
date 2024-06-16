@@ -2,6 +2,7 @@
 for general usage.
 """
 
+import os
 import shutil
 import subprocess
 from pathlib import Path
@@ -21,6 +22,22 @@ from flint.logging import logger
 # struct should be considered. The the astropy.io.fits.Header might be
 # appropriate to pass around between dask / prefect delayed functions. Something
 # that only opens the FITS file once and places things into common field names.
+
+
+def get_environment_variable(variable: str) -> Union[str, None]:
+    """Get the value of an environment variable if it exists. If it does not
+    a None is returned.
+
+    Args:
+        variable (str): The variable to lookup. If it starts with `$` it is removed.
+
+    Returns:
+        Union[str,None]: Value of environment variable if it exists. None if it does not.
+    """
+    variable = variable.lstrip("$")
+    value = os.getenv(variable)
+
+    return value
 
 
 def get_beam_shape(fits_path: Path) -> Optional[BeamShape]:

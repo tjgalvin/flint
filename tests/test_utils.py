@@ -1,6 +1,8 @@
 """Basic tests for utility functions"""
 
 import math
+import os
+import pytest
 import shutil
 from pathlib import Path
 
@@ -18,10 +20,28 @@ from flint.utils import (
     generate_strict_stub_wcs_header,
     generate_stub_wcs_header,
     get_beam_shape,
+    get_environment_variable,
     get_packaged_resource_path,
     get_pixels_per_beam,
     copy_directory,
 )
+
+
+@pytest.fixture(scope="session", autouse=True)
+def set_env():
+    """Set up variables for a specific test"""
+    os.environ["TEST1"] = "Pirates"
+    os.environ["TEST2"] = "Treasure"
+
+
+def test_get_environment_variable(set_env):
+    """Make sure that the variable is processed nicely when getting environment variable"""
+    val = get_environment_variable("TEST1")
+    assert val == "Pirates"
+    val2 = get_environment_variable("$TEST2")
+    assert val2 == "Treasure"
+    val3 = get_environment_variable("THISNOEXISTS")
+    assert val3 is None
 
 
 @pytest.fixture
