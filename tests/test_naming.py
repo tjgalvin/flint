@@ -2,7 +2,6 @@
 
 from datetime import datetime
 from pathlib import Path
-from re import I
 
 from flint.naming import (
     CASDANameComponents,
