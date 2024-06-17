@@ -32,7 +32,13 @@ from flint.masking import (
     create_snr_mask_from_fits,
     extract_beam_mask_from_mosaic,
 )
-from flint.ms import MS, preprocess_askap_ms, rename_column_in_ms, split_by_field
+from flint.ms import (
+    MS,
+    copy_and_preprocess_casda_askap_ms,
+    preprocess_askap_ms,
+    rename_column_in_ms,
+    split_by_field,
+)
 from flint.naming import FITSMaskNames, processed_ms_format
 from flint.options import FieldOptions
 from flint.peel.potato import potato_peel
@@ -49,6 +55,7 @@ from flint.validation import (
 )
 
 # These are simple task wrapped functions and require no other modification
+task_copy_and_preprocess_casda_askap_ms = task(copy_and_preprocess_casda_askap_ms)
 task_preprocess_askap_ms = task(preprocess_askap_ms)
 task_split_by_field = task(split_by_field)
 task_select_solution_for_ms = task(select_aosolution_for_ms)

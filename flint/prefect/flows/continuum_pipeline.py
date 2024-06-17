@@ -6,27 +6,33 @@
 """
 
 from pathlib import Path
-from typing import Any, List, Union
+from typing import Any, List, Optional, Union
 
 from configargparse import ArgumentParser
 from prefect import flow, tags, unmapped
 
 from flint.calibrate.aocalibrate import find_existing_solutions
 from flint.configuration import (
+    Strategy,
     copy_and_timestamp_strategy_file,
     get_options_from_strategy,
     load_strategy_yaml,
 )
 from flint.logging import logger
 from flint.masking import consider_beam_mask_round
-from flint.ms import MS
-from flint.naming import get_sbid_from_path
+from flint.ms import find_mss
+from flint.naming import (
+    CASDANameComponents,
+    extract_components_from_name,
+    get_sbid_from_path,
+)
 from flint.options import FieldOptions
 from flint.prefect.clusters import get_dask_runner
 from flint.prefect.common.imaging import (
     _convolve_linmos_residuals,
     _validation_items,
     task_convolve_image,
+    task_copy_and_preprocess_casda_askap_ms,
     task_create_apply_solutions_cmd,
     task_create_image_mask_model,
     task_flag_ms_aoflagger,
@@ -53,13 +59,7 @@ from flint.prefect.common.utils import (
 from flint.selfcal.utils import consider_skip_selfcal_on_round
 
 
-@flow(name="Flint Continuum Pipeline")
-def process_science_fields(
-    science_path: Path,
-    bandpass_path: Path,
-    split_path: Path,
-    field_options: FieldOptions,
-) -> None:
+def _check_field_options(field_options: FieldOptions) -> None:
     run_aegean = (
         False if field_options.aegean_container is None else field_options.run_aegean
     )
@@ -68,27 +68,33 @@ def process_science_fields(
             "run_aegean and aegean container both need to be set is beam masks is being used. "
         )
 
-    run_validation = field_options.reference_catalogue_directory is not None
 
-    assert (
-        science_path.exists() and science_path.is_dir()
-    ), f"{str(science_path)} does not exist or is not a folder. "
-    science_mss = list(
-        [MS.cast(ms_path) for ms_path in sorted(science_path.glob("*.ms"))]
-    )
-    assert (
-        len(science_mss) == field_options.expected_ms
-    ), f"Expected to find {field_options.expected_ms} in {str(science_path)}, found {len(science_mss)}."
+def _check_create_output_split_science_path(
+    science_path: Path, split_path: Path, check_exists: bool = True
+) -> Path:
+    """Create the output path that the science MSs will be placed.
+
+    Args:
+        science_path (Path): The directory that contains the MSs for science processing
+        split_path (Path): Where the output MSs will be written to and processed
+        check_exists (bool, optional): Should we check to make sure output directory does not exist. Defaults to True.
+
+    Raises:
+        ValueError: Raised when the output directory exists
+
+    Returns:
+        Path: The output directory
+    """
 
     science_folder_name = science_path.name
-
+    assert str(
+        science_folder_name
+    ).isdigit(), f"We require the parent directory to be the SBID (all digits), got {science_folder_name=}"
     output_split_science_path = (
         Path(split_path / science_folder_name).absolute().resolve()
     )
 
-    archive_wait_for: List[Any] = []
-
-    if output_split_science_path.exists():
+    if check_exists and output_split_science_path.exists():
         logger.critical(
             f"{output_split_science_path=} already exists. It should not. Exiting. "
         )
@@ -97,65 +103,122 @@ def process_science_fields(
     logger.info(f"Creating {str(output_split_science_path)}")
     output_split_science_path.mkdir(parents=True)
 
-    strategy = (
+    return output_split_science_path
+
+
+def _load_and_copy_strategy(
+    output_split_science_path: Path, imaging_strategy: Optional[Path] = None
+) -> Union[Strategy, None]:
+    """Load a strategy file and copy a timestamped version into the output directory
+    that would contain the science processing.
+
+    Args:
+        output_split_science_path (Path): Where the strategy file should be copied to (where the data would be processed)
+        imaging_strategy (Optional[Path], optional): Location of the strategy file. Defaults to None.
+
+    Returns:
+        Union[Strategy, None]: The loadded strategy file if provided, `None` otherwise
+    """
+    return (
         load_strategy_yaml(
             input_yaml=copy_and_timestamp_strategy_file(
                 output_dir=output_split_science_path,
-                input_yaml=field_options.imaging_strategy,
+                input_yaml=imaging_strategy,
             ),
             verify=True,
         )
-        if field_options.imaging_strategy
+        if imaging_strategy
         else None
+    )
+
+
+@flow(name="Flint Continuum Pipeline")
+def process_science_fields(
+    science_path: Path,
+    bandpass_path: Path,
+    split_path: Path,
+    field_options: FieldOptions,
+) -> None:
+    # Verify no nasty incompatible options
+    _check_field_options(field_options=field_options)
+
+    # Get some placeholder names
+    run_aegean = (
+        False if field_options.aegean_container is None else field_options.run_aegean
+    )  # This is also in check_field_options
+    run_validation = field_options.reference_catalogue_directory is not None
+
+    science_mss = find_mss(
+        mss_parent_path=science_path, expected_ms_count=field_options.expected_ms
+    )
+
+    output_split_science_path = _check_create_output_split_science_path(
+        science_path=science_path, split_path=split_path, check_exists=True
+    )
+
+    archive_wait_for: List[Any] = []
+
+    strategy = _load_and_copy_strategy(
+        output_split_science_path=output_split_science_path,
+        imaging_strategy=field_options.imaging_strategy,
     )
 
     logger.info(f"{field_options=}")
 
     logger.info(f"Found the following raw measurement sets: {science_mss}")
 
-    # TODO: This will likely need to be expanded should any
-    # other calibration strategies get added
-    # Scan the existing bandpass directory for the existing solutions
-    calibrate_cmds = find_existing_solutions(
-        bandpass_directory=bandpass_path,
-        use_preflagged=field_options.use_preflagger,
-        use_smoothed=field_options.use_smoothed,
-    )
+    # TODO: This feels a little too much like that feeling of being out
+    # at sea for to long. Should refactor (or mask a EMU only).
+    if isinstance(
+        extract_components_from_name(name=science_mss[0].path), CASDANameComponents
+    ):
+        preprocess_science_mss = task_copy_and_preprocess_casda_askap_ms.map(
+            casda_ms=science_mss, output_directory=output_split_science_path
+        )
+    else:
+        # TODO: This will likely need to be expanded should any
+        # other calibration strategies get added
+        # Scan the existing bandpass directory for the existing solutions
+        calibrate_cmds = find_existing_solutions(
+            bandpass_directory=bandpass_path,
+            use_preflagged=field_options.use_preflagger,
+            use_smoothed=field_options.use_smoothed,
+        )
 
-    logger.info(f"Constructed the following {calibrate_cmds=}")
+        logger.info(f"Constructed the following {calibrate_cmds=}")
 
-    split_science_mss = task_split_by_field.map(
-        ms=science_mss,
-        field=None,
-        out_dir=unmapped(output_split_science_path),
-        column=unmapped("DATA"),
-    )
+        split_science_mss = task_split_by_field.map(
+            ms=science_mss,
+            field=None,
+            out_dir=unmapped(output_split_science_path),
+            column=unmapped("DATA"),
+        )
 
-    # This will block until resolved
-    flat_science_mss = task_flatten.submit(split_science_mss).result()
+        # This will block until resolved
+        flat_science_mss = task_flatten.submit(split_science_mss).result()
 
-    solutions_paths = task_select_solution_for_ms.map(
-        calibrate_cmds=unmapped(calibrate_cmds), ms=flat_science_mss
-    )
-    apply_solutions_cmds = task_create_apply_solutions_cmd.map(
-        ms=flat_science_mss,
-        solutions_file=solutions_paths,
-        container=field_options.calibrate_container,
-    )
-    flagged_mss = task_flag_ms_aoflagger.map(
-        ms=apply_solutions_cmds, container=field_options.flagger_container
-    )
-    column_rename_mss = task_rename_column_in_ms.map(
-        ms=flagged_mss,
-        original_column_name=unmapped("DATA"),
-        new_column_name=unmapped("INSTRUMENT_DATA"),
-    )
-    preprocess_science_mss = task_preprocess_askap_ms.map(
-        ms=column_rename_mss,
-        data_column=unmapped("CORRECTED_DATA"),
-        instrument_column=unmapped("DATA"),
-        overwrite=True,
-    )
+        solutions_paths = task_select_solution_for_ms.map(
+            calibrate_cmds=unmapped(calibrate_cmds), ms=flat_science_mss
+        )
+        apply_solutions_cmds = task_create_apply_solutions_cmd.map(
+            ms=flat_science_mss,
+            solutions_file=solutions_paths,
+            container=field_options.calibrate_container,
+        )
+        flagged_mss = task_flag_ms_aoflagger.map(
+            ms=apply_solutions_cmds, container=field_options.flagger_container
+        )
+        column_rename_mss = task_rename_column_in_ms.map(
+            ms=flagged_mss,
+            original_column_name=unmapped("DATA"),
+            new_column_name=unmapped("INSTRUMENT_DATA"),
+        )
+        preprocess_science_mss = task_preprocess_askap_ms.map(
+            ms=column_rename_mss,
+            data_column=unmapped("CORRECTED_DATA"),
+            instrument_column=unmapped("DATA"),
+            overwrite=True,
+        )
 
     if field_options.no_imaging:
         logger.info(
@@ -190,7 +253,10 @@ def process_science_fields(
         wsclean_container=field_options.wsclean_container,
         update_wsclean_options=unmapped(wsclean_init),
     )
-    beam_summaries = task_create_beam_summary.map(ms=flagged_mss, imageset=wsclean_cmds)
+    # TODO: This should be waited!
+    beam_summaries = task_create_beam_summary.map(
+        ms=preprocess_science_mss, imageset=wsclean_cmds
+    )
 
     archive_wait_for.extend(wsclean_cmds)
 
@@ -403,10 +469,12 @@ def setup_run_process_science_field(
     bandpass_path: Path,
     split_path: Path,
     field_options: FieldOptions,
+    skip_bandpass_check: bool = False,
 ) -> None:
-    assert (
-        bandpass_path.exists() and bandpass_path.is_dir()
-    ), f"{bandpass_path=} needs to exist and be a directory! "
+    if not skip_bandpass_check:
+        assert (
+            bandpass_path.exists() and bandpass_path.is_dir()
+        ), f"{bandpass_path=} needs to exist and be a directory! "
 
     science_sbid = get_sbid_from_path(path=science_path)
 
@@ -598,6 +666,12 @@ def get_parser() -> ArgumentParser:
         default=None,
         help="Path that final processed products will be copied into. If None no copying of file products is performed. See ArchiveOptions. ",
     )
+    parser.add_argument(
+        "--skip-bandpass-check",
+        default=False,
+        action="store_true",
+        help="Skip checking whether the path containing bandpass solutions exists (e.g. if solutions have already been applied)",
+    )
 
     return parser
 
@@ -648,6 +722,7 @@ def cli() -> None:
         bandpass_path=args.calibrated_bandpass_path,
         split_path=args.split_path,
         field_options=field_options,
+        skip_bandpass_check=args.skip_bandpass_check,
     )
 
 

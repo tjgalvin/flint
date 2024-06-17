@@ -4,10 +4,12 @@ from datetime import datetime
 from pathlib import Path
 
 from flint.naming import (
+    CASDANameComponents,
     FITSMaskNames,
     ProcessedNameComponents,
     RawNameComponents,
     add_timestamp_to_path,
+    casda_ms_format,
     create_fits_mask_names,
     create_ms_name,
     extract_beam_from_name,
@@ -19,6 +21,49 @@ from flint.naming import (
     processed_ms_format,
     raw_ms_format,
 )
+
+
+def test_casda_ms_format_1934():
+    """Checks around the name format form CASDA  considering 1934"""
+    exs = [
+        "1934.SB40470.beam35.ms",
+        Path("1934.SB40470.beam35.ms"),
+    ]
+    for ex in exs:
+        res = casda_ms_format(in_name=ex)
+        assert res is not None
+        assert res.format == "1934"
+        assert res.sbid == 40470
+        assert res.beam == "35"
+
+
+def test_casda_ms_format():
+    """Checks around the name format form CASDA"""
+    exs = [
+        "scienceData.RACS_1237+00.SB40470.RACS_1237+00.beam35_averaged_cal.leakage.ms",
+        Path(
+            "scienceData.RACS_1237+00.SB40470.RACS_1237+00.beam35_averaged_cal.leakage.ms"
+        ),
+    ]
+    for ex in exs:
+        res = casda_ms_format(in_name=ex)
+        assert res is not None
+        assert isinstance(res, CASDANameComponents)
+        assert res.sbid == 40470
+        assert res.beam == "35"
+        assert res.field == "RACS_1237+00"
+        assert res.alias == "RACS_1237+00"
+        assert res.format == "scienceData"
+
+    # Confirm None is returned in silly cases
+    exs = [
+        "scienceData.fdgdfdfg.RACS_1237+00.SBaveraged_cal.leakage.ms",
+        "SB12349.RACS_1234+45.ms",
+        "SB12349.RACS_1234+45.round2.ms",
+    ]
+    for ex in exs:
+        res = casda_ms_format(in_name=ex)
+        assert res is None
 
 
 def test_self_cal_name():
@@ -240,6 +285,13 @@ def test_create_ms_name():
     assert isinstance(ms_path_4, str)
     assert ms_path_4 == expected_4
 
+    examples = [
+        "scienceData.RACS_1237+00.SB40470.RACS_1237+00.beam35_averaged_cal.leakage.ms",
+    ]
+    for ex in examples:
+        name = create_ms_name(ms_path=ex)
+        assert name == "SB40470.RACS_1237+00.beam35.ms"
+
 
 def test_create_ms_name_no_sbid():
     example_path = "2022-04-14_100122_0.ms"
@@ -346,6 +398,16 @@ def test_get_correct_name_format():
     for ex in examples:
         res = extract_components_from_name(name=ex)
         assert isinstance(res, RawNameComponents)
+
+    examples = [
+        "scienceData.RACS_1237+00.SB40470.RACS_1237+00.beam35_averaged_cal.leakage.ms",
+        Path(
+            "scienceData.RACS_1237+00.SB40470.RACS_1237+00.beam35_averaged_cal.leakage.ms"
+        ),
+    ]
+    for ex in examples:
+        res = extract_components_from_name(name=ex)
+        assert isinstance(res, CASDANameComponents)
 
 
 def test_get_beam_from_name():

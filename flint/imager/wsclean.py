@@ -12,6 +12,7 @@ from flint.exceptions import CleanDivergenceError
 from flint.logging import logger
 from flint.ms import MS
 from flint.sclient import run_singularity_command
+from flint.utils import get_environment_variable
 
 
 class ImageSet(NamedTuple):
@@ -35,6 +36,10 @@ class ImageSet(NamedTuple):
 class WSCleanOptions(NamedTuple):
     """A basic container to handle WSClean options. These attributes should
     conform to the same option name in the calling signature of wsclean
+
+    Basic support for environment variables is available. Should a value start
+    with `$` it is assumed to be a environment variable, it is will be looked up.
+    Some basic attempts to deterimine if it is a path is made.
     """
 
     abs_mem: int = 100
@@ -114,6 +119,8 @@ class WSCleanOptions(NamedTuple):
     """If not none, then this is the number of sub-regions wsclean will attempt to divide and clean"""
     parallel_gridding: Optional[int] = None
     """If not none, then this is the number of channel images that will be gridded in parallel"""
+    temp_dir: Optional[Union[str, Path]] = None
+    """The path to a temporary directory where files will be wrritten. """
 
     def with_options(self, **kwargs) -> WSCleanOptions:
         """Return a new instance of WSCleanOptions with updated components"""
@@ -306,12 +313,23 @@ def create_wsclean_cmd(
     # attempting to future proof (arguably needlessly).
     options_to_comma_join = "multiscale-scales"
 
+    # Some options should also extend the singularity bind directories
+    bind_dir_paths = []
+    bind_dir_options = ("temp-dir",)
+
     cmd = "wsclean "
     unknowns: List[Tuple[Any, Any]] = []
     logger.info("Creating wsclean command.")
     for key, value in wsclean_options._asdict().items():
         key = key.replace("_", "-")
         logger.debug(f"{key=} {value=} {type(value)=}")
+
+        value = (
+            get_environment_variable(variable=value)
+            if isinstance(value, str) and value[0] == "$"
+            else value
+        )
+
         if key == "size":
             cmd += f"-size {value} {value} "
         elif key == "wgridder-accuracy":
@@ -338,6 +356,9 @@ def create_wsclean_cmd(
         else:
             unknowns.append((key, value))
 
+        if key in bind_dir_options and isinstance(value, (str, Path)):
+            bind_dir_paths.append(Path(value))
+
     if len(unknowns) > 0:
         msg = ", ".join([f"{t[0]} {t[1]}" for t in unknowns])
         raise ValueError(f"Unknown wsclean option types: {msg}")
@@ -351,18 +372,27 @@ def create_wsclean_cmd(
     )
 
     if container:
-        wsclean_cmd = run_wsclean_imager(wsclean_cmd=wsclean_cmd, container=container)
+        wsclean_cmd = run_wsclean_imager(
+            wsclean_cmd=wsclean_cmd,
+            container=container,
+            bind_dirs=tuple(bind_dir_paths),
+        )
 
     return wsclean_cmd
 
 
-def run_wsclean_imager(wsclean_cmd: WSCleanCommand, container: Path) -> WSCleanCommand:
+def run_wsclean_imager(
+    wsclean_cmd: WSCleanCommand,
+    container: Path,
+    bind_dirs: Optional[Tuple[Path]] = None,
+) -> WSCleanCommand:
     """Run a provided wsclean command. Optionally will clean up files,
     including the dirty beams, psfs and other assorted things.
 
     Args:
         wsclean_cmd (WSCleanCommand): The command to run, and other properties (cleanup.)
         container (Path): Path to the container with wsclean available in it
+        bind_dirs (Optional[Tuple[Path]], optional): Additional directories to include when binding to the wsclean container. Defaults to None.
 
     Returns:
         WSCleanCommand: The executed wsclean command with a populated imageset properter.
@@ -372,11 +402,14 @@ def run_wsclean_imager(wsclean_cmd: WSCleanCommand, container: Path) -> WSCleanC
     if isinstance(ms, MS):
         ms = (ms,)
 
-    bind_dirs = [Path(m.path).parent.absolute() for m in ms]
+    sclient_bind_dirs = [Path(m.path).parent.absolute() for m in ms]
+    if bind_dirs:
+        sclient_bind_dirs = sclient_bind_dirs + list(bind_dirs)
+
     run_singularity_command(
         image=container,
         command=wsclean_cmd.cmd,
-        bind_dirs=bind_dirs,
+        bind_dirs=sclient_bind_dirs,
         stream_callback_func=_wsclean_output_callback,
     )
 

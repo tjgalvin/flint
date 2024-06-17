@@ -9,7 +9,7 @@ from contextlib import contextmanager
 from os import PathLike
 from pathlib import Path
 from shutil import rmtree
-from typing import List, NamedTuple, Optional, Union
+from typing import List, NamedTuple, Optional, Tuple, Union
 
 import astropy.units as u
 import numpy as np
@@ -22,7 +22,7 @@ from fixms.fix_ms_dir import fix_ms_dir
 from flint.exceptions import MSError
 from flint.logging import logger
 from flint.naming import create_ms_name
-from flint.utils import rsync_copy_directory
+from flint.utils import copy_directory, rsync_copy_directory
 
 
 class MS(NamedTuple):
@@ -691,6 +691,103 @@ def preprocess_askap_ms(
     return ms.with_options(column=data_column)
 
 
+def copy_and_preprocess_casda_askap_ms(
+    casda_ms: Union[MS, Path],
+    data_column: str = "DATA",
+    instrument_column: str = "INSTRUMENT_DATA",
+    fix_stokes_factor: bool = True,
+    output_directory: Path = Path("./"),
+) -> MS:
+    """Convert an ASKAP pipeline MS from CASDA into a FLINT form. This involves
+    making a copy of it, updating its name, and then preprocessing.
+
+    When applying preprocessing operations to a measurement set processed by the
+    ASKAP pipeline and uploaded onto CASDA. These MSs typically are:
+
+    - bandpass calibrated
+    - self-calibrated
+    - in the instrument frame
+    - has factor of 2 scaling
+
+    This function attempts to craft the MS so that the data column has had visibilities rotated
+    and scaled to make them compatible with certain imaging packages (e.g. wsclean).
+
+    Args:
+        casda_ms (Union[MS, Path]): The measurement set to preprocess
+        data_column (str, optional): The column with data to preprocess. Defaults to "DATA".
+        instrument_column (str, optional): The name of the column to be created with data in the instrument frame. Defaults to "INSTRUMENT_DATA".
+        fix_stokes_factor (bool, optional): Whether to scale the visibilities to account for the factor of 2 error. Defaults to True.
+        output_directory (Path, optional): The output directory that the preprocessed MS will be placed into. Defaults to Path("./").
+
+    Returns:
+        MS: a corrected and preprocessed measurement set
+    """
+    ms = MS.cast(casda_ms)
+
+    out_ms_path = output_directory / create_ms_name(ms_path=ms.path)
+    logger.info(f"New MS name: {out_ms_path}")
+    out_ms_path = copy_directory(input_directory=ms.path, output_directory=out_ms_path)
+
+    ms = ms.with_options(path=out_ms_path)
+
+    logger.info(
+        f"Will be running CASDA ASKAP MS conversion operations against {str(ms.path)}."
+    )
+
+    with table(str(ms.path), ack=False, readonly=False) as tab:
+        column_names = tab.colnames()
+        assert (
+            data_column in column_names and instrument_column not in column_names
+        ), f"{ms.path} column names failed. {data_column=} {instrument_column=} {column_names=}"
+        tab.renamecol(data_column, instrument_column)
+
+    logger.info("Correcting directions. ")
+    fix_ms_dir(ms=str(ms.path))
+
+    logger.info("Applying roation matrix to correlations. ")
+    logger.info(
+        f"Rotating visibilities for {ms.path} with data_column={instrument_column} amd corrected_data_column={data_column}"
+    )
+    fix_ms_corrs(
+        ms=ms.path,
+        data_column=instrument_column,
+        corrected_data_column=data_column,
+        fix_stokes_factor=fix_stokes_factor,
+    )
+
+    return ms.with_options(column=data_column)
+
+
+def find_mss(
+    mss_parent_path: Path, expected_ms_count: Optional[int] = 36
+) -> Tuple[MS, ...]:
+    """Search a directory to find measurement sets via a simple
+    `*.ms` glob expression. An expected number of MSs can be enforced
+    via the `expected_ms_count` option.
+
+    Args:
+        mss_parent_path (Path): The parent directory that will be globbed to search for MSs.
+        expected_ms_count (Optional[int], optional): The number of MSs that should be there. If None no check is performed. Defaults to 36.
+
+    Returns:
+        Tuple[MS, ...]: Collection of found MSs
+    """
+    assert (
+        mss_parent_path.exists() and mss_parent_path.is_dir()
+    ), f"{str(mss_parent_path)} does not exist or is not a folder. "
+
+    found_mss = tuple(
+        [MS.cast(ms_path) for ms_path in sorted(mss_parent_path.glob("*.ms"))]
+    )
+
+    if expected_ms_count:
+        assert (
+            len(found_mss) == expected_ms_count
+        ), f"Expected to find {expected_ms_count} in {str(mss_parent_path)}, found {len(found_mss)}."
+
+    return found_mss
+
+
 def get_parser() -> ArgumentParser:
     parser = ArgumentParser(description="Components to interact with MS")
 
@@ -725,6 +822,23 @@ def get_parser() -> ArgumentParser:
         "ms2", type=Path, help="The second measurement set to consider. "
     )
 
+    casda_parser = subparser.add_parser(
+        "casda",
+        help="Apply preprocessing operations to the CASDA ASKAP pipeline MS so it can be used outside of yandasoft",
+    )
+
+    casda_parser.add_argument(
+        "casda_ms",
+        type=Path,
+        help="Path to the ASKAP pipeline produced MS obtained through casda",
+    )
+    casda_parser.add_argument(
+        "--output-directory",
+        type=Path,
+        default=Path("./"),
+        help="Directory to write the new FLINT MS to",
+    )
+
     return parser
 
 
@@ -747,6 +861,10 @@ def cli() -> None:
             logger.info(f"{args.ms1} is compatible with {args.ms2}")
         else:
             logger.info(f"{args.ms1} is not compatible with {args.ms2}")
+    if args.mode == "casda":
+        copy_and_preprocess_casda_askap_ms(
+            casda_ms=Path(args.casda_ms), output_directory=Path(args.output_directory)
+        )
 
 
 if __name__ == "__main__":

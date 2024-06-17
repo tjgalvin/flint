@@ -1,6 +1,8 @@
 """Basic tests for utility functions"""
 
 import math
+import os
+import shutil
 from pathlib import Path
 
 import astropy.units as u
@@ -13,13 +15,66 @@ from astropy.wcs import WCS
 from flint.convol import BeamShape
 from flint.logging import logger
 from flint.utils import (
+    copy_directory,
     estimate_skycoord_centre,
     generate_strict_stub_wcs_header,
     generate_stub_wcs_header,
     get_beam_shape,
+    get_environment_variable,
     get_packaged_resource_path,
     get_pixels_per_beam,
 )
+
+
+@pytest.fixture(scope="session", autouse=True)
+def set_env():
+    """Set up variables for a specific test"""
+    os.environ["TEST1"] = "Pirates"
+    os.environ["TEST2"] = "Treasure"
+
+
+def test_get_environment_variable(set_env):
+    """Make sure that the variable is processed nicely when getting environment variable"""
+    val = get_environment_variable("TEST1")
+    assert val == "Pirates"
+    val2 = get_environment_variable("$TEST2")
+    assert val2 == "Treasure"
+    val3 = get_environment_variable("THISNOEXISTS")
+    assert val3 is None
+
+
+@pytest.fixture
+def ms_example(tmpdir):
+    ms_zip = Path(
+        get_packaged_resource_path(
+            package="flint.data.tests",
+            filename="SB39400.RACS_0635-31.beam0.small.ms.zip",
+        )
+    )
+    outpath = Path(tmpdir) / "39400"
+
+    shutil.unpack_archive(ms_zip, outpath)
+
+    ms_path = Path(outpath) / "SB39400.RACS_0635-31.beam0.small.ms"
+
+    return ms_path
+
+
+def test_copy_directory(ms_example, tmpdir):
+    """See if we can copy folders"""
+    out = Path(tmpdir) / "2"
+    out.mkdir(exist_ok=True)
+    out = out / ms_example.name
+
+    copy_directory(input_directory=ms_example, output_directory=out)
+    # Ensure overwrite works
+    copy_directory(input_directory=ms_example, output_directory=out, overwrite=True)
+    with pytest.raises(FileExistsError):
+        copy_directory(input_directory=ms_example, output_directory=out)
+
+    copy_directory(
+        input_directory=ms_example, output_directory=out, overwrite=True, verify=True
+    )
 
 
 @pytest.fixture

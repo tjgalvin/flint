@@ -1,5 +1,7 @@
 """Testing some wsclean functionality."""
 
+import os
+import shutil
 from pathlib import Path
 
 import pytest
@@ -7,9 +9,58 @@ import pytest
 from flint.exceptions import CleanDivergenceError
 from flint.imager.wsclean import (
     ImageSet,
+    WSCleanCommand,
+    WSCleanOptions,
     _wsclean_output_callback,
+    create_wsclean_cmd,
     get_wsclean_output_names,
 )
+from flint.ms import MS
+from flint.utils import get_packaged_resource_path
+
+
+@pytest.fixture
+def ms_example(tmpdir):
+    ms_zip = Path(
+        get_packaged_resource_path(
+            package="flint.data.tests",
+            filename="SB39400.RACS_0635-31.beam0.small.ms.zip",
+        )
+    )
+    outpath = Path(tmpdir) / "39400"
+
+    shutil.unpack_archive(ms_zip, outpath)
+
+    ms_path = Path(outpath) / "SB39400.RACS_0635-31.beam0.small.ms"
+
+    return ms_path
+
+
+@pytest.fixture(scope="session", autouse=True)
+def set_env():
+    """Set up variables for a specific test"""
+    os.environ["LOCALDIR"] = "Pirates/be/here"
+
+
+def test_create_wsclean_command(ms_example):
+    """Test whether WSCleanOptions can be correctly cast to a command string"""
+    wsclean_options = WSCleanOptions()
+
+    command = create_wsclean_cmd(
+        ms=MS.cast(ms_example), wsclean_options=wsclean_options
+    )
+    assert isinstance(command, WSCleanCommand)
+
+
+def test_create_wsclean_command_with_environment(ms_example):
+    """Test whether WSCleanOptions can be correctly cast to a command string"""
+    wsclean_options = WSCleanOptions(temp_dir="$LOCALDIR")
+
+    command = create_wsclean_cmd(
+        ms=MS.cast(ms_example), wsclean_options=wsclean_options
+    )
+    assert isinstance(command, WSCleanCommand)
+    assert "Pirates/be/here" in command.cmd
 
 
 def test_wsclean_divergence():

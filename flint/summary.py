@@ -297,7 +297,13 @@ def create_field_summary(
 
     assert field is not None, f"Field name is empty in {ms_components=} from {ms.path=}"
 
-    cal_sbid = str(get_sbid_from_path(path=cal_sbid_path)) if cal_sbid_path else None
+    try:
+        cal_sbid = (
+            str(get_sbid_from_path(path=cal_sbid_path)) if cal_sbid_path else None
+        )
+    except ValueError:
+        cal_sbid = -9999
+        logger.info(f"Extracting SBID from {cal_sbid_path=} failed. Using {cal_sbid=}")
 
     ms_times = get_times_from_ms(ms=ms)
     integration = ms_times.ptp().to(u.second).value

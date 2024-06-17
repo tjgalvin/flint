@@ -2,6 +2,7 @@
 for general usage.
 """
 
+import os
 import shutil
 import subprocess
 from pathlib import Path
@@ -21,6 +22,22 @@ from flint.logging import logger
 # struct should be considered. The the astropy.io.fits.Header might be
 # appropriate to pass around between dask / prefect delayed functions. Something
 # that only opens the FITS file once and places things into common field names.
+
+
+def get_environment_variable(variable: str) -> Union[str, None]:
+    """Get the value of an environment variable if it exists. If it does not
+    a None is returned.
+
+    Args:
+        variable (str): The variable to lookup. If it starts with `$` it is removed.
+
+    Returns:
+        Union[str,None]: Value of environment variable if it exists. None if it does not.
+    """
+    variable = variable.lstrip("$")
+    value = os.getenv(variable)
+
+    return value
 
 
 def get_beam_shape(fits_path: Path) -> Optional[BeamShape]:
@@ -293,12 +310,15 @@ def estimate_image_centre(image_path: Path) -> SkyCoord:
     return centre_sky
 
 
-def zip_folder(in_path: Path, out_zip: Optional[Path] = None) -> Path:
+def zip_folder(
+    in_path: Path, out_zip: Optional[Path] = None, archive_format: str = "tar"
+) -> Path:
     """Zip a directory and remove the original.
 
     Args:
         in_path (Path): The path that will be zipped up.
-        out_zip (Path, optional): Name of the output file. A zip extension will be added. Defaults to None.
+        out_zip (Path, optional): Name of the output file. A `archive_format` extension will be added by `shutil.make_archive`. Defaults to None.
+        archive_format (str, optional): The format of the archive. See `shutil.make_archive`. Defaults to "tar".
 
     Returns:
         Path: the path of the compressed zipped folder
@@ -307,7 +327,7 @@ def zip_folder(in_path: Path, out_zip: Optional[Path] = None) -> Path:
     out_zip = in_path if out_zip is None else out_zip
 
     logger.info(f"Zipping {in_path}.")
-    shutil.make_archive(str(out_zip), "zip", base_dir=str(in_path))
+    shutil.make_archive(str(out_zip), format=archive_format, base_dir=str(in_path))
     remove_files_folders(in_path)
 
     return out_zip
@@ -337,6 +357,46 @@ def rsync_copy_directory(target_path: Path, out_path: Path) -> Path:
             logger.debug(line.decode().rstrip())
 
     return out_path
+
+
+def copy_directory(
+    input_directory: Path,
+    output_directory: Path,
+    verify: bool = False,
+    overwrite: bool = False,
+) -> Path:
+    """Copy a directory into a new location.
+
+    Args:
+        input_directory (Path): The source directory to copy
+        output_directory (Path): The location of the source directory to copy to
+        verify (bool, optional): Attempt to run `rsync` to verify copy worked. Defaults to False.
+        overwrite (bool, optional): Remove the target direcrtory if it exists. Defaults to False.
+
+    Returns:
+        Path: Location of output directory
+    """
+
+    input_directory = Path(input_directory)
+    output_directory = Path(output_directory)
+
+    assert (
+        input_directory.exists() and input_directory.is_dir()
+    ), f"Currently only supprts copying directories, {input_directory=} is a file or does not exist. "
+
+    logger.info(f"Copying {input_directory} to {output_directory}.")
+
+    if output_directory.exists():
+        if overwrite:
+            logger.warning(f"{output_directory} already exists. Removing it. ")
+            remove_files_folders(output_directory)
+
+    shutil.copytree(input_directory, output_directory)
+
+    if verify:
+        rsync_copy_directory(input_directory, output_directory)
+
+    return output_directory
 
 
 def remove_files_folders(*paths_to_remove: Path) -> List[Path]:
@@ -372,7 +432,7 @@ def remove_files_folders(*paths_to_remove: Path) -> List[Path]:
     return files_removed
 
 
-def create_directory(directory: Path) -> Path:
+def create_directory(directory: Path, parents: bool = True) -> Path:
     """Will attempt to safely create a directory. Should it
     not exist it will be created. if this creates an exception,
     which might happen in a multi-process environment, it is
@@ -380,6 +440,7 @@ def create_directory(directory: Path) -> Path:
 
     Args:
         directory (Path): Path to directory to create
+        parents (bool, optional): Create parent directories if necessary. Defaults to True.
 
     Returns:
         Path: The directory created
@@ -387,12 +448,9 @@ def create_directory(directory: Path) -> Path:
 
     directory = Path(directory)
 
-    if directory.exists():
-        return directory
-
     logger.info(f"Creating {str(directory)}")
     try:
-        directory.mkdir(parents=True)
+        directory.mkdir(parents=parents, exist_ok=True)
     except Exception as e:
         logger.error(f"Failed to create {str(directory)} {e}.")
 

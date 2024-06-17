@@ -65,9 +65,6 @@ def copy_and_clean_ms_casagain(ms: MS, round: int = 1, verify: bool = True) -> M
     Returns:
         MS: Copy of input measurement set with columns removed as required.
     """
-    # TODO: Excellent function tto start to get the test framework working from!
-    # On the above: No idea what this pirate is talking about
-    # TODO: Update this name creating to a single location
     out_ms_path = get_selfcal_ms_name(in_ms_path=ms.path, round=round)
 
     logger.info(f"Output MS name will be {str(out_ms_path)}.")
