@@ -7,7 +7,6 @@ from pathlib import Path
 
 import numpy as np
 import pytest
-from regex import D
 
 from flint.calibrate.aocalibrate import ApplySolutions
 from flint.exceptions import MSError

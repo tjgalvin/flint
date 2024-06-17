@@ -22,7 +22,7 @@ from fixms.fix_ms_dir import fix_ms_dir
 from flint.exceptions import MSError
 from flint.logging import logger
 from flint.naming import create_ms_name
-from flint.utils import copy_directory, remove_files_folders, rsync_copy_directory
+from flint.utils import copy_directory, rsync_copy_directory
 
 
 class MS(NamedTuple):

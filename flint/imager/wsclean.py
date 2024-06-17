@@ -404,7 +404,7 @@ def run_wsclean_imager(
 
     sclient_bind_dirs = [Path(m.path).parent.absolute() for m in ms]
     if bind_dirs:
-        sclient_singbind_dirs = sclient_bind_dirs + list(bind_dirs)
+        sclient_bind_dirs = sclient_bind_dirs + list(bind_dirs)
 
     run_singularity_command(
         image=container,

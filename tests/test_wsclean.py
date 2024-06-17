@@ -3,7 +3,6 @@
 import os
 import shutil
 from pathlib import Path
-from socket import MSG_WAITALL
 
 import pytest
 
