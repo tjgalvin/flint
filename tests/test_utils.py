@@ -2,7 +2,6 @@
 
 import math
 import os
-import pytest
 import shutil
 from pathlib import Path
 
@@ -16,6 +15,7 @@ from astropy.wcs import WCS
 from flint.convol import BeamShape
 from flint.logging import logger
 from flint.utils import (
+    copy_directory,
     estimate_skycoord_centre,
     generate_strict_stub_wcs_header,
     generate_stub_wcs_header,
@@ -23,7 +23,6 @@ from flint.utils import (
     get_environment_variable,
     get_packaged_resource_path,
     get_pixels_per_beam,
-    copy_directory,
 )
 
 

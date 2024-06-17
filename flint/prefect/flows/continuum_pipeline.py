@@ -6,7 +6,7 @@
 """
 
 from pathlib import Path
-from typing import Any, List, Union, Optional
+from typing import Any, List, Optional, Union
 
 from configargparse import ArgumentParser
 from prefect import flow, tags, unmapped
@@ -139,7 +139,6 @@ def process_science_fields(
     split_path: Path,
     field_options: FieldOptions,
 ) -> None:
-
     # Verify no nasty incompatible options
     _check_field_options(field_options=field_options)
 
@@ -177,7 +176,6 @@ def process_science_fields(
             casda_ms=science_mss, output_directory=output_split_science_path
         )
     else:
-
         # TODO: This will likely need to be expanded should any
         # other calibration strategies get added
         # Scan the existing bandpass directory for the existing solutions

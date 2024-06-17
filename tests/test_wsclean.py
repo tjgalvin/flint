@@ -10,8 +10,8 @@ import pytest
 from flint.exceptions import CleanDivergenceError
 from flint.imager.wsclean import (
     ImageSet,
-    WSCleanOptions,
     WSCleanCommand,
+    WSCleanOptions,
     _wsclean_output_callback,
     create_wsclean_cmd,
     get_wsclean_output_names,

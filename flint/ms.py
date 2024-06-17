@@ -9,7 +9,7 @@ from contextlib import contextmanager
 from os import PathLike
 from pathlib import Path
 from shutil import rmtree
-from typing import List, NamedTuple, Optional, Union, Tuple
+from typing import List, NamedTuple, Optional, Tuple, Union
 
 import astropy.units as u
 import numpy as np

@@ -13,9 +13,9 @@ from flint.calibrate.aocalibrate import ApplySolutions
 from flint.exceptions import MSError
 from flint.ms import (
     MS,
+    copy_and_preprocess_casda_askap_ms,
     find_mss,
     get_phase_dir_from_ms,
-    copy_and_preprocess_casda_askap_ms,
 )
 from flint.utils import get_packaged_resource_path
 
