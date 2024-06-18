@@ -5,6 +5,7 @@ for general usage.
 import os
 import shutil
 import subprocess
+from contextlib import contextmanager
 from pathlib import Path
 from typing import List, Optional, Tuple, Union
 
@@ -22,6 +23,25 @@ from flint.logging import logger
 # struct should be considered. The the astropy.io.fits.Header might be
 # appropriate to pass around between dask / prefect delayed functions. Something
 # that only opens the FITS file once and places things into common field names.
+
+
+@contextmanager
+def temporarily_move_into(subject: Path, temporary_directory: Optional[Path] = None):
+
+    if temporary_directory is None:
+        yield subject
+    else:
+        temporary_directory.mkdir(parents=True, exist_ok=True)
+        assert (
+            temporary_directory.is_dir()
+        ), f"{temporary_directory=} exists and is not a folder"
+        output_item = temporary_directory / subject.name
+        assert not output_item.exists(), f"{output_item=} alreadt exists! "
+        logger.info(f"Moving {subject=} to {output_item=}")
+
+        # Move file into temporary_directory
+        # yield the updated item
+        # Move file from temporary copy back to the original
 
 
 def get_environment_variable(variable: str) -> Union[str, None]:
