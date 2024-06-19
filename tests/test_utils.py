@@ -45,7 +45,7 @@ def test_hold_then_test_errors(tmpdir):
     b.touch()
 
     with pytest.raises(AssertionError):
-        with hold_then_move_into(hold_directory=a, move_directory=b) as not_needed:
+        with hold_then_move_into(hold_directory=a, move_directory=b) as _:
             logger.info("This will not be here")
 
 
