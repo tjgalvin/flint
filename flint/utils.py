@@ -5,6 +5,7 @@ for general usage.
 import os
 import shutil
 import subprocess
+from contextlib import contextmanager
 from pathlib import Path
 from typing import List, Optional, Tuple, Union
 
@@ -22,6 +23,109 @@ from flint.logging import logger
 # struct should be considered. The the astropy.io.fits.Header might be
 # appropriate to pass around between dask / prefect delayed functions. Something
 # that only opens the FITS file once and places things into common field names.
+
+
+@contextmanager
+def hold_then_move_into(
+    hold_directory: Path, move_directory: Path, delete_hold_on_exist: bool = True
+) -> Path:
+    """Create a temporary directory such that anything within it one the
+    exit of the context manager is copied over to `move_directory`.
+
+    Args:
+        hold_directory (Path): Location of directory to temporarily base work from
+        move_directory (Path): Final directort location to move items into
+        delete_hold_on_exist (bool, optional): Whether `hold_directory` is deleted on exit of the context. Defaults to True.
+
+    Returns:
+        Path: Path to the temporary folder
+
+    Yields:
+        Iterator[Path]: Path to the temporary folder
+    """
+    # TODO: except extra files and folders to copy into `hold_directory` that are
+    # also placed back on exit
+    hold_directory = Path(hold_directory)
+    move_directory = Path(move_directory)
+
+    if hold_directory == move_directory:
+        yield move_directory
+    else:
+        for directory in (hold_directory, move_directory):
+            if directory.exists():
+                assert directory.is_dir()
+            else:
+                directory.mkdir(parents=True)
+
+        assert all([d.is_dir() for d in (hold_directory, move_directory)])
+
+        yield hold_directory
+
+        for file_or_folder in hold_directory.glob("*"):
+            logger.info(f"Moving {file_or_folder=} to {move_directory=}")
+            shutil.move(str(file_or_folder), move_directory)
+
+        if delete_hold_on_exist:
+            remove_files_folders(hold_directory)
+
+
+@contextmanager
+def temporarily_move_into(
+    subject: Path, temporary_directory: Optional[Path] = None
+) -> Path:
+    """Given a file or folder, temporarily copy it into the path specified
+    by `temporary_directory` for the duration of the context manager. Upon
+    exit the original copy, specified by `subject`, is removed and replaced
+    by the copy within `temporary_directory`.
+
+    `temporary_directory` will be created internally, and an error will be
+    raised if it exists.
+
+    If `temporary_directory` describes a nested path only the lowest directory
+    is removed.
+
+    If `temporary_directory` is None the `subject` path is returned and there
+    is no copying and deleting performed.
+
+    Args:
+        subject (Path): The file or folder to temporarily move
+        temporary_directory (Optional[Path], optional): The temporary directory to work with. If none the subject path is returned. Defaults to None.
+
+    Yields:
+        Path: The path to the temporary object
+    """
+    subject = Path(subject)
+    temporary_directory = Path(temporary_directory) if temporary_directory else None
+
+    if temporary_directory is None:
+        yield subject
+    else:
+        temporary_directory.mkdir(parents=True, exist_ok=True)
+        assert (
+            temporary_directory.is_dir()
+        ), f"{temporary_directory=} exists and is not a folder"
+
+        output_item = temporary_directory / subject.name
+        assert not output_item.exists(), f"{output_item=} already exists! "
+
+        logger.info(f"Moving {subject=} to {output_item=}")
+
+        if subject.is_dir():
+            logger.info(f"{subject=} is a directory, recursively copying")
+            copy_directory(
+                input_directory=subject, output_directory=output_item.absolute()
+            )
+        else:
+            shutil.copy(subject, output_item)
+
+        yield output_item
+
+        logger.info(f"Moving {output_item} back to {subject=}")
+        remove_files_folders(subject)
+        shutil.move(output_item, subject)
+
+        logger.info(f"Removing {temporary_directory=}")
+        shutil.rmtree(temporary_directory)
 
 
 def get_environment_variable(variable: str) -> Union[str, None]:
