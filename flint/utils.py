@@ -29,7 +29,22 @@ from flint.logging import logger
 def hold_then_move_into(
     hold_directory: Path, move_directory: Path, delete_hold_on_exist: bool = True
 ) -> Path:
+    """Create a temporary directory such that anything within it one the
+    exit of the context manager is copied over to `move_directory`.
 
+    Args:
+        hold_directory (Path): Location of directory to temporarily base work from
+        move_directory (Path): Final directort location to move items into
+        delete_hold_on_exist (bool, optional): Whether `hold_directory` is deleted on exit of the context. Defaults to True.
+
+    Returns:
+        Path: Path to the temporary folder
+
+    Yields:
+        Iterator[Path]: Path to the temporary folder
+    """
+    # TODO: except extra files and folders to copy into `hold_directory` that are
+    # also placed back on exit
     hold_directory = Path(hold_directory)
     move_directory = Path(move_directory)
 
