@@ -28,6 +28,27 @@ from flint.utils import (
 )
 
 
+def test_hold_then_move_same_folder(tmpdir):
+    a = Path(tmpdir) / "Captin"
+
+    with hold_then_move_into(hold_directory=a, move_directory=a) as example:
+        assert a == example
+
+
+def test_hold_then_test_errors(tmpdir):
+    """Make sure some basic error handling"""
+
+    a = Path(tmpdir) / "Jack.txt"
+    b = Path(tmpdir) / "Sparrow.txt"
+
+    a.touch()
+    b.touch()
+
+    with pytest.raises(AssertionError):
+        with hold_then_move_into(hold_directory=a, move_directory=b) as not_needed:
+            logger.info("This will not be here")
+
+
 def test_hold_then_move_into(tmpdir):
     """See whether the hold directory can have things dumped into it, then
     moved into place on exit of the context manager"""

@@ -36,8 +36,12 @@ def hold_then_move_into(
     if hold_directory == move_directory:
         yield move_directory
     else:
-        hold_directory.mkdir(parents=True, exist_ok=True)
-        move_directory.mkdir(parents=True, exist_ok=True)
+        for directory in (hold_directory, move_directory):
+            if directory.exists():
+                assert directory.is_dir()
+            else:
+                directory.mkdir(parents=True)
+
         assert all([d.is_dir() for d in (hold_directory, move_directory)])
 
         yield hold_directory
