@@ -27,6 +27,29 @@ from flint.logging import logger
 
 @contextmanager
 def temporarily_move_into(subject: Path, temporary_directory: Optional[Path] = None):
+    """Given a file or folder, temporarily copy it into the path specified
+    by `temporary_directory` for the duration of the context manager. Upon
+    exit the original copy, specified by `subject`, is removed and replaced
+    by the copy within `temporary_directory`.
+
+    `temporary_directory` will be created internally, and an error will be
+    raised if it exists.
+
+    If `temporary_directory` describes a nested path only the lowest directory
+    is removed.
+
+    If `temporary_directory` is None the `subject` path is returned and there
+    is no copying and deleting performed.
+
+    Args:
+        subject (Path): The file or folder to temporarily move
+        temporary_directory (Optional[Path], optional): The temporary directory to work with. If none the subject path is returned. Defaults to None.
+
+    Yields:
+        Path: The path to the temporary object
+    """
+    subject = Path(subject)
+    temporary_directory = Path(temporary_directory) if temporary_directory else None
 
     if temporary_directory is None:
         yield subject
@@ -35,13 +58,27 @@ def temporarily_move_into(subject: Path, temporary_directory: Optional[Path] = N
         assert (
             temporary_directory.is_dir()
         ), f"{temporary_directory=} exists and is not a folder"
+
         output_item = temporary_directory / subject.name
-        assert not output_item.exists(), f"{output_item=} alreadt exists! "
+        assert not output_item.exists(), f"{output_item=} already exists! "
+
         logger.info(f"Moving {subject=} to {output_item=}")
 
-        # Move file into temporary_directory
-        # yield the updated item
-        # Move file from temporary copy back to the original
+        if subject.is_dir():
+            copy_directory(
+                input_directory=subject, output_directory=output_item.parent.absolute()
+            )
+        else:
+            shutil.copy(subject, output_item)
+
+        yield output_item
+
+        logger.info(f"Moving {output_item} back to {subject=}")
+        remove_files_folders(subject)
+        shutil.move(output_item, subject)
+
+        logger.info(f"Removing {temporary_directory=}")
+        shutil.rmtree(temporary_directory)
 
 
 def get_environment_variable(variable: str) -> Union[str, None]:
