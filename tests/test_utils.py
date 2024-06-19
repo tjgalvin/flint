@@ -23,7 +23,86 @@ from flint.utils import (
     get_environment_variable,
     get_packaged_resource_path,
     get_pixels_per_beam,
+    temporarily_move_into,
 )
+
+
+def test_temporarily_move_into_none(tmpdir):
+    """Make sure that the temporary context manager returns the same path without
+    any deleting should the temporary directory be set to None"""
+
+    TEXT = "this is a test message"
+    source_test = Path(tmpdir) / "source_dir2/test.txt"
+    source_test.parent.mkdir()
+    source_test.touch()
+    assert source_test.read_text() == ""
+
+    with temporarily_move_into(
+        subject=source_test, temporary_directory=None
+    ) as temp_file:
+        assert isinstance(temp_file, Path)
+        assert source_test.samefile(temp_file)
+        temp_file.write_text(TEXT)
+
+    assert source_test.read_text() == TEXT
+
+
+def test_temporarily_move_into_with_directory(tmpdir):
+    """See whether the temp move context manager behaves in a sane way using the
+    case where the subject is a directory"""
+    TEXT = "this is a test message"
+    source_test = Path(tmpdir) / "source_dir2/test.txt"
+    source_test.parent.mkdir()
+    source_test.touch()
+    assert source_test.read_text() == ""
+    source_parent = source_test.parent
+
+    temp_dir = Path(tmpdir) / "someotherdirforwdir"
+    assert not temp_dir.exists()
+
+    with temporarily_move_into(
+        subject=source_parent, temporary_directory=temp_dir
+    ) as temp_parent:
+        assert isinstance(temp_parent, Path)
+        assert Path(temp_parent).exists()
+        assert Path(temp_parent).is_dir()
+        temp_file = Path(temp_parent) / "test.txt"
+        assert temp_file.read_text() == ""
+
+        temp_file.write_text(TEXT)
+        assert temp_file.read_text() == TEXT
+
+    assert source_test.read_text() == TEXT
+    assert not temp_file.exists()
+    assert not temp_dir.exists()
+
+
+def test_temporarily_move_into(tmpdir):
+    """See whether the temp move context manager behaves in a sane way"""
+    TEXT = "this is a test message"
+    source_test = Path(tmpdir) / "source_dir/test.txt"
+    source_test.parent.mkdir()
+    source_test.touch()
+    assert source_test.read_text() == ""
+
+    temp_dir = Path(tmpdir) / "someotherdir"
+    assert not temp_dir.exists()
+
+    with temporarily_move_into(
+        subject=source_test, temporary_directory=temp_dir
+    ) as temp_file:
+        assert isinstance(temp_file, Path)
+        assert Path(temp_file).exists()
+        assert Path(temp_file).is_file()
+
+        assert temp_file.read_text() == ""
+
+        temp_file.write_text(TEXT)
+        assert temp_file.read_text() == TEXT
+
+    assert source_test.read_text() == TEXT
+    assert not temp_file.exists()
+    assert not temp_dir.exists()
 
 
 @pytest.fixture(scope="session", autouse=True)

@@ -26,7 +26,9 @@ from flint.logging import logger
 
 
 @contextmanager
-def temporarily_move_into(subject: Path, temporary_directory: Optional[Path] = None):
+def temporarily_move_into(
+    subject: Path, temporary_directory: Optional[Path] = None
+) -> Path:
     """Given a file or folder, temporarily copy it into the path specified
     by `temporary_directory` for the duration of the context manager. Upon
     exit the original copy, specified by `subject`, is removed and replaced
@@ -65,8 +67,9 @@ def temporarily_move_into(subject: Path, temporary_directory: Optional[Path] = N
         logger.info(f"Moving {subject=} to {output_item=}")
 
         if subject.is_dir():
+            logger.info(f"{subject=} is a directory, recursively copying")
             copy_directory(
-                input_directory=subject, output_directory=output_item.parent.absolute()
+                input_directory=subject, output_directory=output_item.absolute()
             )
         else:
             shutil.copy(subject, output_item)
