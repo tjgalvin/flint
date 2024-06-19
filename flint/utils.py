@@ -29,7 +29,6 @@ from flint.logging import logger
 def hold_then_move_into(
     hold_directory: Path, move_directory: Path, delete_hold_on_exist: bool = True
 ) -> Path:
-
     hold_directory = Path(hold_directory)
     move_directory = Path(move_directory)
 
