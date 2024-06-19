@@ -26,6 +26,31 @@ from flint.logging import logger
 
 
 @contextmanager
+def hold_then_move_into(
+    hold_directory: Path, move_directory: Path, delete_hold_on_exist: bool = True
+) -> Path:
+
+    hold_directory = Path(hold_directory)
+    move_directory = Path(move_directory)
+
+    if hold_directory == move_directory:
+        yield move_directory
+    else:
+        hold_directory.mkdir(parents=True, exist_ok=True)
+        move_directory.mkdir(parents=True, exist_ok=True)
+        assert all([d.is_dir() for d in (hold_directory, move_directory)])
+
+        yield hold_directory
+
+        for file_or_folder in hold_directory.glob("*"):
+            logger.info(f"Moving {file_or_folder=} to {move_directory=}")
+            shutil.move(str(file_or_folder), move_directory)
+
+        if delete_hold_on_exist:
+            remove_files_folders(hold_directory)
+
+
+@contextmanager
 def temporarily_move_into(
     subject: Path, temporary_directory: Optional[Path] = None
 ) -> Path:

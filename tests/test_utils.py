@@ -23,8 +23,37 @@ from flint.utils import (
     get_environment_variable,
     get_packaged_resource_path,
     get_pixels_per_beam,
+    hold_then_move_into,
     temporarily_move_into,
 )
+
+
+def test_hold_then_move_into(tmpdir):
+    """See whether the hold directory can have things dumped into it, then
+    moved into place on exit of the context manager"""
+
+    tmpdir = Path(tmpdir)
+
+    hold_directory = Path(tmpdir / "putthingshere")
+    move_directory = Path(tmpdir / "the/final/location")
+
+    assert all([not d.exists() for d in (hold_directory, move_directory)])
+    no_files = 45
+    with hold_then_move_into(
+        hold_directory=hold_directory, move_directory=move_directory
+    ) as put_dir:
+        assert put_dir.exists()
+        for i in range(no_files):
+            file: Path = put_dir / f"some_file_{i}.txt"
+            file.write_text(f"This is a file {i}")
+
+        assert len(list(put_dir.glob("*"))) == no_files
+        assert move_directory.exists()
+        assert len(list(move_directory.glob("*"))) == 0
+
+    assert len(list(move_directory.glob("*"))) == no_files
+    assert not put_dir.exists()
+    assert not hold_directory.exists()
 
 
 def test_temporarily_move_into_none(tmpdir):
