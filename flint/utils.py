@@ -435,7 +435,7 @@ def zip_folder(
         shutil.make_archive(str(out_zip), format=archive_format, base_dir=str(in_path))
         remove_files_folders(in_path)
     else:
-        logger.warning(f"{input_path=} does not exist... Not archiving. ")
+        logger.warning(f"{in_path=} does not exist... Not archiving. ")
 
     return out_zip
 
