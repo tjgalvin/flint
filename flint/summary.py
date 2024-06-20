@@ -34,6 +34,11 @@ from flint.naming import get_sbid_from_path, processed_ms_format
 from flint.source_finding.aegean import AegeanOutputs
 from flint.utils import estimate_skycoord_centre
 
+# Addressing some time interval IERS issue with astropy.
+from astropy.utils.iers import conf
+
+conf.auto_max_age = None
+
 
 class FieldSummary(NamedTuple):
     """The main information about a processed field. This structure is
