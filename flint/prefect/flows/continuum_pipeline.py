@@ -344,7 +344,7 @@ def process_science_fields(
             )
 
             cal_mss = task_gaincal_applycal_ms.map(
-                wsclean_cmd=wsclean_cmds,
+                ms=wsclean_cmds,
                 round=current_round,
                 update_gain_cal_options=unmapped(gain_cal_options),
                 archive_input_ms=field_options.zip_ms,
