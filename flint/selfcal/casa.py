@@ -13,10 +13,10 @@ from typing import Any, Dict, NamedTuple, Optional
 from casacore.tables import table
 from casatasks import applycal, cvel, gaincal, mstransform
 
-from flint.exceptions import GainCalError
+from flint.exceptions import GainCalError, MSError
 from flint.flagging import nan_zero_extreme_flag_ms
 from flint.logging import logger
-from flint.ms import MS
+from flint.ms import MS, rename_ms_and_columns_for_selfcal
 from flint.naming import get_selfcal_ms_name
 from flint.utils import remove_files_folders, rsync_copy_directory, zip_folder
 
@@ -51,16 +51,23 @@ class GainCalOptions(NamedTuple):
         return GainCalOptions(**_dict)
 
 
-def copy_and_clean_ms_casagain(ms: MS, round: int = 1, verify: bool = True) -> MS:
+def copy_and_clean_ms_casagain(
+    ms: MS, round: int = 1, verify: bool = True, rename_ms: bool = False
+) -> MS:
     """Create a copy of a measurement set in preparation for selfcalibration
     using casa's gaincal and applycal. Applycal only works when calibrating
     DATA and creating a CORRECTED_DATA column. Columns are removed in the
     copied MS to allow this.
 
+    If the MS is large the `move_ms` option will simply renamed the input MS, adjusting
+    the columns appropriately. Note that this potentially involves deleting the `DATA`
+    column if present and renaming `CORRECTED_DATA`.
+
     Args:
         ms (MS): Measurement set that would go through self-calibration.
         round (int, optional): The self-calibration round. Defaults to 1.
         verify (bool, optional): Verify that copying the measurementt set (done in preparation for gaincal) was successful. Uses a call to rsync. Defaults to True.
+        move_ms (bool, optional): Rather than copying the MS, simple renamed the MS and modify columns appropriately. Defaults to False.
 
     Returns:
         MS: Copy of input measurement set with columns removed as required.
@@ -74,48 +81,56 @@ def copy_and_clean_ms_casagain(ms: MS, round: int = 1, verify: bool = True) -> M
         logger.warning(f"{out_ms_path} already exists. Removing it. ")
         remove_files_folders(out_ms_path)
 
-    copytree(ms.path, out_ms_path)
-    # Because we can trust nothing, verify the
-    # copy with rsync. On some lustre file systems (mostly seen on stonix)
-    # components of the measurement sett are not always successfully
-    # copied with a simple copytree.
-    if verify:
-        rsync_copy_directory(ms.path, out_ms_path)
+    if rename_ms:
+        if not ms.column:
+            raise MSError(f"No column has been assigned: {ms}")
 
-    logger.info("Copying finished. ")
+        ms = rename_ms_and_columns_for_selfcal(
+            ms=ms, target=out_ms_path, corrected_data=ms.column, data="DATA"
+        )
+    else:
+        copytree(ms.path, out_ms_path)
+        # Because we can trust nothing, verify the
+        # copy with rsync. On some lustre file systems (mostly seen on stonix)
+        # components of the measurement sett are not always successfully
+        # copied with a simple copytree.
+        if verify:
+            rsync_copy_directory(ms.path, out_ms_path)
 
-    # The casa gaincal and applycal tasks __really__ expect the input and output
-    # column names to be DATA and CORRECTED_DATA. So, here we will go through the
-    # motions of deleting and rnaming columns. Note that the MODEL_DATA column needs
-    # to exist. The INSTRUMENT_DATA column will also be removed.
-    logger.info("About to open the table. ")
-    with table(str(out_ms_path), readonly=False, ack=False) as tab:
-        logger.info("About tto get the colnames")
-        colnames = tab.colnames()
-        logger.info(f"Column names are: {colnames}")
-        if ms.column == "DATA" and "CORRECTED_DATA" not in colnames:
-            logger.info(
-                "Data is the nominated column, and CORRECTED_DATA does not exist. Returning. "
-            )
-        else:
-            to_delete = [
-                "DATA",
-            ]
-            for col in to_delete:
-                if col in colnames:
-                    logger.info(f"Removing {col=} from {str(out_ms_path)}.")
-                    try:
-                        tab.removecols(col)
-                        tab.flush(recursive=True)
-                    except Exception as e:
-                        logger.critical(
-                            f"Failed to remove {col=}! \nCaptured error: {e}"
-                        )
-                else:
-                    logger.warning(f"Column {col} not found in {str(out_ms_path)}.")
+        logger.info("Copying finished. ")
 
-            logger.info("Renaming CORRECTED_DATA to DATA. ")
-            tab.renamecol("CORRECTED_DATA", "DATA")
+        # The casa gaincal and applycal tasks __really__ expect the input and output
+        # column names to be DATA and CORRECTED_DATA. So, here we will go through the
+        # motions of deleting and rnaming columns. Note that the MODEL_DATA column needs
+        # to exist. The INSTRUMENT_DATA column will also be removed.
+        logger.info("About to open the table. ")
+        with table(str(out_ms_path), readonly=False, ack=False) as tab:
+            logger.info("About tto get the colnames")
+            colnames = tab.colnames()
+            logger.info(f"Column names are: {colnames}")
+            if ms.column == "DATA" and "CORRECTED_DATA" not in colnames:
+                logger.info(
+                    "Data is the nominated column, and CORRECTED_DATA does not exist. Returning. "
+                )
+            else:
+                to_delete = [
+                    "DATA",
+                ]
+                for col in to_delete:
+                    if col in colnames:
+                        logger.info(f"Removing {col=} from {str(out_ms_path)}.")
+                        try:
+                            tab.removecols(col)
+                            tab.flush(recursive=True)
+                        except Exception as e:
+                            logger.critical(
+                                f"Failed to remove {col=}! \nCaptured error: {e}"
+                            )
+                    else:
+                        logger.warning(f"Column {col} not found in {str(out_ms_path)}.")
+
+                logger.info("Renaming CORRECTED_DATA to DATA. ")
+                tab.renamecol("CORRECTED_DATA", "DATA")
 
     # Note that the out_ms_path needs to be set, even if the data  column is initially DATA.
     # Since casa expects DATA, we will force the column to be DATA with the expectation that
@@ -207,6 +222,7 @@ def gaincal_applycal_ms(
     archive_input_ms: bool = False,
     raise_error_on_fail: bool = True,
     skip_selfcal: bool = False,
+    rename_ms: bool = False,
 ) -> MS:
     """Perform self-calibration using casa's gaincal and applycal tasks against
     an input measurement set.
@@ -219,6 +235,7 @@ def gaincal_applycal_ms(
         archive_input_ms (bool, optional): If True, the input measurement set will be compressed into a single file. Defaults to False.
         raise_error_on_fail (bool, optional): If gaincal does not converge raise en error. if False and gain cal fails return the input ms. Defaults to True.
         skip_selfcal (bool, optional): Should this self-cal be skipped. If `True`, the a new MS is created but not calibrated the appropriate new name and returned.
+        rename_ms (bool, optional): It `True` simply rename a MS and adjust columns appropriately (potentially deleting them) instead of copying the complete MS. If `True` `archive_input_ms` is ignored. Defaults to False.
 
     Raises:
         GainCallError: Raised when raise_error_on_fail is True and gaincal does not converge.
@@ -236,10 +253,10 @@ def gaincal_applycal_ms(
 
     # TODO: If the skip_selfcal is True we should just symlink, maybe?
     # Pirates like easy things though.
-    cal_ms = copy_and_clean_ms_casagain(ms=ms, round=round)
+    cal_ms = copy_and_clean_ms_casagain(ms=ms, round=round, rename_ms=rename_ms)
 
     # Archive straight after copying incase we skip the gaincal and return
-    if archive_input_ms:
+    if archive_input_ms and not rename_ms:
         zip_folder(in_path=ms.path)
 
     # No need to do work me, hardy
