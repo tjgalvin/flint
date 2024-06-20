@@ -674,7 +674,7 @@ def get_parser() -> ArgumentParser:
         help="Skip checking whether the path containing bandpass solutions exists (e.g. if solutions have already been applied)",
     )
     parser.add_argument(
-        "--move-mss",
+        "--rename-ms",
         action="store_true",
         default=False,
         help="Rename MSs throught rounds of imaging and self-cal instead of creating copies. This will delete data-columns throughout. ",
