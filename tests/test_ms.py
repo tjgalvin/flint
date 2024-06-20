@@ -140,7 +140,6 @@ def test_check_column_in_ms(ms_example):
 
 
 def _get_columns(ms_path):
-
     with table(str(ms_path), readonly=True, ack=False) as tab:
         return tab.colnames()
 

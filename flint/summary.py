@@ -19,6 +19,9 @@ from astropy.coordinates import (
 from astropy.table import Table
 from astropy.time import Time
 
+# Addressing some time interval IERS issue with astropy.
+from astropy.utils.iers import conf
+
 from flint.coadd.linmos import LinmosCommand
 from flint.imager.wsclean import ImageSet, WSCleanCommand
 from flint.logging import logger
@@ -33,9 +36,6 @@ from flint.ms import (
 from flint.naming import get_sbid_from_path, processed_ms_format
 from flint.source_finding.aegean import AegeanOutputs
 from flint.utils import estimate_skycoord_centre
-
-# Addressing some time interval IERS issue with astropy.
-from astropy.utils.iers import conf
 
 conf.auto_max_age = None
 

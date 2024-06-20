@@ -4,10 +4,10 @@ from __future__ import (  # Used for mypy/pylance to like the return type of MS.
     annotations,
 )
 
-from curses.ascii import controlnames
 import shutil
 from argparse import ArgumentParser
 from contextlib import contextmanager
+from curses.ascii import controlnames
 from os import PathLike
 from pathlib import Path
 from typing import List, NamedTuple, Optional, Tuple, Union
