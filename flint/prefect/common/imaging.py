@@ -213,20 +213,22 @@ def task_zip_ms(in_item: WSCleanCommand) -> Path:
 
 @task
 def task_gaincal_applycal_ms(
-    wsclean_cmd: WSCleanCommand,
+    ms: Union[MS, WSCleanCommand],
     round: int,
     update_gain_cal_options: Optional[Dict[str, Any]] = None,
     archive_input_ms: bool = False,
     skip_selfcal: bool = False,
+    rename_ms: bool = False,
 ) -> MS:
     """Perform self-calibration using CASA gaincal and applycal.
 
     Args:
-        wsclean_cmd (WSCleanCommand): A resulting wsclean output. This is used purely to extract the ``.ms`` attribute.
+        ms (Union[MS, WSCleanCommand]): A resulting wsclean output. This is used purely to extract the ``.ms`` attribute.
         round (int): Counter indication which self-calibration round is being performed. A name is included based on this.
         update_gain_cal_options (Optional[Dict[str, Any]], optional): Options used to overwrite the default ``gaincal`` options. Defaults to None.
         archive_input_ms (bool, optional): If True the input measurement set is zipped. Defaults to False.
         skip_selfcal (bool, optional): Should this self-cal be skipped. If `True`, the a new MS is created but not calibrated the appropriate new name and returned.
+        rename_ms (bool, optional): It `True` simply rename a MS and adjust columns appropriately (potentially deleting them) instead of copying the complete MS. If `True` `archive_input_ms` is ignored. Defaults to False.
 
     Raises:
         ValueError: Raised when a ``.ms`` attribute can not be obtained
@@ -236,7 +238,7 @@ def task_gaincal_applycal_ms(
     """
     # TODO: Need to do a better type system to include the .ms
     # TODO: This needs to be expanded to handle multiple MS
-    ms = wsclean_cmd.ms
+    ms = ms if isinstance(ms, MS) else ms.ms  # type: ignore
 
     if not isinstance(ms, MS):
         raise ValueError(
@@ -249,6 +251,7 @@ def task_gaincal_applycal_ms(
         update_gain_cal_options=update_gain_cal_options,
         archive_input_ms=archive_input_ms,
         skip_selfcal=skip_selfcal,
+        rename_ms=rename_ms,
     )
 
 

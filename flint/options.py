@@ -104,3 +104,5 @@ class FieldOptions(NamedTuple):
     """Path that SBID archive tarballs will be created under. If None no archive tarballs are created. See ArchiveOptions. """
     sbid_copy_path: Optional[Path] = None
     """Path that final processed products will be copied into. If None no copying of file products is performed. See ArchiveOptions. """
+    rename_ms: bool = False
+    """Rename MSs throught rounds of imaging and self-cal instead of creating copies. This will delete data-columns throughout. """

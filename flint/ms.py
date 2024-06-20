@@ -808,7 +808,10 @@ def rename_ms_and_columns_for_selfcal(
     with table(str(target), readonly=False, ack=False) as tab:
         colnames = tab.colnames()
 
-        if all([col in colnames for col in (corrected_data, data)]):
+        if (
+            all([col in colnames for col in (corrected_data, data)])
+            and corrected_data != data
+        ):
             logger.info(f"Removing {data} and renaming {corrected_data}")
             tab.removecols(columnnames=data)
             tab.renamecol(oldname=corrected_data, newname=data)
@@ -817,6 +820,21 @@ def rename_ms_and_columns_for_selfcal(
             tab.renamecol(oldname=corrected_data, newname=data)
         elif corrected_data not in colnames and data in colnames:
             logger.warning(f"No {corrected_data=}, and {data=} seems to be present")
+        elif (
+            all([col in colnames for col in (corrected_data, data)])
+            and corrected_data == data
+            and corrected_data != "DATA"
+        ):
+            data = "DATA"
+            logger.info(f"Renaming {corrected_data} to DATA")
+            tab.renamecol(corrected_data, data)
+
+    # This is a safe guard against my bad handling of the above / mutineers
+    # There could be interplay with these columns when potato peel is used
+    # as some MSs will have CORRECYED_DATA and others may not.
+    assert (
+        data == "DATA"
+    ), f"Somehow data column is not DATA, instead {data=}. Likely a problem for casa."
 
     return ms.with_options(path=target, column=data)
 

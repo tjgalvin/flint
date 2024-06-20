@@ -427,12 +427,15 @@ def zip_folder(
     Returns:
         Path: the path of the compressed zipped folder
     """
-
+    in_path = Path(in_path)
     out_zip = in_path if out_zip is None else out_zip
 
-    logger.info(f"Zipping {in_path}.")
-    shutil.make_archive(str(out_zip), format=archive_format, base_dir=str(in_path))
-    remove_files_folders(in_path)
+    if in_path.exists():
+        logger.info(f"Zipping {in_path}.")
+        shutil.make_archive(str(out_zip), format=archive_format, base_dir=str(in_path))
+        remove_files_folders(in_path)
+    else:
+        logger.warning(f"{input_path=} does not exist... Not archiving. ")
 
     return out_zip
 

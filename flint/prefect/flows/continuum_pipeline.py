@@ -349,6 +349,7 @@ def process_science_fields(
                 update_gain_cal_options=unmapped(gain_cal_options),
                 archive_input_ms=field_options.zip_ms,
                 skip_selfcal=skip_gaincal_current_round,
+                rename_ms=field_options.rename_ms,
                 wait_for=[
                     field_summary
                 ],  # To make sure field summary is created with unzipped MSs
@@ -672,6 +673,12 @@ def get_parser() -> ArgumentParser:
         action="store_true",
         help="Skip checking whether the path containing bandpass solutions exists (e.g. if solutions have already been applied)",
     )
+    parser.add_argument(
+        "--move-mss",
+        action="store_true",
+        default=False,
+        help="Rename MSs throught rounds of imaging and self-cal instead of creating copies. This will delete data-columns throughout. ",
+    )
 
     return parser
 
@@ -714,6 +721,7 @@ def cli() -> None:
         imaging_strategy=args.imaging_strategy,
         sbid_archive_path=args.sbid_archive_path,
         sbid_copy_path=args.sbid_copy_path,
+        rename_ms=args.rename_ms,
     )
 
     setup_run_process_science_field(
