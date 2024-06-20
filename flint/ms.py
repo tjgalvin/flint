@@ -4,11 +4,12 @@ from __future__ import (  # Used for mypy/pylance to like the return type of MS.
     annotations,
 )
 
+from curses.ascii import controlnames
+import shutil
 from argparse import ArgumentParser
 from contextlib import contextmanager
 from os import PathLike
 from pathlib import Path
-from shutil import rmtree
 from typing import List, NamedTuple, Optional, Tuple, Union
 
 import astropy.units as u
@@ -174,7 +175,7 @@ def critical_ms_interaction(
     # If we get to here, things worked successfully, and we
     # should return things back to normal.
     if copy:
-        rmtree(input_ms)
+        shutil.rmtree(input_ms)
         output_ms.rename(input_ms)
     else:
         output_ms.rename(target=input_ms)
@@ -756,6 +757,68 @@ def copy_and_preprocess_casda_askap_ms(
     )
 
     return ms.with_options(column=data_column)
+
+
+def rename_ms_and_columns_for_selfcal(
+    ms: MS,
+    target: Union[str, Path],
+    corrected_data: str = "CORRECTED_DATA",
+    data: str = "DATA",
+) -> MS:
+    """Take an existing measurement set, rename it, and appropriately
+    rename the "DATA" and "CORRECTED_DATA" columns to support a new
+    round of imaging and self-calibration.
+
+    This could be considered for larger measurement sets where holding
+    multiple copies throughout rounds of self-calibration is not advisable.
+
+    Args:
+        ms (MS): The subject measurement set to rename
+        target (Union[str, Path]): The targett path the measurement set will be renamed to. This shoudl not already exist.
+        corrected_data (str, optional): The name of the column with the latest calibrated data. This becomes the `data` column. Defaults to "CORRECTED_DATA".
+        data (str, optional): The name of the column that will be subsequently processed. If it exists it will be removed. Defaults to "DATA".
+
+    Raises:
+        FileExistsError: Raised if `target` already exists
+        FileNotFoundError: Raise if `ms.path` does not exist
+
+    Returns:
+        MS: Updated MS container with new path and appropriate data column
+    """
+
+    ms = MS.cast(ms)
+    target = Path(target)
+
+    if target.exists():
+        raise FileExistsError(f"{target} already exists!")
+    if not ms.path.exists() or not ms.path.is_dir():
+        raise FileNotFoundError(
+            f"{ms.path} does not exists or is not a directory (hence measurement set)."
+        )
+
+    logger.info(f"Renaming {ms.path} to {target=}")
+    ms.path.rename(target=target)
+
+    # Just some sanity incase None is passed through
+    if not (corrected_data or data):
+        return ms.with_options(path=target)
+
+    # Now move the corrected data column into the column to be imaged.
+    # For casa it really needs to be DATA
+    with table(str(target), readonly=False, ack=False) as tab:
+        colnames = tab.colnames()
+
+        if all([col in colnames for col in (corrected_data, data)]):
+            logger.info(f"Removing {data} and renaming {corrected_data}")
+            tab.removecols(columnnames=data)
+            tab.renamecol(oldname=corrected_data, newname=data)
+        elif corrected_data in colnames and data not in controlnames:
+            logger.info(f"Renaming {corrected_data=} to {data=}")
+            tab.renamecol(oldname=corrected_data, newname=data)
+        elif corrected_data not in colnames and data in colnames:
+            logger.warning(f"No {corrected_data=}, and {data=} seems to be present")
+
+    return ms.with_options(path=target, column=data)
 
 
 def find_mss(

@@ -7,14 +7,17 @@ from pathlib import Path
 
 import numpy as np
 import pytest
+from casacore.tables import table
 
 from flint.calibrate.aocalibrate import ApplySolutions
 from flint.exceptions import MSError
 from flint.ms import (
     MS,
+    check_column_in_ms,
     copy_and_preprocess_casda_askap_ms,
     find_mss,
     get_phase_dir_from_ms,
+    rename_ms_and_columns_for_selfcal,
 )
 from flint.utils import get_packaged_resource_path
 
@@ -123,6 +126,64 @@ def ms_example(tmpdir):
     ms_path = Path(outpath) / "SB39400.RACS_0635-31.beam0.small.ms"
 
     return ms_path
+
+
+def test_check_column_in_ms(ms_example):
+    """See whether columns are present in the MS, and whether the order of checking is correct"""
+    ms = MS(path=Path(ms_example), column="DATA")
+
+    assert check_column_in_ms(ms=ms)
+    assert not check_column_in_ms(ms=ms, column="NoExists")
+
+    with pytest.raises(ValueError):
+        check_column_in_ms(ms=ms.with_options(column=None))
+
+
+def _get_columns(ms_path):
+
+    with table(str(ms_path), readonly=True, ack=False) as tab:
+        return tab.colnames()
+
+
+def test_rename_ms_and_columns_for_selfcal_correct2data(ms_example, tmpdir):
+    """Sanity around renaming a MS and handlign the columns that should be renamed"""
+    ms = MS.cast(Path(ms_example))
+    with table(str(ms.path), readonly=False, ack=False) as tab:
+        tab.renamecol("DATA", "CORRECTED_DATA")
+
+    colnames = _get_columns(ms_path=ms.path)
+
+    assert "DATA" not in colnames
+    assert "CORRECTED_DATA" in colnames
+
+    target = Path(tmpdir) / "target_directory"
+    target.mkdir(parents=True)
+    target = target / ms.path.name
+
+    new_ms = rename_ms_and_columns_for_selfcal(ms=ms, target=target)
+    new_colnames = _get_columns(ms_path=new_ms.path)
+
+    assert new_ms.path == target
+    assert "DATA" in new_colnames
+    assert "CORRECTED_DATA" not in new_colnames
+
+
+def test_rename_ms_and_columns_for_selfcal(ms_example, tmpdir):
+    """Sanity around renaming a MS and handlign the columns that should be renamed"""
+    ms = MS.cast(Path(ms_example))
+    colnames = _get_columns(ms_path=ms.path)
+
+    assert "DATA" in colnames
+
+    target = Path(tmpdir) / "target_directory"
+    target.mkdir(parents=True)
+    target = target / ms.path.name
+
+    new_ms = rename_ms_and_columns_for_selfcal(ms=ms, target=target)
+    new_colnames = _get_columns(ms_path=new_ms.path)
+
+    assert new_ms.path == target
+    assert "DATA" in new_colnames
 
 
 def test_phase_dir(ms_example):
