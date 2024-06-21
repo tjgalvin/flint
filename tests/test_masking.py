@@ -39,6 +39,7 @@ def test_consider_beam_masking_round():
     assert consider_beam_mask_round(
         current_round=3, mask_rounds=1, allow_beam_masks=True
     )
+    assert consider_beam_mask_round(current_round=1, mask_rounds=1)
 
 
 def test_minimum_boxcar_artefact():
