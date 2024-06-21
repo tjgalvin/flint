@@ -815,7 +815,11 @@ def rename_ms_and_columns_for_selfcal(
             logger.info(f"Removing {data} and renaming {corrected_data}")
             tab.removecols(columnnames=data)
             tab.renamecol(oldname=corrected_data, newname=data)
-        elif corrected_data in colnames and data not in controlnames:
+        elif (
+            corrected_data in colnames
+            and data not in controlnames
+            and corrected_data != data
+        ):
             logger.info(f"Renaming {corrected_data=} to {data=}")
             tab.renamecol(oldname=corrected_data, newname=data)
         elif corrected_data not in colnames and data in colnames:
