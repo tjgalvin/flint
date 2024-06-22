@@ -309,6 +309,9 @@ def task_get_common_beam(
     Returns:
         BeamShape: The final convolving beam size to be used
     """
+    # TODO: This function could have a wrapper around it that checks to see if
+    # fixed_beam_shape is present, and simply return, avoiding using this funcitons
+    # .submit method. Ahhh.
     if fixed_beam_shape:
         beam_shape = BeamShape(
             bmaj_arcsec=fixed_beam_shape[0],
