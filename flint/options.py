@@ -88,6 +88,8 @@ class FieldOptions(NamedTuple):
     """Linmos the cleaning residuals together into a field image"""
     beam_cutoff: float = 150
     """Cutoff in arcseconds to use when calculating the common beam to convol to"""
+    fixed_beam_shape: Optional[List[float]] = None
+    """Specify the final beamsize of linmos field images in (arcsec, arcsec, deg)"""
     pb_cutoff: float = 0.1
     """Primary beam attentuation cutoff to use during linmos"""
     use_preflagger: bool = True
