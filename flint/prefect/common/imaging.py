@@ -296,7 +296,7 @@ def task_get_common_beam(
     wsclean_cmds: Collection[WSCleanCommand],
     cutoff: float = 25,
     filter: Optional[str] = None,
-    fixed_beam_shape: Optional[List[float, float, float]] = None,
+    fixed_beam_shape: Optional[List[float]] = None,
 ) -> BeamShape:
     """Compute a common beam size that all input images will be convoled to.
 
@@ -304,7 +304,7 @@ def task_get_common_beam(
         wsclean_cmds (Collection[WSCleanCommand]): Input images whose restoring beam properties will be considered
         cutoff (float, optional): Major axis larger than this valur, in arcseconds, will be ignored. Defaults to 25.
         filter (Optional[str], optional): Only include images when considering beam shape if this string is in the file path. Defaults to None.
-        fixed_beam_shape (Optional[List[float,float,float]], optional): Specify the final beamsize of linmos field images in (arcsec, arcsec, deg). If None it is deduced from images. Defauls to None;
+        fixed_beam_shape (Optional[List[float]], optional): Specify the final beamsize of linmos field images in (arcsec, arcsec, deg). If None it is deduced from images. Defauls to None;
 
     Returns:
         BeamShape: The final convolving beam size to be used
