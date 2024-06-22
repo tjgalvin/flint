@@ -5,6 +5,7 @@
 - Basic handling of CASDA measurement sets (preprocessing)
 - Basic handling of environment variables in Options, only supported in WSCleanOptions (no need for others yet)
 - basic renaming of MS and shuffling column names in place of straight up copying the MS
+- added CLI argument `--fixed-beam-shape` to specify a fixed final resolution, overwritng the optimal beam shape that otherwise would be computed
 
 ## 0.2.4
 
