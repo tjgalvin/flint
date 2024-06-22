@@ -274,7 +274,10 @@ def process_science_fields(
         )
 
     beam_shape = task_get_common_beam.submit(
-        wsclean_cmds=wsclean_cmds, cutoff=field_options.beam_cutoff, filter="-MFS-"
+        wsclean_cmds=wsclean_cmds,
+        cutoff=field_options.beam_cutoff,
+        filter="-MFS-",
+        fixed_beam_shape=field_options.fixed_beam_shape,
     )
     conv_images = task_convolve_image.map(
         wsclean_cmd=wsclean_cmds,
@@ -401,6 +404,7 @@ def process_science_fields(
                 wsclean_cmds=wsclean_cmds,
                 cutoff=field_options.beam_cutoff,
                 filter="-MFS-",
+                fixed_beam_shape=field_options.fixed_beam_shape,
             )
             conv_images = task_convolve_image.map(
                 wsclean_cmd=wsclean_cmds,
@@ -624,6 +628,13 @@ def get_parser() -> ArgumentParser:
         help="Cutoff in arcseconds that is used to flagged synthesised beams were deriving a common resolution to smooth to when forming the linmos images",
     )
     parser.add_argument(
+        "--fixed-beam-shape",
+        nargs=3,
+        type=float,
+        default=None,
+        help="Specify the final beamsize of linmos field images in (arcsec, arcsec, deg)",
+    )
+    parser.add_argument(
         "--pb-cutoff",
         type=float,
         default=0.1,
@@ -710,6 +721,7 @@ def cli() -> None:
         reference_catalogue_directory=args.reference_catalogue_directory,
         linmos_residuals=args.linmos_residuals,
         beam_cutoff=args.beam_cutoff,
+        fixed_beam_shape=args.fixed_beam_shape,
         pb_cutoff=args.pb_cutoff,
         use_preflagger=args.use_preflagger,
         use_beam_masks=args.use_beam_masks,

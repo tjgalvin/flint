@@ -10,6 +10,7 @@ from typing import Any, Collection, Dict, List, Optional, TypeVar, Union
 import pandas as pd
 from prefect import task, unmapped
 from prefect.artifacts import create_table_artifact
+from regex import B
 
 from flint.calibrate.aocalibrate import (
     ApplySolutions,
@@ -295,6 +296,7 @@ def task_get_common_beam(
     wsclean_cmds: Collection[WSCleanCommand],
     cutoff: float = 25,
     filter: Optional[str] = None,
+    fixed_beam_shape: Optional[List[float, float, float]] = None,
 ) -> BeamShape:
     """Compute a common beam size that all input images will be convoled to.
 
@@ -302,10 +304,20 @@ def task_get_common_beam(
         wsclean_cmds (Collection[WSCleanCommand]): Input images whose restoring beam properties will be considered
         cutoff (float, optional): Major axis larger than this valur, in arcseconds, will be ignored. Defaults to 25.
         filter (Optional[str], optional): Only include images when considering beam shape if this string is in the file path. Defaults to None.
+        fixed_beam_shape (Optional[List[float,float,float]], optional): Specify the final beamsize of linmos field images in (arcsec, arcsec, deg). If None it is deduced from images. Defauls to None;
 
     Returns:
         BeamShape: The final convolving beam size to be used
     """
+    if fixed_beam_shape:
+        beam_shape = BeamShape(
+            bmaj_arcsec=fixed_beam_shape[0],
+            bmin_arcsec=fixed_beam_shape[1],
+            bpa_deg=fixed_beam_shape[2],
+        )
+        logger.info(f"Using fixed {beam_shape=}")
+        return beam_shape
+
     images_to_consider: List[Path] = []
 
     # TODO: This should support other image types
