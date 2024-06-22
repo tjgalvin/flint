@@ -10,7 +10,6 @@ from typing import Any, Collection, Dict, List, Optional, TypeVar, Union
 import pandas as pd
 from prefect import task, unmapped
 from prefect.artifacts import create_table_artifact
-from regex import B
 
 from flint.calibrate.aocalibrate import (
     ApplySolutions,
