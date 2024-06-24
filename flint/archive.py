@@ -22,9 +22,12 @@ DEFAULT_TAR_RE_PATTERNS = (
     r".*\.txt",
     r".*png",
     r".*beam[0-9]+\.ms\.zip",
+    r".*beam[0-9]+\.ms",
     r".*\.caltable",
+    r".*\.tar",
+    r".*\.csv",
 )
-DEFAULT_COPY_RE_PATTERNS = (r".*linmos.*fits", r".*png")
+DEFAULT_COPY_RE_PATTERNS = (r".*linmos.*fits", r".*png", r".*csv")
 
 
 class ArchiveOptions(NamedTuple):
