@@ -18,6 +18,7 @@ from flint.logging import logger
 DEFAULT_TAR_RE_PATTERNS = (
     r".*MFS.*image\.fits",
     r".*linmos.*",
+    r".*weight\.fits",
     r".*yaml",
     r".*\.txt",
     r".*png",
@@ -27,7 +28,7 @@ DEFAULT_TAR_RE_PATTERNS = (
     r".*\.tar",
     r".*\.csv",
 )
-DEFAULT_COPY_RE_PATTERNS = (r".*linmos.*fits", r".*png", r".*csv")
+DEFAULT_COPY_RE_PATTERNS = (r".*linmos.*fits", r".*weight\.fits", r".*png", r".*csv")
 
 
 class ArchiveOptions(NamedTuple):
