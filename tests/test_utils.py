@@ -35,7 +35,7 @@ from flint.utils import (
 def set_slurm_env():
     """Set up variables for a specific test"""
     os.environ["SLURM_JOB_ID"] = "12345"
-    os.environ["SLURM_TASK_ID"] = "54321"
+    os.environ["SLURM_ARRAY_TASK_ID"] = "54321"
 
 
 def test_get_slurm_info_with_values(set_slurm_env):

@@ -163,7 +163,7 @@ def get_slurm_info() -> SlurmInfo:
 
     hostname = gethostname()
     job_id = get_environment_variable("SLURM_JOB_ID")
-    task_id = get_environment_variable("SLURM_TASK_ID")
+    task_id = get_environment_variable("SLURM_ARRAY_TASK_ID")
 
     return SlurmInfo(hostname=hostname, job_id=job_id, task_id=task_id)
 
