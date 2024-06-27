@@ -38,7 +38,6 @@ def run_singularity_command(
 
     job_info = log_job_environment()
 
-    bind_str = None
     if bind_dirs:
         if isinstance(bind_dirs, Path):
             bind_dirs = [bind_dirs]
@@ -51,7 +50,7 @@ def run_singularity_command(
             else None
         )
 
-        logger.debug(f"Constructed singularity bindings: {bind_str}")
+        logger.debug(f"Constructed singularity bindings: {bind}")
 
     try:
         output = sclient.execute(
