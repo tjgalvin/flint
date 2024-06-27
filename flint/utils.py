@@ -162,8 +162,8 @@ def get_slurm_info() -> SlurmInfo:
     """
 
     hostname = gethostname()
-    job_id = os.environ.get("SLURM_JOB_ID", None)
-    task_id = os.environ.get("SLURM_TASK_ID", None)
+    job_id = get_environment_variable("SLURM_JOB_ID")
+    task_id = get_environment_variable("SLURM_TASK_ID")
 
     return SlurmInfo(hostname=hostname, job_id=job_id, task_id=task_id)
 
