@@ -36,7 +36,7 @@ def run_singularity_command(
 
     logger.info(f"Running {command} in {image}")
 
-    log_job_environment()
+    job_info = log_job_environment()
 
     bind_str = None
     if bind_dirs:
@@ -77,5 +77,6 @@ def run_singularity_command(
         logger.error(f"Stdout: {e.stdout}")
         logger.error(f"Stderr: {e.stderr}")
         logger.error(f"{e=}")
+        logger.error(f"{job_info}")
 
         raise e
