@@ -148,7 +148,7 @@ def get_environment_variable(variable: str) -> Union[str, None]:
 class SlurmInfo(NamedTuple):
     hostname: str
     """The hostname of the slurm job"""
-    job_id: str = None
+    job_id: Optional[str] = None
     """The job ID of the slurm job"""
     task_id: Optional[str] = None
     """The task ID of the slurm job"""
@@ -162,8 +162,8 @@ def get_slurm_info() -> SlurmInfo:
     """
 
     hostname = gethostname()
-    job_id = os.environ["SLURM_JOB_ID"]
-    task_id = os.environ["SLURM_TASK_ID"]
+    job_id = os.environ.get("SLURM_JOB_ID", None)
+    task_id = os.environ.get("SLURM_TASK_ID", None)
 
     return SlurmInfo(hostname=hostname, job_id=job_id, task_id=task_id)
 
