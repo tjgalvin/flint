@@ -3,6 +3,7 @@ for general usage.
 """
 
 import os
+import datetime
 import shutil
 import subprocess
 from contextlib import contextmanager
@@ -152,6 +153,8 @@ class SlurmInfo(NamedTuple):
     """The job ID of the slurm job"""
     task_id: Optional[str] = None
     """The task ID of the slurm job"""
+    time: Optional[str] = None
+    """The time time the job information was gathered"""
 
 
 def get_slurm_info() -> SlurmInfo:
@@ -164,8 +167,31 @@ def get_slurm_info() -> SlurmInfo:
     hostname = gethostname()
     job_id = get_environment_variable("SLURM_JOB_ID")
     task_id = get_environment_variable("SLURM_ARRAY_TASK_ID")
+    time = str(datetime.datetime.now())
 
-    return SlurmInfo(hostname=hostname, job_id=job_id, task_id=task_id)
+    return SlurmInfo(hostname=hostname, job_id=job_id, task_id=task_id, time=time)
+
+
+def get_job_info(mode: str = "slurm") -> Union[SlurmInfo]:
+    """Get the job information for the supplied mode
+
+    Args:
+        mode (str, optional): Which mode to poll information for. Defaults to "slurm".
+
+    Raises:
+        ValueError: Raised if the mode is not supported
+
+    Returns:
+        Union[SlurmInfo]: The specified mode
+    """
+    modes = ("slurm",)
+
+    if mode.lower() == "slurm":
+        job_info = get_slurm_info()
+    else:
+        raise ValueError(f"{mode=} not supported. Supported {modes=} ")
+
+    return job_info
 
 
 def log_job_environment() -> SlurmInfo:

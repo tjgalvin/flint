@@ -8,7 +8,7 @@ from typing import Callable, Collection, Optional, Union
 from spython.main import Client as sclient
 
 from flint.logging import logger
-from flint.utils import log_job_environment
+from flint.utils import log_job_environment, get_job_info
 
 
 def run_singularity_command(
@@ -76,6 +76,6 @@ def run_singularity_command(
         logger.error(f"Stdout: {e.stdout}")
         logger.error(f"Stderr: {e.stderr}")
         logger.error(f"{e=}")
-        logger.error(f"{job_info}")
+        logger.error(f"{get_job_info()}")
 
         raise e
