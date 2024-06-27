@@ -9,6 +9,7 @@ from typing import Callable, Collection, Optional, Union
 from spython.main import Client as sclient
 
 from flint.logging import logger
+from flint.utils import log_job_environment
 
 
 def run_singularity_command(
@@ -35,7 +36,8 @@ def run_singularity_command(
         raise FileNotFoundError(f"The singularity container {image} was not found. ")
 
     logger.info(f"Running {command} in {image}")
-    logger.info(f"Attempting to run singularity command on {gethostname()}")
+
+    log_job_environment()
 
     bind_str = None
     if bind_dirs:

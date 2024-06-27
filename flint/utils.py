@@ -7,7 +7,8 @@ import shutil
 import subprocess
 from contextlib import contextmanager
 from pathlib import Path
-from typing import List, Optional, Tuple, Union
+from typing import List, Optional, Tuple, Union, NamedTuple
+from socket import gethostname
 
 import astropy.units as u
 import numpy as np
@@ -142,6 +143,45 @@ def get_environment_variable(variable: str) -> Union[str, None]:
     value = os.getenv(variable)
 
     return value
+
+
+class SlurmInfo(NamedTuple):
+    hostname: str
+    """The hostname of the slurm job"""
+    job_id: str = None
+    """The job ID of the slurm job"""
+    task_id: Optional[str] = None
+    """The task ID of the slurm job"""
+
+
+def get_slurm_info() -> SlurmInfo:
+    """Collect key slurm attributes of a job
+
+    Returns:
+        SlurmInfo: Collection of slurm items from the job environment
+    """
+
+    hostname = gethostname()
+    job_id = os.environ["SLURM_JOB_ID"]
+    task_id = os.environ["SLURM_TASK_ID"]
+
+    return SlurmInfo(hostname=hostname, job_id=job_id, task_id=task_id)
+
+
+def log_job_environment() -> SlurmInfo:
+    """Log components of the slurm enviroment. Currently only support slurm
+
+    Returns:
+        SlurmInfo: Collection of slurm items from the job environment
+    """
+    # TODO: Expand this to allow potentially other job queue systems
+    slurm_info = get_slurm_info()
+
+    logger.info(f"Running on {slurm_info.hostname=}")
+    logger.info(f"Slurm job id is {slurm_info.job_id}")
+    logger.info(f"Slurm task id is {slurm_info.task_id}")
+
+    return slurm_info
 
 
 def get_beam_shape(fits_path: Path) -> Optional[BeamShape]:

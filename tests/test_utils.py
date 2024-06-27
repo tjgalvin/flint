@@ -23,9 +23,29 @@ from flint.utils import (
     get_environment_variable,
     get_packaged_resource_path,
     get_pixels_per_beam,
+    get_slurm_info,
+    log_job_environment,
     hold_then_move_into,
     temporarily_move_into,
+    SlurmInfo,
 )
+
+
+@pytest.fixture(scope="session", autouse=True)
+def set_slurm_env():
+    """Set up variables for a specific test"""
+    os.environ["SLURM_JOB_ID"] = "12345"
+    os.environ["SLURM_TASK_ID"] = "54321"
+
+
+def test_get_slurm_info_with_values(set_slurm_env):
+    """See if the slurm environment information handles thigns properly. There should
+    be no slurm environemtn variables present most of the time"""
+
+    slurm_info = get_slurm_info()
+    assert isinstance(slurm_info, SlurmInfo)
+    assert slurm_info.job_id == "12345"
+    assert slurm_info.task_id == "54321"
 
 
 def test_hold_then_move_same_folder(tmpdir):
