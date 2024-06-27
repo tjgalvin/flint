@@ -76,6 +76,8 @@ def run_singularity_command(
         logger.error(f"Stdout: {e.stdout}")
         logger.error(f"Stderr: {e.stderr}")
         logger.error(f"{e=}")
-        logger.error(f"{get_job_info()}")
+        job_info = get_job_info()
+        if job_info:
+            logger.error(f"{get_job_info()}")
 
         raise e

@@ -184,6 +184,7 @@ def get_job_info(mode: str = "slurm") -> Union[SlurmInfo]:
     Returns:
         Union[SlurmInfo]: The specified mode
     """
+    # TODO: Add other modes? Return a default?
     modes = ("slurm",)
 
     if mode.lower() == "slurm":
