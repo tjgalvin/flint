@@ -1,7 +1,6 @@
 """Utilities related to running commands in a singularity container"""
 
 from pathlib import Path
-from socket import gethostname
 from subprocess import CalledProcessError
 from time import sleep
 from typing import Callable, Collection, Optional, Union

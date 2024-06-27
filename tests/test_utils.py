@@ -55,6 +55,14 @@ def test_hold_then_move_same_folder(tmpdir):
         assert a == example
 
 
+def test_log_environment(set_slurm_env):
+    slurm_info = log_job_environment()
+
+    assert isinstance(slurm_info, SlurmInfo)
+    assert slurm_info.job_id == "12345"
+    assert slurm_info.task_id == "54321"
+
+
 def test_hold_then_test_errors(tmpdir):
     """Make sure some basic error handling"""
 
