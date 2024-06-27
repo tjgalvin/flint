@@ -15,6 +15,7 @@ from astropy.wcs import WCS
 from flint.convol import BeamShape
 from flint.logging import logger
 from flint.utils import (
+    SlurmInfo,
     copy_directory,
     estimate_skycoord_centre,
     generate_strict_stub_wcs_header,
@@ -24,10 +25,9 @@ from flint.utils import (
     get_packaged_resource_path,
     get_pixels_per_beam,
     get_slurm_info,
-    log_job_environment,
     hold_then_move_into,
+    log_job_environment,
     temporarily_move_into,
-    SlurmInfo,
 )
 
 

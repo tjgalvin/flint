@@ -7,8 +7,8 @@ import shutil
 import subprocess
 from contextlib import contextmanager
 from pathlib import Path
-from typing import List, Optional, Tuple, Union, NamedTuple
 from socket import gethostname
+from typing import List, NamedTuple, Optional, Tuple, Union
 
 import astropy.units as u
 import numpy as np
