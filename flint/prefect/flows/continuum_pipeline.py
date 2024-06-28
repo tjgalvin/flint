@@ -135,9 +135,9 @@ def _load_and_copy_strategy(
 @flow(name="Flint Continuum Pipeline")
 def process_science_fields(
     science_path: Path,
-    bandpass_path: Path,
     split_path: Path,
     field_options: FieldOptions,
+    bandpass_path: Optional[Path] = None,
 ) -> None:
     # Verify no nasty incompatible options
     _check_field_options(field_options=field_options)
@@ -179,6 +179,8 @@ def process_science_fields(
         # TODO: This will likely need to be expanded should any
         # other calibration strategies get added
         # Scan the existing bandpass directory for the existing solutions
+        assert bandpass_path, f"{bandpass_path=}, it needs to be set"
+
         calibrate_cmds = find_existing_solutions(
             bandpass_directory=bandpass_path,
             use_preflagged=field_options.use_preflagger,
@@ -471,12 +473,12 @@ def process_science_fields(
 def setup_run_process_science_field(
     cluster_config: Union[str, Path],
     science_path: Path,
-    bandpass_path: Path,
     split_path: Path,
     field_options: FieldOptions,
+    bandpass_path: Optional[Path] = None,
     skip_bandpass_check: bool = False,
 ) -> None:
-    if not skip_bandpass_check:
+    if not skip_bandpass_check and bandpass_path:
         assert (
             bandpass_path.exists() and bandpass_path.is_dir()
         ), f"{bandpass_path=} needs to exist and be a directory! "
@@ -510,7 +512,7 @@ def get_parser() -> ArgumentParser:
         help="Path to directories containing the beam-wise science measurementsets that will have solutions copied over and applied.",
     )
     parser.add_argument(
-        "calibrated_bandpass_path",
+        "--calibrated_bandpass_path",
         type=Path,
         default=None,
         help="Path to directory containing the uncalibrated beam-wise measurement sets that contain the bandpass calibration source. If None then the '--sky-model-directory' should be provided. ",
