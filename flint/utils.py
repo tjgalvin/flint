@@ -2,8 +2,8 @@
 for general usage.
 """
 
-import os
 import datetime
+import os
 import shutil
 import subprocess
 from contextlib import contextmanager
