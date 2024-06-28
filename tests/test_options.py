@@ -33,7 +33,7 @@ def test_config_field_options(tmpdir):
     parser = get_parser()
     args = parser.parse_args(
         f"""/scratch3/gal16b/askap_sbids/112334/
-        /scratch3/gal16b/askap_sbids/111/
+        --calibrated-bandpass-path /scratch3/gal16b/askap_sbids/111/
         --cli-config {str(output_file)}""".split()
     )
 
@@ -68,7 +68,7 @@ def test_create_field_options():
     parser = get_parser()
     args = parser.parse_args(
         """/scratch3/gal16b/askap_sbids/112334/
-        /scratch3/gal16b/askap_sbids/111/
+        --calibrated-bandpass-path /scratch3/gal16b/askap_sbids/111/
         --holofile /scratch3/projects/spiceracs/RACS_Low2_Holography/akpb.iquv.square_6x6.63.887MHz.SB39549.cube.fits
         --calibrate-container /scratch3/gal16b/containers/calibrate.sif
         --flagger-container /scratch3/gal16b/containers/aoflagger.sif
@@ -116,7 +116,7 @@ def test_create_field_options2():
     parser = get_parser()
     args = parser.parse_args(
         """/scratch3/gal16b/askap_sbids/112334/
-        /scratch3/gal16b/askap_sbids/111/
+        --calibrated-bandpass-path /scratch3/gal16b/askap_sbids/111/
         --holofile /scratch3/projects/spiceracs/RACS_Low2_Holography/akpb.iquv.square_6x6.63.887MHz.SB39549.cube.fits
         --calibrate-container /scratch3/gal16b/containers/calibrate.sif
         --flagger-container /scratch3/gal16b/containers/aoflagger.sif

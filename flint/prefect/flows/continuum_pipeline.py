@@ -512,7 +512,7 @@ def get_parser() -> ArgumentParser:
         help="Path to directories containing the beam-wise science measurementsets that will have solutions copied over and applied.",
     )
     parser.add_argument(
-        "--calibrated_bandpass_path",
+        "--calibrated-bandpass-path",
         type=Path,
         default=None,
         help="Path to directory containing the uncalibrated beam-wise measurement sets that contain the bandpass calibration source. If None then the '--sky-model-directory' should be provided. ",
