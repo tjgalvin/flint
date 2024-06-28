@@ -2,12 +2,14 @@
 for general usage.
 """
 
+import datetime
 import os
 import shutil
 import subprocess
 from contextlib import contextmanager
 from pathlib import Path
-from typing import List, Optional, Tuple, Union
+from socket import gethostname
+from typing import List, NamedTuple, Optional, Tuple, Union
 
 import astropy.units as u
 import numpy as np
@@ -142,6 +144,71 @@ def get_environment_variable(variable: str) -> Union[str, None]:
     value = os.getenv(variable)
 
     return value
+
+
+class SlurmInfo(NamedTuple):
+    hostname: str
+    """The hostname of the slurm job"""
+    job_id: Optional[str] = None
+    """The job ID of the slurm job"""
+    task_id: Optional[str] = None
+    """The task ID of the slurm job"""
+    time: Optional[str] = None
+    """The time time the job information was gathered"""
+
+
+def get_slurm_info() -> SlurmInfo:
+    """Collect key slurm attributes of a job
+
+    Returns:
+        SlurmInfo: Collection of slurm items from the job environment
+    """
+
+    hostname = gethostname()
+    job_id = get_environment_variable("SLURM_JOB_ID")
+    task_id = get_environment_variable("SLURM_ARRAY_TASK_ID")
+    time = str(datetime.datetime.now())
+
+    return SlurmInfo(hostname=hostname, job_id=job_id, task_id=task_id, time=time)
+
+
+def get_job_info(mode: str = "slurm") -> Union[SlurmInfo]:
+    """Get the job information for the supplied mode
+
+    Args:
+        mode (str, optional): Which mode to poll information for. Defaults to "slurm".
+
+    Raises:
+        ValueError: Raised if the mode is not supported
+
+    Returns:
+        Union[SlurmInfo]: The specified mode
+    """
+    # TODO: Add other modes? Return a default?
+    modes = ("slurm",)
+
+    if mode.lower() == "slurm":
+        job_info = get_slurm_info()
+    else:
+        raise ValueError(f"{mode=} not supported. Supported {modes=} ")
+
+    return job_info
+
+
+def log_job_environment() -> SlurmInfo:
+    """Log components of the slurm enviroment. Currently only support slurm
+
+    Returns:
+        SlurmInfo: Collection of slurm items from the job environment
+    """
+    # TODO: Expand this to allow potentially other job queue systems
+    slurm_info = get_slurm_info()
+
+    logger.info(f"Running on {slurm_info.hostname=}")
+    logger.info(f"Slurm job id is {slurm_info.job_id}")
+    logger.info(f"Slurm task id is {slurm_info.task_id}")
+
+    return slurm_info
 
 
 def get_beam_shape(fits_path: Path) -> Optional[BeamShape]:

@@ -1,7 +1,6 @@
 """Utilities related to running commands in a singularity container"""
 
 from pathlib import Path
-from socket import gethostname
 from subprocess import CalledProcessError
 from time import sleep
 from typing import Callable, Collection, Optional, Union
@@ -9,6 +8,7 @@ from typing import Callable, Collection, Optional, Union
 from spython.main import Client as sclient
 
 from flint.logging import logger
+from flint.utils import get_job_info, log_job_environment
 
 
 def run_singularity_command(
@@ -35,9 +35,9 @@ def run_singularity_command(
         raise FileNotFoundError(f"The singularity container {image} was not found. ")
 
     logger.info(f"Running {command} in {image}")
-    logger.info(f"Attempting to run singularity command on {gethostname()}")
 
-    bind_str = None
+    job_info = log_job_environment()
+
     if bind_dirs:
         if isinstance(bind_dirs, Path):
             bind_dirs = [bind_dirs]
@@ -50,7 +50,7 @@ def run_singularity_command(
             else None
         )
 
-        logger.debug(f"Constructed singularity bindings: {bind_str}")
+        logger.debug(f"Constructed singularity bindings: {bind}")
 
     try:
         output = sclient.execute(
@@ -76,5 +76,8 @@ def run_singularity_command(
         logger.error(f"Stdout: {e.stdout}")
         logger.error(f"Stderr: {e.stderr}")
         logger.error(f"{e=}")
+        job_info = get_job_info()
+        if job_info:
+            logger.error(f"{get_job_info()}")
 
         raise e

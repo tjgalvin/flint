@@ -15,6 +15,7 @@ from astropy.wcs import WCS
 from flint.convol import BeamShape
 from flint.logging import logger
 from flint.utils import (
+    SlurmInfo,
     copy_directory,
     estimate_skycoord_centre,
     generate_strict_stub_wcs_header,
@@ -23,9 +24,28 @@ from flint.utils import (
     get_environment_variable,
     get_packaged_resource_path,
     get_pixels_per_beam,
+    get_slurm_info,
     hold_then_move_into,
+    log_job_environment,
     temporarily_move_into,
 )
+
+
+@pytest.fixture(scope="session", autouse=True)
+def set_slurm_env():
+    """Set up variables for a specific test"""
+    os.environ["SLURM_JOB_ID"] = "12345"
+    os.environ["SLURM_ARRAY_TASK_ID"] = "54321"
+
+
+def test_get_slurm_info_with_values(set_slurm_env):
+    """See if the slurm environment information handles thigns properly. There should
+    be no slurm environemtn variables present most of the time"""
+
+    slurm_info = get_slurm_info()
+    assert isinstance(slurm_info, SlurmInfo)
+    assert slurm_info.job_id == "12345"
+    assert slurm_info.task_id == "54321"
 
 
 def test_hold_then_move_same_folder(tmpdir):
@@ -33,6 +53,14 @@ def test_hold_then_move_same_folder(tmpdir):
 
     with hold_then_move_into(hold_directory=a, move_directory=a) as example:
         assert a == example
+
+
+def test_log_environment(set_slurm_env):
+    slurm_info = log_job_environment()
+
+    assert isinstance(slurm_info, SlurmInfo)
+    assert slurm_info.job_id == "12345"
+    assert slurm_info.task_id == "54321"
 
 
 def test_hold_then_test_errors(tmpdir):
