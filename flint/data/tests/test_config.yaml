@@ -67,12 +67,6 @@ defaults:
     - .*linmos.*
     - .*weight\.fits
     - .*yaml
-    - .*\.txt
-    - .*png
-    - .*beam[0-9]+\.ms\.zip
-    - .*beam[0-9]+\.ms
-    - .*\.caltable
-    - .*\.tar
     - .*\.csv
     - testing_for_jack.txt
     copy_file_re_patterns: !!python/tuple

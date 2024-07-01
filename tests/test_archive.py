@@ -67,6 +67,7 @@ def test_get_archive_options_from_yaml(package_strategy_path):
     assert isinstance(options, dict)
     assert options["tar_file_re_patterns"][-1] == "testing_for_jack.txt"
     assert options["copy_file_re_patterns"][-1] == "testing_for_sparrow.csv"
+    assert len(options["tar_file_re_patterns"]) == 6
 
 
 def test_copy_files_into(tmpdir, temp_files):
