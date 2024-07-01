@@ -11,7 +11,7 @@ from typing import Any, Dict, Optional, Union
 
 import yaml
 
-from flint.archive import ArchiveOptions
+from flint.types import ArchiveOptions
 from flint.imager.wsclean import WSCleanOptions
 from flint.logging import logger
 from flint.masking import MaskingOptions
@@ -220,7 +220,7 @@ def get_image_options_from_yaml(
 
 
 def get_options_from_strategy(
-    strategy: Union[Strategy, None],
+    strategy: Union[Strategy, None, Path],
     mode: str = "wsclean",
     round: Union[str, int] = "initial",
     max_round_override: bool = True,
@@ -232,7 +232,7 @@ def get_options_from_strategy(
     round are used to update the defaults.
 
     Args:
-        strategy (Union[Strategy,None]): A loaded instance of a strategy file. If `None` is provided then an empty dictionary is returned.
+        strategy (Union[Strategy,None,Path]): A loaded instance of a strategy file. If `None` is provided then an empty dictionary is returned. If `Path` attempt to load the strategy file.
         mode (str, optional): Which set of options to load. Typical values are `wsclean`, `gaincal` and `masking`. Defaults to "wsclean".
         round (Union[str, int], optional): Which round to load options for. May be `initial` or an `int` (which indicated a self-calibration round). Defaults to "initial".
         max_round_override (bool, optional): Check whether an integer round number is recorded. If it is higher than the largest self-cal round specified, set it to the last self-cal round. If False this is not performed. Defaults to True.
@@ -247,6 +247,8 @@ def get_options_from_strategy(
 
     if strategy is None:
         return {}
+    elif isinstance(strategy, Path):
+        strategy = load_strategy_yaml(input_yaml=strategy)
 
     # Some sanity checks
     assert isinstance(

@@ -1,49 +1,19 @@
 """Operations around preserving files and products from an flint run"""
 
-from __future__ import (  # Used for mypy/pylance to like the return type of MS.with_options
-    annotations,
-)
-
 import re
 import shutil
 import tarfile
 from argparse import ArgumentParser
 from pathlib import Path
-from typing import Collection, List, NamedTuple, Tuple
+from typing import Collection, List, Tuple, Dict, Any
 
+from flint.configuration import get_options_from_strategy
 from flint.logging import logger
-
-# TODO: Perhaps move these to flint.naming, and can be built up
-# based on rules, e.g. imager used, source finder etc.
-DEFAULT_TAR_RE_PATTERNS = (
-    r".*MFS.*image\.fits",
-    r".*linmos.*",
-    r".*weight\.fits",
-    r".*yaml",
-    r".*\.txt",
-    r".*png",
-    r".*beam[0-9]+\.ms\.zip",
-    r".*beam[0-9]+\.ms",
-    r".*\.caltable",
-    r".*\.tar",
-    r".*\.csv",
+from flint.types import (
+    ArchiveOptions,
+    DEFAULT_TAR_RE_PATTERNS,
+    DEFAULT_COPY_RE_PATTERNS,
 )
-DEFAULT_COPY_RE_PATTERNS = (r".*linmos.*fits", r".*weight\.fits", r".*png", r".*csv")
-
-
-class ArchiveOptions(NamedTuple):
-    """Container for options related to archiving products from flint workflows"""
-
-    tar_file_re_patterns: Collection[str] = DEFAULT_TAR_RE_PATTERNS
-    """Regular-expressions to use to collect files that should be tarballed"""
-    copy_file_re_patterns: Collection[str] = DEFAULT_COPY_RE_PATTERNS
-    """Regular-expressions used to identify files to copy into a final location (not tarred)"""
-
-    def with_options(self, **kwargs) -> ArchiveOptions:
-        opts = self._asdict()
-        opts.update(**kwargs)
-
-        return ArchiveOptions(**opts)
 
 
 def resolve_glob_expressions(
@@ -200,6 +170,24 @@ def copy_sbid_files_archive(
     return copy_out_path
 
 
+def get_archive_options_from_yaml(strategy_yaml_path: Path) -> Dict[str, Any]:
+    """Load the archive options from a specified strategy file
+
+    Args:
+        strategy_yaml_path (Path): The path to the strategy yaml file containing archive options
+
+    Returns:
+        Dict[str, Any]: Loaded options for ArchiveOptions
+    """
+    archive_options = get_options_from_strategy(
+        strategy=strategy_yaml_path, mode="archive", round="initial"
+    )
+
+    logger.info(f"{archive_options=}")
+
+    return archive_options
+
+
 def get_parser() -> ArgumentParser:
     parser = ArgumentParser(
         description="Operations around archiving. Patterns are specified as regular expressions (not globs). "
@@ -224,6 +212,12 @@ def get_parser() -> ArgumentParser:
         type=str,
         help="The regular expression patterns to evaluate",
     )
+    list_parser.add_argument(
+        "--strategy-yaml-path",
+        type=Path,
+        default=None,
+        help="Path to a strategy file with a archive section. Overrides any --file-patterns. ",
+    )
 
     create_parser = subparser.add_parser("create", help="Create a tarfile archive")
     create_parser.add_argument(
@@ -243,28 +237,40 @@ def get_parser() -> ArgumentParser:
         type=str,
         help="The regular expression patterns to evaluate inside the base path directory",
     )
+    create_parser.add_argument(
+        "--strategy-yaml-path",
+        type=Path,
+        default=None,
+        help="Path to a strategy file with a archive section. Overrides any --file-patterns. ",
+    )
 
-    create_parser = subparser.add_parser(
+    copy_parser = subparser.add_parser(
         "copy", help="Copy a set of files into a output directory"
     )
-    create_parser.add_argument(
+    copy_parser.add_argument(
         "copy_out_path",
         type=Path,
         help="Path of the output folder that files will be copied into",
     )
-    create_parser.add_argument(
+    copy_parser.add_argument(
         "--base-path",
         type=Path,
         default=Path("."),
         help="Base directory to perform glob expressions",
     )
 
-    create_parser.add_argument(
+    copy_parser.add_argument(
         "--copy-file-patterns",
         nargs="+",
         default=DEFAULT_COPY_RE_PATTERNS,
         type=str,
         help="The regular expression patterns to evaluate inside the base path directory",
+    )
+    copy_parser.add_argument(
+        "--strategy-yaml-path",
+        type=Path,
+        default=None,
+        help="Path to a strategy file with a archive section. Overrides any --file-patterns. ",
     )
 
     return parser
@@ -276,7 +282,13 @@ def cli() -> None:
     args = parser.parse_args()
 
     if args.mode == "list":
-        archive_options = ArchiveOptions(tar_file_re_patterns=args.file_patterns)
+
+        update_options: Dict[str, Any] = (
+            get_archive_options_from_yaml(strategy_yaml_path=args.strategy_yaml_path)
+            if args.strategy_yaml_path
+            else dict(tar_file_re_patterns=args.file_patterns)
+        )
+        archive_options = ArchiveOptions(**update_options)
 
         files = resolve_glob_expressions(
             base_path=args.base_path,
@@ -286,7 +298,12 @@ def cli() -> None:
         for count, file in enumerate(sorted(files)):
             logger.info(f"{count} of {len(files)}, {file}")
     elif args.mode == "create":
-        archive_options = ArchiveOptions(tar_file_re_patterns=args.tar_file_patterns)
+        update_options: Dict[str, Any] = (
+            get_archive_options_from_yaml(strategy_yaml_path=args.strategy_yaml_path)
+            if args.strategy_yaml_path
+            else dict(tar_file_re_patterhs=args.file_patterns)
+        )
+        archive_options = ArchiveOptions(**update_options)
 
         create_sbid_tar_archive(
             tar_out_path=args.tar_out_path,
@@ -294,7 +311,12 @@ def cli() -> None:
             archive_options=archive_options,
         )
     elif args.mode == "copy":
-        archive_options = ArchiveOptions(copy_file_re_patterns=args.copy_file_globs)
+        update_options: Dict[str, Any] = (
+            get_archive_options_from_yaml(strategy_yaml_path=args.strategy_yaml_path)
+            if args.strategy_yaml_path
+            else dict(copy_file_re_patterhs=args.copy_file_patterns)
+        )
+        archive_options = ArchiveOptions(**update_options)
 
         copy_sbid_files_archive(
             copy_out_path=args.copy_out_path,
