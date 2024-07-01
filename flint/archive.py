@@ -9,7 +9,7 @@ from typing import Collection, List, Tuple, Dict, Any
 
 from flint.configuration import get_options_from_strategy
 from flint.logging import logger
-from flint.types import (
+from flint.options import (
     ArchiveOptions,
     DEFAULT_TAR_RE_PATTERNS,
     DEFAULT_COPY_RE_PATTERNS,

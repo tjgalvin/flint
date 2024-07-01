@@ -11,7 +11,7 @@ from typing import Any, Dict, Optional, Union
 
 import yaml
 
-from flint.types import ArchiveOptions
+from flint.options import ArchiveOptions
 from flint.imager.wsclean import WSCleanOptions
 from flint.logging import logger
 from flint.masking import MaskingOptions

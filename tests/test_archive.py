@@ -13,7 +13,7 @@ from flint.archive import (
     tar_files_into,
     get_archive_options_from_yaml,
 )
-from flint.types import (
+from flint.options import (
     ArchiveOptions,
     DEFAULT_TAR_RE_PATTERNS,
 )
