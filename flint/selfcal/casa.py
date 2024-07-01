@@ -81,6 +81,8 @@ def copy_and_clean_ms_casagain(
 
     if out_ms_path.exists():
         logger.warning(f"{out_ms_path} already exists. Removing it. ")
+        logger.warning(f"{ms.path=} {ms.path.exists()=}")
+        logger.warning(f"{out_ms_path=} {out_ms_path.exists()=}")
         remove_files_folders(out_ms_path)
 
     if rename_ms:
