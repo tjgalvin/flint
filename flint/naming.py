@@ -344,7 +344,7 @@ def create_ms_name(
         ms_name_list.append(field)
 
     if format_components:
-        ms_name_list.append(f"beam{int(format_components.beam):02d}")
+        ms_name_list.append(f"beam{format_components.beam}")
         if format_components.spw:
             ms_name_list.append(f"spw{format_components.spw}")
 
