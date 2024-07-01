@@ -461,11 +461,13 @@ def process_science_fields(
         task_zip_ms.map(in_item=wsclean_cmds)
 
     if field_options.sbid_archive_path or field_options.sbid_copy_path and run_aegean:
+        archive_options = get_options_from_strategy(strategy=strategy, mode="archive")
         task_archive_sbid.submit(
             science_folder_path=output_split_science_path,
             archive_path=field_options.sbid_archive_path,
             copy_path=field_options.sbid_copy_path,
             max_round=field_options.rounds if field_options.rounds else None,
+            archive_options=archive_options,
             wait_for=archive_wait_for,
         )
 
