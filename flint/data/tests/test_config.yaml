@@ -74,11 +74,13 @@ defaults:
     - .*\.caltable
     - .*\.tar
     - .*\.csv
+    - testing_for_jack.txt
     copy_file_re_patterns: !!python/tuple
     - .*linmos.*fits
     - .*weight\.fits
     - .*png
     - .*csv
+    - testing_for_sparrow.csv
 initial:
   wsclean: {}
 selfcal:
