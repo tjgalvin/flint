@@ -97,6 +97,7 @@ def task_archive_sbid(
     archive_options = ArchiveOptions()
 
     if update_archive_options:
+        logger.info(f"Updating archive options with {update_archive_options=}")
         archive_options = archive_options.with_options(**update_archive_options)
 
     # TODO: What should this be? Just general new regexs passed through,
