@@ -74,8 +74,10 @@ def copy_and_clean_ms_casagain(
     """
     out_ms_path = get_selfcal_ms_name(in_ms_path=ms.path, round=round)
 
+    mode_text = "Renaming" if rename_ms else "Copying"
+
     logger.info(f"Output MS name will be {str(out_ms_path)}.")
-    logger.info(f"Copying {ms.path} to {out_ms_path}.")
+    logger.info(f"{mode_text} {ms.path} to {out_ms_path}.")
 
     if out_ms_path.exists():
         logger.warning(f"{out_ms_path} already exists. Removing it. ")
