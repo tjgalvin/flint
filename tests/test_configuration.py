@@ -40,6 +40,15 @@ def strategy(tmpdir):
     return strat
 
 
+@pytest.fixture
+def package_strategy_path():
+    example = get_packaged_resource_path(
+        package="flint", filename="data/tests/test_config.yaml"
+    )
+
+    return example
+
+
 def test_copy_and_timestamp(tmpdir):
     # a single function toe rename and copy a file because pirates needs to be efficient
     example = get_packaged_resource_path(
@@ -155,6 +164,33 @@ def test_get_options(strategy):
 
 def test_get_mask_options(package_strategy):
     """Basic test to prove masking operation behaves well"""
+    masking = get_options_from_strategy(
+        strategy=package_strategy, mode="masking", round="initial"
+    )
+
+    assert isinstance(masking, dict)
+    assert masking["flood_fill_positive_seed_clip"] == 4.5
+
+    masking2 = get_options_from_strategy(
+        strategy=package_strategy, mode="masking", round=1
+    )
+
+    print(strategy)
+
+    assert isinstance(masking2, dict)
+    assert masking2["flood_fill_positive_seed_clip"] == 40
+
+    for k in masking.keys():
+        if k == "flood_fill_positive_seed_clip":
+            continue
+
+        assert masking[k] == masking2[k]
+
+
+def test_get_mask_options_from_path(package_strategy_path):
+    """Basic test to prove masking operation behaves well"""
+    package_strategy = Path(package_strategy_path)
+
     masking = get_options_from_strategy(
         strategy=package_strategy, mode="masking", round="initial"
     )
