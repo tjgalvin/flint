@@ -66,6 +66,25 @@ def test_casda_ms_format():
         assert res is None
 
 
+def test_self_cal_name_wbeams():
+    """Checks around where the self-calibration naming is working, and the
+    correct slicing. This test came after the one below and includes the beam
+    number as a component to consider"""
+
+    for beam in range(45):
+        ms = Path(f"SB12349.RACS_1234+45.beam{beam:02d}.ms")
+        e_ms = Path(f"SB12349.RACS_1234+45.beam{beam:02d}.round1.ms")
+        out_ms = get_selfcal_ms_name(in_ms_path=ms, round=1)
+        assert out_ms == e_ms
+
+    for round in range(1, 5):
+        for beam in range(45):
+            ms = Path(f"SB12349.RACS_1234+45.beam{beam:02d}.round{round}.ms")
+            e_ms = Path(f"SB12349.RACS_1234+45.beam{beam:02d}.round{round+1}.ms")
+            out_ms = get_selfcal_ms_name(in_ms_path=ms, round=round + 1)
+            assert out_ms == e_ms
+
+
 def test_self_cal_name():
     """Checks around where the self-calibration naming is working, and the
     correct slicing"""
