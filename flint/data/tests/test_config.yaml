@@ -61,6 +61,20 @@ defaults:
     grow_low_snr_island: true
     grow_low_snr_island_clip: 1.75
     grow_low_snr_island_size: 768
+  archive:
+    tar_file_re_patterns:
+    - .*MFS.*image\.fits
+    - .*linmos.*
+    - .*weight\.fits
+    - .*yaml
+    - .*\.csv
+    - testing_for_jack.txt
+    copy_file_re_patterns:
+    - .*linmos.*fits
+    - .*weight\.fits
+    - .*png
+    - .*csv
+    - testing_for_sparrow.csv
 initial:
   wsclean: {}
 selfcal:

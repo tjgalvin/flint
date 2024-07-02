@@ -6,14 +6,15 @@ from pathlib import Path
 import pytest
 
 from flint.archive import (
-    DEFAULT_TAR_RE_PATTERNS,
-    ArchiveOptions,
     copy_files_into,
     create_sbid_tar_archive,
+    get_archive_options_from_yaml,
     get_parser,
     resolve_glob_expressions,
     tar_files_into,
 )
+from flint.options import DEFAULT_TAR_RE_PATTERNS, ArchiveOptions
+from flint.utils import get_packaged_resource_path
 
 FILES = [f"some_file_{a:02d}-MFS-image.fits" for a in range(36)] + [
     f"a_validation.{ext}" for ext in ("png", "jpeg", "pdf")
@@ -42,6 +43,27 @@ def temp_files(glob_files):
     )
 
     return (base_dir, resolved)
+
+
+@pytest.fixture
+def package_strategy_path():
+    example = get_packaged_resource_path(
+        package="flint", filename="data/tests/test_config.yaml"
+    )
+
+    return example
+
+
+def test_get_archive_options_from_yaml(package_strategy_path):
+    """Get the options from a strategy yaml file for ArchiveOptions"""
+    options = get_archive_options_from_yaml(
+        strategy_yaml_path=Path(package_strategy_path)
+    )
+
+    assert isinstance(options, dict)
+    assert options["tar_file_re_patterns"][-1] == "testing_for_jack.txt"
+    assert options["copy_file_re_patterns"][-1] == "testing_for_sparrow.csv"
+    assert len(options["tar_file_re_patterns"]) == 6
 
 
 def test_copy_files_into(tmpdir, temp_files):
