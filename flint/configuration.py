@@ -11,11 +11,11 @@ from typing import Any, Dict, Optional, Union
 
 import yaml
 
-from flint.options import ArchiveOptions
 from flint.imager.wsclean import WSCleanOptions
 from flint.logging import logger
 from flint.masking import MaskingOptions
 from flint.naming import add_timestamp_to_path
+from flint.options import ArchiveOptions
 from flint.selfcal.casa import GainCalOptions
 from flint.source_finding.aegean import AegeanOptions, BANEOptions
 

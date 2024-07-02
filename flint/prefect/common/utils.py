@@ -8,10 +8,7 @@ from uuid import UUID
 from prefect import task
 from prefect.artifacts import create_markdown_artifact
 
-from flint.archive import (
-    copy_sbid_files_archive,
-    create_sbid_tar_archive,
-)
+from flint.archive import copy_sbid_files_archive, create_sbid_tar_archive
 from flint.logging import logger
 from flint.naming import add_timestamp_to_path, get_sbid_from_path
 from flint.options import ArchiveOptions

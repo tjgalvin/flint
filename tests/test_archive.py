@@ -8,17 +8,13 @@ import pytest
 from flint.archive import (
     copy_files_into,
     create_sbid_tar_archive,
+    get_archive_options_from_yaml,
     get_parser,
     resolve_glob_expressions,
     tar_files_into,
-    get_archive_options_from_yaml,
 )
-from flint.options import (
-    ArchiveOptions,
-    DEFAULT_TAR_RE_PATTERNS,
-)
+from flint.options import DEFAULT_TAR_RE_PATTERNS, ArchiveOptions
 from flint.utils import get_packaged_resource_path
-
 
 FILES = [f"some_file_{a:02d}-MFS-image.fits" for a in range(36)] + [
     f"a_validation.{ext}" for ext in ("png", "jpeg", "pdf")

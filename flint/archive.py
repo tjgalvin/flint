@@ -5,14 +5,14 @@ import shutil
 import tarfile
 from argparse import ArgumentParser
 from pathlib import Path
-from typing import Collection, List, Tuple, Dict, Any
+from typing import Any, Collection, Dict, List, Tuple
 
 from flint.configuration import get_options_from_strategy
 from flint.logging import logger
 from flint.options import (
-    ArchiveOptions,
-    DEFAULT_TAR_RE_PATTERNS,
     DEFAULT_COPY_RE_PATTERNS,
+    DEFAULT_TAR_RE_PATTERNS,
+    ArchiveOptions,
 )
 
 
@@ -282,7 +282,6 @@ def cli() -> None:
     args = parser.parse_args()
 
     if args.mode == "list":
-
         update_options: Dict[str, Any] = (
             get_archive_options_from_yaml(strategy_yaml_path=args.strategy_yaml_path)
             if args.strategy_yaml_path

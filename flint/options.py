@@ -7,7 +7,7 @@ from __future__ import (  # Used for mypy/pylance to like the return type of MS.
 )
 
 from pathlib import Path
-from typing import List, NamedTuple, Optional, Union, Collection
+from typing import Collection, List, NamedTuple, Optional, Union
 
 
 class BandpassOptions(NamedTuple):
