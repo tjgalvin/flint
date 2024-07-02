@@ -52,7 +52,8 @@ def resolve_glob_expressions(
 
 
 def copy_files_into(copy_out_path: Path, files_to_copy: Collection[Path]) -> Path:
-    """Copy a set of specified files into an output directory
+    """Copy a set of specified files into an output directory, If a file happens to
+    be a folder then it will be copied over.
 
     Args:
         copy_out_path (Path): Path to copy files into
@@ -70,15 +71,17 @@ def copy_files_into(copy_out_path: Path, files_to_copy: Collection[Path]) -> Pat
 
     logger.info(f"Copying {total} files into {copy_out_path}")
     for count, file in enumerate(files_to_copy):
-        logger.info(f"{count+1} of {total}, copying {file}")
 
-        if not file.is_file():
-            # TODO: Support folders
+        if file.is_file():
+            logger.info(f"{count+1} of {total}, copying file {file}")
+            shutil.copy(file, copy_out_path)
+        elif file.is_dir():
+            logger.info(f"{count+1} of {total}, copying folder {file}")
+            shutil.copytree(file, copy_out_path / file.name)
+        else:
             not_copied.append(file)
             logger.critical(f"{file} is not a file. Skipping. ")
             continue
-
-        shutil.copy(file, copy_out_path)
 
     if not_copied:
         logger.critical(f"Did not copy {len(not_copied)} files, {not_copied=}")

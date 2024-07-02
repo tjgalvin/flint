@@ -8,6 +8,7 @@
 - added CLI argument `--fixed-beam-shape` to specify a fixed final resolution, overwritng the optimal beam shape that otherwise would be computed
 - Added a SlurmInfo class to help with debugging crashed jobs. Primative and likely to change.
 - Made the `calibrated_bandpass_path` and optional CLI argument so that CASDA MSs can be better handled
+- copying folders in `copy_files_into` when archiving
 
 ## 0.2.4
 
