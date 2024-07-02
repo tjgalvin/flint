@@ -71,7 +71,6 @@ def copy_files_into(copy_out_path: Path, files_to_copy: Collection[Path]) -> Pat
 
     logger.info(f"Copying {total} files into {copy_out_path}")
     for count, file in enumerate(files_to_copy):
-
         if file.is_file():
             logger.info(f"{count+1} of {total}, copying file {file}")
             shutil.copy(file, copy_out_path)
