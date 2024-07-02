@@ -516,7 +516,7 @@ def plot_rms_map(
             marker="o",
             edgecolor="black",
             facecolor="none",
-            s=2,
+            s=1,
             transform=ax.get_transform("fk5"),
         )
 
