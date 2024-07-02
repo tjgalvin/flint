@@ -76,6 +76,7 @@ def copy_files_into(copy_out_path: Path, files_to_copy: Collection[Path]) -> Pat
             logger.info(f"{count+1} of {total}, copying file {file}")
             shutil.copy(file, copy_out_path)
         elif file.is_dir():
+            # TODO: Add an option to tar folders into the final location
             logger.info(f"{count+1} of {total}, copying folder {file}")
             shutil.copytree(file, copy_out_path / file.name)
         else:
