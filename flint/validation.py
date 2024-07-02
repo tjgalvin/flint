@@ -494,27 +494,39 @@ def plot_rms_map(
         Axes: The axes object with the plotted RMS image
     """
 
-    rms_data = fits.getdata(rms_path)
-
     # Convert Jy/beam to uJy/beam
+    rms_data = fits.getdata(rms_path) * 1e6
+
+    # Pirate no believes get below 10uJy/beam mateeey. Percentile a little more
+    # robust to outliers but much of a much
+    floor: float = max(1, np.log10(np.nanpercentile(rms_data * 1e6, 16)))  # type: ignore
+
     im = ax.imshow(
-        np.log10(rms_data * 1e6), vmin=2.0, vmax=3.0, origin="lower", cmap="YlOrRd"
+        np.log10(rms_data * 1e6),
+        vmin=floor,
+        vmax=floor + 1.0,
+        origin="lower",
+        cmap="YlOrRd",
     )
 
-    if source_positions:
+    if source_positions is not None:
         ax.scatter(
             source_positions.ra,
             source_positions.dec,
             marker="o",
             edgecolor="black",
             facecolor="none",
-            s=2,
+            s=1,
             transform=ax.get_transform("fk5"),
         )
 
     ax.grid(color="0.5", ls="solid")
     ax.set_xlabel("RA (J2000)")
     ax.set_ylabel("Dec (J2000)")
+
+    # These offsets are pretty and correspond to 10, 20, 30,m 50, 100 where floor is 10 uJy/bea,
+    yt = floor + np.array([0.0, 0.30103, 0.47712125, 0.69897, 1.0])
+    ytl = [f"{10**lx:.0f}" for lx in yt]
 
     cbar = fig.colorbar(
         im,
@@ -526,8 +538,6 @@ def plot_rms_map(
         orientation="vertical",
     )
     cbar.set_label(r"Image rms ($\mu$Jy/beam)", fontsize=F_SMALL)
-    yt = np.log10([100, 200, 300, 500, 1000])
-    ytl = [f"{10. ** lx:.0f}" for lx in yt]
     cbar.set_ticks(yt)
     cbar.set_ticklabels(ytl)
 
