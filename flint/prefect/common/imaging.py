@@ -558,7 +558,7 @@ def _create_convol_linmos_images(
     field_options: FieldOptions,
     field_summary: Optional[FieldSummary] = None,
     current_round: Optional[int] = None,
-) -> LinmosCommand:
+) -> List[LinmosCommand]:
     """Derive the approriate set of beam shapes and then produce corresponding
     convolved and co-added images
 
@@ -569,9 +569,9 @@ def _create_convol_linmos_images(
         current_round (Optional[int], optional): Which self-cal imaging round. If None 'noselfcal'. Defaults to None.
 
     Returns:
-        LinmosCommand: The linmos command of either the optimal resolution linmos image, or the fixed beam shape image if `field_options.fixed_beam_shape` has been set.
+        List[LinmosCommand]: The collection of linmos commands executed.
     """
-    parset: Optional[LinmosCommand] = None
+    parsets: List[LinmosCommand] = []
     main_linmos_suffix_str = f"round{current_round}" if current_round else "noselfcal"
 
     todo: List[Any, str] = [(None, "")]
@@ -603,6 +603,7 @@ def _create_convol_linmos_images(
             convol_filter="-MFS-",
             convol_suffix_str=convol_suffix_str,
         )
+        parsets.append(parset)
 
         if field_options.linmos_residuals:
             _convolve_linmos(
@@ -616,8 +617,7 @@ def _create_convol_linmos_images(
                 convol_filter="-MFS-",
             )
 
-    assert parset, f"{parset=}, but should not be!"
-    return parset
+    return parsets
 
 
 @task
