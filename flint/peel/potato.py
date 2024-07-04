@@ -597,7 +597,7 @@ def _print_ms_colnames(ms: MS) -> MS:
     with table(str(ms.path)) as tab:
         colnames = tab.colnames()
 
-    logger.critical(f"The MS column names are: {colnames=}")
+    logger.debug(f"The MS column names are: {colnames=}")
 
     return ms
 
