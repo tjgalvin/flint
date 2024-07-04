@@ -304,7 +304,7 @@ def process_science_fields(
 
             if run_validation and field_options.reference_catalogue_directory:
                 _validation_items(
-                    field_summary=linmos_field_summary,
+                    field_summary=field_summary,
                     aegean_outputs=aegean_field_output,
                     reference_catalogue_directory=field_options.reference_catalogue_directory,
                 )
