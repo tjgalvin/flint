@@ -29,7 +29,7 @@ from flint.naming import (
 from flint.options import FieldOptions
 from flint.prefect.clusters import get_dask_runner
 from flint.prefect.common.imaging import (
-    _convolve_linmos_residuals,
+    _convolve_linmos,
     _validation_items,
     task_convolve_image,
     task_copy_and_preprocess_casda_askap_ms,
@@ -281,32 +281,29 @@ def process_science_fields(
         filter="-MFS-",
         fixed_beam_shape=field_options.fixed_beam_shape,
     )
-    conv_images = task_convolve_image.map(
-        wsclean_cmd=wsclean_cmds,
-        beam_shape=unmapped(beam_shape),
-        cutoff=field_options.beam_cutoff,
-        filter="-MFS-",
-    )
+
     if field_options.yandasoft_container:
-        parset = task_linmos_images.submit(
-            images=conv_images,
-            container=field_options.yandasoft_container,
-            suffix_str="noselfcal",
-            holofile=field_options.holofile,
+        parset = _convolve_linmos(
+            wsclean_cmds=wsclean_cmds,
+            beam_shape=beam_shape,
+            field_options=field_options,
+            linmos_suffix_str="residual.noselfcal",
             cutoff=field_options.pb_cutoff,
             field_summary=field_summary,
+            convol_mode=None,
+            convol_filter="-MFS-",
         )
 
         if run_aegean:
             aegean_field_output = task_run_bane_and_aegean.submit(
                 image=parset, aegean_container=unmapped(field_options.aegean_container)
             )
-            linmos_field_summary = task_update_field_summary.submit(
+            field_summary = task_update_field_summary.submit(
                 field_summary=field_summary,
                 aegean_outputs=aegean_field_output,
                 linmos_command=parset,
             )
-            archive_wait_for.append(linmos_field_summary)
+            archive_wait_for.append(field_summary)
 
             if run_validation and field_options.reference_catalogue_directory:
                 _validation_items(
@@ -316,13 +313,15 @@ def process_science_fields(
                 )
 
         if field_options.linmos_residuals:
-            _convolve_linmos_residuals(
+            _convolve_linmos(
                 wsclean_cmds=wsclean_cmds,
                 beam_shape=beam_shape,
                 field_options=field_options,
                 linmos_suffix_str="residual.noselfcal",
                 cutoff=field_options.pb_cutoff,
                 field_summary=field_summary,
+                convol_mode="residuals",
+                convol_filter="-MFS-",
             )
 
     if field_options.rounds is None:
@@ -402,55 +401,51 @@ def process_science_fields(
                     aegean_container=unmapped(field_options.aegean_container),
                 )
 
-            beam_shape = task_get_common_beam.submit(
-                wsclean_cmds=wsclean_cmds,
-                cutoff=field_options.beam_cutoff,
-                filter="-MFS-",
-                fixed_beam_shape=field_options.fixed_beam_shape,
-            )
-            conv_images = task_convolve_image.map(
-                wsclean_cmd=wsclean_cmds,
-                beam_shape=unmapped(beam_shape),
-                cutoff=field_options.beam_cutoff,
-                filter="-MFS-",
-            )
-            if field_options.yandasoft_container is None:
-                logger.info("No yandasoft container supplied, not linmosing. ")
-                continue
-
-            parset = task_linmos_images.submit(
-                images=conv_images,
-                container=field_options.yandasoft_container,
-                suffix_str=f"round{current_round}",
-                holofile=field_options.holofile,
-                cutoff=field_options.pb_cutoff,
-                field_summary=field_summary,
-            )
-            archive_wait_for.append(parset)
+            parset = None
+            if field_options.yandasoft_container:
+                beam_shape = task_get_common_beam.submit(
+                    wsclean_cmds=wsclean_cmds,
+                    cutoff=field_options.beam_cutoff,
+                    filter="-MFS-",
+                    fixed_beam_shape=field_options.fixed_beam_shape,
+                )
+                parset = _convolve_linmos(
+                    wsclean_cmds=wsclean_cmds,
+                    beam_shape=beam_shape,
+                    field_options=field_options,
+                    linmos_suffix_str=f"round{current_round}",
+                    cutoff=field_options.pb_cutoff,
+                    field_summary=field_summary,
+                    convol_mode=None,
+                    convol_filter="-MFS-",
+                )
+                archive_wait_for.append(parset)
 
             if field_options.linmos_residuals:
-                _convolve_linmos_residuals(
+                _convolve_linmos(
                     wsclean_cmds=wsclean_cmds,
                     beam_shape=beam_shape,
                     field_options=field_options,
                     linmos_suffix_str=f"round{current_round}.residual",
                     cutoff=field_options.pb_cutoff,
                     field_summary=field_summary,
+                    convol_mode="residuals",
+                    convol_filter="-MFS-",
                 )
 
-            if final_round and run_aegean:
+            if final_round and run_aegean and parset:
                 aegean_outputs = task_run_bane_and_aegean.submit(
                     image=parset,
                     aegean_container=unmapped(field_options.aegean_container),
                 )
-                linmos_field_summary = task_update_field_summary.submit(
-                    field_summary=linmos_field_summary,
+                field_summary = task_update_field_summary.submit(
+                    field_summary=field_summary,
                     aegean_outputs=aegean_outputs,
                     round=current_round,
                 )
                 if run_validation:
                     val_results = _validation_items(
-                        field_summary=linmos_field_summary,
+                        field_summary=field_summary,
                         aegean_outputs=aegean_outputs,
                         reference_catalogue_directory=field_options.reference_catalogue_directory,
                     )

@@ -493,7 +493,7 @@ def task_linmos_images(
     return linmos_cmd
 
 
-def _convolve_linmos_residuals(
+def _convolve_linmos(
     wsclean_cmds: Collection[WSCleanCommand],
     beam_shape: BeamShape,
     field_options: FieldOptions,
@@ -502,7 +502,7 @@ def _convolve_linmos_residuals(
     field_summary: Optional[FieldSummary] = None,
 ) -> LinmosCommand:
     """An internal function that launches the convolution to a common resolution
-    and subsequent linmos of the wsclean residual images.
+    and subsequent linmos of the wsclean images.
 
     Args:
         wsclean_cmds (Collection[WSCleanCommand]): Collection of wsclean imaging results, with residual images described in the attached ``ImageSet``
@@ -515,12 +515,40 @@ def _convolve_linmos_residuals(
     Returns:
         LinmosCommand: Resulting linmos command parset
     """
+
+
+def _convolve_linmos(
+    wsclean_cmds: Collection[WSCleanCommand],
+    beam_shape: BeamShape,
+    field_options: FieldOptions,
+    linmos_suffix_str: str,
+    cutoff: float = 0.05,
+    field_summary: Optional[FieldSummary] = None,
+    convol_mode: Optional[str] = None,
+    convol_filter: str = "-MFS-",
+) -> LinmosCommand:
+    """An internal function that launches the convolution to a common resolution
+    and subsequent linmos of the wsclean residual images.
+
+    Args:
+        wsclean_cmds (Collection[WSCleanCommand]): Collection of wsclean imaging results, with residual images described in the attached ``ImageSet``
+        beam_shape (BeamShape): The beam shape that residual images will be convolved to
+        field_options (FieldOptions): Options related to the processing of the field
+        linmos_suffix_str (str): The suffix string passed to the linmos parset name
+        cutoff (float, optional): The primary beam attenuation cutoff supplied to linmos when coadding. Defaults to 0.05.
+        field_summary (Optional[FieldSummary], optional): The summary of the field, including (importantly) to orientation of the third-axis. Defaults to None.
+        convol_mode (Optional[str], optional): The mode passed to the convol task to describe the images to extract. Support image or residual. If None assume image. Defaults to None.
+        convol_filter (str, optional): A text file applied when assessing images to co-add. Defaults to '-MFS-'.
+
+    Returns:
+        LinmosCommand: Resulting linmos command parset
+    """
     residual_conv_images = task_convolve_image.map(
         wsclean_cmd=wsclean_cmds,
         beam_shape=unmapped(beam_shape),
         cutoff=150.0,
-        mode="residual",
-        filter="-MFS-",
+        mode=convol_mode,
+        filter=convol_filter,
     )
     parset = task_linmos_images.submit(
         images=residual_conv_images,
