@@ -417,7 +417,7 @@ def task_convolve_image(
         image_paths=image_paths,
         beam_shape=beam_shape,
         cutoff=cutoff,
-        convol_suffix=convol_suffix,
+        convol_suffix=convol_suffix_str,
     )
 
 
@@ -505,7 +505,7 @@ def _convolve_linmos(
     linmos_suffix_str: str,
     cutoff: float = 0.05,
     field_summary: Optional[FieldSummary] = None,
-    convol_mode: Optional[str] = None,
+    convol_mode: str = "image",
     convol_filter: str = "-MFS-",
     convol_suffix_str: str = "conv",
 ) -> LinmosCommand:
@@ -519,7 +519,7 @@ def _convolve_linmos(
         linmos_suffix_str (str): The suffix string passed to the linmos parset name
         cutoff (float, optional): The primary beam attenuation cutoff supplied to linmos when coadding. Defaults to 0.05.
         field_summary (Optional[FieldSummary], optional): The summary of the field, including (importantly) to orientation of the third-axis. Defaults to None.
-        convol_mode (Optional[str], optional): The mode passed to the convol task to describe the images to extract. Support image or residual. If None assume image. Defaults to None.
+        convol_mode (str, optional): The mode passed to the convol task to describe the images to extract. Support image or residual.  Defaults to image.
         convol_filter (str, optional): A text file applied when assessing images to co-add. Defaults to '-MFS-'.
         convol_suffix_str (str, optional): The suffix added to the convolved images. Defaults to 'conv'.
 
@@ -599,7 +599,7 @@ def _create_convol_linmos_images(
             linmos_suffix_str=linmos_suffix_str,
             cutoff=field_options.pb_cutoff,
             field_summary=field_summary,
-            convol_mode=None,
+            convol_mode="image",
             convol_filter="-MFS-",
             convol_suffix_str=convol_suffix_str,
         )
@@ -613,7 +613,7 @@ def _create_convol_linmos_images(
                 linmos_suffix_str=f"{linmos_suffix_str}.residual",
                 cutoff=field_options.pb_cutoff,
                 field_summary=field_summary,
-                convol_mode="residuals",
+                convol_mode="residual",
                 convol_filter="-MFS-",
             )
 
