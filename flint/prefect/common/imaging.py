@@ -352,6 +352,7 @@ def task_convolve_image(
     cutoff: float = 60,
     mode: str = "image",
     filter: Optional[str] = None,
+    convol_suffix_str: str = "conv",
 ) -> Collection[Path]:
     """Convolve images to a specified resolution
 
@@ -360,6 +361,7 @@ def task_convolve_image(
         beam_shape (BeamShape): The shape images will be convolved to
         cutoff (float, optional): Maximum major beam axis an image is allowed to have before it will not be convolved. Defaults to 60.
         filter (Optional[str], optional): This string must be contained in the image path for it to be convolved. Defaults to None.
+        convol_suffix_str (str, optional): The suffix added to the convolved images. Defaults to 'conv'.
 
     Returns:
         Collection[Path]: Path to the output images that have been convolved.
@@ -412,7 +414,10 @@ def task_convolve_image(
         )
 
     return convolve_images(
-        image_paths=image_paths, beam_shape=beam_shape, cutoff=cutoff
+        image_paths=image_paths,
+        beam_shape=beam_shape,
+        cutoff=cutoff,
+        convol_suffix=convol_suffix,
     )
 
 
@@ -500,32 +505,9 @@ def _convolve_linmos(
     linmos_suffix_str: str,
     cutoff: float = 0.05,
     field_summary: Optional[FieldSummary] = None,
-) -> LinmosCommand:
-    """An internal function that launches the convolution to a common resolution
-    and subsequent linmos of the wsclean images.
-
-    Args:
-        wsclean_cmds (Collection[WSCleanCommand]): Collection of wsclean imaging results, with residual images described in the attached ``ImageSet``
-        beam_shape (BeamShape): The beam shape that residual images will be convolved to
-        field_options (FieldOptions): Options related to the processing of the field
-        linmos_suffix_str (str): The suffix string passed to the linmos parset name
-        cutoff (float, optional): The primary beam attenuation cutoff supplied to linmos when coadding. Defaults to 0.05.
-        field_summary (Optional[FieldSummary], optional): The summary of the field, including (importantly) to orientation of the third-axis. Defaults to None.
-
-    Returns:
-        LinmosCommand: Resulting linmos command parset
-    """
-
-
-def _convolve_linmos(
-    wsclean_cmds: Collection[WSCleanCommand],
-    beam_shape: BeamShape,
-    field_options: FieldOptions,
-    linmos_suffix_str: str,
-    cutoff: float = 0.05,
-    field_summary: Optional[FieldSummary] = None,
     convol_mode: Optional[str] = None,
     convol_filter: str = "-MFS-",
+    convol_suffix_str: str = "conv",
 ) -> LinmosCommand:
     """An internal function that launches the convolution to a common resolution
     and subsequent linmos of the wsclean residual images.
@@ -539,19 +521,28 @@ def _convolve_linmos(
         field_summary (Optional[FieldSummary], optional): The summary of the field, including (importantly) to orientation of the third-axis. Defaults to None.
         convol_mode (Optional[str], optional): The mode passed to the convol task to describe the images to extract. Support image or residual. If None assume image. Defaults to None.
         convol_filter (str, optional): A text file applied when assessing images to co-add. Defaults to '-MFS-'.
+        convol_suffix_str (str, optional): The suffix added to the convolved images. Defaults to 'conv'.
 
     Returns:
         LinmosCommand: Resulting linmos command parset
     """
-    residual_conv_images = task_convolve_image.map(
+    beam_shape = task_get_common_beam.submit(
+        wsclean_cmds=wsclean_cmds,
+        cutoff=field_options.beam_cutoff,
+        filter="-MFS-",
+        fixed_beam_shape=field_options.fixed_beam_shape,
+    )
+
+    conv_images = task_convolve_image.map(
         wsclean_cmd=wsclean_cmds,
         beam_shape=unmapped(beam_shape),
         cutoff=150.0,
         mode=convol_mode,
         filter=convol_filter,
+        convol_suffix_str=convol_suffix_str,
     )
     parset = task_linmos_images.submit(
-        images=residual_conv_images,
+        images=conv_images,
         container=field_options.yandasoft_container,
         suffix_str=linmos_suffix_str,
         holofile=field_options.holofile,
@@ -559,6 +550,73 @@ def _convolve_linmos(
         field_summary=field_summary,
     )
 
+    return parset
+
+
+def _create_convol_linmos_images(
+    wsclean_cmds: Collection[WSCleanCommand],
+    field_options: FieldOptions,
+    field_summary: Optional[FieldSummary] = None,
+    current_round: Optional[int] = None,
+) -> LinmosCommand:
+    """Derive the approriate set of beam shapes and then produce corresponding
+    convolved and co-added images
+
+    Args:
+        wsclean_cmds (Collection[WSCleanCommand]): Set of wsclean commands that have been executed
+        field_options (FieldOptions): Set of field imaging optins, containing details of the beam/s
+        field_summary (Optional[FieldSummary], optional): Summary of the MSs, importantly containing their third-axis rotation. Defaults to None.
+        current_round (Optional[int], optional): Which self-cal imaging round. If None 'noselfcal'. Defaults to None.
+
+    Returns:
+        LinmosCommand: The linmos command of either the optimal resolution linmos image, or the fixed beam shape image if `field_options.fixed_beam_shape` has been set.
+    """
+    parset: Optional[LinmosCommand] = None
+    main_linmos_suffix_str = f"round{current_round}" if current_round else "noselfcal"
+
+    todo: List[Any, str] = [(None, "")]
+    if field_options.fixed_beam_shape:
+        logger.info(
+            f"Creating second round of linmos images with {field_options.fixed_beam_shape}"
+        )
+        todo.append((field_options.fixed_beam_shape, "fixed."))
+
+    for round_beam_shape, beam_str in todo:
+
+        linmos_suffix_str = f"{beam_str}{main_linmos_suffix_str}"
+        convol_suffix_str = f"{beam_str}conv"
+
+        beam_shape = task_get_common_beam.submit(
+            wsclean_cmds=wsclean_cmds,
+            cutoff=field_options.beam_cutoff,
+            filter="-MFS-",
+            fixed_beam_shape=round_beam_shape,
+        )
+        parset = _convolve_linmos(
+            wsclean_cmds=wsclean_cmds,
+            beam_shape=beam_shape,
+            field_options=field_options,
+            linmos_suffix_str=linmos_suffix_str,
+            cutoff=field_options.pb_cutoff,
+            field_summary=field_summary,
+            convol_mode=None,
+            convol_filter="-MFS-",
+            convol_suffix_str=convol_suffix_str,
+        )
+
+        if field_options.linmos_residuals:
+            _convolve_linmos(
+                wsclean_cmds=wsclean_cmds,
+                beam_shape=beam_shape,
+                field_options=field_options,
+                linmos_suffix_str=f"{linmos_suffix_str}.residual",
+                cutoff=field_options.pb_cutoff,
+                field_summary=field_summary,
+                convol_mode="residuals",
+                convol_filter="-MFS-",
+            )
+
+    assert parset, f"{parset=}, but should not be!"
     return parset
 
 

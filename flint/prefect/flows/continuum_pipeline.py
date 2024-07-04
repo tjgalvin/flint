@@ -31,14 +31,13 @@ from flint.prefect.clusters import get_dask_runner
 from flint.prefect.common.imaging import (
     _convolve_linmos,
     _validation_items,
-    task_convolve_image,
+    _create_convol_linmos_images,
     task_copy_and_preprocess_casda_askap_ms,
     task_create_apply_solutions_cmd,
     task_create_image_mask_model,
     task_flag_ms_aoflagger,
     task_gaincal_applycal_ms,
     task_get_common_beam,
-    task_linmos_images,
     task_potato_peel,
     task_preprocess_askap_ms,
     task_rename_column_in_ms,
@@ -283,16 +282,14 @@ def process_science_fields(
     )
 
     if field_options.yandasoft_container:
-        parset = _convolve_linmos(
+        parsets = _create_convol_linmos_images(
             wsclean_cmds=wsclean_cmds,
-            beam_shape=beam_shape,
             field_options=field_options,
-            linmos_suffix_str="residual.noselfcal",
-            cutoff=field_options.pb_cutoff,
             field_summary=field_summary,
-            convol_mode=None,
-            convol_filter="-MFS-",
+            current_round=None,
         )
+        archive_wait_for.extend(parsets)
+        parset = parsets[-1]
 
         if run_aegean:
             aegean_field_output = task_run_bane_and_aegean.submit(
@@ -311,18 +308,6 @@ def process_science_fields(
                     aegean_outputs=aegean_field_output,
                     reference_catalogue_directory=field_options.reference_catalogue_directory,
                 )
-
-        if field_options.linmos_residuals:
-            _convolve_linmos(
-                wsclean_cmds=wsclean_cmds,
-                beam_shape=beam_shape,
-                field_options=field_options,
-                linmos_suffix_str="residual.noselfcal",
-                cutoff=field_options.pb_cutoff,
-                field_summary=field_summary,
-                convol_mode="residuals",
-                convol_filter="-MFS-",
-            )
 
     if field_options.rounds is None:
         logger.info("No self-calibration will be performed. Returning")
@@ -401,41 +386,19 @@ def process_science_fields(
                     aegean_container=unmapped(field_options.aegean_container),
                 )
 
-            parset = None
+            parsets = None  # Without could be unbound
             if field_options.yandasoft_container:
-                beam_shape = task_get_common_beam.submit(
+                parsets = _create_convol_linmos_images(
                     wsclean_cmds=wsclean_cmds,
-                    cutoff=field_options.beam_cutoff,
-                    filter="-MFS-",
-                    fixed_beam_shape=field_options.fixed_beam_shape,
-                )
-                parset = _convolve_linmos(
-                    wsclean_cmds=wsclean_cmds,
-                    beam_shape=beam_shape,
                     field_options=field_options,
-                    linmos_suffix_str=f"round{current_round}",
-                    cutoff=field_options.pb_cutoff,
                     field_summary=field_summary,
-                    convol_mode=None,
-                    convol_filter="-MFS-",
+                    current_round=current_round,
                 )
-                archive_wait_for.append(parset)
+                archive_wait_for.extend(parsets)
 
-            if field_options.linmos_residuals:
-                _convolve_linmos(
-                    wsclean_cmds=wsclean_cmds,
-                    beam_shape=beam_shape,
-                    field_options=field_options,
-                    linmos_suffix_str=f"round{current_round}.residual",
-                    cutoff=field_options.pb_cutoff,
-                    field_summary=field_summary,
-                    convol_mode="residuals",
-                    convol_filter="-MFS-",
-                )
-
-            if final_round and run_aegean and parset:
+            if final_round and run_aegean and parsets:
                 aegean_outputs = task_run_bane_and_aegean.submit(
-                    image=parset,
+                    image=parsets[-1],
                     aegean_container=unmapped(field_options.aegean_container),
                 )
                 field_summary = task_update_field_summary.submit(
