@@ -526,12 +526,6 @@ def _convolve_linmos(
     Returns:
         LinmosCommand: Resulting linmos command parset
     """
-    beam_shape = task_get_common_beam.submit(
-        wsclean_cmds=wsclean_cmds,
-        cutoff=field_options.beam_cutoff,
-        filter="-MFS-",
-        fixed_beam_shape=field_options.fixed_beam_shape,
-    )
 
     conv_images = task_convolve_image.map(
         wsclean_cmd=wsclean_cmds,
