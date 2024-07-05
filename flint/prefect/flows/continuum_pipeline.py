@@ -36,7 +36,6 @@ from flint.prefect.common.imaging import (
     task_create_image_mask_model,
     task_flag_ms_aoflagger,
     task_gaincal_applycal_ms,
-    task_get_common_beam,
     task_potato_peel,
     task_preprocess_askap_ms,
     task_rename_column_in_ms,
