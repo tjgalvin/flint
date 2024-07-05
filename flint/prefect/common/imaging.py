@@ -39,7 +39,7 @@ from flint.ms import (
     rename_column_in_ms,
     split_by_field,
 )
-from flint.naming import FITSMaskNames, processed_ms_format
+from flint.naming import FITSMaskNames, processed_ms_format, get_beam_resolution_str
 from flint.options import FieldOptions
 from flint.peel.potato import potato_peel
 from flint.prefect.common.utils import upload_image_as_artifact
@@ -568,17 +568,19 @@ def _create_convol_linmos_images(
     parsets: List[LinmosCommand] = []
     main_linmos_suffix_str = f"round{current_round}" if current_round else "noselfcal"
 
-    todo: List[Any, str] = [(None, "")]
+    todo: List[Any, str] = [(None, get_beam_resolution_str(mode="optimal"))]
     if field_options.fixed_beam_shape:
         logger.info(
             f"Creating second round of linmos images with {field_options.fixed_beam_shape}"
         )
-        todo.append((field_options.fixed_beam_shape, "fixed."))
+        todo.append(
+            (field_options.fixed_beam_shape, get_beam_resolution_str(mode="fixed"))
+        )
 
     for round_beam_shape, beam_str in todo:
 
-        linmos_suffix_str = f"{beam_str}{main_linmos_suffix_str}"
-        convol_suffix_str = f"{beam_str}conv"
+        linmos_suffix_str = f"{beam_str}.{main_linmos_suffix_str}"
+        convol_suffix_str = f"{beam_str}.conv"
 
         beam_shape = task_get_common_beam.submit(
             wsclean_cmds=wsclean_cmds,

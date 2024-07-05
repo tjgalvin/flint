@@ -1,5 +1,6 @@
 """Some tests related to components around measurement sets."""
 
+import pytest
 from datetime import datetime
 from pathlib import Path
 
@@ -15,12 +16,27 @@ from flint.naming import (
     extract_beam_from_name,
     extract_components_from_name,
     get_aocalibrate_output_path,
+    get_beam_resolution_str,
     get_potato_output_base_path,
     get_sbid_from_path,
     get_selfcal_ms_name,
     processed_ms_format,
     raw_ms_format,
 )
+
+
+def test_get_beam_resolution_str():
+    """Map the known / support modes of beam resolution in file names"""
+    assert "raw" == get_beam_resolution_str(mode="raw")
+    assert "optimal" == get_beam_resolution_str(mode="optimal")
+    assert "fixed" == get_beam_resolution_str(mode="fixed")
+
+    assert "raw!" == get_beam_resolution_str(mode="raw", marker="!")
+    assert "optimal?" == get_beam_resolution_str(mode="optimal", marker="?")
+    assert "fixed." == get_beam_resolution_str(mode="fixed", marker=".")
+
+    with pytest.raises(ValueError):
+        _ = get_beam_resolution_str("Jack")
 
 
 def test_casda_ms_format_1934():
