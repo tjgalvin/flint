@@ -30,8 +30,8 @@ from flint.options import FieldOptions
 from flint.prefect.clusters import get_dask_runner
 from flint.prefect.common.imaging import (
     _convolve_linmos,
-    _validation_items,
     _create_convol_linmos_images,
+    _validation_items,
     task_copy_and_preprocess_casda_askap_ms,
     task_create_apply_solutions_cmd,
     task_create_image_mask_model,

@@ -39,7 +39,7 @@ from flint.ms import (
     rename_column_in_ms,
     split_by_field,
 )
-from flint.naming import FITSMaskNames, processed_ms_format, get_beam_resolution_str
+from flint.naming import FITSMaskNames, get_beam_resolution_str, processed_ms_format
 from flint.options import FieldOptions
 from flint.peel.potato import potato_peel
 from flint.prefect.common.utils import upload_image_as_artifact
@@ -578,7 +578,6 @@ def _create_convol_linmos_images(
         )
 
     for round_beam_shape, beam_str in todo:
-
         linmos_suffix_str = f"{beam_str}.{main_linmos_suffix_str}"
         convol_suffix_str = f"{beam_str}.conv"
 
