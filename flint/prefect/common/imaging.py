@@ -609,6 +609,7 @@ def _create_convol_linmos_images(
                 field_summary=field_summary,
                 convol_mode="residual",
                 convol_filter="-MFS-",
+                convol_suffix_str=convol_suffix_str,
             )
 
     return parsets
