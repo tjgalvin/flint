@@ -5,9 +5,39 @@ products.
 import re
 from datetime import datetime
 from pathlib import Path
-from typing import Any, List, NamedTuple, Optional, Union
+from typing import Any, Dict, List, NamedTuple, Optional, Union
 
 from flint.logging import logger
+
+
+def get_beam_resolution_str(mode: str, marker: Optional[str] = None) -> str:
+    """Map a beam resolution mode to an appropriate suffix. This
+    is located her in anticipation of other imaging modes.
+
+    Supported modes are: 'optimal', 'fixed', 'raw'
+
+    Args:
+        mode (str): The mode of image resolution to use.
+        marker (Optional[str], optional): Append the marker to the end of the returned mode string. If None mode string is returned. Defaults to None.
+
+    Raises:
+        ValueError: Raised when an unrecognised mode is supplied
+
+    Returns:
+        str: The appropriate string for mapped mode
+    """
+    # NOTE: Arguably this is a trash and needless function. Adding it
+    # incase other modes are ever needed or referenced. No idea whether
+    # it will ever been needed and could be removed in future.
+    supported_modes: Dict[str, str] = dict(optimal="optimal", fixed="fixed", raw="raw")
+    if mode.lower() not in supported_modes.keys():
+        raise ValueError(
+            f"Received {mode=}, supported modes are {supported_modes.keys()}"
+        )
+
+    mode_str = supported_modes[mode.lower()]
+
+    return mode_str + marker if marker else mode_str
 
 
 def get_selfcal_ms_name(in_ms_path: Path, round: int = 1) -> Path:
