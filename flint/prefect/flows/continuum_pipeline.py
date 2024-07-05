@@ -8,6 +8,7 @@
 from pathlib import Path
 from typing import Any, List, Optional, Union
 
+from attr import field
 from configargparse import ArgumentParser
 from prefect import flow, tags, unmapped
 
@@ -23,10 +24,11 @@ from flint.masking import consider_beam_mask_round
 from flint.ms import find_mss
 from flint.naming import (
     CASDANameComponents,
+    add_timestamp_to_path,
     extract_components_from_name,
     get_sbid_from_path,
 )
-from flint.options import FieldOptions
+from flint.options import FieldOptions, dump_field_options_to_yaml
 from flint.prefect.clusters import get_dask_runner
 from flint.prefect.common.imaging import (
     _create_convol_linmos_images,
@@ -151,6 +153,13 @@ def process_science_fields(
 
     output_split_science_path = _check_create_output_split_science_path(
         science_path=science_path, split_path=split_path, check_exists=True
+    )
+
+    dump_field_options_to_yaml(
+        output_path=add_timestamp_to_path(
+            input_path=output_split_science_path / "field_options.yaml"
+        ),
+        field_optios=field_options,
     )
 
     archive_wait_for: List[Any] = []
