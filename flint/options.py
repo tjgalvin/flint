@@ -9,6 +9,10 @@ from __future__ import (  # Used for mypy/pylance to like the return type of MS.
 from pathlib import Path
 from typing import Collection, List, NamedTuple, Optional, Union
 
+import yaml
+
+from flint.logging import logger
+
 
 class BandpassOptions(NamedTuple):
     """Container that reoresents the flint related options that
@@ -112,6 +116,41 @@ class FieldOptions(NamedTuple):
     """Path that final processed products will be copied into. If None no copying of file products is performed. See ArchiveOptions. """
     rename_ms: bool = False
     """Rename MSs throught rounds of imaging and self-cal instead of creating copies. This will delete data-columns throughout. """
+
+
+def dump_field_options_to_yaml(
+    output_path: Path, field_options: FieldOptions, overwrite: bool = False
+) -> Path:
+    """Dump the supplied instance of `FieldOptions` to a yaml file
+    for record keeping.
+
+    The parent directory of the `output_path` will be created if it
+    does not already exist.
+
+    Args:
+        output_path (Path): Path of the output file.
+        field_options (FieldOptions): The `FieldOptions` class to write.
+        overwrite (bool, optional): Overwrite the file if it exists. Defaults to False.
+
+    Raises:
+        FileExistsError: Raise if `output_path` already exists and `overwrite` is `False`
+
+    Returns:
+        Path: Output path written to.
+    """
+
+    logger.info(f"Writing field_options to {output_path}")
+
+    if not overwrite and output_path.exists():
+        raise FileExistsError(f"{output_path=} exists. ")
+
+    # Create the directory just in case
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+
+    with open(output_path, "w") as out_file:
+        yaml.dump(data=field_options, stream=out_file, sort_keys=False)
+
+    return output_path
 
 
 # TODO: Perhaps move these to flint.naming, and can be built up

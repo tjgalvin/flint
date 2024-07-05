@@ -5,8 +5,33 @@ to create it
 
 from pathlib import Path
 
-from flint.options import FieldOptions
+import pytest
+
+from flint.options import FieldOptions, dump_field_options_to_yaml
 from flint.prefect.flows.continuum_pipeline import get_parser
+
+
+def test_dump_field_options_to_yaml(tmpdir):
+    """See if the field options file can be dumped to an output directory"""
+    tmpdir = Path(tmpdir)
+
+    field_options = FieldOptions(
+        flagger_container=Path("a"), calibrate_container=Path("b")
+    )
+
+    assert not (tmpdir / "Jack").exists()
+
+    path_1 = tmpdir / "field_options.yaml"
+    path_2 = tmpdir / "Jack" / "Sparrow" / "field_options.yaml"
+
+    for path in (path_1, path_2):
+        output_path = dump_field_options_to_yaml(
+            output_path=path, field_options=field_options
+        )
+        assert output_path.exists()
+
+    with pytest.raises(FileExistsError):
+        dump_field_options_to_yaml(output_path=path_2, field_options=field_options)
 
 
 def test_config_field_options(tmpdir):
