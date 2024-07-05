@@ -29,7 +29,6 @@ from flint.naming import (
 from flint.options import FieldOptions
 from flint.prefect.clusters import get_dask_runner
 from flint.prefect.common.imaging import (
-    _convolve_linmos,
     _create_convol_linmos_images,
     _validation_items,
     task_copy_and_preprocess_casda_askap_ms,
@@ -273,13 +272,6 @@ def process_science_fields(
         field_summary = task_update_with_options.submit(
             input_object=field_summary, beam_summaries=beam_summaries
         )
-
-    beam_shape = task_get_common_beam.submit(
-        wsclean_cmds=wsclean_cmds,
-        cutoff=field_options.beam_cutoff,
-        filter="-MFS-",
-        fixed_beam_shape=field_options.fixed_beam_shape,
-    )
 
     if field_options.yandasoft_container:
         parsets = _create_convol_linmos_images(
