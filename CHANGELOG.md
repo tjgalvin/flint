@@ -12,6 +12,7 @@
 - added reading of ArchiveOptions from strategy file for continuum pipeline and `flint_archive`
 - Adaptive colour bar scaling in the rms validation plot
 - Create multiple linmos images if `--fixed-beam-shape` specified, one at an optimal common resolution and another at the specified resolution
+- Dump the `FieldOptions` to the output science directory
 
 ## 0.2.4
 

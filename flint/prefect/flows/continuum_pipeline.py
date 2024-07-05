@@ -158,7 +158,7 @@ def process_science_fields(
         output_path=add_timestamp_to_path(
             input_path=output_split_science_path / "field_options.yaml"
         ),
-        field_optios=field_options,
+        field_options=field_options,
     )
 
     archive_wait_for: List[Any] = []
