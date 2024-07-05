@@ -499,7 +499,7 @@ def plot_rms_map(
 
     # Pirate no believes get below 10uJy/beam mateeey. Percentile a little more
     # robust to outliers but much of a much
-    floor: float = max(1, np.floort(np.log10(np.nanpercentile(rms_data, 16))))  # type: ignore
+    floor: float = max(1, np.floor(np.log10(np.nanpercentile(rms_data, 16))))  # type: ignore
 
     im = ax.imshow(
         np.log10(rms_data),
