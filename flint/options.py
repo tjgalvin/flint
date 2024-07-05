@@ -148,7 +148,7 @@ def dump_field_options_to_yaml(
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
     with open(output_path, "w") as out_file:
-        yaml.dump(data=field_options, stream=out_file, sort_keys=False)
+        yaml.dump(data=field_options._asdict(), stream=out_file, sort_keys=False)
 
     return output_path
 
