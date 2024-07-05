@@ -8,7 +8,6 @@
 from pathlib import Path
 from typing import Any, List, Optional, Union
 
-from attr import field
 from configargparse import ArgumentParser
 from prefect import flow, tags, unmapped
 
