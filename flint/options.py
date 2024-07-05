@@ -5,9 +5,11 @@ set of flint processing related options.
 from __future__ import (  # Used for mypy/pylance to like the return type of MS.with_options
     annotations,
 )
-import yaml
+
 from pathlib import Path
 from typing import Collection, List, NamedTuple, Optional, Union
+
+import yaml
 
 from flint.logging import logger
 

@@ -3,8 +3,9 @@ somewhat tracked, especially when using an argparse object
 to create it
 """
 
-import pytest
 from pathlib import Path
+
+import pytest
 
 from flint.options import FieldOptions, dump_field_options_to_yaml
 from flint.prefect.flows.continuum_pipeline import get_parser
