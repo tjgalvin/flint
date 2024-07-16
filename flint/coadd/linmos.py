@@ -2,7 +2,7 @@
 
 from argparse import ArgumentParser
 from pathlib import Path
-from typing import Collection, List, NamedTuple, Optional
+from typing import Collection, List, NamedTuple, Optional, Tuple
 
 import numpy as np
 from astropy.io import fits
@@ -36,6 +36,8 @@ class BoundingBox(NamedTuple):
     """Minimum y pixel"""
     ymax: int
     """Maximum y pixel"""
+    original_shape: Tuple[int, int]
+    """The original shape of the image"""
 
 
 def create_bound_box(image_data: np.ndarray, is_masked: bool = False) -> BoundingBox:
@@ -65,15 +67,29 @@ def create_bound_box(image_data: np.ndarray, is_masked: bool = False) -> Boundin
     xmin, xmax = np.where(x_valid)[0][[0, -1]]
     ymin, ymax = np.where(y_valid)[0][[0, -1]]
 
-    return BoundingBox(xmin=xmin, xmax=xmax, ymin=ymin, ymax=ymax)
+    return BoundingBox(
+        xmin=xmin, xmax=xmax, ymin=ymin, ymax=ymax, original_shape=image_data.shape
+    )
 
 
-def trim_fits_image(image_path: Path) -> Path:
+class TrimImageResult(NamedTuple):
+    """The constructed path and the bounding box"""
+
+    path: Path
+    """The path to the trimmed image"""
+    bounding_box: BoundingBox
+    """The bounding box that was applied to the image"""
+
+
+def trim_fits_image(
+    image_path: Path, bounding_box: Optional[BoundingBox] = None
+) -> TrimImageResult:
     """Trim the FITS image produces by linmos to remove as many empty pixels around
     the border of the image as possible. This is an inplace operation.
 
     Args:
         image_path (Path): The FITS image that will have its border trimmed
+        bounding_box (Optional[BoundingBox], optional): The bounding box that will be applied to the image. If None it is computed. Defaults to None.
 
     Returns:
         Path: Path of the FITS image that had its border trimmed
@@ -83,7 +99,18 @@ def trim_fits_image(image_path: Path) -> Path:
         data = fits_image[0].data
         logger.info(f"Original data shape: {data.shape}")
 
-        bounding_box = create_bound_box(image_data=np.squeeze(data), is_masked=False)
+        image_shape = (data.shape[-2], data.shape[-1])
+        logger.info(f"The image dimensions are: {image_shape}")
+
+        if not bounding_box:
+            bounding_box = create_bound_box(
+                image_data=np.squeeze(data), is_masked=False
+            )
+        else:
+            if image_shape != bounding_box.original_shape:
+                raise ValueError(
+                    f"Bounding box constructed against {bounding_box.original_shape}, but being applied to {image_shape=}"
+                )
 
         data = data[
             ...,
@@ -99,7 +126,7 @@ def trim_fits_image(image_path: Path) -> Path:
 
     fits.writeto(filename=image_path, data=data, header=header, overwrite=True)
 
-    return image_path
+    return TrimImageResult(path=image_path, bounding_box=bounding_box)
 
 
 def get_image_weight(
@@ -250,8 +277,8 @@ def generate_linmos_parameter_set(
     logger.info(f"{len(img_str)} unique images from {len(images)} input collection. ")
     img_list: str = "[" + ",".join(img_str) + "]"
 
-    assert (
-        len(set(img_str)) == len(images)
+    assert len(set(img_str)) == len(
+        images
     ), "Some images were dropped from the linmos image string. Something is bad, walk the plank. "
 
     # If no weights_list has been provided (and therefore no optimal
@@ -386,7 +413,11 @@ def linmos_images(
     )
 
     # Trim the fits image to remove empty pixels
-    trim_fits_image(image_path=linmos_names.image_fits)
+    image_trim_results = trim_fits_image(image_path=linmos_names.image_fits)
+    weight_time_results = trim_fits_image(
+        image_path=linmos_names.weight_fits,
+        bounding_box=image_trim_results.bounding_box,
+    )
 
     return linmos_cmd
 
