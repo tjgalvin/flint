@@ -414,7 +414,7 @@ def linmos_images(
 
     # Trim the fits image to remove empty pixels
     image_trim_results = trim_fits_image(image_path=linmos_names.image_fits)
-    weight_time_results = trim_fits_image(
+    trim_fits_image(
         image_path=linmos_names.weight_fits,
         bounding_box=image_trim_results.bounding_box,
     )
@@ -462,6 +462,13 @@ def get_parser() -> ArgumentParser:
         help="Path to the container with yandasoft tools",
     )
 
+    trim_parser = subparsers.add_parser(
+        "trim", help="Generate a yandasoft linmos parset"
+    )
+
+    trim_parser.add_argument(
+        "images", type=Path, nargs="+", help="The images that will be trimmed"
+    )
     return parser
 
 
@@ -489,6 +496,13 @@ def cli() -> None:
                 holofile=args.holofile,
                 container=args.yandasoft_container,
             )
+    elif args.mode == "trim":
+        images = args.images
+        logger.info(f"Will be trimming {len(images)}")
+        for image in images:
+            trim_fits_image(image_path=Path(image))
+    else:
+        logger.error(f"Unrecognised mode: {args.mode}")
 
 
 if __name__ == "__main__":
