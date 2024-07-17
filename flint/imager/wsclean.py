@@ -384,6 +384,7 @@ def create_wsclean_cmd(
             wsclean_cmd=wsclean_cmd,
             container=container,
             bind_dirs=tuple(bind_dir_paths),
+            move_hold_directories=(move_directory, hold_directory),
         )
 
     return wsclean_cmd
