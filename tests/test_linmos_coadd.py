@@ -3,10 +3,10 @@ At the moment this is not testing the actual application. Just
 some of trhe helper functions around it.
 """
 
-import pytest
 from pathlib import Path
 
 import numpy as np
+import pytest
 from astropy.io import fits
 
 from flint.coadd.linmos import BoundingBox, create_bound_box, trim_fits_image
