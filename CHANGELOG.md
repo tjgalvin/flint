@@ -1,6 +1,6 @@
 # Change log
 
-# Dev
+# 0.2.5
 - added in skip rounds for masking and selfcal
 - Basic handling of CASDA measurement sets (preprocessing)
 - Basic handling of environment variables in Options, only supported in WSCleanOptions (no need for others yet)
