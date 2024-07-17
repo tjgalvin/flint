@@ -361,7 +361,7 @@ def create_wsclean_cmd(
 
         if key == "temp-dir" and isinstance(value, (Path, str)):
             hold_directory = Path(value)
-            name_str = hold_directory / ms.path.name
+            name_str = hold_directory / ms.path.stem
             cmd += f"-name {str(name_str)} "
 
         if key in bind_dir_options and isinstance(value, (str, Path)):
