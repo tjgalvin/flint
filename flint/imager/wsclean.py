@@ -40,6 +40,10 @@ class WSCleanOptions(NamedTuple):
     Basic support for environment variables is available. Should a value start
     with `$` it is assumed to be a environment variable, it is will be looked up.
     Some basic attempts to deterimine if it is a path is made.
+
+    Should the `temp_dir` options be specified then all images will be
+    created in this location, and then moved over to the same parent directory
+    as the imaged MS. This is done by setting the wsclean `-name` argument.
     """
 
     abs_mem: int = 100
