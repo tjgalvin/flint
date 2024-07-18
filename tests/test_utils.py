@@ -77,6 +77,32 @@ def test_hold_then_test_errors(tmpdir):
             logger.info("This will not be here")
 
 
+def test_hold_then_move_into_none(tmpdir):
+    """See whether the context manager behaves as expected when the temporary hold
+    directory is None. This should just do thing in the move_directory."""
+
+    tmpdir = Path(tmpdir)
+
+    hold_directory = None
+    move_directory = Path(tmpdir / "new/the/final/location")
+
+    no_files = 45
+    with hold_then_move_into(
+        hold_directory=hold_directory, move_directory=move_directory
+    ) as put_dir:
+        assert put_dir.exists()
+        assert put_dir == move_directory
+        for i in range(no_files):
+            file: Path = put_dir / f"some_file_{i}.txt"
+            file.write_text(f"This is a file {i}")
+
+        assert len(list(put_dir.glob("*"))) == no_files
+        assert move_directory.exists()
+
+    assert len(list(move_directory.glob("*"))) == no_files
+    assert put_dir.exists()
+
+
 def test_hold_then_move_into(tmpdir):
     """See whether the hold directory can have things dumped into it, then
     moved into place on exit of the context manager"""
