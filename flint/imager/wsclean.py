@@ -12,7 +12,7 @@ from flint.exceptions import CleanDivergenceError
 from flint.logging import logger
 from flint.ms import MS
 from flint.sclient import run_singularity_command
-from flint.utils import get_environment_variable
+from flint.utils import get_environment_variable, hold_then_move_into
 
 
 class ImageSet(NamedTuple):
@@ -40,6 +40,10 @@ class WSCleanOptions(NamedTuple):
     Basic support for environment variables is available. Should a value start
     with `$` it is assumed to be a environment variable, it is will be looked up.
     Some basic attempts to deterimine if it is a path is made.
+
+    Should the `temp_dir` options be specified then all images will be
+    created in this location, and then moved over to the same parent directory
+    as the imaged MS. This is done by setting the wsclean `-name` argument.
     """
 
     abs_mem: int = 100
@@ -317,6 +321,9 @@ def create_wsclean_cmd(
     bind_dir_paths = []
     bind_dir_options = ("temp-dir",)
 
+    move_directory = ms.path.parent
+    hold_directory: Optional[Path] = None
+
     cmd = "wsclean "
     unknowns: List[Tuple[Any, Any]] = []
     logger.info("Creating wsclean command.")
@@ -356,6 +363,11 @@ def create_wsclean_cmd(
         else:
             unknowns.append((key, value))
 
+        if key == "temp-dir" and isinstance(value, (Path, str)):
+            hold_directory = Path(value)
+            name_str = hold_directory / ms.path.stem
+            cmd += f"-name {str(name_str)} "
+
         if key in bind_dir_options and isinstance(value, (str, Path)):
             bind_dir_paths.append(Path(value))
 
@@ -376,6 +388,7 @@ def create_wsclean_cmd(
             wsclean_cmd=wsclean_cmd,
             container=container,
             bind_dirs=tuple(bind_dir_paths),
+            move_hold_directories=(move_directory, hold_directory),
         )
 
     return wsclean_cmd
@@ -385,6 +398,7 @@ def run_wsclean_imager(
     wsclean_cmd: WSCleanCommand,
     container: Path,
     bind_dirs: Optional[Tuple[Path]] = None,
+    move_hold_directories: Optional[Tuple[Path, Optional[Path]]] = None,
 ) -> WSCleanCommand:
     """Run a provided wsclean command. Optionally will clean up files,
     including the dirty beams, psfs and other assorted things.
@@ -393,6 +407,7 @@ def run_wsclean_imager(
         wsclean_cmd (WSCleanCommand): The command to run, and other properties (cleanup.)
         container (Path): Path to the container with wsclean available in it
         bind_dirs (Optional[Tuple[Path]], optional): Additional directories to include when binding to the wsclean container. Defaults to None.
+        move_hold_directories (Optional[Tuple[Path,Optional[Path]]], optional): The `move_directory` and `hold_directory` passed to the temporary context manger. If None no `hold_then_move_into` manager is used. Defaults to None.
 
     Returns:
         WSCleanCommand: The executed wsclean command with a populated imageset properter.
@@ -406,12 +421,25 @@ def run_wsclean_imager(
     if bind_dirs:
         sclient_bind_dirs = sclient_bind_dirs + list(bind_dirs)
 
-    run_singularity_command(
-        image=container,
-        command=wsclean_cmd.cmd,
-        bind_dirs=sclient_bind_dirs,
-        stream_callback_func=_wsclean_output_callback,
-    )
+    if move_hold_directories:
+        with hold_then_move_into(
+            move_directory=move_hold_directories[0],
+            hold_directory=move_hold_directories[1],
+        ) as directory:
+            sclient_bind_dirs.append(directory)
+            run_singularity_command(
+                image=container,
+                command=wsclean_cmd.cmd,
+                bind_dirs=sclient_bind_dirs,
+                stream_callback_func=_wsclean_output_callback,
+            )
+    else:
+        run_singularity_command(
+            image=container,
+            command=wsclean_cmd.cmd,
+            bind_dirs=sclient_bind_dirs,
+            stream_callback_func=_wsclean_output_callback,
+        )
 
     prefix = wsclean_cmd.options.name
     if prefix is None:

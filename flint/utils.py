@@ -29,14 +29,20 @@ from flint.logging import logger
 
 @contextmanager
 def hold_then_move_into(
-    hold_directory: Path, move_directory: Path, delete_hold_on_exist: bool = True
+    move_directory: Path,
+    hold_directory: Optional[Path],
+    delete_hold_on_exist: bool = True,
 ) -> Path:
-    """Create a temporary directory such that anything within it one the
+    """Create a temporary directory such that anything within it on the
     exit of the context manager is copied over to `move_directory`.
 
+    If `hold_directory` and `move_directory` are the same or `hold_directory` is None, then `move_directory`
+    is immediatedly returned and no output files are copied or deleted. `move_directory` will be
+    created if it does not exist.
+
     Args:
-        hold_directory (Path): Location of directory to temporarily base work from
         move_directory (Path): Final directort location to move items into
+        hold_directory (Optional[Path], optional): Location of directory to temporarily base work from. If None provided `move_directory` is returned and no copying/deleting is performed on exit. Defaults to None.
         delete_hold_on_exist (bool, optional): Whether `hold_directory` is deleted on exit of the context. Defaults to True.
 
     Returns:
@@ -47,10 +53,11 @@ def hold_then_move_into(
     """
     # TODO: except extra files and folders to copy into `hold_directory` that are
     # also placed back on exit
-    hold_directory = Path(hold_directory)
+    hold_directory = Path(hold_directory) if hold_directory else None
     move_directory = Path(move_directory)
 
-    if hold_directory == move_directory:
+    if hold_directory == move_directory or hold_directory is None:
+        move_directory.mkdir(parents=True, exist_ok=True)
         yield move_directory
     else:
         for directory in (hold_directory, move_directory):
