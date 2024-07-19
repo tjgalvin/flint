@@ -27,13 +27,11 @@ matplotlib = "*"
 prefect = "^2.10.0"
 prefect-dask = "^0.2.4"
 dask-jobqueue = "*"
-sphinx = "*"
 casadata = "^2023.7.3"
 #casatools = "6.5.3.28"
 casatasks = "6.5.1.23"
 RACS-tools = "^2.2.4"
 aegeantools = "2.3.0"
-pytest = "^7.4.0"
 radio-beam = "^0.3.4"
 reproject = "*"
 scikit-image = "*"
@@ -46,6 +44,22 @@ mypy = "^1.4.1"
 isort = "^5.12.0"
 pre-commit = "*"
 ruff = "^0.1.12"
+pytest = "^7.4.0"
+pytest-cov = "*"
+sphinx = "*"
+
+[tool.poetry.extras]
+dev = [
+    "black",
+    "mypy",
+    "isort",
+    "pre-commit",
+    "ruff",
+    "pytest",
+    "pytest-cov",
+    "sphinx",
+]
+
 
 [build-system]
 requires = ["poetry-core"]
