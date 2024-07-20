@@ -1,4 +1,5 @@
 [![pre-commit.ci status](https://results.pre-commit.ci/badge/github/tjgalvin/flint/main.svg)](https://results.pre-commit.ci/latest/github/tjgalvin/flint/main)
+[![codecov](https://codecov.io/github/tjgalvin/flint/graph/badge.svg?token=7ZEKJ78TBZ)](https://codecov.io/github/tjgalvin/flint)
 # flint
 
 A pirate themed toy ASKAP-RACS pipeline.
