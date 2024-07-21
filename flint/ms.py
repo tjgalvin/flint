@@ -712,8 +712,7 @@ def copy_and_preprocess_casda_askap_ms(
     """Convert an ASKAP pipeline MS from CASDA into a FLINT form. This involves
     making a copy of it, updating its name, and then preprocessing.
 
-    When applying preprocessing operations to a measurement set processed by the
-    ASKAP pipeline and uploaded onto CASDA. These MSs typically are:
+    Typically these MSs are:
 
     - bandpass calibrated
     - self-calibrated
