@@ -227,6 +227,7 @@ def gaincal_applycal_ms(
     raise_error_on_fail: bool = True,
     skip_selfcal: bool = False,
     rename_ms: bool = False,
+    archive_cal_table: bool = False,
 ) -> MS:
     """Perform self-calibration using casa's gaincal and applycal tasks against
     an input measurement set.
@@ -240,6 +241,7 @@ def gaincal_applycal_ms(
         raise_error_on_fail (bool, optional): If gaincal does not converge raise en error. if False and gain cal fails return the input ms. Defaults to True.
         skip_selfcal (bool, optional): Should this self-cal be skipped. If `True`, the a new MS is created but not calibrated the appropriate new name and returned.
         rename_ms (bool, optional): It `True` simply rename a MS and adjust columns appropriately (potentially deleting them) instead of copying the complete MS. If `True` `archive_input_ms` is ignored. Defaults to False.
+        archive_cal_table (bool, optional): Archive the output calibration table in a tarball. Defaults to False.
 
     Raises:
         GainCallError: Raised when raise_error_on_fail is True and gaincal does not converge.
@@ -322,6 +324,9 @@ def gaincal_applycal_ms(
         # At the time of writing merge_spws_in_ms returns the ms_path=,
         # but this pirate trusts no one.
         cal_ms = cal_ms.with_options(path=cal_ms_path)
+
+    if archive_cal_table:
+        zip_folder(in_path=cal_table)
 
     return cal_ms.with_options(column="CORRECTED_DATA")
 

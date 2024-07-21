@@ -338,6 +338,7 @@ def process_science_fields(
                 archive_input_ms=field_options.zip_ms,
                 skip_selfcal=skip_gaincal_current_round,
                 rename_ms=field_options.rename_ms,
+                archive_cal_table=True,
                 wait_for=[
                     field_summary
                 ],  # To make sure field summary is created with unzipped MSs
