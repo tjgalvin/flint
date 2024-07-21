@@ -219,6 +219,7 @@ def task_gaincal_applycal_ms(
     archive_input_ms: bool = False,
     skip_selfcal: bool = False,
     rename_ms: bool = False,
+    archive_cal_table: bool = False,
 ) -> MS:
     """Perform self-calibration using CASA gaincal and applycal.
 
@@ -229,6 +230,7 @@ def task_gaincal_applycal_ms(
         archive_input_ms (bool, optional): If True the input measurement set is zipped. Defaults to False.
         skip_selfcal (bool, optional): Should this self-cal be skipped. If `True`, the a new MS is created but not calibrated the appropriate new name and returned.
         rename_ms (bool, optional): It `True` simply rename a MS and adjust columns appropriately (potentially deleting them) instead of copying the complete MS. If `True` `archive_input_ms` is ignored. Defaults to False.
+        archive_cal_table (bool, optional): Archive the output calibration table in a tarball. Defaults to False.
 
     Raises:
         ValueError: Raised when a ``.ms`` attribute can not be obtained
@@ -252,6 +254,7 @@ def task_gaincal_applycal_ms(
         archive_input_ms=archive_input_ms,
         skip_selfcal=skip_selfcal,
         rename_ms=rename_ms,
+        archive_cal_table=archive_cal_table,
     )
 
 
