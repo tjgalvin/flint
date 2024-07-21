@@ -1,4 +1,11 @@
-"""Operations related to measurement sets"""
+"""Operations related to measurement sets
+
+Measurement sets are represented by the `MS` class. It describes
+the path to a measurement set and any activate columns that should
+be used for certain operations. Throughout `flint` steps are 
+generally carried out against the named column described by the 
+`column` attribute. 
+"""
 
 from __future__ import (  # Used for mypy/pylance to like the return type of MS.with_options
     annotations,
@@ -27,7 +34,11 @@ from flint.utils import copy_directory, rsync_copy_directory
 
 
 class MS(NamedTuple):
-    """Helper to keep tracked of measurement set information"""
+    """Helper to keep track of measurement set information
+
+    This is the class that should be used when describing a measurement
+    set that will be operated on.
+    """
 
     path: Path
     """Path to the measurement set that is being represented"""
@@ -56,7 +67,7 @@ class MS(NamedTuple):
 
     @classmethod
     def cast(cls, ms: Union[MS, Path]) -> MS:
-        """Create a MS instance, if necessary, given eith a Path or MS.
+        """Create/return a MS instance given either a Path or MS.
 
         If the input is neither a MS instance or Path, the object will
         be checked to see if it has a `.ms` attribute. If it does then
@@ -192,8 +203,7 @@ def get_field_id_for_field(ms: Union[MS, Path], field_name: str) -> Union[int, N
         ValueError: Raised when more than one unique FIELD_ID is found for a single field
 
     Returns:
-        Union[int, None]: The FIELD_ID as an `int` if the field is found. `None` if
-        it is not found.
+        Union[int, None]: The FIELD_ID as an `int` if the field is found. `None` if it is not found.
     """
     ms_path = ms if isinstance(ms, Path) else ms.path
 
