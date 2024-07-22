@@ -2,9 +2,9 @@
 
 Measurement sets are represented by the `MS` class. It describes
 the path to a measurement set and any activate columns that should
-be used for certain operations. Throughout `flint` steps are 
-generally carried out against the named column described by the 
-`column` attribute. 
+be used for certain operations. Throughout `flint` steps are
+generally carried out against the named column described by the
+`column` attribute.
 """
 
 from __future__ import (  # Used for mypy/pylance to like the return type of MS.with_options
