@@ -30,6 +30,17 @@ def package_strategy():
 
 
 @pytest.fixture
+def package_strategy_operations():
+    example = get_packaged_resource_path(
+        package="flint", filename="data/tests/test_config_2.yaml"
+    )
+
+    strategy = load_strategy_yaml(input_yaml=example, verify=False)
+
+    return strategy
+
+
+@pytest.fixture
 def strategy(tmpdir):
     output = create_default_yaml(
         output_yaml=Path(tmpdir) / "example.yaml", selfcal_rounds=3
@@ -58,6 +69,41 @@ def test_copy_and_timestamp(tmpdir):
 
     assert copy_path != example
     assert filecmp.cmp(example, copy_path)
+
+
+def test_verify_options_with_class_operations(package_strategy_operations):
+    """Check whether the stokes-v and other operations around the
+    verification and extraction of properties"""
+    strategy = package_strategy_operations
+    verify_configuration(input_strategy=strategy)
+
+    strategy["ThisOperationDoesNotExists"] = {}
+    with pytest.raises(ValueError):
+        verify_configuration(input_strategy=strategy)
+
+
+def test_verify_getoptions_with_class_operations(package_strategy_operations):
+    """Check whether the get options inteface works with the operations
+    section of the strategy file"""
+    strategy = package_strategy_operations
+    verify_configuration(input_strategy=strategy)
+
+    options = get_options_from_strategy(
+        strategy=package_strategy_operations, mode="wsclean", operation="stokesv"
+    )
+    assert options["pol"] == "V"
+    assert options["channels_out"] == 2
+    assert options["deconvolution_channels"] is None
+
+
+def test_verify_options_with_class_missing_initial(package_strategy):
+    """Ensure that a error is raised if the initial section is missing"""
+    strategy = package_strategy
+    verify_configuration(input_strategy=strategy)
+
+    strategy.pop("initial")
+    with pytest.raises(ValueError):
+        verify_configuration(input_strategy=strategy)
 
 
 def test_verify_options_with_class(package_strategy):
