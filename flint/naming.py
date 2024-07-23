@@ -8,6 +8,28 @@ from pathlib import Path
 from typing import Any, Dict, List, NamedTuple, Optional, Union
 
 from flint.logging import logger
+from flint.options import MS
+
+
+def create_imaging_name_prefix(ms: Union[MS, Path], pol: Optional[str] = None) -> str:
+    """Given a measurement set and a polarisation, create the naming prefix to be used
+    by some imager
+
+    Args:
+        ms (Union[MS,Path]): The measurement set being considered
+        pol (Optional[str], optional): Whether a polarsation is being considered. Defaults to None.
+
+    Returns:
+        str: The constructed string name
+    """
+
+    ms_path = MS.cast(ms=ms).path
+
+    name = ms_path.stem
+    if pol:
+        name = f"{name}.pol{pol.upper()}"
+
+    return name
 
 
 def get_beam_resolution_str(mode: str, marker: Optional[str] = None) -> str:

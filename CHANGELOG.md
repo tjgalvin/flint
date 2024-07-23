@@ -2,6 +2,7 @@
 
 # dev
 - if `-temp-dir` used in wsclean then imaging products are produced here and then copied over to the same directory as the MS. This is intended to make use of compute nodes and fast local storage, like memory tmpfs or local disks.
+- added stokes-v imaging
 
 # 0.2.5
 - added in skip rounds for masking and selfcal

@@ -30,82 +30,83 @@ from fixms.fix_ms_dir import fix_ms_dir
 from flint.exceptions import MSError
 from flint.logging import logger
 from flint.naming import create_ms_name
+from flint.options import MS
 from flint.utils import copy_directory, rsync_copy_directory
 
 
-class MS(NamedTuple):
-    """Helper to keep track of measurement set information
+# class MS(NamedTuple):
+#     """Helper to keep track of measurement set information
 
-    This is the class that should be used when describing a measurement
-    set that will be operated on.
-    """
+#     This is the class that should be used when describing a measurement
+#     set that will be operated on.
+#     """
 
-    path: Path
-    """Path to the measurement set that is being represented"""
-    column: Optional[str] = None
-    """Column that should be operated against"""
-    beam: Optional[int] = None
-    """The beam ID of the MS within an ASKAP field"""
-    spw: Optional[int] = None
-    """Intended to be used with ASKAP high-frequency resolution modes, where the MS is divided into SPWs"""
-    field: Optional[str] = None
-    """The field name  of the data"""
-    model_column: Optional[str] = None
-    """The column name of the most recently MODEL data"""
+#     path: Path
+#     """Path to the measurement set that is being represented"""
+#     column: Optional[str] = None
+#     """Column that should be operated against"""
+#     beam: Optional[int] = None
+#     """The beam ID of the MS within an ASKAP field"""
+#     spw: Optional[int] = None
+#     """Intended to be used with ASKAP high-frequency resolution modes, where the MS is divided into SPWs"""
+#     field: Optional[str] = None
+#     """The field name  of the data"""
+#     model_column: Optional[str] = None
+#     """The column name of the most recently MODEL data"""
 
-    def get_field_id_for_field(self, field_name: str) -> Union[int, None]:
-        """Return the FIELD_ID for an elected field in a measurement set. See
-        `flink.ms.get_field_id_for_field` for full details.
-        """
-        # TODO: I think this should be removed. The young pirate in me was
-        # going to go in a different direction
-        return get_field_id_for_field(ms=self, field_name=field_name)
+#     def get_field_id_for_field(self, field_name: str) -> Union[int, None]:
+#         """Return the FIELD_ID for an elected field in a measurement set. See
+#         `flink.ms.get_field_id_for_field` for full details.
+#         """
+#         # TODO: I think this should be removed. The young pirate in me was
+#         # going to go in a different direction
+#         return get_field_id_for_field(ms=self, field_name=field_name)
 
-    @property
-    def ms(self) -> MS:
-        return self
+#     @property
+#     def ms(self) -> MS:
+#         return self
 
-    @classmethod
-    def cast(cls, ms: Union[MS, Path]) -> MS:
-        """Create/return a MS instance given either a Path or MS.
+#     @classmethod
+#     def cast(cls, ms: Union[MS, Path]) -> MS:
+#         """Create/return a MS instance given either a Path or MS.
 
-        If the input is neither a MS instance or Path, the object will
-        be checked to see if it has a `.ms` attribute. If it does then
-        this will be used.
+#         If the input is neither a MS instance or Path, the object will
+#         be checked to see if it has a `.ms` attribute. If it does then
+#         this will be used.
 
-        Args:
-            ms (Union[MS, Path]): The input type to consider
+#         Args:
+#             ms (Union[MS, Path]): The input type to consider
 
-        Raises:
-            MSError: Raised when the input ms can not be cast to an MS instance
+#         Raises:
+#             MSError: Raised when the input ms can not be cast to an MS instance
 
-        Returns:
-            MS: A normalised MS
-        """
-        if isinstance(ms, MS):
-            # Nothing to do
-            pass
-        elif isinstance(ms, Path):
-            ms = MS(path=ms)
-        elif "ms" in dir(ms) and isinstance(ms.ms, MS):
-            ms = ms.ms
-        else:
-            raise MSError(f"Unable to convert {ms=} of {type(ms)} to MS object. ")
+#         Returns:
+#             MS: A normalised MS
+#         """
+#         if isinstance(ms, MS):
+#             # Nothing to do
+#             pass
+#         elif isinstance(ms, Path):
+#             ms = MS(path=ms)
+#         elif "ms" in dir(ms) and isinstance(ms.ms, MS):
+#             ms = ms.ms
+#         else:
+#             raise MSError(f"Unable to convert {ms=} of {type(ms)} to MS object. ")
 
-        return ms
+#         return ms
 
-    def with_options(self, **kwargs) -> MS:
-        """Create a new MS instance with keywords updated
+#     def with_options(self, **kwargs) -> MS:
+#         """Create a new MS instance with keywords updated
 
-        Returns:
-            MS: New MS instance with updated attributes
-        """
-        # TODO: Update the signature to have the actual attributes to
-        # help keep mypy and other linters happy
-        as_dict = self._asdict()
-        as_dict.update(kwargs)
+#         Returns:
+#             MS: New MS instance with updated attributes
+#         """
+#         # TODO: Update the signature to have the actual attributes to
+#         # help keep mypy and other linters happy
+#         as_dict = self._asdict()
+#         as_dict.update(kwargs)
 
-        return MS(**as_dict)
+#         return MS(**as_dict)
 
 
 class MSSummary(NamedTuple):

@@ -11,6 +11,7 @@ from typing import Any, Collection, Dict, List, NamedTuple, Optional, Tuple, Uni
 from flint.exceptions import CleanDivergenceError
 from flint.logging import logger
 from flint.ms import MS
+from flint.naming import create_imaging_name_prefix
 from flint.sclient import run_singularity_command
 from flint.utils import get_environment_variable, hold_then_move_into
 
@@ -162,28 +163,6 @@ def _wsclean_output_callback(line: str) -> None:
 
     if "Iteration" in line and "KJy" in line:
         raise CleanDivergenceError(f"Clean divergence detected: {line}")
-
-
-def create_wsclean_name_prefix(ms: Union[MS, Path], pol: Optional[str] = None) -> str:
-    """Given a measurement set and a polarisation, create the prefix name that
-    wsclean output images will have
-
-    Args:
-        ms (Union[MS,Path]): The measurement set being considered
-        pol (Optional[str], optional): Whether a polarsation is being considered. Defaults to None.
-
-    Returns:
-        str: The constructed string name
-    """
-    # TODO: This should maybe go to the naming section?
-
-    ms_path = MS.cast(ms=ms).path
-
-    name = ms_path.stem
-    if pol:
-        name = f"{name}.pol{pol.upper()}"
-
-    return name
 
 
 def get_wsclean_output_names(
@@ -361,7 +340,7 @@ def create_wsclean_cmd(
     cmd = "wsclean "
     unknowns: List[Tuple[Any, Any]] = []
     logger.info("Creating wsclean command.")
-    for key, value in wsclean_options._asdict().items():
+    for key, value in wsclean_options_dict.items():
         key = key.replace("_", "-")
         logger.debug(f"{key=} {value=} {type(value)=}")
 
@@ -399,7 +378,7 @@ def create_wsclean_cmd(
 
         if key == "temp-dir" and isinstance(value, (Path, str)):
             hold_directory = Path(value)
-            name_str = hold_directory / create_wsclean_name_prefix(ms=ms, pol=pol)
+            name_str = hold_directory / create_imaging_name_prefix(ms=ms, pol=pol)
             cmd += f"-name {str(name_str)} "
 
         if key in bind_dir_options and isinstance(value, (str, Path)):
@@ -414,7 +393,7 @@ def create_wsclean_cmd(
     # # a stokes pol)
     if name_str is None:
         name_str = (
-            f"-name {str(ms.path.parent / create_wsclean_name_prefix(ms=ms, pol=pol))}"
+            f"-name {str(ms.path.parent / create_imaging_name_prefix(ms=ms, pol=pol))}"
         )
 
     cmd += f"{str(ms.path)} "

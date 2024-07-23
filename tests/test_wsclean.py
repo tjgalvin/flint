@@ -13,10 +13,10 @@ from flint.imager.wsclean import (
     WSCleanOptions,
     _wsclean_output_callback,
     create_wsclean_cmd,
-    create_wsclean_name_prefix,
     get_wsclean_output_names,
 )
 from flint.ms import MS
+from flint.naming import create_imaging_name_prefix
 from flint.utils import get_packaged_resource_path
 
 
@@ -45,11 +45,11 @@ def set_env():
 
 def test_create_wsclean_name(ms_example):
     """Test the creation of a wsclean name argument"""
-    name = create_wsclean_name_prefix(ms=ms_example)
+    name = create_imaging_name_prefix(ms=ms_example)
     assert name == "SB39400.RACS_0635-31.beam0.small"
 
     for pol in ("i", "I"):
-        name = create_wsclean_name_prefix(ms=ms_example, pol=pol)
+        name = create_imaging_name_prefix(ms=ms_example, pol=pol)
         assert name == "SB39400.RACS_0635-31.beam0.small.polI"
 
 
