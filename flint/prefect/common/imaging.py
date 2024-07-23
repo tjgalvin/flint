@@ -555,6 +555,7 @@ def _create_convol_linmos_images(
     field_options: FieldOptions,
     field_summary: Optional[FieldSummary] = None,
     current_round: Optional[int] = None,
+    additional_linmos_suffix_str: Optional[str] = None,
 ) -> List[LinmosCommand]:
     """Derive the approriate set of beam shapes and then produce corresponding
     convolved and co-added images
@@ -564,12 +565,18 @@ def _create_convol_linmos_images(
         field_options (FieldOptions): Set of field imaging optins, containing details of the beam/s
         field_summary (Optional[FieldSummary], optional): Summary of the MSs, importantly containing their third-axis rotation. Defaults to None.
         current_round (Optional[int], optional): Which self-cal imaging round. If None 'noselfcal'. Defaults to None.
+        additional_linmos_suffix_str (Optional[str], optional): An additional string added to the end of the auto-generated linmos base name. Defaults to None.
 
     Returns:
         List[LinmosCommand]: The collection of linmos commands executed.
     """
     parsets: List[LinmosCommand] = []
     main_linmos_suffix_str = f"round{current_round}" if current_round else "noselfcal"
+
+    if additional_linmos_suffix_str:
+        main_linmos_suffix_str = (
+            f"{main_linmos_suffix_str}.{additional_linmos_suffix_str.lstrip('.')}"
+        )
 
     todo: List[Any, str] = [(None, get_beam_resolution_str(mode="optimal"))]
     if field_options.fixed_beam_shape:

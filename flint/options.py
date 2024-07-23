@@ -122,6 +122,8 @@ class FieldOptions(NamedTuple):
     """Path that final processed products will be copied into. If None no copying of file products is performed. See ArchiveOptions. """
     rename_ms: bool = False
     """Rename MSs throught rounds of imaging and self-cal instead of creating copies. This will delete data-columns throughout. """
+    stokes_v_imaging: bool = False
+    """Specifies whether Stokes-V imaging will be carried out after the final round of imagin (whether or not self-calibration is enabled). """
 
 
 def dump_field_options_to_yaml(

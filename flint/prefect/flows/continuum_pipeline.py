@@ -255,6 +255,7 @@ def process_science_fields(
             update_wsclean_options=unmapped(wsclean_init),
         )
 
+    stokes_v_mss = preprocess_science_mss
     wsclean_cmds = task_wsclean_imager.map(
         in_ms=preprocess_science_mss,
         wsclean_container=field_options.wsclean_container,
@@ -343,6 +344,7 @@ def process_science_fields(
                     field_summary
                 ],  # To make sure field summary is created with unzipped MSs
             )
+            stokes_v_mss = cal_mss
 
             fits_beam_masks = None
             if consider_beam_mask_round(
@@ -413,6 +415,22 @@ def process_science_fields(
                         reference_catalogue_directory=field_options.reference_catalogue_directory,
                     )
                     archive_wait_for.append(val_results)
+
+    if field_options.stokes_v_imaging:
+            stokes_v_wsclean_options = get_options_from_strategy(strategy=strategy, mode="wsclean", operation="stokesv")
+            wsclean_cmds = task_wsclean_imager.map(
+                in_ms=stokes_v_mss,
+                wsclean_container=field_options.wsclean_container,
+                update_wsclean_options=unmapped(stokes_v_wsclean_options),
+                fits_mask=fits_beam_masks,
+            )
+            if field_options.yandasoft_container:
+                parsets = _create_convol_linmos_images(
+                    wsclean_cmds=wsclean_cmds,
+                    field_options=field_options,
+                    field_summary=field_summary,
+                )
+                archive_wait_for.extend(parsets)
 
     # zip up the final measurement set, which is not included in the above loop
     if field_options.zip_ms:
@@ -654,6 +672,12 @@ def get_parser() -> ArgumentParser:
         default=False,
         help="Rename MSs throught rounds of imaging and self-cal instead of creating copies. This will delete data-columns throughout. ",
     )
+    parser.add_argument(
+        "--stokes-v-imaging",
+        help="Enables stokes-v imaging after the final round of imaging (whether"
+        action="store_true",
+        default=False
+    )
 
     return parser
 
@@ -698,6 +722,7 @@ def cli() -> None:
         sbid_archive_path=args.sbid_archive_path,
         sbid_copy_path=args.sbid_copy_path,
         rename_ms=args.rename_ms,
+        stokes_v_imaging=args.stokes_v_imaging
     )
 
     setup_run_process_science_field(
