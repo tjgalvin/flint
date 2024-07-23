@@ -19,6 +19,13 @@ from flint.options import ArchiveOptions
 from flint.selfcal.casa import GainCalOptions
 from flint.source_finding.aegean import AegeanOptions, BANEOptions
 
+# TODO: It feels like that the standard of this strategy file should
+# be updated. In its current form the "initial" section is required, with
+# with the subsequent selfcal section being used for continuum imaging.
+# Should this be intended to be used for other pipelines it would be
+# better to have an "imager" operation mode, and put these two things
+# into there
+
 KNOWN_HEADERS = ("defaults", "initial", "selfcal", "version")
 KNOWN_OPERATIONS = ("stokesv",)
 FORMAT_VERSION = 0.1

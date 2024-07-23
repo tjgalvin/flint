@@ -164,6 +164,28 @@ def _wsclean_output_callback(line: str) -> None:
         raise CleanDivergenceError(f"Clean divergence detected: {line}")
 
 
+def create_wsclean_name_prefix(ms: Union[MS, Path], pol: Optional[str] = None) -> str:
+    """Given a measurement set and a polarisation, create the prefix name that
+    wsclean output images will have
+
+    Args:
+        ms (Union[MS,Path]): The measurement set being considered
+        pol (Optional[str], optional): Whether a polarsation is being considered. Defaults to None.
+
+    Returns:
+        str: The constructed string name
+    """
+    # TODO: This should maybe go to the naming section?
+
+    ms_path = MS.cast(ms=ms).path
+
+    name = ms_path.stem
+    if pol:
+        name = f"{name}.pol{pol.upper()}"
+
+    return name
+
+
 def get_wsclean_output_names(
     prefix: str,
     subbands: int,
@@ -191,7 +213,7 @@ def get_wsclean_output_names(
     Args:
         prefix (str): The prefix of the imaging run (the -name option in wsclean call)
         subbands (int): Number of subbands that were imaged
-        pol (Optional[Union[str,Collection[str]]], optional): The polarisation of the image. If None are provided then this is not used. Multiple polarisation may be supplied. If multiple pols are given in an iterable, each will be produced. Defaults to None.
+        pols (Optional[Union[str,Collection[str]]], optional): The polarisation of the image. If None are provided then this is not used. Multiple polarisation may be supplied. If multiple pols are given in an iterable, each will be produced. Defaults to None.
         verify_exists (bool, optional): Ensures that each generated path corresponds to an actual file. Defaults to False.
         include_mfs (bool, optional): Include the MFS images produced by wsclean. Defaults to True.
         output_types (Union[str,Collection[str]]): Include files of this type, including image, dirty, residual, model, psf. Defaults to  ('image','dirty','residual','model', 'psf').
@@ -317,12 +339,24 @@ def create_wsclean_cmd(
     # attempting to future proof (arguably needlessly).
     options_to_comma_join = "multiscale-scales"
 
+    wsclean_options_dict = wsclean_options._asdict()
+
     # Some options should also extend the singularity bind directories
     bind_dir_paths = []
     bind_dir_options = ("temp-dir",)
 
     move_directory = ms.path.parent
     hold_directory: Optional[Path] = None
+
+    # These specific name and pol handling is used to help
+    # support (1) outputting wsclean components to temp directories
+    # and (2) specific stokes imaging without creating name conflicts.
+    # There is some interplay between these two things.
+    name_str = None
+    pol = None
+    if "pol" in wsclean_options_dict:
+        pol = wsclean_options_dict["pol"]
+        wsclean_options_dict.pop("pol")
 
     cmd = "wsclean "
     unknowns: List[Tuple[Any, Any]] = []
@@ -365,7 +399,7 @@ def create_wsclean_cmd(
 
         if key == "temp-dir" and isinstance(value, (Path, str)):
             hold_directory = Path(value)
-            name_str = hold_directory / ms.path.stem
+            name_str = hold_directory / create_wsclean_name_prefix(ms=ms, pol=pol)
             cmd += f"-name {str(name_str)} "
 
         if key in bind_dir_options and isinstance(value, (str, Path)):
@@ -374,6 +408,14 @@ def create_wsclean_cmd(
     if len(unknowns) > 0:
         msg = ", ".join([f"{t[0]} {t[1]}" for t in unknowns])
         raise ValueError(f"Unknown wsclean option types: {msg}")
+
+    # If no temp-dir used the name output has been created. Set it up to be
+    # the default as the actual wscleand erived name (unless we have specified
+    # # a stokes pol)
+    if name_str is None:
+        name_str = (
+            f"-name {str(ms.path.parent / create_wsclean_name_prefix(ms=ms, pol=pol))}"
+        )
 
     cmd += f"{str(ms.path)} "
 

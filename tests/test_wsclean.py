@@ -13,6 +13,7 @@ from flint.imager.wsclean import (
     WSCleanOptions,
     _wsclean_output_callback,
     create_wsclean_cmd,
+    create_wsclean_name_prefix,
     get_wsclean_output_names,
 )
 from flint.ms import MS
@@ -40,6 +41,16 @@ def ms_example(tmpdir):
 def set_env():
     """Set up variables for a specific test"""
     os.environ["LOCALDIR"] = "Pirates/be/here"
+
+
+def test_create_wsclean_name(ms_example):
+    """Test the creation of a wsclean name argument"""
+    name = create_wsclean_name_prefix(ms=ms_example)
+    assert name == "SB39400.RACS_0635-31.beam0.small"
+
+    for pol in ("i", "I"):
+        name = create_wsclean_name_prefix(ms=ms_example, pol=pol)
+        assert name == "SB39400.RACS_0635-31.beam0.small.polI"
 
 
 def test_create_wsclean_command(ms_example):
