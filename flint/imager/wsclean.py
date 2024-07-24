@@ -375,9 +375,6 @@ def create_wsclean_cmd(
         else:
             unknowns.append((key, value))
 
-        if pol:
-            cmd += f"-pol {pol} "
-
         if key == "temp-dir" and isinstance(value, (Path, str)):
             hold_directory = Path(value)
             name_str = hold_directory / create_imaging_name_prefix(ms=ms, pol=pol)
@@ -388,6 +385,9 @@ def create_wsclean_cmd(
     if len(unknowns) > 0:
         msg = ", ".join([f"{t[0]} {t[1]}" for t in unknowns])
         raise ValueError(f"Unknown wsclean option types: {msg}")
+
+    if pol:
+        cmd += f"-pol {pol} "
 
     # If no temp-dir used the name output has been created. Set it up to be
     # the default as the actual wscleand erived name (unless we have specified
