@@ -317,6 +317,13 @@ def create_wsclean_cmd(
     Returns:
         WSCleanCommand: The wsclean command to run
     """
+    # Some options should also extend the singularity bind directories
+    bind_dir_paths = []
+    bind_dir_options = ("temp-dir",)
+
+    move_directory = ms.path.parent
+    hold_directory: Optional[Path] = None
+
     # Some wsclean options, if multiple values are provided, might need
     # to be join as a csv list. Others might want to be dumped in. Just
     # attempting to future proof (arguably needlessly).
@@ -328,24 +335,23 @@ def create_wsclean_cmd(
     pol = wsclean_options_dict.pop("pol", None)
 
     temp_dir = wsclean_options_dict.get("temp_dir", None)
-    name_dir = (
-        get_environment_variable(variable=temp_dir, default=temp_dir)
-        if temp_dir is not None
-        else ms.path.parent
-    )  # Looks weird but if temp_dir has a value but is not resolved to an environment variable it is returned via the default
-    assert name_dir is not None, f"{name_dir=}, which should not happened. "
+    if temp_dir:
+        # Resolve if environment variable
+        name_dir = (
+            get_environment_variable(variable=temp_dir)
+            if isinstance(temp_dir, str) and temp_dir[0] == "$"
+            else Path(temp_dir)
+        )
+        assert name_dir is not None, f"{name_dir=} is None, which is bad"
+        hold_directory = Path(name_dir)
+    else:
+        name_dir = ms.path.parent
+
     name_path_str = Path(name_dir) / create_imaging_name_prefix(ms=ms, pol=pol)
 
     # Update and reform
     wsclean_options = wsclean_options.with_options(name=name_path_str)
     wsclean_options_dict = wsclean_options._asdict()
-
-    # Some options should also extend the singularity bind directories
-    bind_dir_paths = []
-    bind_dir_options = ("temp-dir",)
-
-    move_directory = ms.path.parent
-    hold_directory: Optional[Path] = None
 
     cmd = "wsclean "
     unknowns: List[Tuple[Any, Any]] = []
@@ -385,9 +391,6 @@ def create_wsclean_cmd(
             )
         else:
             unknowns.append((key, value))
-
-        if key == "temp-dir" and isinstance(value, (Path, str)):
-            hold_directory = Path(value)
 
         if key in bind_dir_options and isinstance(value, (str, Path)):
             bind_dir_paths.append(Path(value))
