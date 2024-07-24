@@ -324,19 +324,23 @@ def create_wsclean_cmd(
 
     wsclean_options_dict = wsclean_options._asdict()
 
+    # Prepare the name for the output wsclean command
+    pol = wsclean_options_dict.pop("pol", None)
+
+    temp_dir = wsclean_options_dict.get("temp_dir", None)
+    name_dir = temp_dir if temp_dir else ms.path.parent
+    name_path_str = name_dir / create_imaging_name_prefix(ms=ms, pol=pol)
+
+    # Update and reform
+    wsclean_options = wsclean_options.with_options(name=name_path_str)
+    wsclean_options_dict = wsclean_options._asdict()
+
     # Some options should also extend the singularity bind directories
     bind_dir_paths = []
     bind_dir_options = ("temp-dir",)
 
     move_directory = ms.path.parent
     hold_directory: Optional[Path] = None
-
-    # These specific name and pol handling is used to help
-    # support (1) outputting wsclean components to temp directories
-    # and (2) specific stokes imaging without creating name conflicts.
-    # There is some interplay between these two things.
-    name_str = None
-    pol = wsclean_options_dict.pop("pol", None)
 
     cmd = "wsclean "
     unknowns: List[Tuple[Any, Any]] = []
@@ -379,7 +383,6 @@ def create_wsclean_cmd(
 
         if key == "temp-dir" and isinstance(value, (Path, str)):
             hold_directory = Path(value)
-            name_str = hold_directory / create_imaging_name_prefix(ms=ms, pol=pol)
 
         if key in bind_dir_options and isinstance(value, (str, Path)):
             bind_dir_paths.append(Path(value))
@@ -390,18 +393,6 @@ def create_wsclean_cmd(
 
     if pol:
         cmd += f"-pol {pol} "
-
-    # If no temp-dir used the name output has been created. Set it up to be
-    # the default as the actual wscleand erived name (unless we have specified
-    # # a stokes pol)
-    name_str = (
-        name_str
-        if name_str
-        else (
-            f"-name {str(ms.path.parent / create_imaging_name_prefix(ms=ms, pol=pol))}"
-        )
-    )
-    cmd += f"-name {str(name_str)} "
 
     cmd += f"{str(ms.path)} "
 
