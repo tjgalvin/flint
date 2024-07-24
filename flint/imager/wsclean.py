@@ -334,10 +334,7 @@ def create_wsclean_cmd(
     # and (2) specific stokes imaging without creating name conflicts.
     # There is some interplay between these two things.
     name_str = None
-    pol = None
-    if "pol" in wsclean_options_dict:
-        pol = wsclean_options_dict["pol"]
-        wsclean_options_dict.pop("pol")
+    pol = wsclean_options_dict.pop("pol", None)
 
     cmd = "wsclean "
     unknowns: List[Tuple[Any, Any]] = []
@@ -378,10 +375,12 @@ def create_wsclean_cmd(
         else:
             unknowns.append((key, value))
 
+        if pol:
+            cmd += f"-pol {pol} "
+
         if key == "temp-dir" and isinstance(value, (Path, str)):
             hold_directory = Path(value)
             name_str = hold_directory / create_imaging_name_prefix(ms=ms, pol=pol)
-            cmd += f"-name {str(name_str)} "
 
         if key in bind_dir_options and isinstance(value, (str, Path)):
             bind_dir_paths.append(Path(value))
@@ -393,10 +392,14 @@ def create_wsclean_cmd(
     # If no temp-dir used the name output has been created. Set it up to be
     # the default as the actual wscleand erived name (unless we have specified
     # # a stokes pol)
-    if name_str is None:
-        name_str = (
+    name_str = (
+        name_str
+        if name_str
+        else (
             f"-name {str(ms.path.parent / create_imaging_name_prefix(ms=ms, pol=pol))}"
         )
+    )
+    cmd += f"-name {str(name_str)} "
 
     cmd += f"{str(ms.path)} "
 
