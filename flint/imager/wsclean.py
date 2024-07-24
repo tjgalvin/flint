@@ -128,9 +128,7 @@ class WSCleanOptions(NamedTuple):
     """The path to a temporary directory where files will be wrritten. """
     pol: Optional[str] = None
     """The polarisation to be imaged"""
-    no_model_update_required: bool = False
-    """If provided do not write the clean model back to the measurement set"""
-
+    
     def with_options(self, **kwargs) -> WSCleanOptions:
         """Return a new instance of WSCleanOptions with updated components"""
         _dict = self._asdict()
@@ -317,6 +315,11 @@ def create_wsclean_cmd(
     Returns:
         WSCleanCommand: The wsclean command to run
     """
+    # TODO: This is very very smelly. I think removing the `.name` from WSCleanOptions
+    # to start with, build that as an explicit testable function, and pass/return the name
+    # argument alongside the prefix in the WSCleanCMD. Also need to rename that, its a horrible
+    # name for a variable and ship
+    
     # Some options should also extend the singularity bind directories
     bind_dir_paths = []
     bind_dir_options = ("temp-dir",)
@@ -332,7 +335,7 @@ def create_wsclean_cmd(
     wsclean_options_dict = wsclean_options._asdict()
 
     # Prepare the name for the output wsclean command
-    pol = wsclean_options_dict.pop("pol", None)
+    pol = wsclean_options_dict.get("pol", None)
 
     temp_dir = wsclean_options_dict.get("temp_dir", None)
     if temp_dir:
@@ -403,9 +406,6 @@ def create_wsclean_cmd(
     if len(unknowns) > 0:
         msg = ", ".join([f"{t[0]} {t[1]}" for t in unknowns])
         raise ValueError(f"Unknown wsclean option types: {msg}")
-
-    if pol:
-        cmd += f"-pol {pol} "
 
     cmd += f"{str(ms.path)} "
 

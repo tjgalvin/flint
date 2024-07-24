@@ -611,16 +611,18 @@ def _create_convol_linmos_images(
         parsets.append(parset)
 
         if field_options.linmos_residuals:
-            _convolve_linmos(
-                wsclean_cmds=wsclean_cmds,
-                beam_shape=beam_shape,
-                field_options=field_options,
-                linmos_suffix_str=f"{linmos_suffix_str}.residual",
-                cutoff=field_options.pb_cutoff,
-                field_summary=field_summary,
-                convol_mode="residual",
-                convol_filter="-MFS-",
-                convol_suffix_str=convol_suffix_str,
+            parsets.append(
+                _convolve_linmos(
+                    wsclean_cmds=wsclean_cmds,
+                    beam_shape=beam_shape,
+                    field_options=field_options,
+                    linmos_suffix_str=f"{linmos_suffix_str}.residual",
+                    cutoff=field_options.pb_cutoff,
+                    field_summary=field_summary,
+                    convol_mode="residual",
+                    convol_filter="-MFS-",
+                    convol_suffix_str=convol_suffix_str,
+                )
             )
 
     return parsets

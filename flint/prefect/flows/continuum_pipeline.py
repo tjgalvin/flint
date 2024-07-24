@@ -434,6 +434,7 @@ def process_science_fields(
                     wsclean_cmds=wsclean_cmds,
                     field_options=field_options,
                     field_summary=field_summary,
+                    current_round=field_options.rounds if field_options.rounds else None,
                     additional_linmos_suffix_str="polV",
                 )
                 archive_wait_for.extend(parsets)
