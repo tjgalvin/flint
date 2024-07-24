@@ -528,8 +528,11 @@ def cli() -> None:
         load_strategy_yaml(input_yaml=args.input_yaml)
     elif args.mode == "verify":
         input_strategy = load_strategy_yaml(input_yaml=args.input_yaml)
-        if verify_configuration(input_strategy=input_strategy):
-            logger.info(f"{args.input_yaml} appears valid")
+        try:
+            if verify_configuration(input_strategy=input_strategy):
+                logger.info(f"{args.input_yaml} appears valid")
+        except ValueError as value_error:
+            logger.info(f"{ars.input_yaml} does not appear to be valid")
     else:
         logger.error(f"{args.mode=} is not set or not known. Check --help. ")
 
