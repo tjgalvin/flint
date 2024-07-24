@@ -128,6 +128,8 @@ class WSCleanOptions(NamedTuple):
     """The path to a temporary directory where files will be wrritten. """
     pol: Optional[str] = None
     """The polarisation to be imaged"""
+    no_model_update_required: bool = False
+    """If provided do not write the clean model back to the measurement set"""
 
     def with_options(self, **kwargs) -> WSCleanOptions:
         """Return a new instance of WSCleanOptions with updated components"""

@@ -5,6 +5,7 @@
 - run aegean source finding
 """
 
+from asyncio import wait_for
 from pathlib import Path
 from typing import Any, List, Optional, Union
 
@@ -426,6 +427,7 @@ def process_science_fields(
                 wsclean_container=field_options.wsclean_container,
                 update_wsclean_options=unmapped(stokes_v_wsclean_options),
                 fits_mask=fits_beam_masks,
+                wait_for=wsclean_cmds,  # Ensure that measurement sets are doubled up during imaging
             )
             if field_options.yandasoft_container:
                 parsets = _create_convol_linmos_images(
