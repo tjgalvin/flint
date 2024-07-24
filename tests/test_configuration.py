@@ -81,6 +81,11 @@ def test_verify_options_with_class_operations(package_strategy_operations):
     with pytest.raises(ValueError):
         verify_configuration(input_strategy=strategy)
 
+    strategy.pop("ThisOperationDoesNotExists")
+    strategy["stokesv"]["wsclean"]["ThisDoesNotExist"] = "123"
+    with pytest.raises(ValueError):
+        verify_configuration(input_strategy=strategy)
+
 
 def test_verify_getoptions_with_class_operations(package_strategy_operations):
     """Check whether the get options inteface works with the operations

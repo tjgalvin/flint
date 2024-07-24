@@ -126,6 +126,8 @@ class WSCleanOptions(NamedTuple):
     """If not none, then this is the number of channel images that will be gridded in parallel"""
     temp_dir: Optional[Union[str, Path]] = None
     """The path to a temporary directory where files will be wrritten. """
+    pol: Optional[str] = None
+    """The polarisation to be imaged"""
 
     def with_options(self, **kwargs) -> WSCleanOptions:
         """Return a new instance of WSCleanOptions with updated components"""
