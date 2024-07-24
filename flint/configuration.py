@@ -367,7 +367,7 @@ def verify_configuration(input_strategy: Strategy, raise_on_error: bool = True) 
         if operation in input_strategy.keys():
             for mode in input_strategy[operation]:
                 options = get_options_from_strategy(
-                    strategy=input_strategy, mode=mode, round=round
+                    strategy=input_strategy, mode=mode, operation=operation
                 )
                 try:
                     _ = MODE_OPTIONS_MAPPING[mode](**options)
