@@ -347,7 +347,8 @@ def create_wsclean_cmd(
     else:
         name_dir = ms.path.parent
 
-    name_path_str = Path(name_dir) / create_imaging_name_prefix(ms=ms, pol=pol)
+    name_prefix_str = create_imaging_name_prefix(ms=ms, pol=pol)
+    name_path_str = Path(name_dir) / name_prefix_str
 
     # Update and reform
     wsclean_options = wsclean_options.with_options(name=name_path_str)
@@ -392,6 +393,10 @@ def create_wsclean_cmd(
         else:
             unknowns.append((key, value))
 
+        if key == "temp-dir":
+            cmd += f"-name {str(value)}/{name_prefix_str}"
+            hold_directory = Path(value)
+
         if key in bind_dir_options and isinstance(value, (str, Path)):
             bind_dir_paths.append(Path(value))
 
@@ -416,6 +421,7 @@ def create_wsclean_cmd(
             container=container,
             bind_dirs=tuple(bind_dir_paths),
             move_hold_directories=(move_directory, hold_directory),
+            image_prefix_str=name_prefix_str,
         )
 
     return wsclean_cmd
@@ -426,15 +432,23 @@ def run_wsclean_imager(
     container: Path,
     bind_dirs: Optional[Tuple[Path]] = None,
     move_hold_directories: Optional[Tuple[Path, Optional[Path]]] = None,
+    image_prefix_str: Optional[str] = None,
 ) -> WSCleanCommand:
     """Run a provided wsclean command. Optionally will clean up files,
     including the dirty beams, psfs and other assorted things.
+
+    An `ImageSet` is constructed that attempts to capture the output wsclean image products. If `image_prefix_str`
+    is specified the image set will be created by (ordered by preference):
+    #. Adding the `image_prefix_str` to the `move_directory`
+    #. Getting it from the `wsclean_cmd.options.name` attribute
+    #. Guessing it from the path of the measurement set from `wsclean_cmd.ms.path`
 
     Args:
         wsclean_cmd (WSCleanCommand): The command to run, and other properties (cleanup.)
         container (Path): Path to the container with wsclean available in it
         bind_dirs (Optional[Tuple[Path]], optional): Additional directories to include when binding to the wsclean container. Defaults to None.
         move_hold_directories (Optional[Tuple[Path,Optional[Path]]], optional): The `move_directory` and `hold_directory` passed to the temporary context manger. If None no `hold_then_move_into` manager is used. Defaults to None.
+        image_prefix_str (Optional[str], optional): The name used to search for wsclean outputs. If None, first the `.name` property of `wsclean_cmd.options` is checked, otherwise it is guessed from the name and location of the MS. Defaults to None.
 
     Returns:
         WSCleanCommand: The executed wsclean command with a populated imageset properter.
@@ -460,6 +474,12 @@ def run_wsclean_imager(
                 bind_dirs=sclient_bind_dirs,
                 stream_callback_func=_wsclean_output_callback,
             )
+
+            image_prefix_str = (
+                f"{str(move_hold_directories[0] / image_prefix_str)}"
+                if image_prefix_str
+                else None
+            )
     else:
         run_singularity_command(
             image=container,
@@ -468,7 +488,7 @@ def run_wsclean_imager(
             stream_callback_func=_wsclean_output_callback,
         )
 
-    prefix = wsclean_cmd.options.name
+    prefix = image_prefix_str if image_prefix_str else wsclean_cmd.options.name
     if prefix is None:
         prefix = ms[0].path.name
         logger.warning(f"Setting prefix to {prefix}. Likely this is not correct. ")
@@ -499,7 +519,6 @@ def run_wsclean_imager(
 def wsclean_imager(
     ms: Union[Path, MS],
     wsclean_container: Path,
-    wsclean_options_path: Optional[Path] = None,
     update_wsclean_options: Optional[Dict[str, Any]] = None,
 ) -> WSCleanCommand:
     """Create and run a wsclean imager command against a measurement set.
@@ -507,7 +526,6 @@ def wsclean_imager(
     Args:
         ms (Union[Path,MS]): Path to the measurement set that will be imaged
         wsclean_container (Path): Path to the container with wsclean installed
-        wsclean_options_path (Optional[Path], optional): Location of a wsclean set of options. Defaults to None.
         update_wsclean_options (Optional[Dict[str, Any]], optional): Additional options to update the generated WscleanOptions with. Keys should be attributes of WscleanOptions. Defaults ot None.
 
     Returns:
@@ -517,13 +535,8 @@ def wsclean_imager(
     # TODO: This should be expanded to support multiple measurement sets
     ms = MS.cast(ms)
 
-    if wsclean_options_path:
-        logger.warning(
-            "This is a place holder for loading a wsclean imager parameter file. It is being ignored. "
-        )
-
     wsclean_options = WSCleanOptions()
-    if update_wsclean_options is not None:
+    if update_wsclean_options:
         logger.info("Updatting wsclean options with user-provided items. ")
         wsclean_options = wsclean_options.with_options(**update_wsclean_options)
 
