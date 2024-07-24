@@ -329,7 +329,7 @@ def create_wsclean_cmd(
 
     temp_dir = wsclean_options_dict.get("temp_dir", None)
     name_dir = temp_dir if temp_dir else ms.path.parent
-    name_path_str = name_dir / create_imaging_name_prefix(ms=ms, pol=pol)
+    name_path_str = Path(name_dir) / create_imaging_name_prefix(ms=ms, pol=pol)
 
     # Update and reform
     wsclean_options = wsclean_options.with_options(name=name_path_str)
