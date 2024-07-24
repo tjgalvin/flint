@@ -417,22 +417,23 @@ def process_science_fields(
                     archive_wait_for.append(val_results)
 
     if field_options.stokes_v_imaging:
-        stokes_v_wsclean_options = get_options_from_strategy(
-            strategy=strategy, mode="wsclean", operation="stokesv"
-        )
-        wsclean_cmds = task_wsclean_imager.map(
-            in_ms=stokes_v_mss,
-            wsclean_container=field_options.wsclean_container,
-            update_wsclean_options=unmapped(stokes_v_wsclean_options),
-            fits_mask=fits_beam_masks,
-        )
-        if field_options.yandasoft_container:
-            parsets = _create_convol_linmos_images(
-                wsclean_cmds=wsclean_cmds,
-                field_options=field_options,
-                field_summary=field_summary,
+        with tags("stokes-v"):
+            stokes_v_wsclean_options = get_options_from_strategy(
+                strategy=strategy, mode="wsclean", operation="stokesv"
             )
-            archive_wait_for.extend(parsets)
+            wsclean_cmds = task_wsclean_imager.map(
+                in_ms=stokes_v_mss,
+                wsclean_container=field_options.wsclean_container,
+                update_wsclean_options=unmapped(stokes_v_wsclean_options),
+                fits_mask=fits_beam_masks,
+            )
+            if field_options.yandasoft_container:
+                parsets = _create_convol_linmos_images(
+                    wsclean_cmds=wsclean_cmds,
+                    field_options=field_options,
+                    field_summary=field_summary,
+                )
+                archive_wait_for.extend(parsets)
 
     # zip up the final measurement set, which is not included in the above loop
     if field_options.zip_ms:
