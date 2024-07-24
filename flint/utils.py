@@ -137,18 +137,26 @@ def temporarily_move_into(
         shutil.rmtree(temporary_directory)
 
 
-def get_environment_variable(variable: str) -> Union[str, None]:
+def get_environment_variable(
+    variable: Union[str, None], default: Optional[str] = None
+) -> Union[str, None]:
     """Get the value of an environment variable if it exists. If it does not
     a None is returned.
 
     Args:
-        variable (str): The variable to lookup. If it starts with `$` it is removed.
+        variable (Union[str,None]): The variable to lookup. If it starts with `$` it is removed. If `None` is provided `None` is returned.
+        default (Optional[str], optional): If the variable lookup is not resolved this is returned. Defaults to None.
 
     Returns:
         Union[str,None]: Value of environment variable if it exists. None if it does not.
     """
+    if variable is None:
+        return None
+
     variable = variable.lstrip("$")
     value = os.getenv(variable)
+
+    value = default if value is None and default is not None else value
 
     return value
 

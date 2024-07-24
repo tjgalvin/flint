@@ -328,7 +328,12 @@ def create_wsclean_cmd(
     pol = wsclean_options_dict.pop("pol", None)
 
     temp_dir = wsclean_options_dict.get("temp_dir", None)
-    name_dir = temp_dir if temp_dir else ms.path.parent
+    name_dir = (
+        get_environment_variable(variable=temp_dir, default=temp_dir)
+        if temp_dir is not None
+        else ms.path.parent
+    )  # Looks weird but if temp_dir has a value but is not resolved to an environment variable it is returned via the default
+    assert name_dir is not None, f"{name_dir=}, which should not happened. "
     name_path_str = Path(name_dir) / create_imaging_name_prefix(ms=ms, pol=pol)
 
     # Update and reform
