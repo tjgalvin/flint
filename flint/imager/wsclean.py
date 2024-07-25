@@ -339,12 +339,14 @@ def create_wsclean_cmd(
 ) -> WSCleanCommand:
     """Create a wsclean command from a WSCleanOptions container
 
-    For the most part these are one-to-one mappings to the wsclean CLI, the exception
-    being if `wsclean_options.temp_dir` is specified. In this case the wsclean command 
-    will construct a `-name` command to output fits images to this location. This temporary
-    directory is outputted appropriately passed into the `run_wsclean_imager` as the 
-    `move_hold_directories` argument to move items into place should the 
-    `container` be specified.  
+    For the most part these are one-to-one mappings to the wsclean CLI with the
+    exceptions being:
+    #. the `-name` argument will be generated and supplied to the CLI string and will default to the parent directory and name of the supplied measurement set
+    #. If `wsclean_options.temp_dir` is specified this directory is used in place of the measurement sets parent directory
+
+    If `container` is supplied to immediatedly execute this command then the 
+    output wsclean image products will be moved from the `temp-dir` to the
+    same directory as the measurement set. 
 
     Args:
         ms (MS): The measurement set to be imaged
@@ -440,7 +442,7 @@ def create_wsclean_cmd(
             container=container,
             bind_dirs=tuple(bind_dir_paths),
             move_hold_directories=(move_directory, hold_directory),
-            image_prefix_str=name_path_str,
+            image_prefix_str=str(name_argument_path),
         )
 
     return wsclean_cmd
