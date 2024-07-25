@@ -571,14 +571,14 @@ def _create_convol_linmos_images(
         List[LinmosCommand]: The collection of linmos commands executed.
     """
     parsets: List[LinmosCommand] = []
-    
+
     # Come up with the linmos suffix to add to output file
     suffixes = [f"round{current_round}" if current_round else "noselfcal"]
     if additional_linmos_suffix_str:
         suffixes.insert(0, additional_linmos_suffix_str)
-    
+
     main_linmos_suffix_str = ".".join(suffixes)
-    
+
     todo: List[Any, str] = [(None, get_beam_resolution_str(mode="optimal"))]
     if field_options.fixed_beam_shape:
         logger.info(
@@ -598,19 +598,9 @@ def _create_convol_linmos_images(
             filter="-MFS-",
             fixed_beam_shape=round_beam_shape,
         )
-        parset = _convolve_linmos(
-            wsclean_cmds=wsclean_cmds,
-            beam_shape=beam_shape,
-            field_options=field_options,
-            linmos_suffix_str=linmos_suffix_str,
-            cutoff=field_options.pb_cutoff,
-            field_summary=field_summary,
-            convol_mode="image",
-            convol_filter="-MFS-",
-            convol_suffix_str=convol_suffix_str,
-        )
-        parsets.append(parset)
-
+        # NOTE: The order matters here. The last linmos file is used
+        # when running the source finding. Putting this order around means
+        # we would source find on the residual image
         if field_options.linmos_residuals:
             parsets.append(
                 _convolve_linmos(
@@ -625,6 +615,19 @@ def _create_convol_linmos_images(
                     convol_suffix_str=convol_suffix_str,
                 )
             )
+        parsets.append(
+            _convolve_linmos(
+                wsclean_cmds=wsclean_cmds,
+                beam_shape=beam_shape,
+                field_options=field_options,
+                linmos_suffix_str=linmos_suffix_str,
+                cutoff=field_options.pb_cutoff,
+                field_summary=field_summary,
+                convol_mode="image",
+                convol_filter="-MFS-",
+                convol_suffix_str=convol_suffix_str,
+            )
+        )
 
     return parsets
 
