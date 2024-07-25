@@ -2,7 +2,12 @@
 
 # dev
 - if `-temp-dir` used in wsclean then imaging products are produced here and then copied over to the same directory as the MS. This is intended to make use of compute nodes and fast local storage, like memory tmpfs or local disks.
-- added stokes-v imaging
+- added stokes-v imaging. This includes a couple of minor / largish changes
+    - the `name` attribute of `WSCleanOptions` is not recognised
+    - the `pol` attribute of `WSCleanOptions` now needs to be a `str`
+    - the `-name` CLI argument of `wsclean` is auto-generated and always provided, and will now always contain the `pol` values (i.e. has a `polVALUE` field in output filenames)
+    - the strategy format now has a `operations` set of keywords, including `stokesv` to drawn options from
+    - naming format of output linmos files could contain the pol field
 
 # 0.2.5
 - added in skip rounds for masking and selfcal

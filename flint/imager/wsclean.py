@@ -382,6 +382,9 @@ def create_wsclean_cmd(
     cmd = ["wsclean"]
     unknowns: List[Tuple[Any, Any]] = []
     logger.info("Creating wsclean command.")
+
+    # TODO: The inside of this for loop should be expressed as a `map`. 
+    # Put the contents of the if conditionals into a separate function and add tests
     for key, value in wsclean_options_dict.items():
         key = key.replace("_", "-")
         logger.debug(f"{key=} {value=} {type(value)=}")
@@ -442,7 +445,7 @@ def create_wsclean_cmd(
             container=container,
             bind_dirs=tuple(bind_dir_paths),
             move_hold_directories=(move_directory, hold_directory),
-            image_prefix_str=str(name_argument_path),
+               image_prefix_str=str(name_argument_path),
         )
 
     return wsclean_cmd
