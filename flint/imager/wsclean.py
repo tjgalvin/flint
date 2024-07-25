@@ -336,12 +336,27 @@ def create_wsclean_name_argument(wsclean_options: WSCleanOptions, ms: MS) -> Pat
 
 
 class ResolvedCLIResult(NamedTuple):
+    """Mapping results to provide to wsclean"""
+
     cmd: Optional[str] = None
+    """The argument value pair to place on the CLI"""
     unknown: Optional[Any] = None
+    """Unknown options that could not be converted"""
     bindpath: Optional[Path] = None
+    """A path to bind to when called within a container"""
 
 
 def _resolve_wsclean_key_value_to_cli_str(key: str, value: Any) -> ResolvedCLIResult:
+    """An internal function intended to map a key-value pair to
+    the appropriate form to pass to a CLI call into wsclean.
+
+    Args:
+        key (str): The wsclean argument name to consider. Underscores will be converted to hypens, as expected by wsclean
+        value (Any): The value of the argument that should be converted to the appropriately formatted string
+
+    Returns:
+        ResolvedCLIResult: Converted CLI output, including paths to bind to and unknown conversions
+    """
 
     # Some wsclean options, if multiple values are provided, might need
     # to be join as a csv list. Others might want to be dumped in. Just
