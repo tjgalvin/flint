@@ -434,7 +434,7 @@ def process_science_fields(
             if field_options.yandasoft_container:
                 parsets = _create_convol_linmos_images(
                     wsclean_cmds=wsclean_cmds,
-                    field_options=field_options,
+                    field_options=field_options.with_options(linmos_residuals=False),
                     field_summary=field_summary,
                     current_round=(
                         field_options.rounds if field_options.rounds else None

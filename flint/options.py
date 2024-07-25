@@ -125,6 +125,13 @@ class FieldOptions(NamedTuple):
     stokes_v_imaging: bool = False
     """Specifies whether Stokes-V imaging will be carried out after the final round of imagin (whether or not self-calibration is enabled). """
 
+    def with_options(self, **kwargs) -> FieldOptions:
+        _dict = self._asdict()
+        _dict.update(**kwargs)
+
+        return FieldOptions(**_dict)
+
+
 
 def dump_field_options_to_yaml(
     output_path: Path, field_options: FieldOptions, overwrite: bool = False
