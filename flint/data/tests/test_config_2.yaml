@@ -37,7 +37,6 @@ defaults:
     maxw: null
     no_update_model_required: false
     no_small_inversion: false
-    name: null
     beam_fitting_size: 1.25
     fits_mask: null
     deconvolution_channels: null

@@ -13,6 +13,7 @@ from flint.imager.wsclean import (
     WSCleanOptions,
     _wsclean_output_callback,
     create_wsclean_cmd,
+    create_wsclean_name_argument,
     get_wsclean_output_names,
 )
 from flint.ms import MS
@@ -50,8 +51,25 @@ def test_create_wsclean_name(ms_example):
 
     for pol in ("i", "I"):
         name = create_imaging_name_prefix(ms=ms_example, pol=pol)
-        assert name == "SB39400.RACS_0635-31.beam0.small.polI"
+        assert name == "SB39400.RACS_0635-31.beam0.small.poli"
 
+
+def test_create_wsclean_name_argument(ms_example):
+    """Ensure that the generated name argument behaves as expected"""
+
+    ms = MS.cast(ms=Path(ms_example))
+    wsclean_options = WSCleanOptions()
+    name_argument_path = create_wsclean_name_argument(wsclean_options=wsclean_options, ms=ms)
+    
+    parent = str(Path(ms_example).parent)
+    assert isinstance(name_argument_path, Path)
+    assert f"{parent}/SB39400.RACS_0635-31.beam0.small.poli" == str(name_argument_path)
+    
+    wsclean_options_2 = WSCleanOptions(temp_dir="/jack/sparrow")
+    name_argument_path = create_wsclean_name_argument(wsclean_options=wsclean_options_2, ms=ms)
+    
+    assert "/jack/sparrow/SB39400.RACS_0635-31.beam0.small.poli" == str(name_argument_path)
+    
 
 def test_create_wsclean_command(ms_example):
     """Test whether WSCleanOptions can be correctly cast to a command string"""

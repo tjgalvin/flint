@@ -571,13 +571,14 @@ def _create_convol_linmos_images(
         List[LinmosCommand]: The collection of linmos commands executed.
     """
     parsets: List[LinmosCommand] = []
-    main_linmos_suffix_str = f"round{current_round}" if current_round else "noselfcal"
-
+    
+    # Come up with the linmos suffix to add to output file
+    suffixes = [f"round{current_round}" if current_round else "noselfcal"]
     if additional_linmos_suffix_str:
-        main_linmos_suffix_str = (
-            f"{main_linmos_suffix_str}.{additional_linmos_suffix_str.lstrip('.')}"
-        )
-
+        suffixes.insert(0, additional_linmos_suffix_str)
+    
+    main_linmos_suffix_str = ".".join(suffixes)
+    
     todo: List[Any, str] = [(None, get_beam_resolution_str(mode="optimal"))]
     if field_options.fixed_beam_shape:
         logger.info(

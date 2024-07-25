@@ -27,7 +27,7 @@ def create_imaging_name_prefix(ms: Union[MS, Path], pol: Optional[str] = None) -
 
     name = ms_path.stem
     if pol:
-        name = f"{name}.pol{pol.upper()}"
+        name = f"{name}.pol{pol.lower()}"
 
     return name
 
