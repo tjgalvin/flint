@@ -1,5 +1,5 @@
-"""Contains the core of the option class containers that are used to 
-hold stateful properties throughout the flint codebase. 
+"""Contains the core of the option class containers that are used to
+hold stateful properties throughout the flint codebase.
 """
 
 # NOTE: Although these options could be stored closer to where
@@ -130,7 +130,6 @@ class FieldOptions(NamedTuple):
         _dict.update(**kwargs)
 
         return FieldOptions(**_dict)
-
 
 
 def dump_field_options_to_yaml(

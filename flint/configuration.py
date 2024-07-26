@@ -230,10 +230,10 @@ def get_options_from_strategy(
     If the mode exists and a round is specified, the options listed in the
     round are used to update the defaults.
 
-    The default `operation` of `None` implies options related to imaging are 
+    The default `operation` of `None` implies options related to imaging are
     requested. if a `opertaion` is provided then options for that mode are
-    retrieved. These are ones that do not vary as across rounds of self-calibration. 
-    An `operation` can have a `mode`, such as `stokesv` requiring a `wsclean` mode. Acceptable 
+    retrieved. These are ones that do not vary as across rounds of self-calibration.
+    An `operation` can have a `mode`, such as `stokesv` requiring a `wsclean` mode. Acceptable
     `operation` values are {KNOWN_OPERATIONS}
 
     Args:
