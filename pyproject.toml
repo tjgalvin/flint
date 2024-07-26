@@ -37,6 +37,7 @@ reproject = "*"
 scikit-image = "*"
 pandas = "*"
 ConfigArgParse = "^1.7"
+fitscube = "^0.4.3"
 
 [tool.poetry.group.dev.dependencies]
 black = "^23.3.0"

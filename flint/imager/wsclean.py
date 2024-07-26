@@ -8,9 +8,12 @@ from numbers import Number
 from pathlib import Path
 from typing import Any, Collection, Dict, List, NamedTuple, Optional, Tuple, Union
 
+from fitscube.combine_fits import combine_fits
+
 from flint.exceptions import CleanDivergenceError
 from flint.logging import logger
 from flint.ms import MS
+from flint.options import options_to_dict
 from flint.sclient import run_singularity_command
 from flint.utils import get_environment_variable, hold_then_move_into
 
@@ -394,11 +397,42 @@ def create_wsclean_cmd(
     return wsclean_cmd
 
 
+def combine_subbands_to_cube(imageset: ImageSet) -> ImageSet:
+    """Combine wsclean subband channel images into a cube
+
+    Args:
+        imageset (ImageSet): Collection of wsclean image productds
+
+    Returns:
+        ImageSet: Updated iamgeset describing the new outputs
+    """
+
+    image_prefix = Path(imageset.prefix)
+
+    imageset_dict = options_to_dict(input_options=imageset)
+
+    for mode in ("image", "residual"):
+        subband_images = [
+            image for image in imageset_dict[mode] if "-MFS-" not in str(image)
+        ]
+        logger.info(f"Combining {len(subband_images)} images. {subband_images=}")
+        hdu1, freqs = combine_fits(file_list=subband_images)
+
+        output_cube_name = (
+            image_prefix.parent / f"{str(image_prefix.stem)}.{mode}.cube.fits"
+        )
+        logger.info(f"Writing {output_cube_name=}")
+        hdu1.writeto(output_cube_name, overwrite=True)
+
+    return imageset
+
+
 def run_wsclean_imager(
     wsclean_cmd: WSCleanCommand,
     container: Path,
     bind_dirs: Optional[Tuple[Path]] = None,
     move_hold_directories: Optional[Tuple[Path, Optional[Path]]] = None,
+    make_cube_from_subbands: bool = True,
 ) -> WSCleanCommand:
     """Run a provided wsclean command. Optionally will clean up files,
     including the dirty beams, psfs and other assorted things.
@@ -408,6 +442,7 @@ def run_wsclean_imager(
         container (Path): Path to the container with wsclean available in it
         bind_dirs (Optional[Tuple[Path]], optional): Additional directories to include when binding to the wsclean container. Defaults to None.
         move_hold_directories (Optional[Tuple[Path,Optional[Path]]], optional): The `move_directory` and `hold_directory` passed to the temporary context manger. If None no `hold_then_move_into` manager is used. Defaults to None.
+        make_cube_from_subbands (bool, optional): Form a single FITS cube from the set of sub-band images wsclean produces. Defaults to False.
 
     Returns:
         WSCleanCommand: The executed wsclean command with a populated imageset properter.
@@ -463,6 +498,9 @@ def run_wsclean_imager(
         output_types=("image", "residual"),
         check_exists_when_adding=True,
     )
+
+    if make_cube_from_subbands:
+        imageset = combine_subbands_to_cube(imageset=imageset)
 
     logger.info(f"Constructed {imageset=}")
 
