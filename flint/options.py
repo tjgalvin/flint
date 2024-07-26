@@ -12,7 +12,7 @@ from __future__ import (  # Used for mypy/pylance to like the return type of MS.
 )
 
 from pathlib import Path
-from typing import Collection, List, NamedTuple, Optional, Union, Dict, Any
+from typing import Any, Collection, Dict, List, NamedTuple, Optional, Union
 
 import yaml
 

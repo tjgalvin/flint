@@ -13,8 +13,8 @@ from fitscube.combine_fits import combine_fits
 from flint.exceptions import CleanDivergenceError
 from flint.logging import logger
 from flint.ms import MS
-from flint.options import options_to_dict
 from flint.naming import create_imaging_name_prefix
+from flint.options import options_to_dict
 from flint.sclient import run_singularity_command
 from flint.utils import (
     get_environment_variable,
