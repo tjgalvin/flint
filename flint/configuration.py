@@ -19,7 +19,15 @@ from flint.options import ArchiveOptions
 from flint.selfcal.casa import GainCalOptions
 from flint.source_finding.aegean import AegeanOptions, BANEOptions
 
+# TODO: It feels like that the standard of this strategy file should
+# be updated. In its current form the "initial" section is required, with
+# with the subsequent selfcal section being used for continuum imaging.
+# Should this be intended to be used for other pipelines it would be
+# better to have an "imager" operation mode, and put these two things
+# into there
+
 KNOWN_HEADERS = ("defaults", "initial", "selfcal", "version")
+KNOWN_OPERATIONS = ("stokesv",)
 FORMAT_VERSION = 0.1
 MODE_OPTIONS_MAPPING = {
     "wsclean": WSCleanOptions,
@@ -115,16 +123,6 @@ def get_image_options_from_yaml(
 
     MULTISCALE_SCALES = (0, 15, 30, 40, 50, 60, 70, 120)
     IMAGE_SIZE = 7144
-
-    # These werte teh settings I was using when overloading if
-    # mask was created for the cleaning
-
-    # wsclean_options["auto_mask"] = 1.25
-    # wsclean_options["auto_threshold"] = 1.0
-    # wsclean_options["force_mask_rounds"] = 13
-    # wsclean_options["local_rms"] = False
-    # wsclean_options["niter"] = 1750000
-    # wsclean_options["nmiter"] = 30
 
     if not self_cal_rounds:
         return {
@@ -224,18 +222,26 @@ def get_options_from_strategy(
     mode: str = "wsclean",
     round: Union[str, int] = "initial",
     max_round_override: bool = True,
+    operation: Optional[str] = None,
 ) -> Dict[Any, Any]:
-    """Extract a set of options from a strategy file to use in a pipeline
+    f"""Extract a set of options from a strategy file to use in a pipeline
     run. If the mode exists in the default section, these are used as a base.
 
     If the mode exists and a round is specified, the options listed in the
     round are used to update the defaults.
+
+    The default `operation` of `None` implies options related to imaging are
+    requested. if a `opertaion` is provided then options for that mode are
+    retrieved. These are ones that do not vary as across rounds of self-calibration.
+    An `operation` can have a `mode`, such as `stokesv` requiring a `wsclean` mode. Acceptable
+    `operation` values are {KNOWN_OPERATIONS}
 
     Args:
         strategy (Union[Strategy,None,Path]): A loaded instance of a strategy file. If `None` is provided then an empty dictionary is returned. If `Path` attempt to load the strategy file.
         mode (str, optional): Which set of options to load. Typical values are `wsclean`, `gaincal` and `masking`. Defaults to "wsclean".
         round (Union[str, int], optional): Which round to load options for. May be `initial` or an `int` (which indicated a self-calibration round). Defaults to "initial".
         max_round_override (bool, optional): Check whether an integer round number is recorded. If it is higher than the largest self-cal round specified, set it to the last self-cal round. If False this is not performed. Defaults to True.
+        operation (Optional[str], optional): Get options related to a specific operation. Defaults to None.
 
     Raises:
         ValueError: An unrecongised value for `round`.
@@ -271,7 +277,14 @@ def get_options_from_strategy(
 
     # Now get the updates. When using the 'in' on dicts
     # remember it is checking against the keys
-    if round == "initial":
+    if operation is not None:
+        if operation not in KNOWN_OPERATIONS:
+            raise ValueError(
+                f"{operation=} is not recognised. Known operations are {KNOWN_OPERATIONS}"
+            )
+        if mode in strategy[operation]:
+            update_options = dict(**strategy[operation][mode])
+    elif round == "initial":
         # separate function to avoid a missing mode from raising valu error
         if mode in strategy["initial"]:
             update_options = dict(**strategy["initial"][mode])
@@ -310,24 +323,27 @@ def verify_configuration(input_strategy: Strategy, raise_on_error: bool = True) 
 
     # make sure the main components of the file are there
     unknown_headers = [
-        header for header in input_strategy.keys() if header not in KNOWN_HEADERS
+        header
+        for header in input_strategy.keys()
+        if header not in KNOWN_HEADERS and header not in KNOWN_OPERATIONS
     ]
+
     if unknown_headers:
         errors.append(f"{unknown_headers=} found. Supported headers: {KNOWN_HEADERS}")
 
     if "initial" not in input_strategy.keys():
         errors.append("No initial imaging round parameters")
-
-    for key in input_strategy["initial"].keys():
-        options = get_options_from_strategy(
-            strategy=input_strategy, mode=key, round="initial"
-        )
-        try:
-            _ = MODE_OPTIONS_MAPPING[key](**options)
-        except TypeError as typeerror:
-            errors.append(
-                f"{key} mode in initial round incorrectly formed. {typeerror} "
+    else:
+        for key in input_strategy["initial"].keys():
+            options = get_options_from_strategy(
+                strategy=input_strategy, mode=key, round="initial"
             )
+            try:
+                _ = MODE_OPTIONS_MAPPING[key](**options)
+            except TypeError as typeerror:
+                errors.append(
+                    f"{key} mode in initial round incorrectly formed. {typeerror} "
+                )
 
     if "selfcal" in input_strategy:
         round_keys = input_strategy["selfcal"].keys()
@@ -344,7 +360,20 @@ def verify_configuration(input_strategy: Strategy, raise_on_error: bool = True) 
                     _ = MODE_OPTIONS_MAPPING[mode](**options)
                 except TypeError as typeerror:
                     errors.append(
-                        f"{key} mode in initial round incorrectly formed. {typeerror} "
+                        f"{mode=} mode in {round=} incorrectly formed. {typeerror} "
+                    )
+
+    for operation in KNOWN_OPERATIONS:
+        if operation in input_strategy.keys():
+            for mode in input_strategy[operation]:
+                options = get_options_from_strategy(
+                    strategy=input_strategy, mode=mode, operation=operation
+                )
+                try:
+                    _ = MODE_OPTIONS_MAPPING[mode](**options)
+                except TypeError as typeerror:
+                    errors.append(
+                        f"{mode=} mode in {operation=} incorrectly formed. {typeerror} "
                     )
 
     valid_config = len(errors) == 0
@@ -499,8 +528,11 @@ def cli() -> None:
         load_strategy_yaml(input_yaml=args.input_yaml)
     elif args.mode == "verify":
         input_strategy = load_strategy_yaml(input_yaml=args.input_yaml)
-        if verify_configuration(input_strategy=input_strategy):
-            logger.info(f"{args.input_yaml} appears valid")
+        try:
+            if verify_configuration(input_strategy=input_strategy):
+                logger.info(f"{args.input_yaml} appears valid")
+        except ValueError:
+            logger.info(f"{args.input_yaml} does not appear to be valid")
     else:
         logger.error(f"{args.mode=} is not set or not known. Check --help. ")
 

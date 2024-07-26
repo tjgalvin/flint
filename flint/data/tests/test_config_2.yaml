@@ -94,3 +94,8 @@ selfcal:
       data_column: "TheLastRoundIs3"
     gaincal: {}
     masking: {}
+stokesv:
+    wsclean:
+        pol: V
+        channels_out: 2
+        deconvolution_channels: null
