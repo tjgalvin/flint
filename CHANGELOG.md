@@ -8,6 +8,7 @@
     - the `-name` CLI argument of `wsclean` is auto-generated and always provided, and will now always contain the `pol` values (i.e. has a `polVALUE` field in output filenames)
     - the strategy format now has a `operations` set of keywords, including `stokesv` to drawn options from
     - naming format of output linmos files could contain the pol field
+    - `stokesv` imaging will not linmos the cleaning residuals together, even if the `--linmos-residuals` CLI is provided
 
 # 0.2.5
 - added in skip rounds for masking and selfcal
