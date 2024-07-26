@@ -76,6 +76,11 @@ def test_combine_subbands_to_cube(tmpdir):
     with pytest.raises(TypeError):
         _ = combine_subbands_to_cube(imageset=files, remove_original_images=False)  # type: ignore
 
+    new_imageset = combine_subbands_to_cube(
+        imageset=imageset, remove_original_images=True
+    )
+    assert all([not file.exists() for file in files])
+
 
 def test_resolve_key_value_to_cli():
     """The wsclean command generation operates over keys and values, and
