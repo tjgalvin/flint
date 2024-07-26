@@ -415,9 +415,14 @@ def combine_subbands_to_cube(imageset: ImageSet) -> ImageSet:
         subband_images = [
             image for image in imageset_dict[mode] if "-MFS-" not in str(image)
         ]
+        if len(subband_images) <= 1:
+            logger.info(f"Note enough subband images for {mode=}, not creating a cube")
+            continue
+
         logger.info(f"Combining {len(subband_images)} images. {subband_images=}")
         hdu1, freqs = combine_fits(file_list=subband_images)
 
+        # TODOL This could be moved to the naming module
         output_cube_name = (
             image_prefix.parent / f"{str(image_prefix.stem)}.{mode}.cube.fits"
         )
