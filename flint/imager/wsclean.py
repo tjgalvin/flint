@@ -525,7 +525,11 @@ def combine_subbands_to_cube(imageset: ImageSet) -> ImageSet:
         logger.info(f"Writing {output_cube_name=}")
         hdu1.writeto(output_cube_name, overwrite=True)
 
-    return imageset
+        imageset_dict[mode] = [Path(output_cube_name)] + [
+            image for image in imageset_dict[mode] if image not in subband_images
+        ]
+
+    return ImageSet(**imageset_dict)
 
 
 def run_wsclean_imager(
