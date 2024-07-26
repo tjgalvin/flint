@@ -291,7 +291,7 @@ def delete_wsclean_outputs(
 
     for path in paths:
         if ignore_mfs and "-MFS-" in str(path.name):
-            logger.info(f"{path} appears to be an MFS product, not removing. ")
+            logger.info(f"{path=} appears to be an MFS product, not removing. ")
             continue
         if path.exists():
             logger.warning(f"Removing {path}.")
@@ -509,7 +509,7 @@ def combine_subbands_to_cube(
     Returns:
         ImageSet: Updated iamgeset describing the new outputs
     """
-    logger.info("Combining subband images into a cude")
+    logger.info("Combining subband image products into fits cubes")
 
     image_prefix = Path(imageset.prefix)
 
