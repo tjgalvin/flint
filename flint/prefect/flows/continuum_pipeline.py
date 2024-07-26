@@ -5,7 +5,6 @@
 - run aegean source finding
 """
 
-from asyncio import wait_for
 from pathlib import Path
 from typing import Any, List, Optional, Union
 

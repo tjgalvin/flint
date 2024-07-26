@@ -531,8 +531,8 @@ def cli() -> None:
         try:
             if verify_configuration(input_strategy=input_strategy):
                 logger.info(f"{args.input_yaml} appears valid")
-        except ValueError as value_error:
-            logger.info(f"{ars.input_yaml} does not appear to be valid")
+        except ValueError:
+            logger.info(f"{args.input_yaml} does not appear to be valid")
     else:
         logger.error(f"{args.mode=} is not set or not known. Check --help. ")
 

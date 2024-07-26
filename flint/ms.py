@@ -27,7 +27,6 @@ from casacore.tables import table, taql
 from fixms.fix_ms_corrs import fix_ms_corrs
 from fixms.fix_ms_dir import fix_ms_dir
 
-from flint.exceptions import MSError
 from flint.logging import logger
 from flint.naming import create_ms_name
 from flint.options import MS
