@@ -1,6 +1,11 @@
-"""This is a container that will attempt to centralise the
-set of flint processing related options.
+"""Contains the core of the option class containers that are used to
+hold stateful properties throughout the flint codebase.
 """
+
+# NOTE: Although these options could be stored closer to where
+# their logic is often used, at times these can cause circular dependencies.
+# This happens a lot with the linting / typing checking, where classes are
+# imported purely for tools like ruff
 
 from __future__ import (  # Used for mypy/pylance to like the return type of MS.with_options
     annotations,
@@ -11,6 +16,7 @@ from typing import Collection, List, NamedTuple, Optional, Union
 
 import yaml
 
+from flint.exceptions import MSError
 from flint.logging import logger
 
 
@@ -116,6 +122,14 @@ class FieldOptions(NamedTuple):
     """Path that final processed products will be copied into. If None no copying of file products is performed. See ArchiveOptions. """
     rename_ms: bool = False
     """Rename MSs throught rounds of imaging and self-cal instead of creating copies. This will delete data-columns throughout. """
+    stokes_v_imaging: bool = False
+    """Specifies whether Stokes-V imaging will be carried out after the final round of imagin (whether or not self-calibration is enabled). """
+
+    def with_options(self, **kwargs) -> FieldOptions:
+        _dict = self._asdict()
+        _dict.update(**kwargs)
+
+        return FieldOptions(**_dict)
 
 
 def dump_field_options_to_yaml(
@@ -184,3 +198,70 @@ class ArchiveOptions(NamedTuple):
         opts.update(**kwargs)
 
         return ArchiveOptions(**opts)
+
+
+class MS(NamedTuple):
+    """Helper to keep track of measurement set information
+
+    This is the class that should be used when describing a measurement
+    set that will be operated on.
+    """
+
+    path: Path
+    """Path to the measurement set that is being represented"""
+    column: Optional[str] = None
+    """Column that should be operated against"""
+    beam: Optional[int] = None
+    """The beam ID of the MS within an ASKAP field"""
+    spw: Optional[int] = None
+    """Intended to be used with ASKAP high-frequency resolution modes, where the MS is divided into SPWs"""
+    field: Optional[str] = None
+    """The field name  of the data"""
+    model_column: Optional[str] = None
+    """The column name of the most recently MODEL data"""
+
+    @property
+    def ms(self) -> MS:
+        return self
+
+    @classmethod
+    def cast(cls, ms: Union[MS, Path]) -> MS:
+        """Create/return a MS instance given either a Path or MS.
+
+        If the input is neither a MS instance or Path, the object will
+        be checked to see if it has a `.ms` attribute. If it does then
+        this will be used.
+
+        Args:
+            ms (Union[MS, Path]): The input type to consider
+
+        Raises:
+            MSError: Raised when the input ms can not be cast to an MS instance
+
+        Returns:
+            MS: A normalised MS
+        """
+        if isinstance(ms, MS):
+            # Nothing to do
+            pass
+        elif isinstance(ms, Path):
+            ms = MS(path=ms)
+        elif "ms" in dir(ms) and isinstance(ms.ms, MS):
+            ms = ms.ms
+        else:
+            raise MSError(f"Unable to convert {ms=} of {type(ms)} to MS object. ")
+
+        return ms
+
+    def with_options(self, **kwargs) -> MS:
+        """Create a new MS instance with keywords updated
+
+        Returns:
+            MS: New MS instance with updated attributes
+        """
+        # TODO: Update the signature to have the actual attributes to
+        # help keep mypy and other linters happy
+        as_dict = self._asdict()
+        as_dict.update(kwargs)
+
+        return MS(**as_dict)

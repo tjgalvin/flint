@@ -11,6 +11,7 @@ from typing import Any, Collection, Dict, List, NamedTuple, Optional, Tuple, Uni
 from flint.exceptions import CleanDivergenceError
 from flint.logging import logger
 from flint.ms import MS
+from flint.naming import create_imaging_name_prefix
 from flint.sclient import run_singularity_command
 from flint.utils import get_environment_variable, hold_then_move_into
 
@@ -111,8 +112,6 @@ class WSCleanOptions(NamedTuple):
     """Will instruct wsclean not to create the MODEL_DATA column"""
     no_small_inversion: bool = False
     """Disables an optimisation of wsclean's w-gridder mode. This might improve accuracy of the w-gridder. """
-    name: Optional[str] = None
-    """Name of the output files passed through to wsclean"""
     beam_fitting_size: Optional[float] = 1.25
     """Use a fitting box the size of <factor> times the theoretical beam size for fitting a Gaussian to the PSF."""
     fits_mask: Optional[Path] = None
@@ -125,6 +124,8 @@ class WSCleanOptions(NamedTuple):
     """If not none, then this is the number of channel images that will be gridded in parallel"""
     temp_dir: Optional[Union[str, Path]] = None
     """The path to a temporary directory where files will be wrritten. """
+    pol: str = "i"
+    """The polarisation to be imaged"""
 
     def with_options(self, **kwargs) -> WSCleanOptions:
         """Return a new instance of WSCleanOptions with updated components"""
@@ -167,7 +168,7 @@ def _wsclean_output_callback(line: str) -> None:
 def get_wsclean_output_names(
     prefix: str,
     subbands: int,
-    pols: Optional[Union[str, Collection[str]]] = None,
+    pols: Optional[Union[str, Tuple[str]]] = None,
     verify_exists: bool = False,
     include_mfs: bool = True,
     output_types: Union[str, Collection[str]] = (
@@ -189,9 +190,9 @@ def get_wsclean_output_names(
     disk space.
 
     Args:
-        prefix (str): The prefix of the imaging run (the -name option in wsclean call)
+        prefix (str): The prefix of the imaging run (akin to -name option in wsclean call)
         subbands (int): Number of subbands that were imaged
-        pol (Optional[Union[str,Collection[str]]], optional): The polarisation of the image. If None are provided then this is not used. Multiple polarisation may be supplied. If multiple pols are given in an iterable, each will be produced. Defaults to None.
+        pols (Optional[Union[str,Tuple[str]]], optional): The polarisation of the image. If None are provided then this is not used. Multiple polarisation may be supplied. If multiple pols are given in an iterable, each will be produced. Defaults to None.
         verify_exists (bool, optional): Ensures that each generated path corresponds to an actual file. Defaults to False.
         include_mfs (bool, optional): Include the MFS images produced by wsclean. Defaults to True.
         output_types (Union[str,Collection[str]]): Include files of this type, including image, dirty, residual, model, psf. Defaults to  ('image','dirty','residual','model', 'psf').
@@ -296,10 +297,128 @@ def delete_wsclean_outputs(
     return rm_paths
 
 
+def create_wsclean_name_argument(wsclean_options: WSCleanOptions, ms: MS) -> Path:
+    """Create the value that will be provided to wsclean -name argument. This has
+    to be generated. Among things to consider is the desired output directory of imaging
+    files. This by default will be alongside the measurement set. If a `temp_dir`
+    has been specified then output files will be written here.
+
+    Args:
+        wsclean_options (WSCleanOptions): Set of wsclean options to consider
+        ms (MS): The measurement set to be imaged
+
+    Returns:
+        Path: Value of the -name argument to provide to wsclean
+    """
+    wsclean_options_dict = wsclean_options._asdict()
+
+    # Prepare the name for the output wsclean command
+    # Construct the name property of the string
+    pol = wsclean_options_dict["pol"]
+    name_prefix_str = create_imaging_name_prefix(ms=ms, pol=pol)
+
+    # Now resolve the directory part
+    name_dir = ms.path.parent
+    temp_dir = wsclean_options_dict.get("temp_dir", None)
+    if temp_dir:
+        # Resolve if environment variable
+        name_dir = (
+            get_environment_variable(variable=temp_dir)
+            if isinstance(temp_dir, str) and temp_dir[0] == "$"
+            else Path(temp_dir)
+        )
+        assert name_dir is not None, f"{name_dir=} is None, which is bad"
+
+    name_argument_path = Path(name_dir) / name_prefix_str
+    logger.info(f"Constructed -name {name_argument_path}")
+
+    return name_argument_path
+
+
+class ResolvedCLIResult(NamedTuple):
+    """Mapping results to provide to wsclean"""
+
+    cmd: Optional[str] = None
+    """The argument value pair to place on the CLI"""
+    unknown: Optional[Any] = None
+    """Unknown options that could not be converted"""
+    bindpath: Optional[Path] = None
+    """A path to bind to when called within a container"""
+
+
+def _resolve_wsclean_key_value_to_cli_str(key: str, value: Any) -> ResolvedCLIResult:
+    """An internal function intended to map a key-value pair to
+    the appropriate form to pass to a CLI call into wsclean.
+
+    Args:
+        key (str): The wsclean argument name to consider. Underscores will be converted to hypens, as expected by wsclean
+        value (Any): The value of the argument that should be converted to the appropriately formatted string
+
+    Returns:
+        ResolvedCLIResult: Converted CLI output, including paths to bind to and unknown conversions
+    """
+
+    # Some wsclean options, if multiple values are provided, might need
+    # to be join as a csv list. Others might want to be dumped in. Just
+    # attempting to future proof (arguably needlessly).
+    options_to_comma_join = "multiscale-scales"
+    bind_dir_options = ("temp-dir",)
+
+    logger.debug(f"{key=} {value=} {type(value)=}")
+
+    value = (
+        get_environment_variable(variable=value)
+        if isinstance(value, str) and value[0] == "$"
+        else value
+    )
+
+    cmd = None
+    unknown = None
+    bind_dir_path = None
+
+    original_key = key
+    key = key.replace("_", "-")
+
+    if key == "size":
+        cmd = f"-size {value} {value}"
+    elif isinstance(value, bool):
+        if value:
+            cmd = f"-{key}"
+    elif isinstance(value, (str, Number)):
+        cmd = f"-{key} {value}"
+    elif isinstance(value, (list, tuple)):
+        value = list(map(str, value))
+        value_str = ",".join(value) if key in options_to_comma_join else " ".join(value)
+        cmd = f"-{key} {value_str}"
+    elif isinstance(value, Path):
+        value_str = str(value)
+        cmd = f"-{key} {value_str}"
+    elif value is None:
+        logger.debug(
+            f"{key} option set to {value}. Not sure what this means. Ignoring. "
+        )
+    else:
+        unknown = (original_key, value)
+
+    if key in bind_dir_options and isinstance(value, (str, Path)):
+        bind_dir_path = Path(value)
+
+    return ResolvedCLIResult(cmd=cmd, unknown=unknown, bindpath=bind_dir_path)
+
+
 def create_wsclean_cmd(
     ms: MS, wsclean_options: WSCleanOptions, container: Optional[Path] = None
 ) -> WSCleanCommand:
     """Create a wsclean command from a WSCleanOptions container
+
+    For the most part these are one-to-one mappings to the wsclean CLI with the
+    exceptions being:
+    #. the `-name` argument will be generated and supplied to the CLI string and will default to the parent directory and name of the supplied measurement set
+    #. If `wsclean_options.temp_dir` is specified this directory is used in place of the measurement sets parent directory
+
+    If `container` is supplied to immediatedly execute this command then the
+    output wsclean image products will be moved from the `temp-dir` to the
+    same directory as the measurement set.
 
     Args:
         ms (MS): The measurement set to be imaged
@@ -312,70 +431,46 @@ def create_wsclean_cmd(
     Returns:
         WSCleanCommand: The wsclean command to run
     """
-    # Some wsclean options, if multiple values are provided, might need
-    # to be join as a csv list. Others might want to be dumped in. Just
-    # attempting to future proof (arguably needlessly).
-    options_to_comma_join = "multiscale-scales"
+    # TODO: This is very very smelly. I think removing the `.name` from WSCleanOptions
+    # to start with, build that as an explicit testable function, and pass/return the name
+    # argument alongside the prefix in the WSCleanCMD. Also need to rename that, its a horrible
+    # name for a variable and ship
 
     # Some options should also extend the singularity bind directories
     bind_dir_paths = []
-    bind_dir_options = ("temp-dir",)
 
+    name_argument_path = create_wsclean_name_argument(
+        wsclean_options=wsclean_options, ms=ms
+    )
     move_directory = ms.path.parent
-    hold_directory: Optional[Path] = None
+    hold_directory: Optional[Path] = Path(name_argument_path).parent
 
-    cmd = "wsclean "
+    wsclean_options_dict = wsclean_options._asdict()
+
     unknowns: List[Tuple[Any, Any]] = []
     logger.info("Creating wsclean command.")
-    for key, value in wsclean_options._asdict().items():
-        key = key.replace("_", "-")
-        logger.debug(f"{key=} {value=} {type(value)=}")
 
-        value = (
-            get_environment_variable(variable=value)
-            if isinstance(value, str) and value[0] == "$"
-            else value
-        )
-
-        if key == "size":
-            cmd += f"-size {value} {value} "
-        elif key == "wgridder-accuracy":
-            if wsclean_options.gridder == "wgridder":
-                cmd += f"-{key} {value} "
-        elif isinstance(value, bool):
-            if value:
-                cmd += f"-{key} "
-        elif isinstance(value, (str, Number)):
-            cmd += f"-{key} {value} "
-        elif isinstance(value, (list, tuple)):
-            value = list(map(str, value))
-            value_str = (
-                ",".join(value) if key in options_to_comma_join else " ".join(value)
-            )
-            cmd += f"-{key} {value_str} "
-        elif isinstance(value, Path):
-            value_str = str(value)
-            cmd += f"-{key} {value_str} "
-        elif value is None:
-            logger.debug(
-                f"{key} option set to {value}. Not sure what this means. Ignoring. "
-            )
-        else:
-            unknowns.append((key, value))
-
-        if key == "temp-dir" and isinstance(value, (Path, str)):
-            hold_directory = Path(value)
-            name_str = hold_directory / ms.path.stem
-            cmd += f"-name {str(name_str)} "
-
-        if key in bind_dir_options and isinstance(value, (str, Path)):
-            bind_dir_paths.append(Path(value))
+    cli_results = map(
+        _resolve_wsclean_key_value_to_cli_str,
+        wsclean_options_dict.keys(),
+        wsclean_options_dict.values(),
+    )
+    cmds = [cli_result.cmd for cli_result in cli_results if cli_result.cmd]
+    unknowns = [cli_result.unknown for cli_result in cli_results if cli_result.unknown]
+    bind_dir_paths += [
+        cli_result.bindpath for cli_result in cli_results if cli_result.bindpath
+    ]
 
     if len(unknowns) > 0:
         msg = ", ".join([f"{t[0]} {t[1]}" for t in unknowns])
         raise ValueError(f"Unknown wsclean option types: {msg}")
 
-    cmd += f"{str(ms.path)} "
+    cmds += [f"-name {str(name_argument_path)}"]
+    cmds += [f"{str(ms.path)} "]
+
+    bind_dir_paths.append(ms.path.parent)
+
+    cmd = "wsclean " + " ".join(cmds)
 
     logger.info(f"Constructed wsclean command: {cmd=}")
     logger.info("Setting default model data column to 'MODEL_DATA'")
@@ -389,6 +484,7 @@ def create_wsclean_cmd(
             container=container,
             bind_dirs=tuple(bind_dir_paths),
             move_hold_directories=(move_directory, hold_directory),
+            image_prefix_str=str(name_argument_path),
         )
 
     return wsclean_cmd
@@ -399,15 +495,22 @@ def run_wsclean_imager(
     container: Path,
     bind_dirs: Optional[Tuple[Path]] = None,
     move_hold_directories: Optional[Tuple[Path, Optional[Path]]] = None,
+    image_prefix_str: Optional[str] = None,
 ) -> WSCleanCommand:
     """Run a provided wsclean command. Optionally will clean up files,
     including the dirty beams, psfs and other assorted things.
+
+    An `ImageSet` is constructed that attempts to capture the output wsclean image products. If `image_prefix_str`
+    is specified the image set will be created by (ordered by preference):
+    #. Adding the `image_prefix_str` to the `move_directory`
+    #. Guessing it from the path of the measurement set from `wsclean_cmd.ms.path`
 
     Args:
         wsclean_cmd (WSCleanCommand): The command to run, and other properties (cleanup.)
         container (Path): Path to the container with wsclean available in it
         bind_dirs (Optional[Tuple[Path]], optional): Additional directories to include when binding to the wsclean container. Defaults to None.
         move_hold_directories (Optional[Tuple[Path,Optional[Path]]], optional): The `move_directory` and `hold_directory` passed to the temporary context manger. If None no `hold_then_move_into` manager is used. Defaults to None.
+        image_prefix_str (Optional[str], optional): The name used to search for wsclean outputs. If None, it is guessed from the name and location of the MS. Defaults to None.
 
     Returns:
         WSCleanCommand: The executed wsclean command with a populated imageset properter.
@@ -433,6 +536,13 @@ def run_wsclean_imager(
                 bind_dirs=sclient_bind_dirs,
                 stream_callback_func=_wsclean_output_callback,
             )
+
+            # Update the prefix based on where the files will be moved to
+            image_prefix_str = (
+                f"{str(move_hold_directories[0] / Path(image_prefix_str).name)}"
+                if image_prefix_str
+                else None
+            )
     else:
         run_singularity_command(
             image=container,
@@ -441,9 +551,9 @@ def run_wsclean_imager(
             stream_callback_func=_wsclean_output_callback,
         )
 
-    prefix = wsclean_cmd.options.name
+    prefix = image_prefix_str if image_prefix_str else None
     if prefix is None:
-        prefix = ms[0].path.name
+        prefix = str(ms[0].path.parent / ms[0].path.name)
         logger.warning(f"Setting prefix to {prefix}. Likely this is not correct. ")
 
     if wsclean_cmd.cleanup:
@@ -472,7 +582,6 @@ def run_wsclean_imager(
 def wsclean_imager(
     ms: Union[Path, MS],
     wsclean_container: Path,
-    wsclean_options_path: Optional[Path] = None,
     update_wsclean_options: Optional[Dict[str, Any]] = None,
 ) -> WSCleanCommand:
     """Create and run a wsclean imager command against a measurement set.
@@ -480,7 +589,6 @@ def wsclean_imager(
     Args:
         ms (Union[Path,MS]): Path to the measurement set that will be imaged
         wsclean_container (Path): Path to the container with wsclean installed
-        wsclean_options_path (Optional[Path], optional): Location of a wsclean set of options. Defaults to None.
         update_wsclean_options (Optional[Dict[str, Any]], optional): Additional options to update the generated WscleanOptions with. Keys should be attributes of WscleanOptions. Defaults ot None.
 
     Returns:
@@ -490,22 +598,10 @@ def wsclean_imager(
     # TODO: This should be expanded to support multiple measurement sets
     ms = MS.cast(ms)
 
-    if wsclean_options_path:
-        logger.warning(
-            "This is a place holder for loading a wsclean imager parameter file. It is being ignored. "
-        )
-
     wsclean_options = WSCleanOptions()
-    if update_wsclean_options is not None:
+    if update_wsclean_options:
         logger.info("Updatting wsclean options with user-provided items. ")
         wsclean_options = wsclean_options.with_options(**update_wsclean_options)
-
-    if wsclean_options.name is None:
-        # TODO: Come up with a consistent naming scheme. Add in a naming submodule
-        # to consolidate this functionality
-        wsclean_name = ms.path.absolute().parent / ms.path.stem
-        logger.warning(f"Autogenerated wsclean output name: {wsclean_name}")
-        wsclean_options = wsclean_options.with_options(name=str(wsclean_name))
 
     assert ms.column is not None, "A MS column needs to be elected for imaging. "
     wsclean_options = wsclean_options.with_options(data_column=ms.column)

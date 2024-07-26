@@ -11,11 +11,14 @@ from flint.imager.wsclean import (
     ImageSet,
     WSCleanCommand,
     WSCleanOptions,
+    _resolve_wsclean_key_value_to_cli_str,
     _wsclean_output_callback,
     create_wsclean_cmd,
+    create_wsclean_name_argument,
     get_wsclean_output_names,
 )
 from flint.ms import MS
+from flint.naming import create_imaging_name_prefix
 from flint.utils import get_packaged_resource_path
 
 
@@ -42,6 +45,70 @@ def set_env():
     os.environ["LOCALDIR"] = "Pirates/be/here"
 
 
+def test_resolve_key_value_to_cli():
+    """The wsclean command generation operates over keys and values, and
+    the formatting is partly based on the type a value has. This goes through
+    those checks"""
+    res = _resolve_wsclean_key_value_to_cli_str("size", 1024)
+    assert res.cmd == "-size 1024 1024"
+    assert res.bindpath is None
+    assert res.unknown is None
+
+    res = _resolve_wsclean_key_value_to_cli_str("no_update_model_required", True)
+    assert res.cmd == "-no-update-model-required"
+    assert res.bindpath is None
+    assert res.unknown is None
+
+    res = _resolve_wsclean_key_value_to_cli_str("no_update_model_required", False)
+    assert res.cmd is None
+    assert res.bindpath is None
+    assert res.unknown is None
+
+    res = _resolve_wsclean_key_value_to_cli_str("temp_dir", Path("jack/sparrow"))
+    assert res.cmd == "-temp-dir jack/sparrow"
+    assert res.bindpath == Path("jack/sparrow")
+    assert res.unknown is None
+
+    unknown = WSCleanOptions
+    res = _resolve_wsclean_key_value_to_cli_str("temp_dir", unknown)
+    assert res.cmd is None
+    assert res.bindpath is None
+    assert res.unknown == ("temp_dir", unknown)
+
+
+def test_create_wsclean_name(ms_example):
+    """Test the creation of a wsclean name argument"""
+    name = create_imaging_name_prefix(ms=ms_example)
+    assert name == "SB39400.RACS_0635-31.beam0.small"
+
+    for pol in ("i", "I"):
+        name = create_imaging_name_prefix(ms=ms_example, pol=pol)
+        assert name == "SB39400.RACS_0635-31.beam0.small.poli"
+
+
+def test_create_wsclean_name_argument(ms_example):
+    """Ensure that the generated name argument behaves as expected"""
+
+    ms = MS.cast(ms=Path(ms_example))
+    wsclean_options = WSCleanOptions()
+    name_argument_path = create_wsclean_name_argument(
+        wsclean_options=wsclean_options, ms=ms
+    )
+
+    parent = str(Path(ms_example).parent)
+    assert isinstance(name_argument_path, Path)
+    assert f"{parent}/SB39400.RACS_0635-31.beam0.small.poli" == str(name_argument_path)
+
+    wsclean_options_2 = WSCleanOptions(temp_dir="/jack/sparrow")
+    name_argument_path = create_wsclean_name_argument(
+        wsclean_options=wsclean_options_2, ms=ms
+    )
+
+    assert "/jack/sparrow/SB39400.RACS_0635-31.beam0.small.poli" == str(
+        name_argument_path
+    )
+
+
 def test_create_wsclean_command(ms_example):
     """Test whether WSCleanOptions can be correctly cast to a command string"""
     wsclean_options = WSCleanOptions()
@@ -61,6 +128,7 @@ def test_create_wsclean_command_with_environment(ms_example):
     )
     assert isinstance(command, WSCleanCommand)
     assert "Pirates/be/here" in command.cmd
+    assert command.cmd.startswith("wsclean ")
 
 
 def test_wsclean_divergence():
