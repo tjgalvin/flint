@@ -498,9 +498,13 @@ def create_wsclean_cmd(
 
 
 def combine_subbands_to_cube(
-    imageset: ImageSet, remove_original_images: bool = False
+    imageset: ImageSet,
+    remove_original_images: bool = False,
 ) -> ImageSet:
-    """Combine wsclean subband channel images into a cube
+    """Combine wsclean subband channel images into a cube. Each collection attribute
+    of the input `imageset` will be inspected. The MFS images will be ignored.
+
+    A output file name will be generated based on the  prefix and mode (e.g. `image`, `residual`, `psf`, `dirty`).
 
     Args:
         imageset (ImageSet): Collection of wsclean image productds
@@ -539,7 +543,7 @@ def combine_subbands_to_cube(
 
         # TODOL This could be moved to the naming module
         output_cube_name = (
-            image_prefix.parent / f"{str(image_prefix.stem)}.{mode}.cube.fits"
+            Path(image_prefix.parent) / f"{str(image_prefix.stem)}.{mode}.cube.fits"
         )
         logger.info(f"Writing {output_cube_name=}")
         hdu1.writeto(output_cube_name, overwrite=True)

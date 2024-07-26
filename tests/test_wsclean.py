@@ -46,7 +46,7 @@ def set_env():
     os.environ["LOCALDIR"] = "Pirates/be/here"
 
 
-def test_combine_subbands_to_cube():
+def test_combine_subbands_to_cube(tmpdir):
     """Load in example fits images to combine into a cube"""
     files = [
         get_packaged_resource_path(
@@ -55,6 +55,8 @@ def test_combine_subbands_to_cube():
         )
         for i in range(3)
     ]
+    files = [Path(shutil.copy(Path(f), Path(tmpdir))) for f in files]
+
     assert len(files) == 3
     assert all([f.exists() for f in files])
     file_parent = files[0].parent
@@ -64,12 +66,15 @@ def test_combine_subbands_to_cube():
         image=files,
     )
 
-    new_imageset = combine_subbands_to_cube(imageset=imageset)
+    new_imageset = combine_subbands_to_cube(
+        imageset=imageset, remove_original_images=False
+    )
+
     assert new_imageset.prefix == imageset.prefix
     assert len(new_imageset.image) == 1
 
     with pytest.raises(TypeError):
-        _ = combine_subbands_to_cube(imageset=files)  # type: ignore
+        _ = combine_subbands_to_cube(imageset=files, remove_original_images=False)  # type: ignore
 
 
 def test_resolve_key_value_to_cli():
