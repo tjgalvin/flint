@@ -16,7 +16,11 @@ from flint.ms import MS
 from flint.options import options_to_dict
 from flint.naming import create_imaging_name_prefix
 from flint.sclient import run_singularity_command
-from flint.utils import get_environment_variable, hold_then_move_into
+from flint.utils import (
+    get_environment_variable,
+    hold_then_move_into,
+    remove_files_folders,
+)
 
 
 class ImageSet(NamedTuple):
@@ -493,26 +497,36 @@ def create_wsclean_cmd(
     return wsclean_cmd
 
 
-def combine_subbands_to_cube(imageset: ImageSet) -> ImageSet:
+def combine_subbands_to_cube(
+    imageset: ImageSet, remove_original_images: bool = False
+) -> ImageSet:
     """Combine wsclean subband channel images into a cube
 
     Args:
         imageset (ImageSet): Collection of wsclean image productds
+        remove_original_images (bool, optional): If True, images that went into the cube are removed. Defaults to False.
 
     Returns:
         ImageSet: Updated iamgeset describing the new outputs
     """
+    logger.info("Combining subband images into a cude")
 
     image_prefix = Path(imageset.prefix)
 
     imageset_dict = options_to_dict(input_options=imageset)
 
-    for mode in ("image", "residual"):
+    for mode in ("image", "residual", "dirty", "model", "psf"):
+        if imageset_dict[mode] is None or not isinstance(
+            imageset_dict[mode], (list, tuple)
+        ):
+            logger.info(f"{mode=} is None or not appropriately formed. Skipping. ")
+            continue
+
         subband_images = [
             image for image in imageset_dict[mode] if "-MFS-" not in str(image)
         ]
         if len(subband_images) <= 1:
-            logger.info(f"Note enough subband images for {mode=}, not creating a cube")
+            logger.info(f"Not enough subband images for {mode=}, not creating a cube")
             continue
 
         logger.info(f"Combining {len(subband_images)} images. {subband_images=}")
@@ -528,6 +542,9 @@ def combine_subbands_to_cube(imageset: ImageSet) -> ImageSet:
         imageset_dict[mode] = [Path(output_cube_name)] + [
             image for image in imageset_dict[mode] if image not in subband_images
         ]
+
+        if remove_original_images:
+            remove_files_folders(*subband_images)
 
     return ImageSet(**imageset_dict)
 
@@ -619,7 +636,9 @@ def run_wsclean_imager(
     )
 
     if make_cube_from_subbands:
-        imageset = combine_subbands_to_cube(imageset=imageset)
+        imageset = combine_subbands_to_cube(
+            imageset=imageset, remove_original_images=True
+        )
 
     logger.info(f"Constructed {imageset=}")
 
