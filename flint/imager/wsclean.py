@@ -511,6 +511,11 @@ def combine_subbands_to_cube(
     """
     logger.info("Combining subband image products into fits cubes")
 
+    if not isinstance(imageset, ImageSet):
+        raise TypeError(
+            f"Input imageset of type {type(imageset)}, expect {type(ImageSet)}"
+        )
+
     image_prefix = Path(imageset.prefix)
 
     imageset_dict = options_to_dict(input_options=imageset)
