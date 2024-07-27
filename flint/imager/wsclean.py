@@ -8,12 +8,19 @@ from numbers import Number
 from pathlib import Path
 from typing import Any, Collection, Dict, List, NamedTuple, Optional, Tuple, Union
 
+from fitscube.combine_fits import combine_fits
+
 from flint.exceptions import CleanDivergenceError
 from flint.logging import logger
 from flint.ms import MS
 from flint.naming import create_imaging_name_prefix
+from flint.options import options_to_dict
 from flint.sclient import run_singularity_command
-from flint.utils import get_environment_variable, hold_then_move_into
+from flint.utils import (
+    get_environment_variable,
+    hold_then_move_into,
+    remove_files_folders,
+)
 
 
 class ImageSet(NamedTuple):
@@ -284,7 +291,7 @@ def delete_wsclean_outputs(
 
     for path in paths:
         if ignore_mfs and "-MFS-" in str(path.name):
-            logger.info(f"{path} appears to be an MFS product, not removing. ")
+            logger.info(f"{path=} appears to be an MFS product, not removing. ")
             continue
         if path.exists():
             logger.warning(f"Removing {path}.")
@@ -490,11 +497,73 @@ def create_wsclean_cmd(
     return wsclean_cmd
 
 
+def combine_subbands_to_cube(
+    imageset: ImageSet,
+    remove_original_images: bool = False,
+) -> ImageSet:
+    """Combine wsclean subband channel images into a cube. Each collection attribute
+    of the input `imageset` will be inspected. The MFS images will be ignored.
+
+    A output file name will be generated based on the  prefix and mode (e.g. `image`, `residual`, `psf`, `dirty`).
+
+    Args:
+        imageset (ImageSet): Collection of wsclean image productds
+        remove_original_images (bool, optional): If True, images that went into the cube are removed. Defaults to False.
+
+    Returns:
+        ImageSet: Updated iamgeset describing the new outputs
+    """
+    logger.info("Combining subband image products into fits cubes")
+
+    if not isinstance(imageset, ImageSet):
+        raise TypeError(
+            f"Input imageset of type {type(imageset)}, expect {type(ImageSet)}"
+        )
+
+    image_prefix = Path(imageset.prefix)
+
+    imageset_dict = options_to_dict(input_options=imageset)
+
+    for mode in ("image", "residual", "dirty", "model", "psf"):
+        if imageset_dict[mode] is None or not isinstance(
+            imageset_dict[mode], (list, tuple)
+        ):
+            logger.info(f"{mode=} is None or not appropriately formed. Skipping. ")
+            continue
+
+        subband_images = [
+            image for image in imageset_dict[mode] if "-MFS-" not in str(image)
+        ]
+        if len(subband_images) <= 1:
+            logger.info(f"Not enough subband images for {mode=}, not creating a cube")
+            continue
+
+        logger.info(f"Combining {len(subband_images)} images. {subband_images=}")
+        hdu1, freqs = combine_fits(file_list=subband_images)
+
+        # TODOL This could be moved to the naming module
+        output_cube_name = (
+            Path(image_prefix.parent) / f"{str(image_prefix.stem)}.{mode}.cube.fits"
+        )
+        logger.info(f"Writing {output_cube_name=}")
+        hdu1.writeto(output_cube_name, overwrite=True)
+
+        imageset_dict[mode] = [Path(output_cube_name)] + [
+            image for image in imageset_dict[mode] if image not in subband_images
+        ]
+
+        if remove_original_images:
+            remove_files_folders(*subband_images)
+
+    return ImageSet(**imageset_dict)
+
+
 def run_wsclean_imager(
     wsclean_cmd: WSCleanCommand,
     container: Path,
     bind_dirs: Optional[Tuple[Path]] = None,
     move_hold_directories: Optional[Tuple[Path, Optional[Path]]] = None,
+    make_cube_from_subbands: bool = True,
     image_prefix_str: Optional[str] = None,
 ) -> WSCleanCommand:
     """Run a provided wsclean command. Optionally will clean up files,
@@ -510,6 +579,7 @@ def run_wsclean_imager(
         container (Path): Path to the container with wsclean available in it
         bind_dirs (Optional[Tuple[Path]], optional): Additional directories to include when binding to the wsclean container. Defaults to None.
         move_hold_directories (Optional[Tuple[Path,Optional[Path]]], optional): The `move_directory` and `hold_directory` passed to the temporary context manger. If None no `hold_then_move_into` manager is used. Defaults to None.
+        make_cube_from_subbands (bool, optional): Form a single FITS cube from the set of sub-band images wsclean produces. Defaults to False.
         image_prefix_str (Optional[str], optional): The name used to search for wsclean outputs. If None, it is guessed from the name and location of the MS. Defaults to None.
 
     Returns:
@@ -573,6 +643,11 @@ def run_wsclean_imager(
         output_types=("image", "residual"),
         check_exists_when_adding=True,
     )
+
+    if make_cube_from_subbands:
+        imageset = combine_subbands_to_cube(
+            imageset=imageset, remove_original_images=True
+        )
 
     logger.info(f"Constructed {imageset=}")
 

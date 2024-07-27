@@ -12,12 +12,38 @@ from __future__ import (  # Used for mypy/pylance to like the return type of MS.
 )
 
 from pathlib import Path
-from typing import Collection, List, NamedTuple, Optional, Union
+from typing import Any, Collection, Dict, List, NamedTuple, Optional, Union
 
 import yaml
 
 from flint.exceptions import MSError
 from flint.logging import logger
+
+
+def options_to_dict(input_options: Any) -> Dict:
+    """Helper function to convert an `Options` type class to a dictionary.
+
+    Most of `flint` `Option` and `Result` classes used `typing.NamedTuples`, which carry with
+    it a `_asdict` method to convert them to a dictionary. Future roadmap plans to move over to
+    pydantic type models. This is a place holder function to help transition to this.
+
+    Args:
+        input_options (Any): Item to convert to a dictionary
+
+    Raises:
+        TypeError: Raised if the conversion to a dictionary was not successful
+
+    Returns:
+        Dict: The dictionary version of the input options
+    """
+
+    if "_asdict" in dir(input_options):
+        return input_options._asdict()
+
+    try:
+        return dict(**input_options)
+    except TypeError:
+        raise TypeError(f"Input options is not known: {type(input_options)}")
 
 
 class BandpassOptions(NamedTuple):

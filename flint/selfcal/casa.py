@@ -328,6 +328,10 @@ def gaincal_applycal_ms(
     if archive_cal_table:
         zip_folder(in_path=cal_table)
 
+    flag_versions_table = cal_ms.path.with_suffix(".ms.flagversions")
+    if flag_versions_table.exists():
+        zip_folder(in_path=flag_versions_table)
+
     return cal_ms.with_options(column="CORRECTED_DATA")
 
 

@@ -7,8 +7,29 @@ from pathlib import Path
 
 import pytest
 
-from flint.options import FieldOptions, dump_field_options_to_yaml
+from flint.options import FieldOptions, dump_field_options_to_yaml, options_to_dict
 from flint.prefect.flows.continuum_pipeline import get_parser
+
+
+def test_options_to_dict():
+    """See ifthe utility around converting Option/Results to dictionary works"""
+    flagger_container = Path("a")
+    calibrate_container = Path("b")
+    field_options_1 = FieldOptions(
+        flagger_container=flagger_container, calibrate_container=calibrate_container
+    )
+    field_options_2 = dict(
+        flagger_container=flagger_container, calibrate_container=calibrate_container
+    )
+
+    for field_options in (field_options_1, field_options_2):
+        field_dict = options_to_dict(input_options=field_options)
+        assert isinstance(field_dict, dict)
+        assert field_dict["flagger_container"] == flagger_container
+        assert field_dict["calibrate_container"] == calibrate_container
+
+    with pytest.raises(TypeError):
+        _ = options_to_dict(input_options="Jack")
 
 
 def test_dump_field_options_to_yaml(tmpdir):
