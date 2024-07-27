@@ -14,6 +14,7 @@ from flint.naming import (
     casda_ms_format,
     create_fits_mask_names,
     create_ms_name,
+    create_image_cube_name,
     extract_beam_from_name,
     extract_components_from_name,
     get_aocalibrate_output_path,
@@ -24,6 +25,29 @@ from flint.naming import (
     processed_ms_format,
     raw_ms_format,
 )
+
+
+def test_create_image_cube_name():
+    """Put together a consistent file cube name"""
+    name = create_image_cube_name(
+        image_prefix=Path(
+            "/jack/sparrow/worst/pirate/flint_fitscube/57222/SB57222.RACS_1141-55.beam10.round3.poli"
+        ),
+        mode="image",
+    )
+    assert isinstance(name, Path)
+    assert name == Path(
+        "/jack/sparrow/worst/pirate/flint_fitscube/57222/SB57222.RACS_1141-55.beam10.round3.poli.image.cube.fits"
+    )
+
+    name = create_image_cube_name(
+        image_prefix=Path("./57222/SB57222.RACS_1141-55.beam10.round3.poli"),
+        mode="residual",
+    )
+    assert isinstance(name, Path)
+    assert name == Path(
+        "./57222/SB57222.RACS_1141-55.beam10.round3.poli.residual.cube.fits"
+    )
 
 
 def test_get_beam_resolution_str():

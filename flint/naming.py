@@ -11,6 +11,30 @@ from flint.logging import logger
 from flint.options import MS
 
 
+def create_image_cube_name(
+    image_prefix: Path, mode: str, suffix: str = "cube.fits"
+) -> Path:
+    """Create a consistent naming scheme when combining images into cube images. Intended to
+    be used whhen combining many subband images together into a single cube.
+
+    The name returned will be:
+    >> {image_prefix}.{mode}.{suffix}
+
+    Args:
+        image_prefix (Path): The unique path of the name. Generally this is the common part among the input planes
+        mode (str): Additional mode to add to the file name
+        suffix (str, optional): The final suffix to appened. Defaults to ".cube.fits".
+
+    Returns:
+        Path: The final path and file name
+    """
+    # NOTE: This is likely a function to grow in time as more imaging and pipeline modes added. Putting
+    # it here for future proofing
+    output_cube_name = f"{str(Path(image_prefix))}.{mode}.{suffix}"
+
+    return Path(output_cube_name)
+
+
 def create_imaging_name_prefix(ms: Union[MS, Path], pol: Optional[str] = None) -> str:
     """Given a measurement set and a polarisation, create the naming prefix to be used
     by some imager

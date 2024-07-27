@@ -13,7 +13,7 @@ from fitscube.combine_fits import combine_fits
 from flint.exceptions import CleanDivergenceError
 from flint.logging import logger
 from flint.ms import MS
-from flint.naming import create_imaging_name_prefix
+from flint.naming import create_imaging_name_prefix, create_image_cube_name
 from flint.options import options_to_dict
 from flint.sclient import run_singularity_command
 from flint.utils import (
@@ -542,8 +542,8 @@ def combine_subbands_to_cube(
         hdu1, freqs = combine_fits(file_list=subband_images)
 
         # TODOL This could be moved to the naming module
-        output_cube_name = (
-            Path(image_prefix.parent) / f"{str(image_prefix.stem)}.{mode}.cube.fits"
+        output_cube_name = create_image_cube_name(
+            image_prefix=imageset.prefix, mode=mode
         )
         logger.info(f"Writing {output_cube_name=}")
         hdu1.writeto(output_cube_name, overwrite=True)
