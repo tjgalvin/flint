@@ -539,9 +539,8 @@ def combine_subbands_to_cube(
         logger.info(f"Combining {len(subband_images)} images. {subband_images=}")
         hdu1, freqs = combine_fits(file_list=subband_images)
 
-        # TODOL This could be moved to the naming module
         output_cube_name = create_image_cube_name(
-            image_prefix=imageset.prefix, mode=mode
+            image_prefix=Path(imageset.prefix), mode=mode
         )
         logger.info(f"Writing {output_cube_name=}")
         hdu1.writeto(output_cube_name, overwrite=True)
