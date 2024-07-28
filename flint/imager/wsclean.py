@@ -8,6 +8,7 @@ from numbers import Number
 from pathlib import Path
 from typing import Any, Collection, Dict, List, NamedTuple, Optional, Tuple, Union
 
+import numpy as np
 from fitscube.combine_fits import combine_fits
 
 from flint.exceptions import CleanDivergenceError
@@ -544,6 +545,9 @@ def combine_subbands_to_cube(
         )
         logger.info(f"Writing {output_cube_name=}")
         hdu1.writeto(output_cube_name, overwrite=True)
+
+        output_freqs_name = Path(output_cube_name).with_suffix(".freqs_Hz.txt")
+        np.savetxt(output_freqs_name, freqs.to("Hz").value)
 
         imageset_dict[mode] = [Path(output_cube_name)] + [
             image for image in imageset_dict[mode] if image not in subband_images
