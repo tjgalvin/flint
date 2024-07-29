@@ -251,7 +251,7 @@ class ProcessedNameComponents(NamedTuple):
     """Container for a file name derived from a MS flint name. Generally of the
     form: SB.Field.Beam.Spw"""
 
-    sbid: int
+    sbid: str
     """The sbid of the observation"""
     field: str
     """The name of the field extracted"""
@@ -261,6 +261,8 @@ class ProcessedNameComponents(NamedTuple):
     """The SPW of the observation. If there is only one spw this is None."""
     round: Optional[str] = None
     """The self-calibration round detected. This might be represented as 'noselfcal' in some image products, e.g. linmos. """
+    pol: Optional[str] = None
+    """The polarisation component, if it exists, in a filename. Examples are 'i','q','u','v'. Could be combinations in some cases depending on how it was created (e.g. based on wsclean pol option). """
 
 
 def processed_ms_format(
@@ -281,7 +283,7 @@ def processed_ms_format(
     logger.debug(f"Matching {in_name}")
     # A raw string is used to avoid bad unicode escaping
     regex = re.compile(
-        r"^SB(?P<sbid>[0-9]+)\.(?P<field>.+)\.beam(?P<beam>[0-9]+)((\.spw(?P<spw>[0-9]+))?)((\.round(?P<round>[0-9]+))?)*"
+        r"^SB(?P<sbid>[0-9]+)\.(?P<field>.+)\.beam(?P<beam>[0-9]+)((\.spw(?P<spw>[0-9]+))?)((\.round(?P<round>[0-9]+))?)((\.pol(?P<pol>[a-zA-z]+))?)*"
     )
     results = regex.match(in_name)
 
@@ -299,6 +301,7 @@ def processed_ms_format(
         beam=groups["beam"],
         spw=groups["spw"],
         round=groups["round"],
+        pol=groups["pol"],
     )
 
 

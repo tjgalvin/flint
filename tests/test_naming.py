@@ -162,7 +162,7 @@ def test_potato_output_name():
 
 
 def test_add_timestamp_to_path():
-    # make sure adding a timestamp to a file name works
+    """make sure adding a timestamp to a file name works"""
     dd = datetime(2024, 4, 12, 10, 30, 50, 243910)
 
     example_str = "/test/this/is/filename.txt"
@@ -322,26 +322,30 @@ def test_components_all_beams_spws():
 def test_create_ms_name():
     example_path = "/scratch3/gal16b/askap_sbids/39400/2022-04-14_100122_0.ms"
     expected = "SB39400.beam00.ms"
-    ms_path = create_ms_name(ms_path=example_path)
+    ms_path = create_ms_name(ms_path=Path(example_path))
     assert isinstance(ms_path, str)
     assert ms_path == expected
     assert ms_path.endswith(".ms")
 
     example_path_2 = "/scratch3/gal16b/askap_sbids/39400/2022-04-14_100122_0.ms"
     expected_2 = "SB39400.RACS_0635-31.beam00.ms"
-    ms_path_2 = create_ms_name(ms_path=example_path_2, field="RACS_0635-31")
+    ms_path_2 = create_ms_name(ms_path=Path(example_path_2), field="RACS_0635-31")
     assert isinstance(ms_path_2, str)
     assert ms_path_2 == expected_2
 
     example_path_3 = "/scratch3/gal16b/askap_sbids/39400/2022-04-14_100122_0.ms"
     expected_3 = "SB1234.RACS_0635-31.beam00.ms"
-    ms_path_3 = create_ms_name(ms_path=example_path_3, sbid=1234, field="RACS_0635-31")
+    ms_path_3 = create_ms_name(
+        ms_path=Path(example_path_3), sbid=1234, field="RACS_0635-31"
+    )
     assert isinstance(ms_path_3, str)
     assert ms_path_3 == expected_3
 
     example_path_4 = "/scratch3/gal16b/askap_sbids/39400/2022-04-14_100122_0_12.ms"
     expected_4 = "SB1234.RACS_0635-31.beam00.spw12.ms"
-    ms_path_4 = create_ms_name(ms_path=example_path_4, sbid=1234, field="RACS_0635-31")
+    ms_path_4 = create_ms_name(
+        ms_path=Path(example_path_4), sbid=1234, field="RACS_0635-31"
+    )
     assert isinstance(ms_path_4, str)
     assert ms_path_4 == expected_4
 
@@ -349,7 +353,7 @@ def test_create_ms_name():
         "scienceData.RACS_1237+00.SB40470.RACS_1237+00.beam35_averaged_cal.leakage.ms",
     ]
     for ex in examples:
-        name = create_ms_name(ms_path=ex)
+        name = create_ms_name(ms_path=Path(ex))
         assert name == "SB40470.RACS_1237+00.beam35.ms"
 
 
@@ -370,6 +374,52 @@ def test_create_ms_name_no_sbid():
     ms_path_3 = create_ms_name(ms_path=example_path_3, field="RACS_0635-31")
     assert isinstance(ms_path_3, str)
     assert ms_path_3 == expected_3
+
+
+def test_formatted_name_components_withpol():
+    ex = "SB39400.RACS_0635-31.beam33-MFS-image.conv.fits"
+
+    components = processed_ms_format(in_name=ex)
+    assert isinstance(components, ProcessedNameComponents)
+    assert components.sbid == "39400"
+    assert components.field == "RACS_0635-31"
+    assert components.beam == "33"
+    assert components.spw is None
+    assert components.round is None
+    assert components.pol == None
+
+    ex = "SB39400.RACS_0635-31.beam33.poli-MFS-image.conv.fits"
+
+    components = processed_ms_format(in_name=ex)
+    assert isinstance(components, ProcessedNameComponents)
+    assert components.sbid == "39400"
+    assert components.field == "RACS_0635-31"
+    assert components.beam == "33"
+    assert components.spw is None
+    assert components.round is None
+    assert components.pol == "i"
+
+    ex = "SB39400.RACS_0635-31.beam33.round2.poli-MFS-image.conv.fits"
+
+    components = processed_ms_format(in_name=ex)
+    assert isinstance(components, ProcessedNameComponents)
+    assert components.sbid == "39400"
+    assert components.field == "RACS_0635-31"
+    assert components.beam == "33"
+    assert components.spw is None
+    assert components.round == "2"
+    assert components.pol == "i"
+
+    ex = "SB39400.RACS_0635-31.beam33.round2.poliq-MFS-image.conv.fits"
+
+    components = processed_ms_format(in_name=ex)
+    assert isinstance(components, ProcessedNameComponents)
+    assert components.sbid == "39400"
+    assert components.field == "RACS_0635-31"
+    assert components.beam == "33"
+    assert components.spw is None
+    assert components.round == "2"
+    assert components.pol == "iq"
 
 
 def test_formatted_name_components():
