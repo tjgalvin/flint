@@ -150,7 +150,7 @@ class WSCleanCommand(NamedTuple):
     """The constructede wsclean command that would be executed."""
     options: WSCleanOptions
     """The set of wslean options used for imaging"""
-    ms: Union[MS, Tuple[MS]]
+    ms: MS
     """The measurement sets that have been included in the wsclean command. """
     imageset: Optional[ImageSet] = None
     """Collection of images produced by wsclean"""
