@@ -310,10 +310,6 @@ def process_science_fields(
                     reference_catalogue_directory=field_options.reference_catalogue_directory,
                 )
 
-    if field_options.rounds is None:
-        logger.info("No self-calibration will be performed. Returning")
-        return
-
     # Set up the default value should the user activated mask option is not set
     fits_beam_masks = None
 
