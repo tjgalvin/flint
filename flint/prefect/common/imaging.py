@@ -303,8 +303,12 @@ def task_wsclean_imager(
             if "size" in update_wsclean_options
             else 8196
         )
-        mgain, gain = 0.7, 0.7
-        convergence_wsclean_options = dict(size=size, mgain=mgain, gain=gain)
+        mgain = (
+            max(0, update_wsclean_options["mgain"] - 0.1)
+            if "mgain" in update_wsclean_options
+            else 0.6
+        )
+        convergence_wsclean_options = dict(size=size, mgain=mgain)
         # dicts are mutable. Don't want to change for everything. Unclear to me
         # how prefect would behave here.
         update_wsclean_options = update_wsclean_options.copy().update(
