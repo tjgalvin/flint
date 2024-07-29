@@ -276,6 +276,8 @@ def task_wsclean_imager(
     Returns:
         WSCleanCommand: A resulting wsclean command and resulting meta-data
     """
+    from flint.exceptions import CleanDivergenceError
+
     ms = in_ms if isinstance(in_ms, MS) else in_ms.ms
 
     update_wsclean_options = (
@@ -286,11 +288,37 @@ def task_wsclean_imager(
         update_wsclean_options["fits_mask"] = fits_mask.mask_fits
 
     logger.info(f"wsclean inager {ms=}")
-    return wsclean_imager(
-        ms=ms,
-        wsclean_container=wsclean_container,
-        update_wsclean_options=update_wsclean_options,
-    )
+    try:
+        return wsclean_imager(
+            ms=ms,
+            wsclean_container=wsclean_container,
+            update_wsclean_options=update_wsclean_options,
+        )
+    except CleanDivergenceError:
+        # NOTE: If the cleaning failed retry with some larger images
+        # and slower cleaning. Perhaps this should be moved closer
+        # to the wscleaning functionality
+        size = (
+            update_wsclean_options["size"] + 1024
+            if "size" in update_wsclean_options
+            else 8196
+        )
+        mgain, gain = 0.7, 0.7
+        convergence_wsclean_options = dict(size=size, mgain=mgain, gain=gain)
+        # dicts are mutable. Don't want to change for everything. Unclear to me
+        # how prefect would behave here.
+        update_wsclean_options = update_wsclean_options.copy().update(
+            **convergence_wsclean_options
+        )
+        logger.warn(
+            f"Clean divergence dertected. Reruning. Updated options {convergence_wsclean_options=}"
+        )
+
+        return wsclean_imager(
+            ms=ms,
+            wsclean_container=wsclean_container,
+            update_wsclean_options=update_wsclean_options,
+        )
 
 
 @task
