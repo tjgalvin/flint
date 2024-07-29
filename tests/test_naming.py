@@ -377,6 +377,7 @@ def test_create_ms_name_no_sbid():
 
 
 def test_formatted_name_components_withpol():
+    """Tests around the pol field in a file name"""
     ex = "SB39400.RACS_0635-31.beam33-MFS-image.conv.fits"
 
     components = processed_ms_format(in_name=ex)
@@ -420,6 +421,17 @@ def test_formatted_name_components_withpol():
     assert components.spw is None
     assert components.round == "2"
     assert components.pol == "iq"
+
+    ex = "SB39400.RACS_0635-31.beam33.round2-MFS-image.conv.fits"
+
+    components = processed_ms_format(in_name=ex)
+    assert isinstance(components, ProcessedNameComponents)
+    assert components.sbid == "39400"
+    assert components.field == "RACS_0635-31"
+    assert components.beam == "33"
+    assert components.spw is None
+    assert components.round == "2"
+    assert components.pol is None
 
 
 def test_formatted_name_components():
