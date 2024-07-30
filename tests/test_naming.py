@@ -387,7 +387,7 @@ def test_formatted_name_components_withpol():
     assert components.beam == "33"
     assert components.spw is None
     assert components.round is None
-    assert components.pol == None
+    assert components.pol is None
 
     ex = "SB39400.RACS_0635-31.beam33.poli-MFS-image.conv.fits"
 
