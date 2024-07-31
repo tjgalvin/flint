@@ -28,6 +28,7 @@ Most of the `python` routines have a CLI that can be used to test them in a piec
 - `flint_potato`: Attempt to peel out known sources from a measurement set using [potatopeel](
 https://gitlab.com/Sunmish/potato/-/tree/main). Criteria used to assess which sources to peel is fairly minimumal, and at the time of writing only the reference set of sources paackaged within `flint` are considered.
 -`flint_archive`: Operations around archiving and copying final data products into place.
+-`flint_catalogue`: Download reference catalogues that are expected by `flint`
 
 The following commands use the `prefect` framework to link together individual tasks together (outlined above) into a single data-processing pipeline.
 - `flint_flow_bandpass_calibrate`: Executes a prefect flow run that will calibrate a set of ASKAP measurement sets taken during a normal bandpass observation sequence.
@@ -83,55 +84,80 @@ To help manage (and avoid) long CLI calls to conffigure `flint`, most command li
 
 The validation plots that are created are simple and aim to provide a quality assessment at a quick glance. An RMS image and corresponding source component catalogue are the base data products derived from the ASKAP data that are supplied to the routine.
 
-External catalogues are supplied to a source to compare against. In the current `flint` package these catalogues (and their expected columns) are:
+`flint` requires a set of reference catalogues to be present for some stages of operation, the obvious being the validation plots described above. In some computing environments (e.g. HPC) network access to external services are blocked. To avoid these issues `flint` has a built in utility to download the reference catalogues it expected from vizier and write them to a specified user directory. See:
+
+> `flint_catalogue download --help`
+
+The parent directory that contains these cataloguues should be provided to the appropriate tasks when appropriate. 
+
+In the current `flint` package these catalogues (and their expected columns) are:
 - ICRF
 
 ```
 Catalogue(
     survey="ICRF",
-    file_name="icrf.csv",
+    file_name="ICRF.fits",
     freq=1e9,
-    ra_col="RA",
-    dec_col="Dec",
-    name_col="IERS Des.",
+    ra_col="RAJ2000",
+    dec_col="DEJ2000",
+    name_col="ICRF",
     flux_col="None",
     maj_col="None",
     min_col="None",
     pa_col="None",
+    vizier_id="I/323/icrf2",
 )
 ```
 - NVSS
 ```
 Catalogue(
     survey="NVSS",
-    file_name="VIII_65_nvss.dat_CH_2.fits",
+    file_name="NVSS.fits",
     name_col="NVSS",
     freq=1.4e9,
-    ra_col="RA",
-    dec_col="Dec",
+    ra_col="RAJ2000",
+    dec_col="DEJ2000",
     flux_col="S1.4",
     maj_col="MajAxis",
     min_col="MinAxis",
     pa_col="PA",
+    vizier_id="VIII/65/nvss",
 )
 ```
 - SUMSS
 ```
 Catalogue(
     survey="SUMSS",
-    file_name="sumsscat.Mar-11-2008_CLH.fits",
+    file_name="SUMSS.fits",
     freq=8.43e8,
-    ra_col="RA",
-    dec_col="DEC",
+    ra_col="RAJ2000",
+    dec_col="DEJ2000",
     name_col="Mosaic",
     flux_col="St",
     maj_col="dMajAxis",
     min_col="dMinAxis",
     pa_col="dPA",
+    vizier_id="VIII/81B/sumss212",
+)
+```
+- RACS-LOW
+```
+Catalogue(
+    file_name="racs-low.fits",
+    survey="RACS-LOW",
+    freq=887.56e6,
+    ra_col="RAJ2000",
+    dec_col="DEJ2000",
+    name_col="GID",
+    flux_col="Ftot",
+    maj_col="amaj",
+    min_col="bmin",
+    pa_col="PA",
+    vizier_id="J/other/PASA/38.58/gausscut",
 )
 ```
 
-These catalogues are currently not distributed with the source code / python installable. Instead when required a parameter specifying their host directory on disk needs to be supplied. The known filename is used to find the appropriate catalogue and its full path.
+The known filename is used to find the appropriate catalogue and its full path, and are appropriately named when using the `flint_catalogue download` tool.
 
 
 ## Contributions
