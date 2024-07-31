@@ -18,6 +18,7 @@ from matplotlib.axes import Axes
 from matplotlib.figure import Figure
 from scipy import stats
 
+from flint.catalogue import Catalogue
 from flint.logging import logger
 from flint.naming import processed_ms_format
 from flint.summary import BeamSummary, FieldSummary
@@ -27,35 +28,6 @@ F_SMALL = 7
 F_MED = 8
 F_LARGE = 12
 F_HUGE = 20
-
-
-class Catalogue(NamedTuple):
-    """A basic structure used to describe a known catalogue."""
-
-    survey: str
-    """Shorthand name of the sourcey catalogue"""
-    file_name: str
-    """The file name of the known catalogue"""
-    freq: float  # Hertz
-    """Reference frequency of the catalogue, in Hertz"""
-    ra_col: str
-    """Column name containing the right-ascension"""
-    dec_col: str
-    """Column name containing the declination"""
-    name_col: str
-    """Column name containing the source/component name"""
-    flux_col: str
-    """Column name containing the flux density"""
-    maj_col: str
-    """Column name containing the major-axis of the source gaussian component"""
-    min_col: str
-    """Column name containing the min-axis of the source gaussian component"""
-    pa_col: str
-    """Column name containing the pa of the source gaussian component"""
-    alpha_col: Optional[str] = None  # Used to scale the SED
-    """Column name containing the spectral index, used to calculate the source SED. If None a default is used. """
-    q_col: Optional[str] = None  # Used to scale the SED
-    """Column name containing the curvature of the spectral index, used to calculate the source SED. If None a default is used. """
 
 
 class Catalogues(NamedTuple):
