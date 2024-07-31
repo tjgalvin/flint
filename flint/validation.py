@@ -30,8 +30,9 @@ F_LARGE = 12
 F_HUGE = 20
 
 
-class Catalogues(NamedTuple):
-    """Container for all the catalogues that are loaded in"""
+class ValidationCatalogues(NamedTuple):
+    """Container for all the catalogues that are loaded in and
+    used throughout validation processing"""
 
     nvss: Catalogue
     """NVSS catalogue"""
@@ -1065,7 +1066,7 @@ def load_catalogues(
     reference_catalogue_directory: Path,
     askap_survey_name: str,
     rms_info: RMSImageInfo,
-) -> Tuple[Catalogues, Tables]:
+) -> Tuple[ValidationCatalogues, Tables]:
     """Load in all the catalogues that are required for the validation.
 
     Args:
@@ -1075,7 +1076,7 @@ def load_catalogues(
         rms_info (RMSImageInfo): The extracted information from the RMS image
 
     Returns:
-        Tuple[Catalogues, Tables]: The loaded catalogues and tables
+        Tuple[ValidationCatalogues, Tables]: The loaded catalogues and tables
     """
     logger.info(f"Loading {source_catalogue_path=}")
     askap_table = Table.read(source_catalogue_path)
@@ -1102,7 +1103,7 @@ def load_catalogues(
     )
 
     return (
-        Catalogues(
+        ValidationCatalogues(
             askap=askap_cata,
             icrf=icrf_catalogue,
             sumss=sumss_catalogue,
