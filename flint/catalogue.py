@@ -127,6 +127,11 @@ def get_reference_catalogue(
     table_path = reference_directory / catalogue.file_name
     logger.info(f"Loading {table_path=}")
 
+    if not table_path.exists():
+        raise FileNotFoundError(
+            f"{table_path=} not found. Check {reference_directory=} for known catalogues"
+        )
+
     table = Table.read(table_path)
 
     if verify:

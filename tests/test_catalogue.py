@@ -18,6 +18,12 @@ def test_known_reference_catalogues():
     assert all([cata.vizier_id for cata in KNOWN_REFERENCE_CATALOGUES.values()])
 
 
+def test_no_reference_catalogue():
+    """Ensure file not found error raised if catalogue not found"""
+    with pytest.raises(FileNotFoundError):
+        _ = get_reference_catalogue(reference_directory=Path("./"), survey="NVSS")
+
+
 def test_download_vizier_catalogue(tmpdir):
     """Download a example vizier table"""
 

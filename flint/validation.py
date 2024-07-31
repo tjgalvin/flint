@@ -18,7 +18,7 @@ from matplotlib.axes import Axes
 from matplotlib.figure import Figure
 from scipy import stats
 
-from flint.catalogue import Catalogue
+from flint.catalogue import Catalogue, get_reference_catalogue
 from flint.logging import logger
 from flint.naming import processed_ms_format
 from flint.summary import BeamSummary, FieldSummary
@@ -284,17 +284,9 @@ def load_known_catalogue(
     Returns:
         Tuple[Table,Catalogue]: The loaded table and Catalogue structure describing the columns
     """
-    catalogue = get_known_catalogue_info(name=name)
-    catalogue_path = reference_catalogue_directory / catalogue.file_name
-    table = Table.read(catalogue_path)
-
-    if name == "SUMSS":
-        table[catalogue.flux_col] = table[catalogue.flux_col] * u.mJy
-    if name == "ICRF":
-        return table, catalogue
-
-    table[catalogue.flux_col] = table[catalogue.flux_col].to(u.Jy).value
-
+    table, catalogue = get_reference_catalogue(
+        reference_directory=reference_catalogue_directory, survey=name
+    )
     return table, catalogue
 
 
