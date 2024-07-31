@@ -75,10 +75,11 @@ def test_download_vizier_catalogue_dryrun(tmpdir):
     output_path = Path(tmpdir) / "cataloguedry/ICRF.fits"
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
-    icrf_id = KNOWN_REFERENCE_CATALOGUES["ICRF"]
+    icrf_cata = KNOWN_REFERENCE_CATALOGUES["ICRF"]
+    assert icrf_cata.vizier_id is not None
 
     cata_path = download_vizier_catalogue(
-        output_path=output_path, vizier_id=icrf_id, dry_run=True
+        output_path=output_path, vizier_id=icrf_cata.vizier_id, dry_run=True
     )
 
     assert cata_path == output_path
