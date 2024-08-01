@@ -14,7 +14,7 @@ from astropy.table.row import Row
 from casacore.tables import table
 from scipy.optimize import curve_fit
 
-from flint.catalogue import Catalogue, KNOWN_REFERENCE_CATALOGUES
+from flint.catalogue import KNOWN_REFERENCE_CATALOGUES, Catalogue
 from flint.logging import logger
 from flint.utils import get_packaged_resource_path
 

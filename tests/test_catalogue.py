@@ -1,15 +1,15 @@
 """Tests that work around the catalogue functionality"""
 
-import pytest
 from pathlib import Path
 
+import pytest
 from astropy.table import Table
 
 from flint.catalogue import (
-    download_vizier_catalogue,
-    download_referencce_catalogues,
-    get_reference_catalogue,
     KNOWN_REFERENCE_CATALOGUES,
+    download_referencce_catalogues,
+    download_vizier_catalogue,
+    get_reference_catalogue,
 )
 
 

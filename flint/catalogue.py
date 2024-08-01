@@ -1,15 +1,15 @@
-"""Utilities around catalogues. 
+"""Utilities around catalogues.
 
 Known reference catalogues are described by their ViZeR catalogue id,
 which are used to download and store the appropriately formed catalogues on disk.
 If the ViZeR service is down then attempts to download and form FITS catalgoues
 will fail. These only need to be downloaded once, provided they can be stored
-and retained on disk.  
+and retained on disk.
 """
 
 from argparse import ArgumentParser
 from pathlib import Path
-from typing import Tuple, Optional, NamedTuple
+from typing import NamedTuple, Optional, Tuple
 
 import astropy.units as u
 from astropy.table import Table
@@ -300,7 +300,6 @@ def get_parser() -> ArgumentParser:
 
 
 def cli() -> None:
-
     parser = get_parser()
 
     args = parser.parse_args()
