@@ -88,6 +88,10 @@ flint_flow_bandpass_calibrate = "flint.prefect.flows.bandpass_pipeline:cli"
 flint_flow_continuum_pipeline = "flint.prefect.flows.continuum_pipeline:cli"
 flint_flow_continuum_mask_pipeline = "flint.prefect.flows.continuum_mask_pipeline:cli"
 
+[[tool.mypy.overrides]]
+module = "astropy.*"
+ignore_missing_imports = true
+
 [tool.ruff]
 # Exclude a variety of commonly ignored directories.
 exclude = [

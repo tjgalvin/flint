@@ -7,10 +7,29 @@ from astropy.table import Table
 
 from flint.catalogue import (
     KNOWN_REFERENCE_CATALOGUES,
+    Catalogue,
     download_referencce_catalogues,
     download_vizier_catalogue,
     get_reference_catalogue,
+    _guess_catalogue_type,
 )
+from flint.utils import get_packaged_resource_path
+
+
+def test_catalogue_type():
+    """Testing the guessing of a catalogue. At the moment this
+    guess function is a stub function for the moment."""
+    table_path = get_packaged_resource_path(
+        package="flint.data.tests",
+        filename="SB38959.RACS_1357-18.noselfcal.linmos_comp.fits",
+    )
+    table = Table.read(table_path)
+
+    cata = _guess_catalogue_type(table=table_path)
+    assert isinstance(cata, Catalogue)
+
+    cata2 = _guess_catalogue_type(table=table)
+    assert isinstance(cata2, Catalogue)
 
 
 def test_known_reference_catalogues():
