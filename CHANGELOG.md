@@ -10,6 +10,11 @@
     - naming format of output linmos files could contain the pol field
     - `stokesv` imaging will not linmos the cleaning residuals together, even if the `--linmos-residuals` CLI is provided
 - Capture `CleanDivergenceError` from `wsclean` and rerun with larger image size and lower gain
+- Added `flint.catalogue`, which aims to collect all the catalogue related operations
+  - a `flint_catalogue` CLI program to:
+    - download reference catalogues that are known and expected from vizier
+    - verify reference catalogues conform to expectations
+    - list the reference catalogues that are expected
 
 # 0.2.5
 - added in skip rounds for masking and selfcal

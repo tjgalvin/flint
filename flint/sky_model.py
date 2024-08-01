@@ -14,37 +14,11 @@ from astropy.table.row import Row
 from casacore.tables import table
 from scipy.optimize import curve_fit
 
+from flint.catalogue import KNOWN_REFERENCE_CATALOGUES, Catalogue
 from flint.logging import logger
 from flint.utils import get_packaged_resource_path
 
 KNOWN_PB_TYPES = ("gaussian", "sincsquared", "airy")
-
-
-class Catalogue(NamedTuple):
-    """A basic structure used to describe a known catalogue."""
-
-    file_name: str
-    """The file name of the known catalogue"""
-    freq: float  # Hertz
-    """Reference frequency of the catalogue, in Hertz"""
-    ra_col: str
-    """Column name containing the right-ascension"""
-    dec_col: str
-    """Column name containing the declination"""
-    name_col: str
-    """Column name containing the source/component name"""
-    flux_col: str
-    """Column name containing the flux density"""
-    maj_col: str
-    """Column name containing the major-axis of the source gaussian component"""
-    min_col: str
-    """Column name containing the min-axis of the source gaussian component"""
-    pa_col: str
-    """Column name containing the pa of the source gaussian component"""
-    alpha_col: Optional[str] = None  # Used to scale the SED
-    """Column name containing the spectral index, used to calculate the source SED. If None a default is used. """
-    q_col: Optional[str] = None  # Used to scale the SED
-    """Column name containing the curvature of the spectral index, used to calculate the source SED. If None a default is used. """
 
 
 class CurvedPL(NamedTuple):
@@ -127,41 +101,7 @@ class SkyModel(NamedTuple):
 NORM_COLS = {"flux": "Jy", "maj": "arcsecond", "min": "arcsecond", "pa": "deg"}
 """Normalised column names and their corresponding astropy units. """
 
-KNOWN_CATAS: Dict[str, Catalogue] = {
-    "SUMSS": Catalogue(
-        file_name="sumsscat.Mar-11-2008_CLH.fits",
-        freq=843e6,
-        ra_col="RA",
-        dec_col="Dec",
-        name_col="Mosaic",
-        flux_col="Sp",
-        maj_col="dMajAxis",
-        min_col="dMinAxis",
-        pa_col="dPA",
-    ),
-    "RACS": Catalogue(
-        file_name="racs-low.fits",
-        freq=887.56e6,
-        ra_col="RA",
-        dec_col="Dec",
-        name_col="Gaussian_ID",
-        flux_col="Total_flux_Gaussian",
-        maj_col="DC_Maj",
-        min_col="DC_Min",
-        pa_col="DC_PA",
-    ),
-    "NVSS": Catalogue(
-        file_name="NVSS_vizier.fits",
-        freq=1400e6,
-        ra_col="RAJ2000",
-        dec_col="DEJ2000",
-        name_col="NVSS",
-        flux_col="S1_4",
-        maj_col="MajAxis",
-        min_col="MinAxis",
-        pa_col="PA",
-    ),
-}
+KNOWN_CATAS: Dict[str, Catalogue] = KNOWN_REFERENCE_CATALOGUES
 """Known sky-model catalogues that have had some pre-processing operations applied. Discuss with maintainers for access, """
 
 # TODO: Make this a yaml file packaged in data/models
