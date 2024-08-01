@@ -2,7 +2,7 @@
 
 from argparse import ArgumentParser
 from pathlib import Path
-from typing import Dict, NamedTuple, Union
+from typing import Dict, NamedTuple, Union, Optional
 
 import astropy.units as u
 import numpy as np
@@ -24,9 +24,9 @@ class LeakageFilters(NamedTuple):
 
     isolation_radius_deg: float = 0.0055
     """The minimum distance to the nearest component"""
-    upper_int_peak_ratio: float = 1.1
+    upper_int_peak_ratio: float = 2.0
     """The upper limit on acceptable int/peak ratios"""
-    lower_int_peak_ratio: float = 0.9
+    lower_int_peak_ratio: float = 0.5
     """The lower limit on acceptable int/peak ratios"""
 
 
@@ -100,7 +100,30 @@ def filter_components(
     ratio_mask = (leakage_filters.lower_int_peak_ratio < ratio) & (
         ratio < leakage_filters.upper_int_peak_ratio
     )  # type: ignore
-    logger.info(f"{np.sum(ratio_mask)} of {total_comps} sources are isolated")
+    logger.info(f"{np.sum(ratio_mask)} of {total_comps} sources are compact")
+
+    mask = isolation_mask & ratio_mask
+    logger.info(f"{np.sum(mask)} of {total_comps} sources are isolated and are compact")
+
+    table = table[mask]  # type: ignore
+
+    return table
+
+
+def get_xy_pixel_coords(
+    table: Table,
+    wcs: WCS,
+    ra_col: Optional[str] = None,
+    dec_col: Optional[str] = None,
+) -> np.ndarray:
+    ra_col = guess_column_in_table(table=table, column="ra")
+    dec_col = guess_column_in_table(table=table, column="dec")
+
+    sky_coord = SkyCoord(table[ra_col], table[dec_col], unit=(u.hour, u.deg))
+    y, x = wcs.all_world2pix(sky_coord)
+    pixel_coords = np.array((y, x))
+
+    return pixel_coords
 
 
 def load_and_filter_components(
@@ -120,7 +143,6 @@ def load_and_filter_components(
         int_col=int_col,
         leakage_filters=leakage_filters,
     )
-
     return comp_table
 
 
@@ -137,6 +159,16 @@ def create_leakge_maps(
     )
 
     logger.info(f"{i_fits} {pol_fits} {components}")
+
+    i_pixel_coords = get_xy_pixel_coords(table=components, wcs=i_fits.wcs)
+    pol_pixel_coords = get_xy_pixel_coords(table=components, wcs=pol_fits.wcs)
+
+    i_values = i_fits.data[..., i_pixel_coords]
+    pol_values = pol_fits.data[..., pol_pixel_coords]
+    frac_values = i_values / pol_values
+
+    logger.info(f"{frac_values.shape=}")
+
     return stokes_i_image
 
 
