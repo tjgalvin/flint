@@ -147,7 +147,11 @@ def load_and_filter_components(
 
 
 def create_leakge_maps(
-    stokes_i_image: Path, pol_image: Path, catalogue: Union[Table, Path], pol: str = "v"
+    stokes_i_image: Path,
+    pol_image: Path,
+    catalogue: Union[Table, Path],
+    pol: str = "v",
+    output_base: Optional[Path] = None,
 ) -> Path:
     i_fits = load_fits_image(fits_path=stokes_i_image)
     pol_fits = load_fits_image(fits_path=pol_image)
@@ -168,6 +172,21 @@ def create_leakge_maps(
     frac_values = i_values / pol_values
 
     logger.info(f"{frac_values.shape=}")
+    components["i_pixel_value"] = i_values
+    components[f"{pol}_fraction"] = frac_values
+    components[f"{[pol]}_pixel_value"] = i_values
+
+    if isinstance(catalogue, Path):
+        catalogue_suffix = catalogue.suffix
+        output_base = (
+            catalogue.with_suffix(f"{pol}_leakage.{catalogue_suffix}")
+            if output_base is None
+            else output_base
+        )
+
+    assert (
+        output_base is not None
+    ), f"{output_base=} is empty, and no catalogue path provided"
 
     return stokes_i_image
 
