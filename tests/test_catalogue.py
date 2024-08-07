@@ -11,19 +11,46 @@ from flint.catalogue import (
     download_referencce_catalogues,
     download_vizier_catalogue,
     get_reference_catalogue,
+    guess_column_in_table,
     _guess_catalogue_type,
 )
 from flint.utils import get_packaged_resource_path
 
 
-def test_catalogue_type():
-    """Testing the guessing of a catalogue. At the moment this
-    guess function is a stub function for the moment."""
+def _get_aegean_catalogue():
     table_path = get_packaged_resource_path(
         package="flint.data.tests",
         filename="SB38959.RACS_1357-18.noselfcal.linmos_comp.fits",
     )
     table = Table.read(table_path)
+    return table, table_path
+
+
+def test_guess_column_names():
+    """See if the correct column names can be guessed from a table"""
+    table, _ = _get_aegean_catalogue()
+
+    exp = dict(
+        ra="ra",
+        dec="dec",
+        intflux="int_flux",
+        peakflux="peak_flux",
+        intfluxerr="local_rms",
+    )
+    for key, value in exp.items():
+        assert value == guess_column_in_table(table=table, column=key)
+        assert value == guess_column_in_table(
+            table=table, column=key, guess_column="JackSparrow"
+        )
+
+    with pytest.raises(KeyError):
+        guess_column_in_table(table=table, column="JackSparrow")
+
+
+def test_catalogue_type():
+    """Testing the guessing of a catalogue. At the moment this
+    guess function is a stub function for the moment."""
+    table, table_path = _get_aegean_catalogue()
 
     cata = _guess_catalogue_type(table=table_path)
     assert isinstance(cata, Catalogue)

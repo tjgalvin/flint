@@ -148,9 +148,13 @@ def guess_column_in_table(
     Returns:
         str: The names of the peak flux column
     """
+
     logger.debug(f"Guessing column name for {column=} with {guess_column=}")
     column_names = [col.upper() for col in table.colnames]
-    preferred_columns = PREFERRED_COLUMNS[column]
+    preferred_columns = PREFERRED_COLUMNS.get(column, None)
+    if preferred_columns is None:
+        raise KeyError(f"{column=} not in {PREFERRED_COLUMNS.keys()}")
+
     cols = (
         [guess_column]
         if guess_column and guess_column.upper() in column_names
