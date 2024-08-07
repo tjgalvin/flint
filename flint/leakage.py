@@ -202,7 +202,7 @@ def load_and_filter_components(
     return comp_table
 
 
-def extract_peak_pol_in_box(
+def extract_pol_stats_in_box(
     pol_image: np.ndarray,
     pixel_coords: PixelCoords,
     search_box_size: int,
@@ -245,14 +245,24 @@ def extract_peak_pol_in_box(
 
         # search_box = np.squeeze(pol_image)[y_edge_min:y_edge_max, x_edge_min:x_edge_max]
         search_box = [
-            pol_image[y_min:y_max, x_min:x_max]
+            pol_image[y_min:y_max, x_min:x_max].flatten()
             for (y_min, y_max, x_min, x_max) in zip(
                 y_edge_min, y_edge_max, x_edge_min, x_edge_max
             )
         ]
 
         if idx == 0:
-            pol_peak = np.array([np.nanmax(data) for data in search_box])
+            logger.info(np.nanargmax(np.abs(search_box[0])))
+            pol_peak = np.array(
+                [
+                    (
+                        data[np.nanargmax(np.abs(data))]
+                        if np.any(np.isfinite(data))
+                        else np.nan
+                    )
+                    for data in search_box
+                ]
+            )
         elif idx == 1:
             pol_noise = np.array([np.nanstd(data) for data in search_box])
 
@@ -282,7 +292,7 @@ def create_leakge_maps(
     pol_pixel_coords = get_xy_pixel_coords(table=components, wcs=pol_fits.wcs)
 
     i_values = np.squeeze(i_fits.data[..., i_pixel_coords.y, i_pixel_coords.x])
-    pol_peak, pol_noise = extract_peak_pol_in_box(
+    pol_peak, pol_noise = extract_pol_stats_in_box(
         pol_image=pol_fits.data,
         pixel_coords=pol_pixel_coords,
         search_box_size=leakage_filters.search_box_size,
