@@ -281,14 +281,14 @@ def create_leakge_maps(
     i_pixel_coords = get_xy_pixel_coords(table=components, wcs=i_fits.wcs)
     pol_pixel_coords = get_xy_pixel_coords(table=components, wcs=pol_fits.wcs)
 
-    i_values = i_fits.data[..., i_pixel_coords.y, i_pixel_coords.x]
+    i_values = np.squeeze(i_fits.data[..., i_pixel_coords.y, i_pixel_coords.x])
     pol_peak, pol_noise = extract_peak_pol_in_box(
         pol_image=pol_fits.data,
         pixel_coords=pol_pixel_coords,
         search_box_size=leakage_filters.search_box_size,
         noise_box_size=leakage_filters.noise_box_size,
     )
-    frac_values = i_values / pol_peak
+    frac_values = pol_peak / i_values
 
     logger.info(f"{frac_values.shape=}")
     components["i_pixel_value"] = i_values
@@ -308,6 +308,8 @@ def create_leakge_maps(
         output_base is not None
     ), f"{output_base=} is empty, and no catalogue path provided"
 
+    for col in components.colnames:
+        logger.info(col)
     components.write(output_base, overwrite=True)
 
     return stokes_i_image
