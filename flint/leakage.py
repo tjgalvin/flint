@@ -10,6 +10,7 @@ from astropy.coordinates import SkyCoord
 from astropy.io import fits
 from astropy.table import Table
 from astropy.wcs import WCS
+from astropy.wcs.utils import skycoord_to_pixel
 
 from flint.catalogue import guess_column_in_table
 from flint.logging import logger
@@ -120,7 +121,7 @@ def filter_components(
 
     assert all(
         [col in table.colnames for col in (ra_col, dec_col, peak_col, int_col)]
-    ), f"Supplied column names partly missing from {table.colnames}"
+    ), f"Supplied column names {ra_col=} {dec_col=} {peak_col} {int_col=} partly missing from {table.colnames}"
 
     total_comps = len(table)
     sky_coords = SkyCoord(table[ra_col], table[dec_col], unit=(u.hour, u.deg))
@@ -165,11 +166,10 @@ def get_xy_pixel_coords(
     ra_col = guess_column_in_table(table=table, column="ra")
     dec_col = guess_column_in_table(table=table, column="dec")
 
-    sky_coord = SkyCoord(table[ra_col], table[dec_col], unit=(u.hour, u.deg))
-    y, x = wcs.all_world2pix(sky_coord)
-    pixel_coords = PixelCoords(y=y, x=x)
+    sky_coord = SkyCoord(table[ra_col], table[dec_col], unit=(u.deg, u.deg))
+    x, y = skycoord_to_pixel(wcs=wcs.celestial, coords=sky_coord, origin=0)
 
-    return pixel_coords
+    return PixelCoords(y=np.floor(y).astype(int), x=np.floor(x).astype(int))
 
 
 def load_and_filter_components(
@@ -225,28 +225,39 @@ def extract_peak_pol_in_box(
 
     y_max, x_max = pol_image.shape[-2:]
 
+    logger.info(f"{pol_image.shape=}, extracted {y_max=} and {x_max=}")
+
     pol_peak = None
     pol_noise = None
     for idx, box_size in enumerate((search_box_size, noise_box_size)):
-        box_delta = np.ceil(box_size / 2)
+        box_delta = int(np.ceil(box_size / 2))
 
-        search_box = pol_image[
-            ...,
-            np.minimum(pixel_coords.y - box_delta, 0) : np.maximum(
-                pixel_coords.y + box_delta, y_max - 1
-            ),
-            np.minimum(pixel_coords.x - box_delta, 0) : np.maximum(
-                pixel_coords.x + box_delta, x_max - 1
-            ),
+        y_edge_min = np.maximum(pixel_coords.y - box_delta, 0).astype(int)
+        y_edge_max = np.minimum(pixel_coords.y + box_delta, y_max - 1).astype(int)
+
+        x_edge_min = np.maximum(pixel_coords.x - box_delta, 0).astype(int)
+        x_edge_max = np.minimum(pixel_coords.x + box_delta, x_max - 1).astype(int)
+
+        assert not np.any(y_edge_min == y_edge_max), "The y box edges are equal"
+        assert not np.any(x_edge_min == x_edge_max), "The x box edges are equal"
+
+        pol_image = np.squeeze(pol_image)
+
+        # search_box = np.squeeze(pol_image)[y_edge_min:y_edge_max, x_edge_min:x_edge_max]
+        search_box = [
+            pol_image[y_min:y_max, x_min:x_max]
+            for (y_min, y_max, x_min, x_max) in zip(
+                y_edge_min, y_edge_max, x_edge_min, x_edge_max
+            )
         ]
 
         if idx == 0:
-            pol_peak = np.nanmax(search_box.flatten(), axis=1)
+            pol_peak = np.array([np.nanmax(data) for data in search_box])
         elif idx == 1:
-            pol_noise = np.nanstd(search_box.flatten(), axis=1)
+            pol_noise = np.array([np.nanstd(data) for data in search_box])
 
-    assert pol_peak, f"{pol_peak=}, which should not happen"
-    assert pol_noise, f"{pol_noise=}, which should not happen"
+    assert pol_peak is not None, f"{pol_peak=}, which should not happen"
+    assert pol_noise is not None, f"{pol_noise=}, which should not happen"
 
     return pol_peak, pol_noise
 
@@ -267,8 +278,6 @@ def create_leakge_maps(
         catalogue=catalogue, leakage_filters=leakage_filters
     )
 
-    logger.info(f"{i_fits} {pol_fits} {components}")
-
     i_pixel_coords = get_xy_pixel_coords(table=components, wcs=i_fits.wcs)
     pol_pixel_coords = get_xy_pixel_coords(table=components, wcs=pol_fits.wcs)
 
@@ -284,13 +293,13 @@ def create_leakge_maps(
     logger.info(f"{frac_values.shape=}")
     components["i_pixel_value"] = i_values
     components[f"{pol}_fraction"] = frac_values
-    components[f"{[pol]}_peak"] = pol_peak
-    components[f"{[pol]}_noise"] = pol_noise
+    components[f"{pol}_peak"] = pol_peak
+    components[f"{pol}_noise"] = pol_noise
 
     if isinstance(catalogue, Path):
         catalogue_suffix = catalogue.suffix
         output_base = (
-            catalogue.with_suffix(f"{pol}_leakage.{catalogue_suffix}")
+            catalogue.with_suffix(f".{pol}_leakage.{catalogue_suffix}")
             if output_base is None
             else output_base
         )
@@ -298,6 +307,8 @@ def create_leakge_maps(
     assert (
         output_base is not None
     ), f"{output_base=} is empty, and no catalogue path provided"
+
+    components.write(output_base, overwrite=True)
 
     return stokes_i_image
 

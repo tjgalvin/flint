@@ -108,8 +108,8 @@ KNOWN_REFERENCE_CATALOGUES = dict(
 
 # Helper functions that are used to try to guess column names from a table.
 # These are intended to only be helpers for common names and not an extensive list
-PREFERRED_RA_COLUMN_NAMES = ["RAJ2000", "RA", "ra"]
-PREFERRED_DEC_COLUMN_NAMES = ["DEJ2000", "DEC", "dec"]
+PREFERRED_RA_COLUMN_NAMES = ["RAJ2000", "ra"]
+PREFERRED_DEC_COLUMN_NAMES = ["DEJ2000", "dec"]
 PREFERRED_PEAK_COLUMN_NAMES = ["peak_flux", "Sp"]
 PREFERRED_INT_COLUMN_NAMES = ["int_flux", "Sint"]
 
@@ -146,17 +146,19 @@ def guess_column_in_table(
     Returns:
         str: The names of the peak flux column
     """
-
+    logger.debug(f"Guessing column name for {column=} with {guess_column=}")
     column_names = [col.upper() for col in table.colnames]
     preferred_columns = PREFERRED_COLUMNS[column]
     cols = (
         [guess_column]
-        if guess_column and guess_column in column_names
+        if guess_column and guess_column.upper() in column_names
         else [col for col in preferred_columns if col.upper() in column_names]
     )
 
-    if not len(cols) > 1:
-        raise ValueError(f"Unable to guess {column=} column names")
+    if not len(cols) > 0:
+        raise ValueError(
+            f"Unable to guess {column=} column names. Table has {column_names=}, and {preferred_columns=}"
+        )
 
     return cols[0]
 
