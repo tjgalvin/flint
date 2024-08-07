@@ -2,7 +2,7 @@
 
 from argparse import ArgumentParser
 from pathlib import Path
-from typing import Dict, NamedTuple, Union, Optional
+from typing import Dict, NamedTuple, Union, Optional, Tuple
 
 import astropy.units as u
 import numpy as np
@@ -28,6 +28,10 @@ class LeakageFilters(NamedTuple):
     """The upper limit on acceptable int/peak ratios"""
     lower_int_peak_ratio: float = 0.5
     """The lower limit on acceptable int/peak ratios"""
+    search_box_size: int = 3
+    """The size of a box to search for peak polarised signal in"""
+    noise_box_size: int = 30
+    """the size of a box to compute a local RMS noise measure from"""
 
 
 class FITSImage(NamedTuple):
@@ -41,6 +45,15 @@ class FITSImage(NamedTuple):
     """Celestial WCS of the fits image"""
     path: Path
     """Path of the loaded FITS image on disk"""
+
+
+class PixelCoords(NamedTuple):
+    """Slim container to help collect and maintain pixel coordinates. Not intended for extensive use"""
+
+    y: np.ndarray
+    """The y-coordinate of a set of pixels"""
+    x: np.ndarray
+    """The x-coordinate of a set of pixels"""
 
 
 def load_fits_image(fits_path: Path) -> FITSImage:
@@ -67,6 +80,7 @@ def load_fits_image(fits_path: Path) -> FITSImage:
 
 
 def _load_component_table(catalogue: TableOrPath) -> Table:
+    """Return a table given either a loaded table or a path to a table on disk"""
     component_table = (
         Table.read(catalogue) if isinstance(catalogue, Path) else catalogue
     )
@@ -77,12 +91,33 @@ def _load_component_table(catalogue: TableOrPath) -> Table:
 
 def filter_components(
     table: Table,
-    ra_col: str,
-    dec_col: str,
     peak_col: str,
     int_col: str,
     leakage_filters: LeakageFilters,
+    ra_col: Optional[str] = None,
+    dec_col: Optional[str] = None,
 ) -> Table:
+    """Apply the pre-processing operations to catalogue components to select an
+    optimal sample of sources for leakage characterisation. Sources will be selected
+    based on:
+
+    * how isolated they are
+    * compactness, as traced by their int/peak
+
+    Args:
+        table (Table): Collection of sources, as produced from a source finder
+        peak_col (str): The column name describing the peak flux density
+        int_col (str): The column name describing integrated flux
+        leakage_filters (LeakageFilters): Criteria applied to the source components in the table
+        ra_col (Optional[str], optional): The RA column name. If None, it will be guessed. Defaults to None.
+        dec_col (Optional[str], optional): The Dec column name. If None, it will be guessed. Defaults to None.
+
+    Returns:
+        Table: A filtered table
+    """
+    ra_col = guess_column_in_table(table=table, column="ra", guess_column=ra_col)
+    dec_col = guess_column_in_table(table=table, column="dec", guess_column=dec_col)
+
     assert all(
         [col in table.colnames for col in (ra_col, dec_col, peak_col, int_col)]
     ), f"Supplied column names partly missing from {table.colnames}"
@@ -115,13 +150,24 @@ def get_xy_pixel_coords(
     wcs: WCS,
     ra_col: Optional[str] = None,
     dec_col: Optional[str] = None,
-) -> np.ndarray:
+) -> PixelCoords:
+    """Convert (RA, Dec) positions in a catalogue into (x, y)-pixels given an WCS
+
+    Args:
+        table (Table): The table containing sources to collect (x, y)-coodinates
+        wcs (WCS): The WCS description to use to resolve (RA, Dec) to (x, y)
+        ra_col (Optional[str], optional): The RA column name. If None, it will be guessed. Defaults to None.
+        dec_col (Optional[str], optional): The Dec column name. If None, it will be guessed. Defaults to None.
+
+    Returns:
+        PixelCoords: _description_
+    """
     ra_col = guess_column_in_table(table=table, column="ra")
     dec_col = guess_column_in_table(table=table, column="dec")
 
     sky_coord = SkyCoord(table[ra_col], table[dec_col], unit=(u.hour, u.deg))
     y, x = wcs.all_world2pix(sky_coord)
-    pixel_coords = np.array((y, x))
+    pixel_coords = PixelCoords(y=y, x=x)
 
     return pixel_coords
 
@@ -129,6 +175,16 @@ def get_xy_pixel_coords(
 def load_and_filter_components(
     catalogue: TableOrPath, leakage_filters: LeakageFilters
 ) -> Table:
+    """Load in a component catalogue table and apply filters to them. The
+    remaining components will be used to characterise leakage
+
+    Args:
+        catalogue (TableOrPath): The path to a component catalogue, or a loaded component catalogue
+        leakage_filters (LeakageFilters): Filtering options to find ideal components for leakage characterisation
+
+    Returns:
+        Table: Filtered component catalogue
+    """
     comp_table = _load_component_table(catalogue=catalogue)
     ra_col = guess_column_in_table(table=comp_table, column="ra")
     dec_col = guess_column_in_table(table=comp_table, column="dec")
@@ -144,6 +200,55 @@ def load_and_filter_components(
         leakage_filters=leakage_filters,
     )
     return comp_table
+
+
+def extract_peak_pol_in_box(
+    pol_image: np.ndarray,
+    pixel_coords: PixelCoords,
+    search_box_size: int,
+    noise_box_size: int,
+) -> Tuple[np.ndarray, np.ndarray]:
+    """Construct two boxes around nominated pixel coordinates to:
+
+    * extract the peak signal within
+    * calculate a local RMS value for
+
+    Args:
+        pol_image (np.ndarray): The loaded polarised image
+        pixel_coords (PixelCoords): Collection of pixel positioncs to evaluate the peak polarisation and noise at
+        search_box_size (int): Size of box to extract the maximum polarised signal from
+        noise_box_size (int): Size of box to calculate the RMS over
+
+    Returns:
+        Tuple[np.ndarray, np.ndarray]: Extracted peak polarised signal and noise
+    """
+
+    y_max, x_max = pol_image.shape[-2:]
+
+    pol_peak = None
+    pol_noise = None
+    for idx, box_size in enumerate((search_box_size, noise_box_size)):
+        box_delta = np.ceil(box_size / 2)
+
+        search_box = pol_image[
+            ...,
+            np.minimum(pixel_coords.y - box_delta, 0) : np.maximum(
+                pixel_coords.y + box_delta, y_max - 1
+            ),
+            np.minimum(pixel_coords.x - box_delta, 0) : np.maximum(
+                pixel_coords.x + box_delta, x_max - 1
+            ),
+        ]
+
+        if idx == 0:
+            pol_peak = np.nanmax(search_box.flatten(), axis=1)
+        elif idx == 1:
+            pol_noise = np.nanstd(search_box.flatten(), axis=1)
+
+    assert pol_peak, f"{pol_peak=}, which should not happen"
+    assert pol_noise, f"{pol_noise=}, which should not happen"
+
+    return pol_peak, pol_noise
 
 
 def create_leakge_maps(
@@ -167,14 +272,20 @@ def create_leakge_maps(
     i_pixel_coords = get_xy_pixel_coords(table=components, wcs=i_fits.wcs)
     pol_pixel_coords = get_xy_pixel_coords(table=components, wcs=pol_fits.wcs)
 
-    i_values = i_fits.data[..., i_pixel_coords]
-    pol_values = pol_fits.data[..., pol_pixel_coords]
-    frac_values = i_values / pol_values
+    i_values = i_fits.data[..., i_pixel_coords.y, i_pixel_coords.x]
+    pol_peak, pol_noise = extract_peak_pol_in_box(
+        pol_image=pol_fits.data,
+        pixel_coords=pol_pixel_coords,
+        search_box_size=leakage_filters.search_box_size,
+        noise_box_size=leakage_filters.noise_box_size,
+    )
+    frac_values = i_values / pol_peak
 
     logger.info(f"{frac_values.shape=}")
     components["i_pixel_value"] = i_values
     components[f"{pol}_fraction"] = frac_values
-    components[f"{[pol]}_pixel_value"] = i_values
+    components[f"{[pol]}_peak"] = pol_peak
+    components[f"{[pol]}_noise"] = pol_noise
 
     if isinstance(catalogue, Path):
         catalogue_suffix = catalogue.suffix
@@ -211,7 +322,14 @@ def get_parser() -> ArgumentParser:
 def cli() -> None:
     parser = get_parser()
 
-    _ = parser.parse_args()
+    args = parser.parse_args()
+
+    create_leakge_maps(
+        stokes_i_image=args.stokes_i_image,
+        pol_image=args.pol_image,
+        catalogue=args.component_catalogue,
+        pol=args.pol,
+    )
 
 
 if __name__ == "__main__":
