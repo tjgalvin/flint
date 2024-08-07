@@ -23,16 +23,18 @@ class LeakageFilters(NamedTuple):
     """Description of the filtering options to apply to components
     when characterising leakage"""
 
-    isolation_radius_deg: float = 0.0055
+    isolation_radius_deg: float = 0.0155
     """The minimum distance to the nearest component"""
     upper_int_peak_ratio: float = 2.0
     """The upper limit on acceptable int/peak ratios"""
     lower_int_peak_ratio: float = 0.5
     """The lower limit on acceptable int/peak ratios"""
-    search_box_size: int = 3
+    search_box_size: int = 1
     """The size of a box to search for peak polarised signal in"""
     noise_box_size: int = 30
     """the size of a box to compute a local RMS noise measure from"""
+    source_snr: float = 40
+    """Minimum stokes-I signal-to-noise ratio"""
 
 
 class FITSImage(NamedTuple):
@@ -94,6 +96,7 @@ def filter_components(
     table: Table,
     peak_col: str,
     int_col: str,
+    int_err_col: str,
     leakage_filters: LeakageFilters,
     ra_col: Optional[str] = None,
     dec_col: Optional[str] = None,
@@ -109,6 +112,7 @@ def filter_components(
         table (Table): Collection of sources, as produced from a source finder
         peak_col (str): The column name describing the peak flux density
         int_col (str): The column name describing integrated flux
+        int_err_col (str): The column container errors that correspond to `int_col` to use when computing signal-to-noise
         leakage_filters (LeakageFilters): Criteria applied to the source components in the table
         ra_col (Optional[str], optional): The RA column name. If None, it will be guessed. Defaults to None.
         dec_col (Optional[str], optional): The Dec column name. If None, it will be guessed. Defaults to None.
@@ -120,7 +124,10 @@ def filter_components(
     dec_col = guess_column_in_table(table=table, column="dec", guess_column=dec_col)
 
     assert all(
-        [col in table.colnames for col in (ra_col, dec_col, peak_col, int_col)]
+        [
+            col in table.colnames
+            for col in (ra_col, dec_col, peak_col, int_col, int_err_col)
+        ]
     ), f"Supplied column names {ra_col=} {dec_col=} {peak_col} {int_col=} partly missing from {table.colnames}"
 
     total_comps = len(table)
@@ -130,16 +137,28 @@ def filter_components(
     isolation_mask = sky_coords.match_to_catalog_sky(sky_coords, nthneighbor=2)[1] > (
         leakage_filters.isolation_radius_deg * u.deg
     )  # type: ignore
-    logger.info(f"{np.sum(isolation_mask)} of {total_comps} sources are isolated")
+    logger.info(
+        f"{np.sum(isolation_mask)} of {total_comps} sources are isolated with radius {float(leakage_filters.isolation_radius_deg):.5f} deg"
+    )
 
     ratio = table[int_col] / table[peak_col]  # type: ignore
     ratio_mask = (leakage_filters.lower_int_peak_ratio < ratio) & (
         ratio < leakage_filters.upper_int_peak_ratio
     )  # type: ignore
-    logger.info(f"{np.sum(ratio_mask)} of {total_comps} sources are compact")
+    logger.info(
+        f"{np.sum(ratio_mask)} of {total_comps} sources are compact with {leakage_filters.lower_int_peak_ratio} < int/peak < {leakage_filters.upper_int_peak_ratio}"
+    )
 
-    mask = isolation_mask & ratio_mask
-    logger.info(f"{np.sum(mask)} of {total_comps} sources are isolated and are compact")
+    signal_to_noise = table[int_col] / table[int_err_col]  # type: ignore
+    signal_mask = signal_to_noise > leakage_filters.source_snr
+    logger.info(
+        f"{np.sum(signal_mask)} of {total_comps} sources have S/N above {leakage_filters.source_snr}"
+    )
+
+    mask = isolation_mask & ratio_mask & signal_mask
+    logger.info(
+        f"{np.sum(mask)} of {total_comps} sources are isolated, compact and bright"
+    )
 
     table = table[mask]  # type: ignore
 
@@ -185,18 +204,22 @@ def load_and_filter_components(
     Returns:
         Table: Filtered component catalogue
     """
+    # TODO: Need to have a single guess function here
     comp_table = _load_component_table(catalogue=catalogue)
     ra_col = guess_column_in_table(table=comp_table, column="ra")
     dec_col = guess_column_in_table(table=comp_table, column="dec")
     peak_col = guess_column_in_table(table=comp_table, column="peakflux")
     int_col = guess_column_in_table(table=comp_table, column="intflux")
+    int_err_col = guess_column_in_table(table=comp_table, column="intfluxerr")
 
+    # TODO: Need to use Catalogue here
     comp_table = filter_components(
         table=comp_table,
         ra_col=ra_col,
         dec_col=dec_col,
         peak_col=peak_col,
         int_col=int_col,
+        int_err_col=int_err_col,
         leakage_filters=leakage_filters,
     )
     return comp_table
@@ -222,7 +245,6 @@ def extract_pol_stats_in_box(
     Returns:
         Tuple[np.ndarray, np.ndarray]: Extracted peak polarised signal and noise
     """
-
     y_max, x_max = pol_image.shape[-2:]
 
     logger.info(f"{pol_image.shape=}, extracted {y_max=} and {x_max=}")
@@ -252,7 +274,6 @@ def extract_pol_stats_in_box(
         ]
 
         if idx == 0:
-            logger.info(np.nanargmax(np.abs(search_box[0])))
             pol_peak = np.array(
                 [
                     (
@@ -264,7 +285,12 @@ def extract_pol_stats_in_box(
                 ]
             )
         elif idx == 1:
-            pol_noise = np.array([np.nanstd(data) for data in search_box])
+            pol_noise = np.array(
+                [
+                    np.nanstd(data) if np.any(np.isfinite(data)) else np.nan
+                    for data in search_box
+                ]
+            )
 
     assert pol_peak is not None, f"{pol_peak=}, which should not happen"
     assert pol_noise is not None, f"{pol_noise=}, which should not happen"
@@ -318,8 +344,7 @@ def create_leakge_maps(
         output_base is not None
     ), f"{output_base=} is empty, and no catalogue path provided"
 
-    for col in components.colnames:
-        logger.info(col)
+    logger.info(f"Writing {output_base}")
     components.write(output_base, overwrite=True)
 
     return stokes_i_image
