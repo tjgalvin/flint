@@ -25,11 +25,11 @@ class LeakageFilters(NamedTuple):
 
     isolation_radius_deg: float = 0.0155
     """The minimum distance to the nearest component"""
-    upper_int_peak_ratio: float = 2.0
+    upper_int_peak_ratio: float = 1.2
     """The upper limit on acceptable int/peak ratios"""
-    lower_int_peak_ratio: float = 0.5
+    lower_int_peak_ratio: float = 0.8
     """The lower limit on acceptable int/peak ratios"""
-    search_box_size: int = 1
+    search_box_size: int = 4
     """The size of a box to search for peak polarised signal in"""
     noise_box_size: int = 30
     """the size of a box to compute a local RMS noise measure from"""
@@ -131,7 +131,7 @@ def filter_components(
     ), f"Supplied column names {ra_col=} {dec_col=} {peak_col} {int_col=} partly missing from {table.colnames}"
 
     total_comps = len(table)
-    sky_coords = SkyCoord(table[ra_col], table[dec_col], unit=(u.hour, u.deg))
+    sky_coords = SkyCoord(table[ra_col], table[dec_col], unit=(u.deg, u.deg))
 
     # The match_to_catalog_sky return idx, sep2d, sep3d. We care about separation, matey
     isolation_mask = sky_coords.match_to_catalog_sky(sky_coords, nthneighbor=2)[1] > (
