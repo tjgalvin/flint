@@ -27,6 +27,7 @@ jobs:
           python -m pip install --upgrade pip uv
           uv pip install --system pytest pytest-cov pre-commit black mypy .
           mypy --install-types
+          python3 -m pip install types-PyYAML
       - name: Lint with pre-commit
         run: |
           pre-commit run --all-files
