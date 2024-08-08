@@ -298,12 +298,31 @@ def extract_pol_stats_in_box(
     return pol_peak, pol_noise
 
 
-def create_leakge_maps(
+def create_leakge_component_table(
     pol_image: Path,
     catalogue: Union[Table, Path],
     pol: str = "v",
     output_base: Optional[Path] = None,
 ) -> Path:
+    """Create a component catalogue that includes enough information to describe the
+    polarisation fraction of sources across a field. This is intended to be used
+    for leakage characterisation.
+
+    New catalogue columns will be added:
+
+    * pol_fraction: The POL/I fraction. The peak flux is taken from the catalogue, using the appropriate column name
+    * pol_peak: The peak polarised signal in the nearby region of a component position
+    * pol_noise: The noise in the polarised image pixels around the component position
+
+    Args:
+        pol_image (Path): The polarised image that will be used to extract peak polarised flux from
+        catalogue (Union[Table, Path]): Component table describing positions to extract flux from
+        pol (str, optional): The polarisation stokes being considered. Defaults to "v".
+        output_base (Optional[Path], optional): The base name of the new catalogue. If `None` it is derived from the input `catalogue` path. Defaults to None.
+
+    Returns:
+        Path: Path to the new catalogue use for leakage
+    """
     pol_fits = _load_fits_image(fits_path=pol_image)
 
     leakage_filters = LeakageFilters()
@@ -367,7 +386,7 @@ def cli() -> None:
 
     args = parser.parse_args()
 
-    create_leakge_maps(
+    create_leakge_component_table(
         pol_image=args.pol_image,
         catalogue=args.component_catalogue,
         pol=args.pol,
