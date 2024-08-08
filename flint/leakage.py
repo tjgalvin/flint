@@ -299,13 +299,11 @@ def extract_pol_stats_in_box(
 
 
 def create_leakge_maps(
-    stokes_i_image: Path,
     pol_image: Path,
     catalogue: Union[Table, Path],
     pol: str = "v",
     output_base: Optional[Path] = None,
 ) -> Path:
-    i_fits = load_fits_image(fits_path=stokes_i_image)
     pol_fits = load_fits_image(fits_path=pol_image)
 
     leakage_filters = LeakageFilters()
@@ -313,11 +311,10 @@ def create_leakge_maps(
     components = load_and_filter_components(
         catalogue=catalogue, leakage_filters=leakage_filters
     )
+    peak_flux_col = guess_column_in_table(table=components, column="peakflux")
+    i_values = components[peak_flux_col]
 
-    i_pixel_coords = get_xy_pixel_coords(table=components, wcs=i_fits.wcs)
     pol_pixel_coords = get_xy_pixel_coords(table=components, wcs=pol_fits.wcs)
-
-    i_values = np.squeeze(i_fits.data[..., i_pixel_coords.y, i_pixel_coords.x])
     pol_peak, pol_noise = extract_pol_stats_in_box(
         pol_image=pol_fits.data,
         pixel_coords=pol_pixel_coords,
@@ -327,7 +324,6 @@ def create_leakge_maps(
     frac_values = pol_peak / i_values
 
     logger.info(f"{frac_values.shape=}")
-    components["i_pixel_value"] = i_values
     components[f"{pol}_fraction"] = frac_values
     components[f"{pol}_peak"] = pol_peak
     components[f"{pol}_noise"] = pol_noise
@@ -347,12 +343,11 @@ def create_leakge_maps(
     logger.info(f"Writing {output_base}")
     components.write(output_base, overwrite=True)
 
-    return stokes_i_image
+    return output_base
 
 
 def get_parser() -> ArgumentParser:
     parser = ArgumentParser(description="Create a leakage cataloge and map")
-    parser.add_argument("stokes_i_image", type=Path, help="Path to the stokes-i image")
     parser.add_argument("pol_image", type=Path, help="Path to the polarisation image")
     parser.add_argument(
         "component_catalogue", type=Path, help="Path to the component catalogue"
@@ -373,7 +368,6 @@ def cli() -> None:
     args = parser.parse_args()
 
     create_leakge_maps(
-        stokes_i_image=args.stokes_i_image,
         pol_image=args.pol_image,
         catalogue=args.component_catalogue,
         pol=args.pol,
