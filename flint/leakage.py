@@ -59,9 +59,9 @@ class PixelCoords(NamedTuple):
     """The x-coordinate of a set of pixels"""
 
 
-def load_fits_image(fits_path: Path) -> FITSImage:
+def _load_fits_image(fits_path: Path) -> FITSImage:
     """Load in a FITS image and package the components into a consistent
-    form
+    form. Not intended for extensive use.
 
     Args:
         fits_path (Path): The path of the FITS image to examining
@@ -128,7 +128,7 @@ def filter_components(
             col in table.colnames
             for col in (ra_col, dec_col, peak_col, int_col, int_err_col)
         ]
-    ), f"Supplied column names {ra_col=} {dec_col=} {peak_col} {int_col=} partly missing from {table.colnames}"
+    ), f"Supplied column names {ra_col=} {dec_col=} {peak_col=} {int_col=} partly missing from {table.colnames=}"
 
     total_comps = len(table)
     sky_coords = SkyCoord(table[ra_col], table[dec_col], unit=(u.deg, u.deg))
@@ -304,7 +304,7 @@ def create_leakge_maps(
     pol: str = "v",
     output_base: Optional[Path] = None,
 ) -> Path:
-    pol_fits = load_fits_image(fits_path=pol_image)
+    pol_fits = _load_fits_image(fits_path=pol_image)
 
     leakage_filters = LeakageFilters()
 
