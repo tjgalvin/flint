@@ -49,7 +49,7 @@ command line. They are listed below with a brief description:
 - `flint_potato`: Attempt to peel out known sources from a measurement set using
   [potatopeel](https://gitlab.com/Sunmish/potato/-/tree/main). Criteria used to
   assess which sources to peel is fairly minimumal, and at the time of writing
-  only the reference set of sources paackaged within `flint` are
+  only the reference set of sources packaged within `flint` are
   considered. -`flint_archive`: Operations around archiving and copying final
   data products into place. -`flint_catalogue`: Download reference catalogues
   that are expected by `flint`
@@ -152,15 +152,15 @@ corresponding options defined in the `defaults` scope.
 
 `flint_config` can be used to generate a template file, which can then be
 tweaked. The template file uses YAML to define scope and settings. So, use the
-YAML standard when modifying this file. There are primative verification
+YAML standard when modifying this file. There are primitive verification
 functions to ensure the modified template file is correctly form.
 
 ## CLI Configuration file
 
-To help manage (and avoid) long CLI calls to conffigure `flint`, most command
+To help manage (and avoid) long CLI calls to configure `flint`, most command
 line options may be dumped into a new-line delimited text file which can then be
 set as the `--cli-config` option of some workflows. See the `configargparse`
-python utility to read up on more on how options may be overridden if speficied
+python utility to read up on more on how options may be overridden if specified
 in both the text file and CLI call.
 
 ## Validation Plots

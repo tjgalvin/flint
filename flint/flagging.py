@@ -24,7 +24,7 @@ class AOFlaggerCommand(NamedTuple):
     ms: MS
     """The MS object that was flagged"""
     strategy_file: Optional[Path] = None
-    """The path to the aoflagging stategy file to use"""
+    """The path to the aoflagging strategy file to use"""
 
 
 def flag_ms_zero_uvws(ms: MS, chunk_size: int = 10000) -> MS:
@@ -82,7 +82,7 @@ def nan_zero_extreme_flag_ms(
 ) -> MS:
     """Will flag a MS based on NaNs or zeros in the nominated data column of a measurement set.
     These NaNs might be introduced into a column via the application of a applysolutions task.
-    Zeros might be introduced by the correlator dropping cycles and not appropriately settting the
+    Zeros might be introduced by the correlator dropping cycles and not appropriately setting the
     corresponding FLAG column (although this might have been fixed).
 
     There is also an optional component to flag based on extreme Stokes-V values.
@@ -181,7 +181,7 @@ def create_aoflagger_cmd(ms: MS) -> AOFlaggerCommand:
     flagging_strategy = get_packaged_resource_path(
         package="flint.data.aoflagger", filename="ASKAP.lua"
     )
-    logger.info(f"Flagging using the stategy file {flagging_strategy}")
+    logger.info(f"Flagging using the strategy file {flagging_strategy}")
 
     cmd = f"aoflagger -column {ms.column} -strategy {flagging_strategy} -v {str(ms.path.absolute())}"
 
@@ -316,7 +316,7 @@ def get_parser() -> ArgumentParser:
     )
 
     nan_zero_parser = subparser.add_parser(
-        "nanflag", help="Flag visibilities tthat are either NaN or zeros. "
+        "nanflag", help="Flag visibilities that are either NaN or zeros. "
     )
     nan_zero_parser.add_argument(
         "ms", type=Path, help="The measurement set that will be flagged. "
