@@ -231,7 +231,7 @@ def get_options_from_strategy(
     round are used to update the defaults.
 
     The default `operation` of `None` implies options related to imaging are
-    requested. if a `opertaion` is provided then options for that mode are
+    requested. if a `operation` is provided then options for that mode are
     retrieved. These are ones that do not vary as across rounds of self-calibration.
     An `operation` can have a `mode`, such as `stokesv` requiring a `wsclean` mode. Acceptable
     `operation` values are {KNOWN_OPERATIONS}
@@ -285,11 +285,11 @@ def get_options_from_strategy(
         if mode in strategy[operation]:
             update_options = dict(**strategy[operation][mode])
     elif round == "initial":
-        # separate function to avoid a missing mode from raising valu error
+        # separate function to avoid a missing mode from raising value error
         if mode in strategy["initial"]:
             update_options = dict(**strategy["initial"][mode])
     elif isinstance(round, int):
-        # separate function to avoid a missing mode from raising valu error
+        # separate function to avoid a missing mode from raising value error
         if round in strategy["selfcal"] and mode in strategy["selfcal"][round]:
             update_options = dict(**strategy["selfcal"][round][mode])
     else:
@@ -306,7 +306,7 @@ def verify_configuration(input_strategy: Strategy, raise_on_error: bool = True) 
     """Perform basic checks on the configuration file
 
     Args:
-        input_strategy (Strategy): The loaded configuraiton file structure
+        input_strategy (Strategy): The loaded configuration file structure
         raise_on_error (bool, optional): Whether to raise an error should an issue in thew config file be found. Defaults to True.
 
     Raises:
@@ -426,7 +426,7 @@ def write_strategy_to_yaml(strategy: Strategy, output_path: Path) -> Path:
         Path: The path the output YAML file was written to
     """
 
-    logger.info(f"Writing stategy to {output_path=}")
+    logger.info(f"Writing strategy to {output_path=}")
 
     with open(output_path, "w") as out_file:
         yaml.dump(data=strategy, stream=out_file, sort_keys=False)
@@ -438,7 +438,7 @@ def write_strategy_to_yaml(strategy: Strategy, output_path: Path) -> Path:
 def create_default_yaml(
     output_yaml: Path, selfcal_rounds: Optional[int] = None
 ) -> Path:
-    """Create an example stategy yaml file that outlines the options to use at varies stages
+    """Create an example strategy yaml file that outlines the options to use at varies stages
     of some assumed processing pipeline.
 
     This is is completely experimental, and expected fields might change.
@@ -450,7 +450,7 @@ def create_default_yaml(
     Returns:
         Path: Path to the written yaml output file.
     """
-    logger.info("Generating a default stategy. ")
+    logger.info("Generating a default strategy. ")
     strategy: Dict[Any, Any] = {}
 
     strategy["version"] = FORMAT_VERSION
@@ -461,7 +461,7 @@ def create_default_yaml(
 
     if selfcal_rounds:
         logger.info(f"Creating {selfcal_rounds} self-calibration rounds. ")
-        selfcal = {}
+        selfcal: Dict[int, Any] = {}
         for round in range(1, selfcal_rounds + 1):
             selfcal[round] = {
                 "wsclean": {},
@@ -486,7 +486,7 @@ def get_parser() -> ArgumentParser:
     subparser = parser.add_subparsers(dest="mode")
 
     create_parser = subparser.add_parser(
-        "create", help="Create an initail yaml file for editing. "
+        "create", help="Create an initial yaml file for editing. "
     )
     create_parser.add_argument(
         "output_yaml",

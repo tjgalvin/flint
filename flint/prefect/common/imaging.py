@@ -5,7 +5,7 @@ imaging flows.
 """
 
 from pathlib import Path
-from typing import Any, Collection, Dict, List, Optional, TypeVar, Union
+from typing import Any, Collection, Dict, List, Optional, TypeVar, Union, Tuple
 
 import pandas as pd
 from prefect import task, unmapped
@@ -517,18 +517,21 @@ def task_linmos_images(
     out_name = out_dir / base_name
     logger.info(f"Base output image name will be: {out_name}")
 
-    if parset_output_path is None:
-        parset_output_path = Path(f"{out_name.name}_parset.txt")
+    out_file_name = (
+        parset_output_path
+        if parset_output_path
+        else Path(f"{out_name.name}_parset.txt")
+    )
 
     assert out_dir is not None, f"{out_dir=}, which should not happen"
-    parset_output_path: Path = Path(out_dir) / Path(parset_output_path)
+    output_path: Path = Path(out_dir) / Path(out_file_name)
     logger.info(f"Parsert output path is {parset_output_path}")
 
     pol_axis = field_summary.pol_axis if field_summary else None
 
     linmos_cmd = linmos_images(
         images=filter_images,
-        parset_output_path=Path(parset_output_path),
+        parset_output_path=Path(output_path),
         image_output_name=str(out_name),
         container=container,
         holofile=holofile,
@@ -617,7 +620,7 @@ def _create_convol_linmos_images(
 
     main_linmos_suffix_str = ".".join(suffixes)
 
-    todo: List[Any, str] = [(None, get_beam_resolution_str(mode="optimal"))]
+    todo: List[Tuple[Any, str]] = [(None, get_beam_resolution_str(mode="optimal"))]
     if field_options.fixed_beam_shape:
         logger.info(
             f"Creating second round of linmos images with {field_options.fixed_beam_shape}"
@@ -702,10 +705,10 @@ def task_create_image_mask_model(
     source_image = None
     if isinstance(image, LinmosCommand):
         source_image = image.image_fits
-    elif isinstance(image, ImageSet):
-        source_image = image.image[-1]
-    elif isinstance(image, WSCleanCommand):
-        source_image = image.imageset.image[-1]
+    elif isinstance(image, ImageSet) and image.image is not None:
+        source_image = list(image.image)[-1]
+    elif isinstance(image, WSCleanCommand) and image.imageset is not None:
+        source_image = list(image.imageset.image)[-1]
     else:
         source_image = image_products.image
 
@@ -747,7 +750,10 @@ def task_extract_beam_mask_image(
         FITSMaskNames: Clean mask for a image
     """
     # All images made by wsclean will have the same WCS
-    beam_image = wsclean_cmd.imageset.image[0]
+    assert (
+        wsclean_cmd.imageset is not None
+    ), f"{wsclean_cmd.imageset=}, which should not happen"
+    beam_image = list(wsclean_cmd.imageset.image)[0]
     beam_mask_names = extract_beam_mask_from_mosaic(
         fits_beam_image_path=beam_image, fits_mosaic_mask_names=linmos_mask_names
     )
