@@ -56,16 +56,12 @@ def upload_image_as_artifact(
     logger.info("Registering artifact")
     image_uuid = create_markdown_artifact(markdown=markdown, description=description)
 
-    return image_uuid
+    return image_uuid  # type: ignore
 
 
 task_update_field_summary = task(update_field_summary)
 task_create_field_summary = task(create_field_summary)
 task_create_beam_summary = task(create_beam_summary)
-
-
-# Intended to represent objects with a .with_options() interface
-T = TypeVar("T")
 
 
 @task
@@ -76,13 +72,13 @@ def task_archive_sbid(
     max_round: Optional[int] = None,
     update_archive_options: Optional[Dict[str, Any]] = None,
 ) -> Path:
-    """Create a tarbal of files, or copy files, from a processing folder.
+    """Create a tarball of files, or copy files, from a processing folder.
 
     Args:
         science_folder_path (Path): Path that contains the imaged produced
         archive_path (Optional[Path], optional): Location to create and store the tar ball at. If None no tarball is created. Defaults to None.
         copy_path (Optional[Path], optional): Location to copy selected files into. If None no files are copied. Defaults to None.
-        max_round (Optional[int], optional): The last self-calibration round peformed. If provied some files form this round are copied (assuming wsclean imaging). If None, the default file patterns in ArchiveOptions are used. Defaults to None.
+        max_round (Optional[int], optional): The last self-calibration round performed. If provided some files form this round are copied (assuming wsclean imaging). If None, the default file patterns in ArchiveOptions are used. Defaults to None.
         update_archive_options (Optional[Dict[str, Any]], optional): Additional options to provide to ArchiveOptions. Defaults to None.
 
     Returns:
@@ -139,7 +135,10 @@ def task_update_with_options(input_object: T, **kwargs) -> T:
     Returns:
         T: The updated object
     """
-    updated_object = input_object.with_options(**kwargs)
+    assert "with_options" in dir(
+        input_object
+    ), f"{type(input_object)=} does not have a with_options method"
+    updated_object = input_object.with_options(**kwargs)  # type: ignore
 
     return updated_object
 
@@ -149,14 +148,14 @@ def task_get_attributes(item: Any, attribute: str) -> Any:
     """Retrieve an attribute from an input instance of a class or structure.
 
     This is intended to be used when dealing with a prefect future object that
-    has yet to be evaluated or is otherwise not immediatedly accessible.
+    has yet to be evaluated or is otherwise not immediately accessible.
 
     Args:
         item (Any): The item that has the input class or structure
         attribute (str): The attribute to extract
 
     Returns:
-        Any: Vlue of the requested attribute
+        Any: Value of the requested attribute
     """
     logger.debug(f"Pulling {attribute=}")
     return item.__dict__[attribute]

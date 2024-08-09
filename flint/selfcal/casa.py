@@ -39,10 +39,10 @@ class GainCalOptions(NamedTuple):
     gaintype: str = "G"
     """The gain type that would be solved for. """
     nspw: int = 1
-    """The number of spectral windows to use during the self-calibration rountine. If 1, no changes
+    """The number of spectral windows to use during the self-calibration routine. If 1, no changes
     are made to the measurement set. If more than 1, then the measurement will be reformed to form
     a new measurement set conforming to the number of spws set. This process can be fragile as the
-    casa tasks sometimes do not like the configurate, so ye warned."""
+    casa tasks sometimes do not like the configure, so ye warned."""
 
     def with_options(self, **kwargs) -> GainCalOptions:
         _dict = self._asdict()
@@ -194,7 +194,7 @@ def merge_spws_in_ms(ms_path: Path) -> Path:
     set using the `cvel` casa task. This can be a little fragile.
 
     The `cvel` task creates a new measurement set, so there would
-    temporially be a secondary measurment set.
+    temporially be a secondary measurement set.
 
     Args:
         ms_path (Path): The measurement set that should have its SPWs merged together.
@@ -261,7 +261,7 @@ def gaincal_applycal_ms(
     # Pirates like easy things though.
     cal_ms = copy_and_clean_ms_casagain(ms=ms, round=round, rename_ms=rename_ms)
 
-    # Archive straight after copying incase we skip the gaincal and return
+    # Archive straight after copying in case we skip the gaincal and return
     if archive_input_ms and not rename_ms:
         zip_folder(in_path=ms.path)
 
@@ -317,7 +317,7 @@ def gaincal_applycal_ms(
 
     # This is used for when a frequency dependent self-calibration solution is requested
     # It is often useful (mandatory!) to have a single spw for some tasks - both of the casa
-    # and everyone else varity.
+    # and everyone else variety.
     if gain_cal_options.nspw > 1:
         # putting it all back to a single spw
         cal_ms_path = merge_spws_in_ms(ms_path=cal_ms.path)

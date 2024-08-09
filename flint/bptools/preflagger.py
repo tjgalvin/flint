@@ -43,7 +43,7 @@ class PhaseOutlierResults(NamedTuple):
     unwrapped_residual_std: float
     """The std. of the residual unwrapped phases in radians"""
     flag_cut: float
-    """The adopted signifance level that a outlier should be before outlier_mask is set to True"""
+    """The adopted significance level that a outlier should be before outlier_mask is set to True"""
 
 
 # TODO: Pass in parameters directly so we don't have to have an instance of PhaseOutlierResults
@@ -63,7 +63,7 @@ def plot_phase_outlier(
     Returns:
         Path: Path of the output image file
     """
-    logger.debug(f"Creating phase outlier plot, writting {str(output_path)}.")
+    logger.debug(f"Creating phase outlier plot, writing {str(output_path)}.")
 
     complex_gains = phase_outlier_results.complex_gains
     init_model_gains = phase_outlier_results.init_model_gains
@@ -315,7 +315,7 @@ def flags_over_threshold(
     ), f"The provided {thresh=} should be a fraction between 0 to 1. "
 
     number_flagged = np.sum(flags)
-    # Use the shape incase multi-dimensional array passed in
+    # Use the shape in case multi-dimensional array passed in
     total_flagged = np.prod(flags.shape)
 
     frac_flagged = number_flagged / total_flagged
@@ -397,7 +397,7 @@ def flag_mean_residual_amplitude(
     Args:
         complex_gains (np.ndarray): The set of complex gains to be considered
         use_robust (bool, optional): Whether to use robust statistics (median, MAD)  or mean/std to calculate the statistic against. Defaults to True.
-        polynomical_order (int, optional): The order of the polynomical (numpy.polyfit) to use to compute the baseline. Defaults to 5.
+        polynomical_order (int, optional): The order of the polynomial (numpy.polyfit) to use to compute the baseline. Defaults to 5.
         plot_path (Path): The location to save the output file to
         plot_title (Optional[str], optional): Title to add to the figure. Defaults to None.
 
@@ -416,7 +416,7 @@ def flag_mean_residual_amplitude(
     poly_vals = np.polyval(poly_coeffs, idxs)
 
     residual = amplitudes - poly_vals
-    # Although the mask above should be sufficent, trust nothing
+    # Although the mask above should be sufficient, trust nothing
     mask = np.isfinite(residual)
 
     # TODO: Consider use of an iterative clipping method
@@ -514,7 +514,7 @@ def construct_mesh_ant_flags(mask: np.ndarray) -> np.ndarray:
 
     assert (
         len(mask.shape) == 3
-    ), f"Expect array of shape (ant, chnnel, pol), received {mask.shape=}"
+    ), f"Expect array of shape (ant, channel, pol), received {mask.shape=}"
     accumulate_mask = np.zeros_like(mask[0], dtype=bool)
 
     nant = mask.shape[0]

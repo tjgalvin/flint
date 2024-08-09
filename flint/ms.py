@@ -32,80 +32,6 @@ from flint.naming import create_ms_name
 from flint.options import MS
 from flint.utils import copy_directory, rsync_copy_directory
 
-# class MS(NamedTuple):
-#     """Helper to keep track of measurement set information
-
-#     This is the class that should be used when describing a measurement
-#     set that will be operated on.
-#     """
-
-#     path: Path
-#     """Path to the measurement set that is being represented"""
-#     column: Optional[str] = None
-#     """Column that should be operated against"""
-#     beam: Optional[int] = None
-#     """The beam ID of the MS within an ASKAP field"""
-#     spw: Optional[int] = None
-#     """Intended to be used with ASKAP high-frequency resolution modes, where the MS is divided into SPWs"""
-#     field: Optional[str] = None
-#     """The field name  of the data"""
-#     model_column: Optional[str] = None
-#     """The column name of the most recently MODEL data"""
-
-#     def get_field_id_for_field(self, field_name: str) -> Union[int, None]:
-#         """Return the FIELD_ID for an elected field in a measurement set. See
-#         `flink.ms.get_field_id_for_field` for full details.
-#         """
-#         # TODO: I think this should be removed. The young pirate in me was
-#         # going to go in a different direction
-#         return get_field_id_for_field(ms=self, field_name=field_name)
-
-#     @property
-#     def ms(self) -> MS:
-#         return self
-
-#     @classmethod
-#     def cast(cls, ms: Union[MS, Path]) -> MS:
-#         """Create/return a MS instance given either a Path or MS.
-
-#         If the input is neither a MS instance or Path, the object will
-#         be checked to see if it has a `.ms` attribute. If it does then
-#         this will be used.
-
-#         Args:
-#             ms (Union[MS, Path]): The input type to consider
-
-#         Raises:
-#             MSError: Raised when the input ms can not be cast to an MS instance
-
-#         Returns:
-#             MS: A normalised MS
-#         """
-#         if isinstance(ms, MS):
-#             # Nothing to do
-#             pass
-#         elif isinstance(ms, Path):
-#             ms = MS(path=ms)
-#         elif "ms" in dir(ms) and isinstance(ms.ms, MS):
-#             ms = ms.ms
-#         else:
-#             raise MSError(f"Unable to convert {ms=} of {type(ms)} to MS object. ")
-
-#         return ms
-
-#     def with_options(self, **kwargs) -> MS:
-#         """Create a new MS instance with keywords updated
-
-#         Returns:
-#             MS: New MS instance with updated attributes
-#         """
-#         # TODO: Update the signature to have the actual attributes to
-#         # help keep mypy and other linters happy
-#         as_dict = self._asdict()
-#         as_dict.update(kwargs)
-
-#         return MS(**as_dict)
-
 
 class MSSummary(NamedTuple):
     """Small structure to contain overview of a MS"""
@@ -114,7 +40,7 @@ class MSSummary(NamedTuple):
     """Number of unflagged records"""
     flagged: int
     """Number of flagged records"""
-    flag_spectrum: np.ndarray[float]
+    flag_spectrum: np.ndarray
     """Flagged spectral channels"""
     fields: List[str]
     """Collection of unique field names from the FIELDS table"""
@@ -147,7 +73,7 @@ def critical_ms_interaction(
     nonsense. This mechanism is intended to make it clear that the measurement
     set is in a dangerous part of code.
 
-    Failure to return the MS to its orignal name (or rename the copy) highlights
+    Failure to return the MS to its original name (or rename the copy) highlights
     this failed stage.
 
     Args:
@@ -178,7 +104,7 @@ def critical_ms_interaction(
         yield output_ms
     except Exception as e:
         logger.error(
-            f"An error occured when interacting with {input_ms} during a critical stage. "
+            f"An error occurred when interacting with {input_ms} during a critical stage. "
         )
         raise e
 
@@ -246,7 +172,7 @@ def get_beam_from_ms(ms: Union[MS, Path]) -> int:
 
 
 def get_freqs_from_ms(ms: Union[MS, Path]) -> np.ndarray:
-    """Return the frequencies observed from an ASKAP Meaurement set.
+    """Return the frequencies observed from an ASKAP Measurement set.
     Some basic checks are performed to ensure they conform to some
     expectations.
 
@@ -337,7 +263,7 @@ def get_pol_axis_from_ms(
 
     Args:
         ms (Union[MS, Path]): The path to the measurement set that will be inspected
-        feed_idx (Optional[int], optional): Specify the entery in the FEED
+        feed_idx (Optional[int], optional): Specify the entry in the FEED
         table of `ms` to return. This might be required when a subset of a
         measurement set has been extracted from an observation with a varying
         orientation.
@@ -360,7 +286,7 @@ def get_pol_axis_from_ms(
         ms_feed = tf.getcol(col) * u.rad
         # PAF is at 45deg to feeds
         # 45 - feed_angle = pol_angle
-        pol_axes = -(ms_feed - 45.0 * u.deg)
+        pol_axes = -(ms_feed - (45.0 * u.deg))  # type: ignore
 
     if feed_idx is None:
         assert (ms_feed[:, 0] == ms_feed[0, 0]).all() & (
@@ -372,6 +298,7 @@ def get_pol_axis_from_ms(
     logger.debug(f"Extracting the third-axis orientation for {feed_idx=}")
     pol_ang = pol_axes[feed_idx, 0].to(u.deg)
 
+    assert pol_ang is not None, f"{pol_ang=}, which should not happen"
     return pol_ang
 
 
@@ -393,7 +320,7 @@ def describe_ms(ms: Union[MS, Path], verbose: bool = False) -> MSSummary:
     with table(str(ms.path), readonly=True, ack=False) as tab:
         colnames = tab.colnames()
 
-        flags: np.ndarray[bool] = tab.getcol("FLAG")
+        flags: np.ndarray = tab.getcol("FLAG")
         flagged = np.sum(flags == True)  # Noqa: E712
         unflagged = np.sum(flags == False)  # Noqa: E712
         total = np.prod(flags.shape)
@@ -448,7 +375,7 @@ def split_by_field(
     """
     ms = MS.cast(ms)
 
-    # TODO: Split describe_ms up so can get just fiels
+    # TODO: Split describe_ms up so can get just fields
     ms_summary = describe_ms(ms, verbose=False)
 
     logger.info("Collecting field names and corresponding FIELD_IDs")
@@ -466,7 +393,7 @@ def split_by_field(
             ms_out_dir.mkdir(parents=True)
         except Exception as e:
             logger.warning(e)
-            pass  # Incase above fails due to race condition
+            pass  # In case above fails due to race condition
 
     logger.info(f"Opening {ms.path}. ")
     with table(str(ms.path), ack=False) as tab:  # noqa: F841
@@ -623,7 +550,7 @@ def preprocess_askap_ms(
     skip_rotation: bool = False,
     fix_stokes_factor: bool = False,
 ) -> MS:
-    """The ASKAP MS stores its data in a way that is not immediatedly accessible
+    """The ASKAP MS stores its data in a way that is not immediately accessible
     to other astronomical software, like wsclean or casa. For each measurement set
     the centre of the field is stored, and beam offsets are stored in a separate table.
 
@@ -687,7 +614,7 @@ def preprocess_askap_ms(
         logger.info(f"Returning {ms=}.")
         return ms
 
-    logger.info("Applying roation matrix to correlations. ")
+    logger.info("Applying rotation matrix to correlations. ")
     logger.info(
         f"Rotating visibilities for {ms.path} with data_column={instrument_column} amd corrected_data_column={data_column}"
     )
@@ -753,7 +680,7 @@ def copy_and_preprocess_casda_askap_ms(
     logger.info("Correcting directions. ")
     fix_ms_dir(ms=str(ms.path))
 
-    logger.info("Applying roation matrix to correlations. ")
+    logger.info("Applying rotation matrix to correlations. ")
     logger.info(
         f"Rotating visibilities for {ms.path} with data_column={instrument_column} amd corrected_data_column={data_column}"
     )
@@ -782,7 +709,7 @@ def rename_ms_and_columns_for_selfcal(
 
     Args:
         ms (MS): The subject measurement set to rename
-        target (Union[str, Path]): The targett path the measurement set will be renamed to. This shoudl not already exist.
+        target (Union[str, Path]): The targett path the measurement set will be renamed to. This should not already exist.
         corrected_data (str, optional): The name of the column with the latest calibrated data. This becomes the `data` column. Defaults to "CORRECTED_DATA".
         data (str, optional): The name of the column that will be subsequently processed. If it exists it will be removed. Defaults to "DATA".
 
@@ -807,7 +734,7 @@ def rename_ms_and_columns_for_selfcal(
     logger.info(f"Renaming {ms.path} to {target=}")
     ms.path.rename(target=target)
 
-    # Just some sanity incase None is passed through
+    # Just some sanity in case None is passed through
     if not (corrected_data or data):
         return ms.with_options(path=target)
 

@@ -106,17 +106,18 @@ def test_rms_image_info(rms_path):
     assert np.isclose(1.1098655e-07, rms_info.std)
 
 
+class Example(NamedTuple):
+    a: int
+    b: str
+    c: float
+
+
 def test_expected_namedtuple_get():
-    """This is a simple test to ensure the behavour of
+    """This is a simple test to ensure the behaviour of
     NamedTuple.__getattribute__ remains OK. This is currently
     used in the validation plotting to iterate over known
     surveys
     """
-
-    class Example(NamedTuple):
-        a: int
-        b: str
-        c: float
 
     test = Example(a=1, b="123", c=1.23)
 

@@ -300,12 +300,12 @@ def cli() -> None:
         for count, file in enumerate(sorted(files)):
             logger.info(f"{count} of {len(files)}, {file}")
     elif args.mode == "create":
-        update_options: Dict[str, Any] = (
+        update_options_create: Dict[str, Any] = (
             get_archive_options_from_yaml(strategy_yaml_path=args.strategy_yaml_path)
             if args.strategy_yaml_path
             else dict(tar_file_re_patterhs=args.file_patterns)
         )
-        archive_options = ArchiveOptions(**update_options)
+        archive_options = ArchiveOptions(**update_options_create)
 
         create_sbid_tar_archive(
             tar_out_path=args.tar_out_path,
@@ -313,12 +313,12 @@ def cli() -> None:
             archive_options=archive_options,
         )
     elif args.mode == "copy":
-        update_options: Dict[str, Any] = (
+        update_options_copy: Dict[str, Any] = (
             get_archive_options_from_yaml(strategy_yaml_path=args.strategy_yaml_path)
             if args.strategy_yaml_path
             else dict(copy_file_re_patterhs=args.copy_file_patterns)
         )
-        archive_options = ArchiveOptions(**update_options)
+        archive_options = ArchiveOptions(**update_options_copy)
 
         copy_sbid_files_archive(
             copy_out_path=args.copy_out_path,

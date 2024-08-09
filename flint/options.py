@@ -92,7 +92,7 @@ class FieldOptions(NamedTuple):
     to contain properties of the data that are being processed,
     rather how those data will be processed.
 
-    These settins are not meant to be adjustable throughout
+    These settings are not meant to be adjustable throughout
     rounds of self-calibration.
     """
 
@@ -123,7 +123,7 @@ class FieldOptions(NamedTuple):
     no_imaging: bool = False
     """Whether to skip the imaging process (including self-calibration)"""
     reference_catalogue_directory: Optional[Path] = None
-    """Path to the directory container the refernce catalogues, used to generate valiation plots"""
+    """Path to the directory container the reference catalogues, used to generate validation plots"""
     linmos_residuals: bool = False
     """Linmos the cleaning residuals together into a field image"""
     beam_cutoff: float = 150
@@ -131,7 +131,7 @@ class FieldOptions(NamedTuple):
     fixed_beam_shape: Optional[List[float]] = None
     """Specify the final beamsize of linmos field images in (arcsec, arcsec, deg)"""
     pb_cutoff: float = 0.1
-    """Primary beam attentuation cutoff to use during linmos"""
+    """Primary beam attenuation cutoff to use during linmos"""
     use_preflagger: bool = True
     """Whether to apply (or search for solutions with) bandpass solutions that have gone through the preflagging operations"""
     use_smoothed: bool = False
@@ -147,9 +147,9 @@ class FieldOptions(NamedTuple):
     sbid_copy_path: Optional[Path] = None
     """Path that final processed products will be copied into. If None no copying of file products is performed. See ArchiveOptions. """
     rename_ms: bool = False
-    """Rename MSs throught rounds of imaging and self-cal instead of creating copies. This will delete data-columns throughout. """
+    """Rename MSs throughout rounds of imaging and self-cal instead of creating copies. This will delete data-columns throughout. """
     stokes_v_imaging: bool = False
-    """Specifies whether Stokes-V imaging will be carried out after the final round of imagin (whether or not self-calibration is enabled). """
+    """Specifies whether Stokes-V imaging will be carried out after the final round of imagine (whether or not self-calibration is enabled). """
 
     def with_options(self, **kwargs) -> FieldOptions:
         _dict = self._asdict()

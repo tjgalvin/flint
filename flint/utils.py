@@ -9,7 +9,7 @@ import subprocess
 from contextlib import contextmanager
 from pathlib import Path
 from socket import gethostname
-from typing import List, NamedTuple, Optional, Tuple, Union
+from typing import List, NamedTuple, Optional, Tuple, Union, Generator
 
 import astropy.units as u
 import numpy as np
@@ -32,16 +32,16 @@ def hold_then_move_into(
     move_directory: Path,
     hold_directory: Optional[Path],
     delete_hold_on_exist: bool = True,
-) -> Path:
+) -> Generator[Path, None, None]:
     """Create a temporary directory such that anything within it on the
     exit of the context manager is copied over to `move_directory`.
 
     If `hold_directory` and `move_directory` are the same or `hold_directory` is None, then `move_directory`
-    is immediatedly returned and no output files are copied or deleted. `move_directory` will be
+    is immediately returned and no output files are copied or deleted. `move_directory` will be
     created if it does not exist.
 
     Args:
-        move_directory (Path): Final directort location to move items into
+        move_directory (Path): Final directory location to move items into
         hold_directory (Optional[Path], optional): Location of directory to temporarily base work from. If None provided `move_directory` is returned and no copying/deleting is performed on exit. Defaults to None.
         delete_hold_on_exist (bool, optional): Whether `hold_directory` is deleted on exit of the context. Defaults to True.
 
@@ -81,7 +81,7 @@ def hold_then_move_into(
 @contextmanager
 def temporarily_move_into(
     subject: Path, temporary_directory: Optional[Path] = None
-) -> Path:
+) -> Generator[Path, None, None]:
     """Given a file or folder, temporarily copy it into the path specified
     by `temporary_directory` for the duration of the context manager. Upon
     exit the original copy, specified by `subject`, is removed and replaced
@@ -131,7 +131,7 @@ def temporarily_move_into(
 
         logger.info(f"Moving {output_item} back to {subject=}")
         remove_files_folders(subject)
-        shutil.move(output_item, subject)
+        shutil.move(str(output_item), subject)
 
         logger.info(f"Removing {temporary_directory=}")
         shutil.rmtree(temporary_directory)
@@ -211,7 +211,7 @@ def get_job_info(mode: str = "slurm") -> Union[SlurmInfo]:
 
 
 def log_job_environment() -> SlurmInfo:
-    """Log components of the slurm enviroment. Currently only support slurm
+    """Log components of the slurm environment. Currently only support slurm
 
     Returns:
         SlurmInfo: Collection of slurm items from the job environment
@@ -256,7 +256,7 @@ def get_pixels_per_beam(fits_path: Path) -> Optional[float]:
     for pixels at the reference pixel position.
 
     Args:
-        fits_path (Path): FITS iamge to consideer
+        fits_path (Path): FITS image to consideer
 
     Returns:
         Optional[float]: Number of pixels per beam. If beam is not in header then None is returned.
@@ -284,7 +284,7 @@ def get_packaged_resource_path(package: str, filename: str) -> Path:
     """Load in the path of a package sources.
 
     The `package` argument is passed as a though the module
-    is being speficied as an import statement: `flint.data.aoflagger`.
+    is being specified as an import statement: `flint.data.aoflagger`.
 
     Args:
         package (str): The module path to the resources
@@ -327,7 +327,7 @@ def generate_strict_stub_wcs_header(
         position_at_image_center (SkyCoord): The position that will be at the reference pixel
         image_shape (Tuple[int, int]): The size of the image
         pixel_scale (Union[u.Quantity,str]): Size of the square pixels. If `str` passed will be cast to `Quantity`.
-        image_shape_is_center (bool, optional): It True the position specified by `image_shape` is the center reference position. if False, `image_shape` is assumed to be the size of the image, and teh center is computed from this. Defaults to False.
+        image_shape_is_center (bool, optional): It True the position specified by `image_shape` is the center reference position. if False, `image_shape` is assumed to be the size of the image, and the center is computed from this. Defaults to False.
 
     Raises:
         TypeError: Raised when pixel scale it not a str or astropy.units.Quantity
@@ -383,8 +383,8 @@ def generate_stub_wcs_header(
     smart for its own good.
 
     Args:
-        ra (fUnion[loat,u.Quantuty]): The RA at the reference pixel. if a float is provided it is assumed to be in degrees.
-        dec (Union[float,u.Quantuty]): The Dec at the reference pizel. if a float is provided it is assumed to be in degrees.
+        ra (fUnion[loat,u.Quantity]): The RA at the reference pixel. if a float is provided it is assumed to be in degrees.
+        dec (Union[float,u.Quantity]): The Dec at the reference pizel. if a float is provided it is assumed to be in degrees.
         image_shape (Tuple[int, int]): Size of the representative image
         pixel_scale (Union[u.Quantity, str, float]): The size of the square pixels. if a `float` it is assumed to be arcseconds. If `str`, parsing is hangled by `astropy.units.Quantity`.
         projection (str, optional): Project scheme to encode in the header. Defaults to "SIN".
@@ -450,10 +450,10 @@ def generate_stub_wcs_header(
     # Nor bring it all together
     w.wcs.crpix = image_center
     w.wcs.cdelt = pixel_scale
-    w.wcs.crval = [ra.to(u.deg).value, dec.to(u.deg).value]
+    w.wcs.crval = [ra.to(u.deg).value, dec.to(u.deg).value]  # type: ignore
     w.wcs.ctype = [f"RA---{projection}", f"DEC--{projection}"]
     w.wcs.cunit = ["deg", "deg"]
-    w._naxis = tuple(image_shape)
+    w._naxis = tuple(image_shape)  # type: ignore
 
     return w
 
@@ -463,7 +463,7 @@ def estimate_skycoord_centre(
 ) -> SkyCoord:
     """Estimate the centre position of (RA, Dec) positions stored in a
     input `SkyCoord`. Internally the mean of the cartesian (X,Y,Z) is
-    calculated, which is then transormed back to a sky position,.
+    calculated, which is then transformed back to a sky position,.
 
     Args:
         sky_positions (SkyCoord): Set of input positions to consider
@@ -523,7 +523,7 @@ def zip_folder(
 
 
 def rsync_copy_directory(target_path: Path, out_path: Path) -> Path:
-    """A small attempt to rsync a directtory from one location to another.
+    """A small attempt to rsync a directory from one location to another.
     This is an attempt to verify a copy was completed successfully.
 
     Args:
@@ -571,7 +571,7 @@ def copy_directory(
 
     assert (
         input_directory.exists() and input_directory.is_dir()
-    ), f"Currently only supprts copying directories, {input_directory=} is a file or does not exist. "
+    ), f"Currently only supports copying directories, {input_directory=} is a file or does not exist. "
 
     logger.info(f"Copying {input_directory} to {output_directory}.")
 

@@ -1,5 +1,5 @@
 --[[
-This ASKAP strategy is taken from the default ATCA stradegy
+This ASKAP strategy is taken from the default ATCA strategy
 that is packaged in aoflagger. The main differences are:
 - ensuring that all input flags are carried forward
 - bumping up the extra frequency smoothing
