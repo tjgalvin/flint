@@ -1,4 +1,4 @@
-"""This contains common unitilities to enable components of the prefect imaging flowws.
+"""This contains common utilities to enable components of the prefect imaging flowws.
 The majority of the items here are the task decorated functions. Effort should be made
 to avoid putting in too many items that are not going to be directly used by prefect
 imaging flows.
@@ -160,7 +160,7 @@ def task_run_bane_and_aegean(
         aegean_container (Path): Path to a singularity container containing BANE and aegean
 
     Raises:
-        ValueError: Raised when ``iamge`` is not a supported type
+        ValueError: Raised when ``image`` is not a supported type
 
     Returns:
         AegeanOutputs: Output BANE and aegean products, including the RMS and BKG images
@@ -315,7 +315,7 @@ def task_wsclean_imager(
             **convergence_wsclean_options
         )
         logger.warn(
-            f"Clean divergence dertected. Reruning. Updated options {convergence_wsclean_options=}"
+            f"Clean divergence dertected. Rerunning. Updated options {convergence_wsclean_options=}"
         )
 
         return wsclean_imager(
@@ -338,13 +338,13 @@ def task_get_common_beam(
         wsclean_cmds (Collection[WSCleanCommand]): Input images whose restoring beam properties will be considered
         cutoff (float, optional): Major axis larger than this valur, in arcseconds, will be ignored. Defaults to 25.
         filter (Optional[str], optional): Only include images when considering beam shape if this string is in the file path. Defaults to None.
-        fixed_beam_shape (Optional[List[float]], optional): Specify the final beamsize of linmos field images in (arcsec, arcsec, deg). If None it is deduced from images. Defauls to None;
+        fixed_beam_shape (Optional[List[float]], optional): Specify the final beamsize of linmos field images in (arcsec, arcsec, deg). If None it is deduced from images. Defaults to None;
 
     Returns:
         BeamShape: The final convolving beam size to be used
     """
     # TODO: This function could have a wrapper around it that checks to see if
-    # fixed_beam_shape is present, and simply return, avoiding using this funcitons
+    # fixed_beam_shape is present, and simply return, avoiding using this functions
     # .submit method. Ahhh.
     if fixed_beam_shape:
         beam_shape = BeamShape(
@@ -361,7 +361,7 @@ def task_get_common_beam(
     for wsclean_cmd in wsclean_cmds:
         if wsclean_cmd.imageset is None:
             logger.warning(
-                f"No imageset fo {wsclean_cmd.ms} found. Has imager finished?"
+                f"No imageset for {wsclean_cmd.ms} found. Has imager finished?"
             )
             continue
         images_to_consider.extend(wsclean_cmd.imageset.image)
@@ -406,14 +406,16 @@ def task_convolve_image(
     ), f"{wsclean_cmd.ms} has no attached imageset."
 
     supported_modes = ("image", "residual")
-    assert (
-        mode in supported_modes
-    ), f"{mode=} is not supported. Known modes are {supported_modes}"
-
     logger.info(f"Extracting {mode}")
-    image_paths: Collection[Path] = (
-        wsclean_cmd.imageset.image if mode == "image" else wsclean_cmd.imageset.residual
-    )
+    if mode == "image":
+        image_paths = list(wsclean_cmd.imageset.image)
+    elif mode == "residual":
+        assert (
+            wsclean_cmd.imageset.residual is not None
+        ), f"{wsclean_cmd.imageset.residual=}, which should not happen"
+        image_paths = list(wsclean_cmd.imageset.residual)
+    else:
+        raise ValueError(f"{mode=} is not supported. Known modes are {supported_modes}")
 
     if filter:
         logger.info(f"Filtering images paths with {filter=}")
@@ -433,9 +435,9 @@ def task_convolve_image(
     logger.info(f"Will convolve {image_paths}")
 
     # experience has shown that astropy units do not always work correctly
-    # in a multiprocessing / dask environment. The unit registery does not
+    # in a multiprocessing / dask environment. The unit registry does not
     # seem to serialise correctly, and we can get weird arcsecond is not
-    # compatiable with arcsecond type errors. Import here in an attempt
+    # compatible with arcsecond type errors. Import here in an attempt
     # to minimise
     import astropy.units as u
     from astropy.io import fits
@@ -464,7 +466,7 @@ def task_linmos_images(
     field_name: Optional[str] = None,
     suffix_str: str = "noselfcal",
     holofile: Optional[Path] = None,
-    sbid: Optional[int] = None,
+    sbid: Optional[Union[int, str]] = None,
     parset_output_path: Optional[str] = None,
     cutoff: float = 0.05,
     field_summary: Optional[FieldSummary] = None,
@@ -478,7 +480,7 @@ def task_linmos_images(
         field_name (Optional[str], optional): Name of the field, which is included in the output images created. Defaults to None.
         suffix_str (str, optional): Additional string added to the prefix of the output linmos image products. Defaults to "noselfcal".
         holofile (Optional[Path], optional): The FITS cube with the beam corrections derived from ASKAP holography. Defaults to None.
-        sbid (Optional[int], optional): SBID of the data being imaged. Defaults to None.
+        sbid (Optional[Union[int,str]], optional): SBID of the data being imaged. Defaults to None.
         parset_output_path (Optional[str], optional): Location to write the linmos parset file to. Defaults to None.
         cutoff (float, optional): The primary beam attenuation cutoff supplied to linmos when coadding. Defaults to 0.05.
         field_summary (Optional[FieldSummary], optional): The summary of the field, including (importantly) to orientation of the third-axis. Defaults to None.
@@ -497,6 +499,9 @@ def task_linmos_images(
 
     candidate_image = filter_images[0]
     candidate_image_fields = processed_ms_format(in_name=candidate_image)
+    assert (
+        candidate_image_fields is not None
+    ), f"{candidate_image=}, which should not happen"
 
     if field_name is None:
         field_name = candidate_image_fields.field
@@ -513,9 +518,10 @@ def task_linmos_images(
     logger.info(f"Base output image name will be: {out_name}")
 
     if parset_output_path is None:
-        parset_output_path = f"{out_name.name}_parset.txt"
+        parset_output_path = Path(f"{out_name.name}_parset.txt")
 
-    parset_output_path = out_dir / Path(parset_output_path)
+    assert out_dir is not None, f"{out_dir=}, which should not happen"
+    parset_output_path: Path = Path(out_dir) / Path(parset_output_path)
     logger.info(f"Parsert output path is {parset_output_path}")
 
     pol_axis = field_summary.pol_axis if field_summary else None
@@ -589,12 +595,12 @@ def _create_convol_linmos_images(
     current_round: Optional[int] = None,
     additional_linmos_suffix_str: Optional[str] = None,
 ) -> List[LinmosCommand]:
-    """Derive the approriate set of beam shapes and then produce corresponding
+    """Derive the appropriate set of beam shapes and then produce corresponding
     convolved and co-added images
 
     Args:
         wsclean_cmds (Collection[WSCleanCommand]): Set of wsclean commands that have been executed
-        field_options (FieldOptions): Set of field imaging optins, containing details of the beam/s
+        field_options (FieldOptions): Set of field imaging options, containing details of the beam/s
         field_summary (Optional[FieldSummary], optional): Summary of the MSs, importantly containing their third-axis rotation. Defaults to None.
         current_round (Optional[int], optional): Which self-cal imaging round. If None 'noselfcal'. Defaults to None.
         additional_linmos_suffix_str (Optional[str], optional): An additional string added to the end of the auto-generated linmos base name. Defaults to None.
@@ -735,7 +741,7 @@ def task_extract_beam_mask_image(
 
     Args:
         linmos_mask_names (FITSMaskNames): Mask that will be drawn from to form a smaller clean mask (e.g. for a beam)
-        wsclean_cmd (WSCleanCommand): Wsclean command and meta-data. This is used to draw from the WCS to create an appropraite pixel-to-pixel mask
+        wsclean_cmd (WSCleanCommand): Wsclean command and meta-data. This is used to draw from the WCS to create an appropriate pixel-to-pixel mask
 
     Returns:
         FITSMaskNames: Clean mask for a image

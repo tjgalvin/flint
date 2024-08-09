@@ -1219,8 +1219,9 @@ def _make_beam_psf_row(beam_summary: BeamSummary) -> PSFTableRow:
 
     coord = estimate_image_centre(image_path=image_file)
 
+    assert name_components is not None, f"{name_components=}, which should not happen"
     return PSFTableRow(
-        beam=name_components.beam,
+        beam=int(name_components.beam),
         vis_flagged=vis_flagged,
         vis_total=vis_total,
         image_name=image_file.name,
@@ -1234,15 +1235,15 @@ def _make_beam_psf_row(beam_summary: BeamSummary) -> PSFTableRow:
     )
 
 
-def make_psf_table(field_summary: FieldSummary, output_path: Path) -> Optional[Path]:
+def make_psf_table(field_summary: FieldSummary, output_path: Path) -> Path:
     # TODO: This will likely need changes to the
     # FieldSummary structure to handle holding MSSummary objects
     # Columns are:
     # BEAM_NUM,BEAM_TIME,RA_DEG,DEC_DEG,GAL_LONG,GAL_LAT,PSF_MAJOR,PSF_MINOR,PSF_ANGLE,VIS_TOTAL,VIS_FLAGGED
 
-    if field_summary.beam_summaries is None:
-        logger.error("No beam summaries found in the field summary")
-        return
+    assert (
+        field_summary.beam_summaries is not None
+    ), f"{field_summary.beam_summaries=}, which should not happen"
 
     psf_table_rows = [
         _make_beam_psf_row(beam_summary=beam_summary)

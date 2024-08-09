@@ -492,10 +492,10 @@ def _potato_peel_command(
         f"{potato_peel_arguments.image_fov:.4f} "
     )
 
-    for item in (potato_peel_arguments, potato_peel_options):
+    for item in [potato_peel_arguments, potato_peel_options]:
         # The skip keys handle the mandatory arguments that are specified above
         sub_options = _potato_options_to_command(
-            potato_options=item,
+            potato_options=item,  # type: ignore
             skip_keys=("image_fov", "ms"),
             check_double_keys=True,
         )

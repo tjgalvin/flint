@@ -335,8 +335,8 @@ def create_wsclean_name_argument(wsclean_options: WSCleanOptions, ms: MS) -> Pat
             if isinstance(temp_dir, str) and temp_dir[0] == "$"
             else Path(temp_dir)
         )
-        assert name_dir is not None, f"{name_dir=} is None, which is bad"
-        name_dir = Path(name_dir)
+
+    assert name_dir is not None, f"{name_dir=} is None, which is bad"
 
     name_argument_path = Path(name_dir) / name_prefix_str
     logger.info(f"Constructed -name {name_argument_path}")
