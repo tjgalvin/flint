@@ -11,7 +11,7 @@ for this, but the principal one is that the numba module used
 by potatopeel may be difficult to get working correctly alongside
 dask and flint. Keeping it simple at this point is the main aim.
 There is also the problem of casatasks + python-casacore not
-jiving in newer python versios.
+jiving in newer python versions.
 
 """
 
@@ -63,7 +63,7 @@ class PotatoConfigOptions(NamedTuple):
     peel_channels: int = 16
     """Number of output channels for the peel images"""
     peel_nmiter: int = 7
-    """Number of major iterations allowed for the peel souces"""
+    """Number of major iterations allowed for the peel sources"""
     peel_minuvl: float = 700
     """"Minimum (u,v)- distance in wavelengths for data to be selected for the peel image"""
     peel_multiscale: bool = True
@@ -106,7 +106,7 @@ class PotatoPeelOptions(NamedTuple):
     minpeelflux: float = 0.5
     """Minimum flux, in Jy, for the peeling procedure (image->selfcal->image)"""
     refant: int = 1
-    """Referance antenna to use when solving for self-cal solutions"""
+    """Reference antenna to use when solving for self-cal solutions"""
     direct_subtract: bool = True
     """Whether a direct model subtraction (without self-cal) should be used ift he source is faint"""
     intermediate_peels: bool = True
@@ -350,7 +350,7 @@ def _potato_options_to_command(
 
     Args:
         potato_options (Union[PotatoPeelArguments,PotatoConfigOptions, PotatoPeelOptions]): An instance of one of the option classes to draw from
-        skip_keys (Optional[Collection[str]], optional): A collections of keys to ignore when build the CLI. If None all keys in the provided options instance are used. Defaults ot None.
+        skip_keys (Optional[Collection[str]], optional): A collections of keys to ignore when build the CLI. If None all keys in the provided options instance are used. Defaults to None.
         check_double_leys (bool, optional): Some long form names in `hot_potato` are single dash while others are double dash. This is not the case in the config creation tool. This will check to see if the double should be used. Defaults to False.
 
     Raises:
@@ -475,7 +475,7 @@ def _potato_peel_command(
     potato_peel_options: PotatoPeelOptions,
 ) -> PotatoPeelCommand:
     """Construct the CLI command for `hot_potato`, and appropriately
-    handle the mandatory and optinal arguments.
+    handle the mandatory and optional arguments.
 
     Args:
         ms (MS): The measurement set that will be peeled
@@ -531,7 +531,7 @@ def create_run_potato_peel(
     )
 
     # make sure the container can bind to all necessary directories. This
-    # includes the potential directory used by wsclean to temporaily store
+    # includes the potential directory used by wsclean to temporarily store
     # files
     bind_dirs = [
         ms.path,
@@ -559,7 +559,7 @@ class NormalisedSources(NamedTuple):
     source_decs: Tuple[float]
     """The Decs in degrees"""
     source_fovs: Tuple[float]
-    """The size of each source to image in degress"""
+    """The size of each source to image in degrees"""
     source_names: Tuple[str]
     """The name of each source"""
 
@@ -579,7 +579,7 @@ def get_source_props_from_table(table: Table) -> NormalisedSources:
 
     source_ras = [source_sky.ra.deg for source_sky in sources_sky]  # type: ignore
     source_decs = [source_sky.dec.deg for source_sky in sources_sky]  # type: ignore
-    source_apertures = (table["Aperture"] * u.arcmin).to(u.deg).value  # type: ignore
+    source_apertures = (size for size in (table["Aperture"] * u.arcmin).to(u.deg).value)  # type: ignore
     source_names = [i.replace(" ", "_") for i in table["Name"].value]  # type: ignore
 
     return NormalisedSources(
@@ -615,9 +615,9 @@ def potato_peel(
     Args:
         ms (MS): The measurement set to peel out known sources
         potato_container (Path): Location of container with potatopeel software installed
-        update_potato_config_options (Optional[Dict[str, Any]], optional): A dictioanry with values to use to update the default options within the `PotatoConfigOptions`. If None use the defaults. Defaults to None.
-        update_potato_peel_options (Optional[Dict[str, Any]], optional): A dictioanry with values to use to update the default options within the `PotatoPeelOptions`. If None use the defaults. Defaults to None.
-        image_options (Optional[WSCleanOptions], optional): Any imaging options that should be used to determin if sources require peeling (e.g. image size, pixel size)
+        update_potato_config_options (Optional[Dict[str, Any]], optional): A dictionary with values to use to update the default options within the `PotatoConfigOptions`. If None use the defaults. Defaults to None.
+        update_potato_peel_options (Optional[Dict[str, Any]], optional): A dictionary with values to use to update the default options within the `PotatoPeelOptions`. If None use the defaults. Defaults to None.
+        image_options (Optional[WSCleanOptions], optional): Any imaging options that should be used to determine if sources require peeling (e.g. image size, pixel size)
 
     Returns:
         MS: Updated measurement set

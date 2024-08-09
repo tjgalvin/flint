@@ -160,7 +160,7 @@ def fill_between_flags(
 ) -> None:
     """Plot vertical or horizontal lines where data are flagged.
 
-    NOTE: This is pretty inefficent and not intended for regular use.
+    NOTE: This is pretty inefficient and not intended for regular use.
 
     Args:
         ax (plt.Axes): Axes object to plot lines on
@@ -451,7 +451,7 @@ def find_existing_solutions(
         use_smoothed (bool, optional): Add the smoothed bandpass suffix when searching for solution files. This uses the expected suffix for smoothed solutions. Defaults to False.
 
     Returns:
-        List[CalibrateCommand]: Collection of the calibrate command strcutures that are intended to be used to map the bandpass measurement sets to solution files.
+        List[CalibrateCommand]: Collection of the calibrate command structures that are intended to be used to map the bandpass measurement sets to solution files.
     """
     logger.info(
         f"Searching {bandpass_directory} for existing measurement sets and solutions. "
@@ -480,7 +480,7 @@ def find_existing_solutions(
             cmd="None",
             ms=MS(ms),
             solution_path=solution_path,
-            model="None",
+            model=Path("None"),
             preflagged=True,
         )
         for (ms, solution_path) in zip(bandpass_mss, solution_paths)
@@ -559,7 +559,7 @@ def calibrate_options_to_command(
 
     assert (
         len(unknowns) == 0
-    ), f"Uknown types when generating calibrate command: {unknowns}"
+    ), f"Unknown types when generating calibrate command: {unknowns}"
 
     cmd += f"{str(ms_path)} {str(solutions_path)}"
 
@@ -581,9 +581,9 @@ def create_calibrate_cmd(
         ms (Union[Path,MS]): The measurement set to calibrate. There needs to be a nominated data_column.
         calibrate_model (Path): Path to a generated calibrate sky-model
         solution_path (Path, optional): The output path of the calibrate solutions file. If None, a default suffix of "calibrate.bin" is used. Defaults to None.
-        container (Optional[Path], optional): If a path to a container is supplied the calibrate command is executed immediatedly. Defaults to None.
-        update_calibrate_options (Optional[Dict[str, Any]], optional): Additional options to update the generated CalibrateOptions with. Keys should be attributes of CalibrationOptions. Defaults ot None.
-        calibrate_data_column(Optional[str], optional): The name of the column to calibrate, overwritting the nominated column set in the MS. If None, the MS.column atribute is used. Defaults to None.
+        container (Optional[Path], optional): If a path to a container is supplied the calibrate command is executed immediately. Defaults to None.
+        update_calibrate_options (Optional[Dict[str, Any]], optional): Additional options to update the generated CalibrateOptions with. Keys should be attributes of CalibrationOptions. Defaults to None.
+        calibrate_data_column(Optional[str], optional): The name of the column to calibrate, overwriting the nominated column set in the MS. If None, the MS.column attribute is used. Defaults to None.
 
     Raises:
         FileNotFoundError: Raised when calibrate_model can not be found.
@@ -596,7 +596,7 @@ def create_calibrate_cmd(
     column = ms.column
     if calibrate_data_column:
         logger.info(
-            f"Overwritting column to calibrate from {ms.column=} to {calibrate_data_column=}"
+            f"Overwriting column to calibrate from {ms.column=} to {calibrate_data_column=}"
         )
         column = calibrate_data_column
 
@@ -661,7 +661,7 @@ def create_apply_solutions_cmd(
         ms (MS): Measurement set to have solutions applied to
         solutions_file (Path): Path to the solutions file to apply
         output_column (Optional[str], optional): The desired output column name. See notes above. Defaults to None.
-        container (Optional[Path], optional): If a path to a container is supplied the calibrate command is executed immediatedly. Defaults to None.
+        container (Optional[Path], optional): If a path to a container is supplied the calibrate command is executed immediately. Defaults to None.
 
     Returns:
         ApplySolutions: Description of applysolutions command, solutions file path and updated MS
@@ -759,7 +759,7 @@ def run_apply_solutions(apply_solutions_cmd: ApplySolutions, container: Path) ->
 def calibrate_apply_ms(
     ms_path: Path, model_path: Path, container: Path, data_column: str = "DATA"
 ) -> ApplySolutions:
-    """Will create and run a calibration command using AO calibrator, and then appy these solutions.
+    """Will create and run a calibration command using AO calibrator, and then apply these solutions.
 
     Args:
         ms_path (Path): The measurement set that will be calibrated
@@ -778,14 +778,14 @@ def calibrate_apply_ms(
 
     run_calibrate(calibrate_cmd=calibrate_cmd, container=container.absolute())
 
-    flagged_solutions_path = flag_aosolutions(
+    flagged_solutions = flag_aosolutions(
         solutions_path=calibrate_cmd.solution_path,
         ref_ant=0,
         plot_dir=Path(ms_path.parent) / Path("preflagger"),
     )
 
     apply_solutions_cmd = create_apply_solutions_cmd(
-        ms=ms, solutions_file=flagged_solutions_path
+        ms=ms, solutions_file=flagged_solutions.path
     )
 
     run_apply_solutions(
@@ -888,7 +888,7 @@ def flag_aosolutions(
     If an antenna is over 80% flagged then it is completely removed.
 
     A low order polynomial (typically order 5) is fit to the amplitudes of the
-    Gx and Gy, and if the residuals are sufficently high then the antenna will
+    Gx and Gy, and if the residuals are sufficiently high then the antenna will
     be flagged.
 
     If the mean ratio of the Gx and Gy amplitudes for an antenna are higher
@@ -1035,7 +1035,7 @@ def flag_aosolutions(
                 bandpass[time, ant, :, :] = np.nan
 
     # To this point operations carried out to the bandpass were to the mutable array reference
-    # so there is no need to create a new solutions instace
+    # so there is no need to create a new solutions instance
     out_solutions_path = get_aocalibrate_output_path(
         ms_path=solutions_path, include_preflagger=True, include_smoother=False
     )

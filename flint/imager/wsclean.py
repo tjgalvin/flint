@@ -326,11 +326,11 @@ def create_wsclean_name_argument(wsclean_options: WSCleanOptions, ms: MS) -> Pat
     name_prefix_str = create_imaging_name_prefix(ms=ms, pol=pol)
 
     # Now resolve the directory part
-    name_dir = ms.path.parent
+    name_dir: Union[Path, str, None] = ms.path.parent
     temp_dir = wsclean_options_dict.get("temp_dir", None)
     if temp_dir:
         # Resolve if environment variable
-        name_dir: Union[Path, str, None] = (
+        name_dir = (
             get_environment_variable(variable=temp_dir)
             if isinstance(temp_dir, str) and temp_dir[0] == "$"
             else Path(temp_dir)
@@ -589,10 +589,8 @@ def run_wsclean_imager(
     """
 
     ms = wsclean_cmd.ms
-    if isinstance(ms, MS):
-        ms = (ms,)
 
-    sclient_bind_dirs = [Path(m.path).parent.absolute() for m in ms]
+    sclient_bind_dirs = [Path(ms.path).parent.absolute()]
     if bind_dirs:
         sclient_bind_dirs = sclient_bind_dirs + list(bind_dirs)
 
@@ -625,7 +623,7 @@ def run_wsclean_imager(
 
     prefix = image_prefix_str if image_prefix_str else None
     if prefix is None:
-        prefix = str(ms[0].path.parent / ms[0].path.name)
+        prefix = str(ms.path.parent / ms.path.name)
         logger.warning(f"Setting prefix to {prefix}. Likely this is not correct. ")
 
     if wsclean_cmd.cleanup:
