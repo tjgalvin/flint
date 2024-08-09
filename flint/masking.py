@@ -398,9 +398,11 @@ def minimum_absolute_clip(
     logger.info(f"Minimum absolute clip, {increase_factor=} {box_size=}")
     rolling_box_min = minimum_filter(image, box_size)
 
-    image_mask = (image > (increase_factor * np.abs(rolling_box_min))) | (
-        (image > 0.0) & (rolling_box_min > 0.0)
-    )
+    image_mask = image > (increase_factor * np.abs(rolling_box_min))
+    # NOTE: This used to attempt to select pixels should that belong to an island of positive pixels with a box that was too small
+    # | (
+    #     (image > 0.0) & (rolling_box_min > 0.0)
+    # )
 
     return image_mask
 
