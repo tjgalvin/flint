@@ -63,7 +63,7 @@ def task_bandpass_create_apply_solutions_cmd(
         ms (MS): The measurement set that will have solutions applied
         calibrate_cmd (CalibrateCommand): The calibrate command and meta-data describing the solutions to apply
         container (Path): Path to singularity container that will apply the solutions
-        output_column (Optional[Path], optional): the output column anme to create. Defaults to None.
+        output_column (Optional[Path], optional): the output column name to create. Defaults to None.
 
     Returns:
         ApplySolutions: The apply solutions command and meta-data
@@ -126,7 +126,7 @@ def run_bandpass_stage(
     source_name_prefix: str = "B1934-638",
     skip_rotation: bool = False,
 ) -> List[CalibrateCommand]:
-    """Excutes the bandpass calibration (using ``calibrate``) against a set of
+    """Executes the bandpass calibration (using ``calibrate``) against a set of
     input measurement sets.
 
     Args:
@@ -251,7 +251,7 @@ def calibrate_bandpass_flow(
     )
 
     # This is the model that we will calibrate the bandpass against.
-    # At the time fo writing 1934-638 is the only model that is supported,
+    # At the time of writing 1934-638 is the only model that is supported,
     # not only by this pirate ship, but also the ASKAP telescope itself.
     model_path: Path = get_1934_model(mode="calibrate")
     source_name_prefix: str = "B1934-638"
