@@ -77,13 +77,13 @@ def get_dask_runner(
     cluster: Union[str, Path] = "galaxy_small",
     extra_cluster_kwargs: Optional[Dict[str, Any]] = None,
 ) -> DaskTaskRunner:
-    """Creates and returns a DaskTaskRunner configured to establised a SLURMCluster instance
+    """Creates and returns a DaskTaskRunner configured to established a SLURMCluster instance
     to manage a set of dask-workers. The SLURMCluster is currently configured only for Galaxy.
 
     Keyword Args:
         cluster (Union[str,Path]): The cluster name that will be used to search for a cluster specification file.
                        This could be the name of a known cluster, or the name of a yaml file installed
-                       amoung the `cluster_configs` directory of the aces module.
+                       among the `cluster_configs` directory of the aces module.
 
     Returns:
         DaskTaskRunner: A dask task runner capable of being used as a task_runner for a prefect flow

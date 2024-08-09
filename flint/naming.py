@@ -15,7 +15,7 @@ def create_image_cube_name(
     image_prefix: Path, mode: str, suffix: str = "cube.fits"
 ) -> Path:
     """Create a consistent naming scheme when combining images into cube images. Intended to
-    be used whhen combining many subband images together into a single cube.
+    be used when combining many subband images together into a single cube.
 
     The name returned will be:
     >> {image_prefix}.{mode}.{suffix}
@@ -23,7 +23,7 @@ def create_image_cube_name(
     Args:
         image_prefix (Path): The unique path of the name. Generally this is the common part among the input planes
         mode (str): Additional mode to add to the file name
-        suffix (str, optional): The final suffix to appened. Defaults to ".cube.fits".
+        suffix (str, optional): The final suffix to appended. Defaults to ".cube.fits".
 
     Returns:
         Path: The final path and file name
@@ -73,7 +73,7 @@ def get_beam_resolution_str(mode: str, marker: Optional[str] = None) -> str:
         str: The appropriate string for mapped mode
     """
     # NOTE: Arguably this is a trash and needless function. Adding it
-    # incase other modes are ever needed or referenced. No idea whether
+    # in case other modes are ever needed or referenced. No idea whether
     # it will ever been needed and could be removed in future.
     supported_modes: Dict[str, str] = dict(optimal="optimal", fixed="fixed", raw="raw")
     if mode.lower() not in supported_modes.keys():
@@ -375,7 +375,7 @@ def create_ms_name(
     ms_path: Path, sbid: Optional[int] = None, field: Optional[str] = None
 ) -> str:
     """Create a consistent naming scheme for measurement sets. At present
-    it is intented to be used for splitting fields from raw measurement
+    it is intended to be used for splitting fields from raw measurement
     sets, but can be expanded.
 
     Args:
@@ -545,6 +545,7 @@ def get_potato_output_base_path(ms_path: Path) -> Path:
     """
 
     ms_components = processed_ms_format(in_name=ms_path)
+    assert ms_components is not None, f"{ms_components=}, which should not be possible"
     output_components = (
         f"SB{ms_components.sbid}.{ms_components.field}.beam{ms_components.beam}.potato"
     )
@@ -569,6 +570,7 @@ def get_aocalibrate_output_path(
         Path: The constructed output path of the solutions file. This include the parent directory of the input measurement set
     """
     ms_components = processed_ms_format(in_name=ms_path)
+    assert ms_components is not None, f"{ms_components=}, which should not be possible"
     output_components = [
         f"SB{ms_components.sbid}.{ms_components.field}.beam{ms_components.beam}"
     ]

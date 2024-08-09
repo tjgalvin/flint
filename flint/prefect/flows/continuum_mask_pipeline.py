@@ -8,8 +8,8 @@ This pipeline will attempt to incorporate a masking operation once a linmos
 field has been produced. Given a linmos image, a signal and mask operation
 will create a large field image that could then be used as a clean mask
 provided to wsclean. This process would require a mask to be extracted from
-the larger singnal linmos mask image using a template WCS header. It seems
-that the best way to do this would be to use a header from the preivous
+the larger signal linmos mask image using a template WCS header. It seems
+that the best way to do this would be to use a header from the previous
 imaging round.
 """
 
@@ -138,7 +138,7 @@ def process_science_fields(
 
     if field_options.no_imaging:
         logger.info(
-            f"No imaging will be performed, as requested bu {field_options.no_imaging=}"
+            f"No imaging will be performed, as requested by {field_options.no_imaging=}"
         )
         return
 
@@ -416,7 +416,7 @@ def get_parser() -> ArgumentParser:
         "--selfcal-rounds",
         type=int,
         default=2,
-        help="The number of selfcalibration rounds to perfrom. ",
+        help="The number of selfcalibration rounds to perform. ",
     )
     parser.add_argument(
         "--zip-ms",
@@ -443,7 +443,7 @@ def get_parser() -> ArgumentParser:
         "--reference-catalogue-directory",
         type=Path,
         default=None,
-        help="Path to the directory containing the ICFS, NVSS and SUMSS referenece catalogues. These are required for validaiton plots. ",
+        help="Path to the directory containing the ICFS, NVSS and SUMSS reference catalogues. These are required for validation plots. ",
     )
     parser.add_argument(
         "--butterworth-filter",

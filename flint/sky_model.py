@@ -271,7 +271,7 @@ def generate_pb(
     Returns:
         Union[GaussianResponse, SincSquaredResponse, AiryResponse]: Constructed primary beam responses
     """
-    response = None
+    response: Union[GaussianResponse, SincSquaredResponse, AiryResponse, None] = None
     if pb_type.lower() == "gaussian":
         response = generate_gaussian_pb(freqs=freqs, aperture=aperture, offset=offset)
     elif pb_type.lower() == "sincsquared":
@@ -854,7 +854,7 @@ def get_parser():
         "--assumed-q",
         type=float,
         default=0.0,
-        help="Assumed curvature when no apropriate column in sky-catalogue. ",
+        help="Assumed curvature when no appropriate column in sky-catalogue. ",
     )
     parser.add_argument(
         "--fwhm-scale",

@@ -20,7 +20,7 @@ class LinmosCommand(NamedTuple):
     cmd: str
     """The yandasoft linmos task that will be executed"""
     parset: Path
-    """The output location that the generated linmos parset has been writen to"""
+    """The output location that the generated linmos parset has been written to"""
     image_fits: Path
     """Path to the output linmos image created (or will be). """
 
@@ -262,7 +262,7 @@ def generate_linmos_parameter_set(
         weight_list (str, optional): If not None, this string will be embedded into the yandasoft linmos parset as-is. It should represent the formatted string pointing to weight files, and should be equal length of the input images. If None it is internally generated. Defaults to None.
         holofile (Optional[Path], optional): Path to a FITS cube produced by the holography processing pipeline. Used by linmos to appropriate primary-beam correct the images. Defaults to None.
         cutoff (float, optional): Pixels whose primary beam attenuation is below this cutoff value are blanked. Defaults to 0.001.
-        pol_axis (Optional[float], optional): The physical orientation of the ASKAP third-axis. This is provided (with some assumptions about the orientation of the holography) to correctly rotate the attentuation of the beams when coadding. If None we hope for the best. Defaults to None.
+        pol_axis (Optional[float], optional): The physical orientation of the ASKAP third-axis. This is provided (with some assumptions about the orientation of the holography) to correctly rotate the attenuation of the beams when coadding. If None we hope for the best. Defaults to None.
         overwrite (bool, optional): If True and the parset file already exists, overwrite it. Otherwise a FileExistsError is raised should the parset exist. Defaults to True.
 
     Returns:
@@ -317,7 +317,7 @@ def generate_linmos_parameter_set(
         # f"linmos.beamangle        = {beam_angle_list}\n"
         f"linmos.imagetype        = fits\n"
         f"linmos.outname          = {str(parent_dir / linmos_names.image_fits.stem)}\n"
-        f"linmos.outweight        = {str(parent_dir / linmos_names.weight_fits.stem)}\n"
+        f"linmos.outweigh        = {str(parent_dir / linmos_names.weight_fits.stem)}\n"
         f"# For ASKAPsoft>1.3.0\n"
         f"linmos.useweightslog    = true\n"
         f"linmos.weighttype       = Combined\n"

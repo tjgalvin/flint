@@ -56,7 +56,7 @@ def ms_example(tmpdir):
 
 
 def test_source_in_image_fov():
-    """Test to see if souce is within an image FoV"""
+    """Test to see if source is within an image FoV"""
     # This comes from a test wsclean produced image. Not sure
     # why or how a minus crval1 has come out.
     wcs_dict = dict(
@@ -204,7 +204,7 @@ def test_load_peel_sources():
 
 
 def test_pb_models():
-    """See if the respones can be loaded and executed"""
+    """See if the responses can be loaded and executed"""
     freq = 1.0 * u.GHz
     aperture = 12 * u.m
     offset = np.arange(0, 200) * u.arcmin

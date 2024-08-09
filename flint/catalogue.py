@@ -9,7 +9,7 @@ and retained on disk.
 
 from argparse import ArgumentParser
 from pathlib import Path
-from typing import NamedTuple, Optional, Tuple
+from typing import NamedTuple, Optional, Tuple, Union
 
 import astropy.units as u
 from astropy.table import Table
@@ -106,6 +106,104 @@ KNOWN_REFERENCE_CATALOGUES = dict(
     ),
 )
 
+# Helper functions that are used to try to guess column names from a table.
+# These are intended to only be helpers for common names and not an extensive list
+PREFERRED_RA_COLUMN_NAMES = ["RAJ2000", "ra"]
+PREFERRED_DEC_COLUMN_NAMES = ["DEJ2000", "dec"]
+PREFERRED_PEAK_COLUMN_NAMES = ["peak_flux", "Sp"]
+PREFERRED_INT_COLUMN_NAMES = ["int_flux", "Sint"]
+PREFERRED_INT_ERR_COLUMN_NAMES = ["local_rms"]
+
+PREFERRED_COLUMNS = dict(
+    ra=PREFERRED_RA_COLUMN_NAMES,
+    dec=PREFERRED_DEC_COLUMN_NAMES,
+    peakflux=PREFERRED_PEAK_COLUMN_NAMES,
+    intflux=PREFERRED_INT_COLUMN_NAMES,
+    intfluxerr=PREFERRED_INT_ERR_COLUMN_NAMES,
+)
+
+
+def guess_column_in_table(
+    table: Table, column: str, guess_column: Optional[str] = None
+) -> str:
+    """Attempt to deduce the appropriate column name from a set of
+    column names in a table. A lookup of known column names for different
+    contexts if consulted. Available modes are:
+
+    #. ra
+    #. dec
+    #. peakflux
+    #. intflux
+
+    If `guess_column` is provided and is in the table this is returned
+
+    Args:
+        table (Table): The table with the column names to inspect
+        column (str): The type of the column we are attempting to deduce.
+        guess_column (Optional[str], optional): Consider whether this column exists first. Defaults to None.
+
+    Raises:
+        ValueError: Raised when either the RA or Dec columns could not be figured out
+
+    Returns:
+        str: The names of the peak flux column
+    """
+
+    logger.debug(f"Guessing column name for {column=} with {guess_column=}")
+    column_names = [col.upper() for col in table.colnames]
+    preferred_columns = PREFERRED_COLUMNS.get(column, None)
+    if preferred_columns is None:
+        raise KeyError(f"{column=} not in {PREFERRED_COLUMNS.keys()}")
+
+    cols = (
+        [guess_column]
+        if guess_column and guess_column.upper() in column_names
+        else [col for col in preferred_columns if col.upper() in column_names]
+    )
+
+    if not len(cols) > 0:
+        raise ValueError(
+            f"Unable to guess {column=} column names. Table has {column_names=}, and {preferred_columns=}"
+        )
+
+    return cols[0]
+
+
+def _guess_catalogue_type(
+    table: Union[Table, Path],
+    survey: str = "askap",
+    file_name: str = "askap.fit",
+    freq: float = -1,
+) -> Catalogue:
+    """This is a stub function that will be expanded in the future. It
+    is intended to guess the appropriate source finder that constructed
+    a component catalogue, resolving issues around the column names.
+
+    This stub function will return a aegean catalogue description
+
+    Args:
+        table (Union[Table, Path]): The table that will be inspected
+        survey (str, optional): The name of the survey to use. Defaults to askap.
+        file_name (str, optional): The file name that would be used for the catalogue. Defaults of askap.fits.
+
+    Returns:
+        Catalogue: Placeholder Catalogue representing Aegean catalogues
+    """
+    table = Table.read(table) if isinstance(table, Path) else table
+
+    return Catalogue(
+        survey=survey,
+        file_name=file_name,
+        freq=freq,
+        name_col="source",
+        ra_col="ra",
+        dec_col="dec",
+        flux_col="int_flux",
+        maj_col="a",
+        min_col="b",
+        pa_col="pa",
+    )
+
 
 def get_reference_catalogue(
     reference_directory: Path, survey: str, verify: bool = True
@@ -113,7 +211,7 @@ def get_reference_catalogue(
     """Load in a known reference catalogue
 
     Args:
-        reference_directory (Path): The path to the directory where reference catalogues were downlaoded to
+        reference_directory (Path): The path to the directory where reference catalogues were downloaded to
         survey (str): The name of the survey to load.
         verify (bool, optional): If `True`, the table column names are inspected to ensure they are correct. Defaults to True.
 
@@ -272,7 +370,7 @@ def get_parser() -> ArgumentParser:
     parser = ArgumentParser(description="Utilities around catalogues")
 
     subparser = parser.add_subparsers(
-        dest="mode", help="Opertion mode of flint_catalogue"
+        dest="mode", help="Operation mode of flint_catalogue"
     )
 
     download_parser = subparser.add_parser(
@@ -293,7 +391,7 @@ def get_parser() -> ArgumentParser:
     verify_parser.add_argument(
         "reference_directory",
         type=Path,
-        help="Directory containing the known referene catalogues",
+        help="Directory containing the known reference catalogues",
     )
 
     return parser

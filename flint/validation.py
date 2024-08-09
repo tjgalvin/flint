@@ -280,7 +280,7 @@ def load_known_catalogue(
 
     Args:
         name (str): Name of the survey to load
-        reference_catalogue_directory (Path): Tje directory location with the reference catalogues installed
+        reference_catalogue_directory (Path): The directory location with the reference catalogues installed
 
     Returns:
         Tuple[Table,Catalogue]: The loaded table and Catalogue structure describing the columns
@@ -292,7 +292,7 @@ def load_known_catalogue(
 
 
 def get_rms_image_info(rms_path: Path) -> RMSImageInfo:
-    """Extract information about the RMS image and construct a representative stucture
+    """Extract information about the RMS image and construct a representative structure
 
     Args:
         rms_path (Path): The RMS image that will be presented
@@ -302,8 +302,8 @@ def get_rms_image_info(rms_path: Path) -> RMSImageInfo:
     """
 
     with fits.open(rms_path) as rms_image:
-        rms_header = rms_image[0].header
-        rms_data = rms_image[0].data
+        rms_header = rms_image[0].header  # type: ignore
+        rms_data = rms_image[0].data  # type: ignore
 
     valid_pixels = np.sum(np.isfinite(rms_data) & (rms_data != 0))
 
@@ -327,7 +327,7 @@ def get_rms_image_info(rms_path: Path) -> RMSImageInfo:
         median=np.nanmedian(rms_data),
         minimum=np.nanmin(rms_data),
         maximum=np.nanmax(rms_data),
-        std=np.nanstd(rms_data),
+        std=float(np.nanstd(rms_data)),
         mode=stats.mode(rms_data, keepdims=False).mode[0],
     )
 
@@ -364,7 +364,7 @@ def make_validator_axes_layout(fig: Figure, rms_path: Path) -> ValidatorLayout:
         BBNn
         ffff
         """,
-        per_subplot_kw={
+        per_subplot_kw={  # type: ignore
             "B": {"projection": rms_wcs},
         },
         subplot_kw={
@@ -412,6 +412,18 @@ def plot_flag_summary(
     Returns:
         Axes: The axes object with the plotted RMS image
     """
+    if field_summary.ms_summaries is None:
+        logger.info("No measurement summaries to plot")
+        ax.text(
+            0.5,
+            0.5,
+            "No data to plot",
+            va="center",
+            ha="center",
+            transform=ax.transAxes,
+        )
+
+        return ax
 
     ms_summaries = sorted(
         [mss for mss in field_summary.ms_summaries], key=lambda x: x.beam
@@ -460,7 +472,7 @@ def plot_rms_map(
     """
 
     # Convert Jy/beam to uJy/beam
-    rms_data = fits.getdata(rms_path) * 1e6
+    rms_data = fits.getdata(rms_path) * 1e6  # type: ignore
 
     # Pirate no believes get below 10uJy/beam mateeey. Percentile a little more
     # robust to outliers but much of a much
@@ -476,8 +488,8 @@ def plot_rms_map(
 
     if source_positions is not None:
         ax.scatter(
-            source_positions.ra,
-            source_positions.dec,
+            source_positions.ra,  # type: ignore
+            source_positions.dec,  # type: ignore
             marker="o",
             edgecolor="black",
             facecolor="none",
@@ -521,8 +533,8 @@ def plot_rms_map(
 def calculate_area_correction_per_flux(
     rms_image_path: Path, flux_bin_centre: np.ndarray, sigma: float = 5
 ) -> np.ndarray:
-    """This derives a rough correction to the area term when caluclating
-    the source counts. This is not intended to correct for completness,
+    """This derives a rough correction to the area term when calculating
+    the source counts. This is not intended to correct for completeness,
     although they are closely related.
 
     The RMS image is read in and a CDF is calculated. This is used to
@@ -530,7 +542,7 @@ def calculate_area_correction_per_flux(
     `sigma` times the RMS, which could be used to scale the area.
 
     Args:
-        rms_image_path (Path): RMS image that will be use to calculate the area corretion
+        rms_image_path (Path): RMS image that will be use to calculate the area correction
         flux_bin_centre (np.ndarray): Fluxes to calculate the area fraction at
         sigma (float, optional): Mutliplicate term indicating what sigma level source finding cropped at. Defaults to 5.
 
@@ -540,6 +552,7 @@ def calculate_area_correction_per_flux(
 
     # Filter out the data
     rms_data = fits.getdata(rms_image_path)
+    assert rms_data is not None, f"{rms_data=}, which should not happen"
     rms_data = rms_data[np.isfinite(rms_data)].flatten()
 
     # Calculate the cumulative distribution and normalise it to 0..1
@@ -670,8 +683,8 @@ def plot_source_counts(
     )
 
     # Since area_fraction could be a numpy array we have to
-    # exlicitly test to ensure it is not None, otherwise it
-    # is ambigious
+    # explicitly test to ensure it is not None, otherwise it
+    # is ambiguous
     if source_counts.area_fraction is not None:
         ax.errorbar(
             source_counts.bin_center * 1e3,
@@ -802,7 +815,7 @@ def plot_astrometry_comparison(
 
     pos1, pos2 = match_result.pos1, match_result.pos2
 
-    # Get the sepatations between two points, and their angle between them
+    # Get the separations between two points, and their angle between them
     seps = pos1.separation(pos2)
     pas = pos1.position_angle(pos2)
 
@@ -1032,15 +1045,15 @@ def plot_field_info(
     field_text = "\n".join(
         (
             f"Field name: {field_summary.field_name}",
-            f"- J2000 RA / Dec    : {rms_info.centre.icrs.to_string(style='hmsdms', precision=1)}",
-            f"- Galactic l / b    : {rms_info.centre.galactic.to_string(style='decimal')}",
+            f"- J2000 RA / Dec    : {rms_info.centre.icrs.to_string(style='hmsdms', precision=1)}",  # type: ignore
+            f"- Galactic l / b    : {rms_info.centre.galactic.to_string(style='decimal')}",  # type: ignore
             f"- SBID              : {field_summary.sbid}",
             f"- CAL_SBID          : {field_summary.cal_sbid}",
             f"- Holorgraphy file  : {field_summary.holography_path.name if field_summary.holography_path else 'N/A'}",
-            f"- Start time        : {field_summary.ms_times[0].utc.fits}",
-            f"- Integration time  : {field_summary.integration_time * u.second:latex_inline}",
-            f"- Hour angle range  : {hour_angles.min().to_string(precision=2, format='latex_inline')} - {hour_angles.max().to_string(precision=2, format='latex_inline')}",
-            f"- Elevation range   : {elevations.min().to_string(precision=2, format='latex_inline')} - {elevations.max().to_string(precision=2, format='latex_inline')}",
+            f"- Start time        : {field_summary.ms_times[0].utc.fits}",  # type: ignore
+            f"- Integration time  : {field_summary.integration_time * u.second:latex_inline}",  # type: ignore
+            f"- Hour angle range  : {hour_angles.min().to_string(precision=2, format='latex_inline')} - {hour_angles.max().to_string(precision=2, format='latex_inline')}",  # type: ignore
+            f"- Elevation range   : {elevations.min().to_string(precision=2, format='latex_inline')} - {elevations.max().to_string(precision=2, format='latex_inline')}",  # type: ignore
             f"- Median rms uJy    : {rms_info.median*1e6:.1f}",
             f"- Components        : {len(askap_table)}",
             f"- Processing date   : {Time.now().fits}",
@@ -1132,7 +1145,7 @@ def make_field_stats_table(
             min_image_data = np.nanmin(image_data)
             max_image_data = np.nanmax(image_data)
     else:
-        logger.warning("The linmos image in the provided field summary is emtpy.")
+        logger.warning("The linmos image in the provided field summary is empty.")
         min_image_data = np.nan
         max_image_data = np.nan
 
@@ -1195,16 +1208,20 @@ def _make_beam_psf_row(beam_summary: BeamSummary) -> PSFTableRow:
     vis_total = beam_summary.ms_summary.flagged + beam_summary.ms_summary.unflagged
     vis_flagged = beam_summary.ms_summary.flagged
 
-    image_file = beam_summary.imageset.image[-1]
+    assert (
+        beam_summary.imageset is not None
+    ), f"{beam_summary.imageset=}, which should not happen"
+    image_file = list(beam_summary.imageset.image)[-1]
     with fits.open(image_file) as image:
-        bmaj = image[0].header["BMAJ"]
-        bmin = image[0].header["BMIN"]
-        bpa = image[0].header["BPA"]
+        bmaj = image[0].header["BMAJ"]  # type: ignore
+        bmin = image[0].header["BMIN"]  # type: ignore
+        bpa = image[0].header["BPA"]  # type: ignore
 
     coord = estimate_image_centre(image_path=image_file)
 
+    assert name_components is not None, f"{name_components=}, which should not happen"
     return PSFTableRow(
-        beam=name_components.beam,
+        beam=int(name_components.beam),
         vis_flagged=vis_flagged,
         vis_total=vis_total,
         image_name=image_file.name,
@@ -1218,15 +1235,15 @@ def _make_beam_psf_row(beam_summary: BeamSummary) -> PSFTableRow:
     )
 
 
-def make_psf_table(field_summary: FieldSummary, output_path: Path) -> Optional[Path]:
+def make_psf_table(field_summary: FieldSummary, output_path: Path) -> Path:
     # TODO: This will likely need changes to the
     # FieldSummary structure to handle holding MSSummary objects
     # Columns are:
     # BEAM_NUM,BEAM_TIME,RA_DEG,DEC_DEG,GAL_LONG,GAL_LAT,PSF_MAJOR,PSF_MINOR,PSF_ANGLE,VIS_TOTAL,VIS_FLAGGED
 
-    if field_summary.beam_summaries is None:
-        logger.error("No beam summaries found in the field summary")
-        return
+    assert (
+        field_summary.beam_summaries is not None
+    ), f"{field_summary.beam_summaries=}, which should not happen"
 
     psf_table_rows = [
         _make_beam_psf_row(beam_summary=beam_summary)

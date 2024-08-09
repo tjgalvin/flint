@@ -10,19 +10,19 @@ from flint.logging import logger
 def divide_bandpass_by_ref_ant_preserve_phase(
     complex_gains: np.ndarray, ref_ant: int
 ) -> np.ndarray:
-    """Divide the bandpass compelx gains (solved for initially by something like
+    """Divide the bandpass complex gains (solved for initially by something like
     calibrate) by a nominated reference antenna. In the case of ``calibrate``
     there is no implicit reference antenna. This is valid for cases where the
     xy-phase is set to 0 (true via the ASKAP on-dish calibrator).
 
     This particular function is most appropriate for the `calibrate` style
     solutions, which solve for the Jones in one step. In HMS notation this
-    are normally split into two separate 2x2 matricies, one for the gains
+    are normally split into two separate 2x2 matrices, one for the gains
     with zero off-diagonal elements and a leakage matrix with ones on
     the diagonal.
 
     This is the preferred function to use whena attempting to set a
-    phase reference antenna to precomuted Jones bandpass solutions.
+    phase reference antenna to precomputed Jones bandpass solutions.
 
     The input complex gains should be in the form:
     >> (ant, channel, pol)
@@ -51,7 +51,7 @@ def divide_bandpass_by_ref_ant_preserve_phase(
         f"Dividing bandpass gain solutions using reference antenna={ref_ant}, using correct phasor"
     )
 
-    # Unpack the valuse for short hand use
+    # Unpack the values for short hand use
     g_x = complex_gains[:, :, 0]
     g_xy = complex_gains[:, :, 1]
     g_yx = complex_gains[:, :, 2]
@@ -89,7 +89,7 @@ def divide_bandpass_by_ref_ant_preserve_phase(
 
 
 def divide_bandpass_by_ref_ant(complex_gains: np.ndarray, ref_ant: int) -> np.ndarray:
-    """Divide the bandpass compelx gains (solved for initially by something like
+    """Divide the bandpass complex gains (solved for initially by something like
     calibrate) by a nominated reference antenna. In the case of ``calibrate``
     there is no implicit reference antenna.
 
@@ -121,7 +121,7 @@ def divide_bandpass_by_ref_ant(complex_gains: np.ndarray, ref_ant: int) -> np.nd
         f"Dividing bandpass gain solutions using reference antenna={ref_ant} with shifted phasor"
     )
 
-    # Make a copy of the data to avoid editing it whereever else it might be.
+    # Make a copy of the data to avoid editing it wherever else it might be.
     # Trust nothing you pirate.
     complex_gains = complex_gains.copy()
 
@@ -191,9 +191,9 @@ def smooth_data(
     # This is the filling in of the blanks
     data[mask] = d_interp
 
-    # Now we smooth. This savgol filter fits a polynomial to succesive subsets of data
+    # Now we smooth. This savgol filter fits a polynomial to successive subsets of data
     # in a manner similar to a box car. The final positional argument here denoted the
-    # behavour of the edge where the window (second positional argument) does not have
+    # behaviour of the edge where the window (second positional argument) does not have
     # enough data. This process is similar to the original implemented in bptools, except
     # here we are using a polynomial, not a set of harmonic basis functions.
     smoothed_data = savgol_filter(data, window_size, polynomial_order)

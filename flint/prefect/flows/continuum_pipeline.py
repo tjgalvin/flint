@@ -12,6 +12,7 @@ from configargparse import ArgumentParser
 from prefect import flow, tags, unmapped
 
 from flint.calibrate.aocalibrate import find_existing_solutions
+from flint.coadd.linmos import LinmosCommand
 from flint.configuration import (
     Strategy,
     copy_and_timestamp_strategy_file,
@@ -229,7 +230,7 @@ def process_science_fields(
 
     if field_options.no_imaging:
         logger.info(
-            f"No imaging will be performed, as requested bu {field_options.no_imaging=}"
+            f"No imaging will be performed, as requested by {field_options.no_imaging=}"
         )
         return
 
@@ -352,7 +353,7 @@ def process_science_fields(
                 masking_options = get_options_from_strategy(
                     strategy=strategy, mode="masking", round=current_round
                 )
-                # The is intended to only run the beam wise aegean if it has not alread
+                # The is intended to only run the beam wise aegean if it has not already
                 # been done. Immedidatedly after the first round of shallow cleaning
                 # aegean could be run.
                 beam_aegean_outputs = (
@@ -385,20 +386,22 @@ def process_science_fields(
                     aegean_container=unmapped(field_options.aegean_container),
                 )
 
-            parsets = None  # Without could be unbound
+            parsets_self: Union[None, List[LinmosCommand]] = (
+                None  # Without could be unbound
+            )
             if field_options.yandasoft_container:
-                parsets = _create_convol_linmos_images(
+                parsets_self = _create_convol_linmos_images(
                     wsclean_cmds=wsclean_cmds,
                     field_options=field_options,
                     field_summary=field_summary,
                     current_round=current_round,
                     additional_linmos_suffix_str="poli",
                 )
-                archive_wait_for.extend(parsets)
+                archive_wait_for.extend(parsets_self)
 
-            if final_round and run_aegean and parsets:
+            if final_round and run_aegean and parsets_self:
                 aegean_outputs = task_run_bane_and_aegean.submit(
-                    image=parsets[-1],
+                    image=parsets_self[-1],
                     aegean_container=unmapped(field_options.aegean_container),
                 )
                 field_summary = task_update_field_summary.submit(
@@ -407,6 +410,7 @@ def process_science_fields(
                     round=current_round,
                 )
                 if run_validation:
+                    assert field_options.reference_catalogue_directory, f"Reference catalogue directory should be set when {run_validation=}"
                     val_results = _validation_items(
                         field_summary=field_summary,
                         aegean_outputs=aegean_outputs,
@@ -568,7 +572,7 @@ def get_parser() -> ArgumentParser:
         "--selfcal-rounds",
         type=int,
         default=2,
-        help="The number of selfcalibration rounds to perfrom. ",
+        help="The number of selfcalibration rounds to perform. ",
     )
     parser.add_argument(
         "--skip-selfcal-on-rounds",
@@ -602,7 +606,7 @@ def get_parser() -> ArgumentParser:
         "--reference-catalogue-directory",
         type=Path,
         default=None,
-        help="Path to the directory containing the ICFS, NVSS and SUMSS referenece catalogues. These are required for validaiton plots. ",
+        help="Path to the directory containing the ICFS, NVSS and SUMSS reference catalogues. These are required for validation plots. ",
     )
     parser.add_argument(
         "--linmos-residuals",
@@ -626,7 +630,7 @@ def get_parser() -> ArgumentParser:
         "--pb-cutoff",
         type=float,
         default=0.1,
-        help="Primary beam attentuation cutoff to use during linmos",
+        help="Primary beam attenuation cutoff to use during linmos",
     )
     parser.add_argument(
         "--use-preflagger",
@@ -676,7 +680,7 @@ def get_parser() -> ArgumentParser:
         "--rename-ms",
         action="store_true",
         default=False,
-        help="Rename MSs throught rounds of imaging and self-cal instead of creating copies. This will delete data-columns throughout. ",
+        help="Rename MSs throughout rounds of imaging and self-cal instead of creating copies. This will delete data-columns throughout. ",
     )
     parser.add_argument(
         "--stokes-v-imaging",

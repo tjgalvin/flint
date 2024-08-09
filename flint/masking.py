@@ -5,7 +5,6 @@ thought being towards FITS images.
 from __future__ import annotations
 
 from argparse import ArgumentParser
-from collections import Iterable
 from pathlib import Path
 from typing import Collection, NamedTuple, Optional, Union
 
@@ -45,17 +44,17 @@ class MaskingOptions(NamedTuple):
     flood_fill_use_mbc_box_size: int = 75
     """The size of the mbc box size should mbc be used"""
     suppress_artefacts: bool = True
-    """Whether to attempt artefacts based on the presence of sigificant negatives"""
+    """Whether to attempt artefacts based on the presence of significant negatives"""
     suppress_artefacts_negative_seed_clip: float = 5
-    """The significance level of a negative island for the sidelobe suppresion to be activated. This should be a positive number (the signal map is internally inverted)"""
+    """The significance level of a negative island for the sidelobe suppression to be activated. This should be a positive number (the signal map is internally inverted)"""
     suppress_artefacts_guard_negative_dilation: float = 40
-    """The minimum positive signifance pixels should have to be guarded when attempting to suppress artefacts around bright sources"""
+    """The minimum positive significance pixels should have to be guarded when attempting to suppress artefacts around bright sources"""
     suppress_artefacts_large_island_threshold: float = 1.0
     """Threshold in units of beams for an island of negative pixels to be considered large"""
     grow_low_snr_island: bool = False
     """Whether to attempt to grow a mask to capture islands of low SNR (e.g. diffuse emission)"""
     grow_low_snr_island_clip: float = 1.75
-    """The minimum signifance levels of pixels to be to seed low SNR islands for consideration"""
+    """The minimum significance levels of pixels to be to seed low SNR islands for consideration"""
     grow_low_snr_island_size: int = 768
     """The number of pixels an island has to be for it to be accepted"""
     minimum_boxcar: bool = True
@@ -103,8 +102,9 @@ def consider_beam_mask_round(
     return mask_rounds is not None and (
         (isinstance(mask_rounds, str) and mask_rounds.lower() == "all")
         or (isinstance(mask_rounds, int) and current_round >= mask_rounds)
-        or (isinstance(mask_rounds, Iterable) and current_round in mask_rounds)  # type: ignore
-    )
+        or (isinstance(mask_rounds, (list, tuple)))
+        and current_round in mask_rounds
+    )  # type: ignore
 
 
 def extract_beam_mask_from_mosaic(
@@ -126,7 +126,7 @@ def extract_beam_mask_from_mosaic(
     Returns:
         FITSMaskNames: _description_
     """
-    # TODO: Ideally we can accept an arbitary WCS, or read the wsclean docs to
+    # TODO: Ideally we can accept an arbitrary WCS, or read the wsclean docs to
     # try to construct it ourselves. The last thing that this pirate wants is
     # to run the imager in a dry-run type mode n cleaning type mode purely for
     # the WCS.
@@ -198,7 +198,7 @@ def grow_low_snr_mask(
     a mask through to the imagery of choice the islands may be larger than the features at their
     native resolution, unless some other more sophisticated filtering is performed.
 
-    This function attempts to grow masks to capture islands of contigous pixels above a low
+    This function attempts to grow masks to capture islands of contiguous pixels above a low
     SNR cut that would otherwise go uncleaned.
 
     Args:
@@ -255,13 +255,13 @@ def minimum_boxcar_artefact_mask(
     increase_factor: float = 2.0,
 ) -> np.ndarray:
     """Attempt to remove islands from a potential clean mask by
-    examining surronding pixels. A boxcar is applied to find the
+    examining surrounding pixels. A boxcar is applied to find the
     minimum signal to noise in a small localised region. For each
     island the maximum signal is considered.
 
     If the absolute minimum signal increased by a factor in an
     island region is larger to the maximum signal then that island
-    is ommited.
+    is omitted.
 
 
     Args:
@@ -334,12 +334,12 @@ def suppress_artefact_mask(
     - negative islands are around bright sources with deconvolution/calibration errors
     - if there are brightish negative islands there is also positive brightish arteefact islands nearby
 
-    For this reason the guard mask should be sufficently high to protect the main source but nuke the fask positive islands
+    For this reason the guard mask should be sufficiently high to protect the main source but nuke the fask positive islands
 
 
     Args:
         signal (np.ndarray): The signal mask,
-        negative_seed_clip (float): The minimum signficance level to seed. This is a positive number (as it is applied to the inverted signal).
+        negative_seed_clip (float): The minimum significance level to seed. This is a positive number (as it is applied to the inverted signal).
         guard_negative_dilation (float): Regions of positive emission above this are protected. This is positive.
         pixels_per_beam (Optional[float], optional): The number of pixels per beam. If not None, seed islands larger than this many pixels are removed. Defaults to None.
         large_island_threshold (float, optional): The number of beams required for a large island of negative pixels to be dropped as an artefact seed. Only used if `pixels_per_beam` is set. Defaults to 1.0.
@@ -433,12 +433,12 @@ def reverse_negative_flood_fill(
     """Attempt to:
 
     * seed masks around bright regions of an image and grow them to lower significance thresholds
-    * remove regions of negative and positive islands that surrond bright sources.
+    * remove regions of negative and positive islands that surround bright sources.
 
     An initial set of islands (and masks) are constructed by first
     using the `positive_seed_clip` to create an initial SNR based
     mask. These islands then are binary dilated to grow the islands
-    to adjacent pixels at a lower signifcance level (see `scipy.ndimage.binary_dilation`).
+    to adjacent pixels at a lower significance level (see `scipy.ndimage.binary_dilation`).
 
     Next an attempt is made to remove artefacts around bright sources,  where
     there are likely to be positive and negative artefacts

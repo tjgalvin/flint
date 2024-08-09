@@ -46,9 +46,9 @@ def strategy(tmpdir):
         output_yaml=Path(tmpdir) / "example.yaml", selfcal_rounds=3
     )
 
-    strat = load_strategy_yaml(input_yaml=output, verify=False)
+    strategy = load_strategy_yaml(input_yaml=output, verify=False)
 
-    return strat
+    return strategy
 
 
 @pytest.fixture
@@ -88,7 +88,7 @@ def test_verify_options_with_class_operations(package_strategy_operations):
 
 
 def test_verify_getoptions_with_class_operations(package_strategy_operations):
-    """Check whether the get options inteface works with the operations
+    """Check whether the get options interface works with the operations
     section of the strategy file"""
     strategy = package_strategy_operations
     verify_configuration(input_strategy=strategy)
@@ -132,7 +132,7 @@ def test_verify_options_with_class(package_strategy):
 
 
 def test_create_yaml_file(tmpdir):
-    # ensure a default yaml stategy can be created
+    # ensure a default yaml strategy can be created
     output = create_default_yaml(
         output_yaml=Path(tmpdir) / "example.yaml", selfcal_rounds=3
     )
@@ -148,11 +148,11 @@ def test_create_and_load(tmpdir):
 
     assert output.exists()
 
-    strat = load_strategy_yaml(input_yaml=output)
-    assert isinstance(strat, Strategy)
+    strategy = load_strategy_yaml(input_yaml=output)
+    assert isinstance(strategy, Strategy)
 
-    strat = load_strategy_yaml(input_yaml=output, verify=False)
-    assert isinstance(strat, Strategy)
+    strategy = load_strategy_yaml(input_yaml=output, verify=False)
+    assert isinstance(strategy, Strategy)
 
 
 def test_verify(tmpdir):
@@ -163,14 +163,14 @@ def test_verify(tmpdir):
     )
 
     assert output.exists()
-    strat = load_strategy_yaml(input_yaml=output, verify=False)
-    assert isinstance(strat, Strategy)
+    strategy = load_strategy_yaml(input_yaml=output, verify=False)
+    assert isinstance(strategy, Strategy)
 
-    _ = verify_configuration(input_strategy=strat)
+    _ = verify_configuration(input_strategy=strategy)
 
-    strat["ddd"] = 123
+    strategy["ddd"] = 123
     with pytest.raises(ValueError):
-        verify_configuration(input_strategy=strat)
+        verify_configuration(input_strategy=strategy)
 
 
 def test_load_yaml_none():
@@ -178,7 +178,7 @@ def test_load_yaml_none():
     # should be checked as the default value of FieldOptions.imaging_strategy
     # is None.
     with pytest.raises(TypeError):
-        _ = load_strategy_yaml(input_yaml=None)
+        _ = load_strategy_yaml(input_yaml=None)  # type: ignore
 
 
 def test_mode_options_mapping_creation():

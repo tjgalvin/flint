@@ -39,7 +39,7 @@ def set_slurm_env():
 
 
 def test_get_slurm_info_with_values(set_slurm_env):
-    """See if the slurm environment information handles thigns properly. There should
+    """See if the slurm environment information handles things properly. There should
     be no slurm environemtn variables present most of the time"""
 
     slurm_info = get_slurm_info()
@@ -49,7 +49,7 @@ def test_get_slurm_info_with_values(set_slurm_env):
 
 
 def test_hold_then_move_same_folder(tmpdir):
-    a = Path(tmpdir) / "Captin"
+    a = Path(tmpdir) / "Captain"
 
     with hold_then_move_into(hold_directory=a, move_directory=a) as example:
         assert a == example
@@ -276,7 +276,8 @@ def test_pixels_per_beam(rms_path):
     """Confirm pixels per beam is working"""
     no_pixels = get_pixels_per_beam(fits_path=rms_path)
 
-    assert np.isclose(math.floor(no_pixels), 51.0)
+    assert np.isclose(math.floor(no_pixels), 51.0)  # type: ignore
+    assert no_pixels is not None
     assert no_pixels > 0.0
 
 

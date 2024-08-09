@@ -10,7 +10,7 @@ from casacore.tables import table, taql
 from flint.calibrate.aocalibrate import AOSolutions, calibrate_apply_ms
 from flint.flagging import flag_ms_aoflagger
 from flint.logging import logger
-from flint.ms import MS, describe_ms, preprocess_askap_ms
+from flint.ms import MS, describe_ms, preprocess_askap_ms, get_field_id_for_field
 from flint.naming import create_ms_name
 from flint.sky_model import KNOWN_1934_FILES, get_1934_model
 
@@ -145,10 +145,10 @@ def extract_correct_bandpass_pointing(
             return ms.with_options(beam=ms_summary.beam)
 
     good_field_name = f"{source_name_prefix}_beam{ms_summary.beam}"
-    field_id = ms.get_field_id_for_field(field_name=good_field_name)
+    field_id = get_field_id_for_field(ms=ms, field_name=good_field_name)
 
     out_name = create_ms_name(ms_path=ms.path, field=f"{source_name_prefix}")
-
+    out_path = Path("./")
     # Handle writing out to elected output directory.
     # TODO: Move this to a helper utility.
     if ms_out_dir:
@@ -185,7 +185,7 @@ def calibrate_bandpass(
     set will be created container just the appropriate field to calibrate.
 
     Args:
-        ms_path (Path): Path the the measurement set containing bandpass obervations of B1934-638
+        ms_path (Path): Path the the measurement set containing bandpass observations of B1934-638
         data_column (str): The column that will be calibrated.
         mode (str): The calibration approach to use. Currently only `calibrate` is supported.
         calibrate_container (Path): The path to the singularity container that holds the appropriate software.
@@ -196,7 +196,7 @@ def calibrate_bandpass(
     Returns:
         MS: The calibrated measurement set with nominated column
     """
-    logger.info(f"Will calibrate {str(ms_path)}, colum {data_column}")
+    logger.info(f"Will calibrate {str(ms_path)}, column {data_column}")
 
     # TODO: Check to make sure only 1934-638
     model_path: Path = get_1934_model(mode=mode)

@@ -143,7 +143,7 @@ def test_field_summary(ms_example):
 
     assert isinstance(field_summary, FieldSummary)
     assert field_summary.sbid == "39400"
-    assert field_summary.cal_sbid is None
+    assert field_summary.cal_sbid == "None"
     assert isinstance(field_summary.location, EarthLocation)
     assert field_summary.integration_time == 19.90655994415036
     assert isinstance(field_summary.ms_times, Time)
@@ -164,8 +164,8 @@ def test_field_summary_with_mss(ms_example, aegean_outputs_example):
     # This si the phase direction, in degrees, of the one MS
     # this pirate is sneakily repeating
     centre = field_summary.centre
-    assert np.isclose(centre.ra.deg, 98.211959)
-    assert np.isclose(centre.dec.deg, -30.86099889)
+    assert np.isclose(centre.ra.deg, 98.211959)  # type: ignore
+    assert np.isclose(centre.dec.deg, -30.86099889)  # type: ignore
 
     assert isinstance(field_summary.hour_angles, Longitude)
     assert isinstance(field_summary.elevations, Latitude)

@@ -1,6 +1,6 @@
 """Tests related to components in the yandasoft linmos coadd.
 At the moment this is not testing the actual application. Just
-some of trhe helper functions around it.
+some of the helper functions around it.
 """
 
 from pathlib import Path
