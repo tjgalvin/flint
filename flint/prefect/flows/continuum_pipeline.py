@@ -386,20 +386,22 @@ def process_science_fields(
                     aegean_container=unmapped(field_options.aegean_container),
                 )
 
-            parsets: Union[None, List[LinmosCommand]] = None  # Without could be unbound
+            parsets_self: Union[None, List[LinmosCommand]] = (
+                None  # Without could be unbound
+            )
             if field_options.yandasoft_container:
-                parsets = _create_convol_linmos_images(
+                parsets_self = _create_convol_linmos_images(
                     wsclean_cmds=wsclean_cmds,
                     field_options=field_options,
                     field_summary=field_summary,
                     current_round=current_round,
                     additional_linmos_suffix_str="poli",
                 )
-                archive_wait_for.extend(parsets)
+                archive_wait_for.extend(parsets_self)
 
-            if final_round and run_aegean and parsets:
+            if final_round and run_aegean and parsets_self:
                 aegean_outputs = task_run_bane_and_aegean.submit(
-                    image=parsets[-1],
+                    image=parsets_self[-1],
                     aegean_container=unmapped(field_options.aegean_container),
                 )
                 field_summary = task_update_field_summary.submit(

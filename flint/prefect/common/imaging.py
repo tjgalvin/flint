@@ -524,7 +524,7 @@ def task_linmos_images(
     )
 
     assert out_dir is not None, f"{out_dir=}, which should not happen"
-    output_path: Path = Path(out_dir) / Path(out_file_name)
+    output_path: Path = Path(out_dir) / Path(out_file_name)  # type: ignore
     logger.info(f"Parsert output path is {parset_output_path}")
 
     pol_axis = field_summary.pol_axis if field_summary else None
