@@ -25,7 +25,7 @@ from flint.utils import (
 
 
 class ImageSet(NamedTuple):
-    """A structure to represent the images and auxillary products produced by
+    """A structure to represent the images and auxiliary products produced by
     wsclean"""
 
     prefix: str
@@ -48,7 +48,7 @@ class WSCleanOptions(NamedTuple):
 
     Basic support for environment variables is available. Should a value start
     with `$` it is assumed to be a environment variable, it is will be looked up.
-    Some basic attempts to deterimine if it is a path is made.
+    Some basic attempts to determine if it is a path is made.
 
     Should the `temp_dir` options be specified then all images will be
     created in this location, and then moved over to the same parent directory
@@ -78,7 +78,7 @@ class WSCleanOptions(NamedTuple):
     nmiter: int = 15
     """Maximum number of major cycles to perform"""
     niter: int = 750000
-    """Maximum numer of minor cycles"""
+    """Maximum number of minor cycles"""
     multiscale: bool = True
     """Enable multiscale deconvolution"""
     multiscale_scale_bias: float = 0.75
@@ -95,7 +95,7 @@ class WSCleanOptions(NamedTuple):
     )
     """Scales used for multi-scale deconvolution"""
     fit_spectral_pol: int = 2
-    """Number of spectral terms to include during sub-band subtractin"""
+    """Number of spectral terms to include during sub-band subtraction"""
     weight: str = "briggs -0.5"
     """Robustness of the weighting used"""
     data_column: str = "CORRECTED_DATA"
@@ -280,7 +280,7 @@ def delete_wsclean_outputs(
     Args:
         prefix (str): The prefix of the files to remove. This would correspond to the -name of wsclean.
         output_type (str, optional): What type of wsclean output to try to remove. Defaults to 'image'.
-        ignore_mfs (bool, optional): If True, do not remove MFS outputs (attempt to, atleast). Defaults to True.
+        ignore_mfs (bool, optional): If True, do not remove MFS outputs (attempt to, at least). Defaults to True.
 
     Returns:
         Collection[Path]: The paths that were removed (or at least attempted to be removed)/
@@ -330,12 +330,13 @@ def create_wsclean_name_argument(wsclean_options: WSCleanOptions, ms: MS) -> Pat
     temp_dir = wsclean_options_dict.get("temp_dir", None)
     if temp_dir:
         # Resolve if environment variable
-        name_dir = (
+        name_dir: Union[Path, str, None] = (
             get_environment_variable(variable=temp_dir)
             if isinstance(temp_dir, str) and temp_dir[0] == "$"
             else Path(temp_dir)
         )
         assert name_dir is not None, f"{name_dir=} is None, which is bad"
+        name_dir = Path(name_dir)
 
     name_argument_path = Path(name_dir) / name_prefix_str
     logger.info(f"Constructed -name {name_argument_path}")
@@ -359,7 +360,7 @@ def _resolve_wsclean_key_value_to_cli_str(key: str, value: Any) -> ResolvedCLIRe
     the appropriate form to pass to a CLI call into wsclean.
 
     Args:
-        key (str): The wsclean argument name to consider. Underscores will be converted to hypens, as expected by wsclean
+        key (str): The wsclean argument name to consider. Underscores will be converted to hyphens, as expected by wsclean
         value (Any): The value of the argument that should be converted to the appropriately formatted string
 
     Returns:
@@ -424,14 +425,14 @@ def create_wsclean_cmd(
     #. the `-name` argument will be generated and supplied to the CLI string and will default to the parent directory and name of the supplied measurement set
     #. If `wsclean_options.temp_dir` is specified this directory is used in place of the measurement sets parent directory
 
-    If `container` is supplied to immediatedly execute this command then the
+    If `container` is supplied to immediately execute this command then the
     output wsclean image products will be moved from the `temp-dir` to the
     same directory as the measurement set.
 
     Args:
         ms (MS): The measurement set to be imaged
         wsclean_options (WSCleanOptions): WSClean options to image with
-        container (Optional[Path], optional): If a path to a container is provided the command is executed immediatedly. Defaults to None.
+        container (Optional[Path], optional): If a path to a container is provided the command is executed immediately. Defaults to None.
 
     Raises:
         ValueError: Raised when a option has not been successfully processed
@@ -562,7 +563,7 @@ def combine_subbands_to_cube(
 def run_wsclean_imager(
     wsclean_cmd: WSCleanCommand,
     container: Path,
-    bind_dirs: Optional[Tuple[Path]] = None,
+    bind_dirs: Optional[Tuple[Path, ...]] = None,
     move_hold_directories: Optional[Tuple[Path, Optional[Path]]] = None,
     make_cube_from_subbands: bool = True,
     image_prefix_str: Optional[str] = None,
@@ -578,8 +579,8 @@ def run_wsclean_imager(
     Args:
         wsclean_cmd (WSCleanCommand): The command to run, and other properties (cleanup.)
         container (Path): Path to the container with wsclean available in it
-        bind_dirs (Optional[Tuple[Path]], optional): Additional directories to include when binding to the wsclean container. Defaults to None.
-        move_hold_directories (Optional[Tuple[Path,Optional[Path]]], optional): The `move_directory` and `hold_directory` passed to the temporary context manger. If None no `hold_then_move_into` manager is used. Defaults to None.
+        bind_dirs (Optional[Tuple[Path, ...]], optional): Additional directories to include when binding to the wsclean container. Defaults to None.
+        move_hold_directories (Optional[Tuple[Path,Optional[Path]]], optional): The `move_directory` and `hold_directory` passed to the temporary context manager. If None no `hold_then_move_into` manager is used. Defaults to None.
         make_cube_from_subbands (bool, optional): Form a single FITS cube from the set of sub-band images wsclean produces. Defaults to False.
         image_prefix_str (Optional[str], optional): The name used to search for wsclean outputs. If None, it is guessed from the name and location of the MS. Defaults to None.
 
@@ -665,7 +666,7 @@ def wsclean_imager(
     Args:
         ms (Union[Path,MS]): Path to the measurement set that will be imaged
         wsclean_container (Path): Path to the container with wsclean installed
-        update_wsclean_options (Optional[Dict[str, Any]], optional): Additional options to update the generated WscleanOptions with. Keys should be attributes of WscleanOptions. Defaults ot None.
+        update_wsclean_options (Optional[Dict[str, Any]], optional): Additional options to update the generated WscleanOptions with. Keys should be attributes of WscleanOptions. Defaults to None.
 
     Returns:
         WSCleanCommand: _description_
@@ -694,7 +695,7 @@ def get_parser() -> ArgumentParser:
     subparser = parser.add_subparsers(dest="mode")
 
     wsclean_parser = subparser.add_parser(
-        "image", help="Attempt to run a wsclean commmand. "
+        "image", help="Attempt to run a wsclean command. "
     )
     wsclean_parser.add_argument(
         "ms", type=Path, help="Path to a measurement set to image"

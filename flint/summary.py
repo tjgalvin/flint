@@ -5,7 +5,7 @@ from __future__ import (  # Used for mypy/pylance to like the return type of MS.
 )
 
 from pathlib import Path
-from typing import Collection, NamedTuple, Optional, Tuple, Union
+from typing import NamedTuple, Optional, Tuple, Union, List
 
 import astropy.units as u
 from astropy.coordinates import (
@@ -51,7 +51,7 @@ class FieldSummary(NamedTuple):
 
     There are known issues around serialising astropy units within a dask/prefect environment,
     for example: https://github.com/astropy/astropy/issues/11317,
-    This could become important if an instance of this object is exchaned
+    This could become important if an instance of this object is exchanged
     between many prefect or dask like delayed tasks. Ye be warned.
     """
 
@@ -83,7 +83,7 @@ class FieldSummary(NamedTuple):
     """Computed elevations of the field"""
     median_rms: Optional[float] = None
     """The meanian RMS computed from an RMS image"""
-    beam_summaries: Optional[Collection[BeamSummary]] = None
+    beam_summaries: Optional[List[BeamSummary]] = None
     """Summary information from each beam. Contains MSSummary, ImageSet and other information."""
     linmos_image: Optional[Path] = None
     """The path to the linmos image of all beams"""
@@ -118,9 +118,7 @@ def _get_pol_axis_as_rad(ms: Union[MS, Path]) -> float:
 
 
 # TODO: Need to establise a MSLike type
-def add_ms_summaries(
-    field_summary: FieldSummary, mss: Collection[MS]
-) -> Tuple[MSSummary]:
+def add_ms_summaries(field_summary: FieldSummary, mss: List[MS]) -> FieldSummary:
     """Obtain a MSSummary instance to add to a FieldSummary
 
     Quantities derived from the field centre (hour angles, elevations) are
@@ -131,7 +129,7 @@ def add_ms_summaries(
 
     Args:
         field_summary (FieldSummary): Existing field summary object to update
-        mss (Collection[MS]): Set of measurement sets to describe
+        mss (List[MS]): Set of measurement sets to describe
 
     Returns:
         Tuple[MSSummary]: Results from the inspected set of measurement sets
@@ -151,8 +149,8 @@ def add_ms_summaries(
     telescope = field_summary.location
     ms_times = field_summary.ms_times
     centre_altaz = centre.transform_to(AltAz(obstime=ms_times, location=telescope))
-    hour_angles = centre_altaz.az.to(u.hourangle)
-    elevations = centre_altaz.alt.to(u.deg)
+    hour_angles = centre_altaz.az.to(u.hourangle)  # type: ignore
+    elevations = centre_altaz.alt.to(u.deg)  # type: ignore
 
     # The INSTRUMENT_RECEPTOR_ANGLE comes from fixms and is
     # inserted to preserve the original orientation.
@@ -227,7 +225,7 @@ def add_linmos_fits_image(
 def update_field_summary(
     field_summary: FieldSummary,
     aegean_outputs: Optional[AegeanOutputs] = None,
-    mss: Optional[Collection[MS]] = None,
+    mss: Optional[List[MS]] = None,
     linmos_command: Optional[LinmosCommand] = None,
     **kwargs,
 ) -> FieldSummary:
@@ -266,7 +264,7 @@ def update_field_summary(
 
 
 def create_field_summary(
-    mss: Collection[Union[MS, Path]],
+    mss: List[Union[MS, Path]],
     cal_sbid_path: Optional[Path] = None,
     holography_path: Optional[Path] = None,
     aegean_outputs: Optional[AegeanOutputs] = None,
@@ -293,10 +291,10 @@ def create_field_summary(
 
     # TODO: A check here to ensure all MSs are in a consistent format
     # and are from the same field
-    ms = mss[0]
+    ms = MS.cast(ms=mss[0])
 
     ms_components = processed_ms_format(in_name=ms.path)
-
+    assert ms_components is not None
     sbid = str(ms_components.sbid)
     field = ms_components.field
 
@@ -307,7 +305,7 @@ def create_field_summary(
             str(get_sbid_from_path(path=cal_sbid_path)) if cal_sbid_path else None
         )
     except ValueError:
-        cal_sbid = -9999
+        cal_sbid = "-9999"
         logger.info(f"Extracting SBID from {cal_sbid_path=} failed. Using {cal_sbid=}")
 
     ms_times = get_times_from_ms(ms=ms)
@@ -319,7 +317,7 @@ def create_field_summary(
     field_summary = FieldSummary(
         sbid=sbid,
         field_name=field,
-        cal_sbid=cal_sbid,
+        cal_sbid=f"{cal_sbid}",  # could be None, and that's OK
         location=location,
         integration_time=integration,
         holography_path=holography_path,
@@ -328,7 +326,9 @@ def create_field_summary(
         **kwargs,
     )
 
-    field_summary = add_ms_summaries(field_summary=field_summary, mss=mss)
+    field_summary = add_ms_summaries(
+        field_summary=field_summary, mss=[MS.cast(ms=ms) for ms in mss]
+    )
 
     if aegean_outputs:
         field_summary = add_rms_information(
