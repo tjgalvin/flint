@@ -37,9 +37,9 @@ def run_singularity_command(
     logger.info(f"Running {command} in {image}")
 
     job_info = log_job_environment()
-    bind: Union[None,list[str]] = None
+    bind: Union[None, list[str]] = None
     if bind_dirs:
-        logger.info(f"Preparing bind directories")
+        logger.info("Preparing bind directories")
         if isinstance(bind_dirs, Path):
             bind_dirs = [bind_dirs]
 
