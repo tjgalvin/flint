@@ -60,7 +60,7 @@ repos:
     rev: "v2.3.0"
     hooks:
       - id: codespell
-        args: ["-I", "ignore_words.txt"]
+        args: ["-I", "./ignore_words.txt"]
 
   - repo: https://github.com/shellcheck-py/shellcheck-py
     rev: "v0.10.0.1"
