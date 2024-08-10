@@ -3,7 +3,7 @@
 from pathlib import Path
 from subprocess import CalledProcessError
 from time import sleep
-from typing import Callable, Collection, Optional, Union
+from typing import Callable, Collection, Optional, Union, List
 
 from spython.main import Client as sclient
 
@@ -37,7 +37,7 @@ def run_singularity_command(
     logger.info(f"Running {command} in {image}")
 
     job_info = log_job_environment()
-    bind: Union[None, list[str]] = None
+    bind: Union[None, List[str]] = None
     if bind_dirs:
         logger.info("Preparing bind directories")
         if isinstance(bind_dirs, Path):

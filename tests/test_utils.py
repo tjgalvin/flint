@@ -4,6 +4,7 @@ import math
 import os
 import shutil
 from pathlib import Path
+from typing import Any
 
 import astropy.units as u
 import numpy as np
@@ -77,7 +78,7 @@ def test_hold_then_test_errors(tmpdir):
             logger.info("This will not be here")
 
 
-def test_hold_then_move_into_none(tmpdir):
+def test_hold_then_move_into_none(tmpdir: Any):
     """See whether the context manager behaves as expected when the temporary hold
     directory is None. This should just do thing in the move_directory."""
 
@@ -103,7 +104,7 @@ def test_hold_then_move_into_none(tmpdir):
     assert put_dir.exists()
 
 
-def test_hold_then_move_into(tmpdir):
+def test_hold_then_move_into(tmpdir: Any):
     """See whether the hold directory can have things dumped into it, then
     moved into place on exit of the context manager"""
 
