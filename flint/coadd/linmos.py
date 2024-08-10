@@ -317,7 +317,7 @@ def generate_linmos_parameter_set(
         # f"linmos.beamangle        = {beam_angle_list}\n"
         f"linmos.imagetype        = fits\n"
         f"linmos.outname          = {str(parent_dir / linmos_names.image_fits.stem)}\n"
-        f"linmos.outweigh        = {str(parent_dir / linmos_names.weight_fits.stem)}\n"
+        f"linmos.outweight        = {str(parent_dir / linmos_names.weight_fits.stem)}\n"
         f"# For ASKAPsoft>1.3.0\n"
         f"linmos.useweightslog    = true\n"
         f"linmos.weighttype       = Combined\n"
