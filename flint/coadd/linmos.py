@@ -398,7 +398,9 @@ def linmos_images(
     )
 
     linmos_cmd_str = f"linmos -c {str(linmos_parset)}"
-    bind_dirs = [image.absolute() for image in images] + [linmos_parset.absolute()]
+    bind_dirs = [image.absolute().parent for image in images] + [
+        linmos_parset.absolute().parent
+    ]
     if holofile:
         bind_dirs.append(holofile.absolute())
 
