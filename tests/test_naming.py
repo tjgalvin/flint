@@ -31,22 +31,22 @@ def test_create_image_cube_name():
     """Put together a consistent file cube name"""
     name = create_image_cube_name(
         image_prefix=Path(
-            "/jack/sparrow/worst/pirate/flint_fitscube/57222/SB57222.RACS_1141-55.beam10.round3.poli"
+            "/jack/sparrow/worst/pirate/flint_fitscube/57222/SB57222.RACS_1141-55.beam10.round3.i"
         ),
         mode="image",
     )
     assert isinstance(name, Path)
     assert name == Path(
-        "/jack/sparrow/worst/pirate/flint_fitscube/57222/SB57222.RACS_1141-55.beam10.round3.poli.image.cube.fits"
+        "/jack/sparrow/worst/pirate/flint_fitscube/57222/SB57222.RACS_1141-55.beam10.round3.i.image.cube.fits"
     )
 
     name = create_image_cube_name(
-        image_prefix=Path("./57222/SB57222.RACS_1141-55.beam10.round3.poli"),
+        image_prefix=Path("./57222/SB57222.RACS_1141-55.beam10.round3.i"),
         mode="residual",
     )
     assert isinstance(name, Path)
     assert name == Path(
-        "./57222/SB57222.RACS_1141-55.beam10.round3.poli.residual.cube.fits"
+        "./57222/SB57222.RACS_1141-55.beam10.round3.i.residual.cube.fits"
     )
 
 
@@ -389,7 +389,7 @@ def test_formatted_name_components_withpol():
     assert components.round is None
     assert components.pol is None
 
-    ex = "SB39400.RACS_0635-31.beam33.poli-MFS-image.conv.fits"
+    ex = "SB39400.RACS_0635-31.beam33.i-MFS-image.conv.fits"
 
     components = processed_ms_format(in_name=ex)
     assert isinstance(components, ProcessedNameComponents)
@@ -400,7 +400,7 @@ def test_formatted_name_components_withpol():
     assert components.round is None
     assert components.pol == "i"
 
-    ex = "SB39400.RACS_0635-31.beam33.round2.poli-MFS-image.conv.fits"
+    ex = "SB39400.RACS_0635-31.beam33.round2.i-MFS-image.conv.fits"
 
     components = processed_ms_format(in_name=ex)
     assert isinstance(components, ProcessedNameComponents)
@@ -411,7 +411,7 @@ def test_formatted_name_components_withpol():
     assert components.round == "2"
     assert components.pol == "i"
 
-    ex = "SB39400.RACS_0635-31.beam33.round2.poliq-MFS-image.conv.fits"
+    ex = "SB39400.RACS_0635-31.beam33.round2.iq-MFS-image.conv.fits"
 
     components = processed_ms_format(in_name=ex)
     assert isinstance(components, ProcessedNameComponents)

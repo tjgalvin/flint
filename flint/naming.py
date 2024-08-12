@@ -51,7 +51,7 @@ def create_imaging_name_prefix(ms: Union[MS, Path], pol: Optional[str] = None) -
 
     name = ms_path.stem
     if pol:
-        name = f"{name}.pol{pol.lower()}"
+        name = f"{name}.{pol.lower()}"
 
     return name
 
@@ -283,7 +283,7 @@ def processed_ms_format(
     logger.debug(f"Matching {in_name}")
     # A raw string is used to avoid bad unicode escaping
     regex = re.compile(
-        r"^SB(?P<sbid>[0-9]+)\.(?P<field>.+)\.beam(?P<beam>[0-9]+)((\.spw(?P<spw>[0-9]+))?)((\.round(?P<round>[0-9]+))?)((\.pol(?P<pol>[a-zA-z]+))?)*"
+        r"^SB(?P<sbid>[0-9]+)\.(?P<field>.+)\.beam(?P<beam>[0-9]+)((\.spw(?P<spw>[0-9]+))?)((\.round(?P<round>[0-9]+))?)((\.(?P<pol>(i|q|u|v|xx|yy|xy|yx)+))?)*"
     )
     results = regex.match(in_name)
 
