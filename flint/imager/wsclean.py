@@ -1,4 +1,18 @@
-"""Simple interface into wsclean"""
+"""Simple interface into wsclean
+
+Some notes around the file naming.
+
+A certain filenaming scheme is required for FITS files to perform leakage correction
+when co-adding them together in the yandasoft linmos application. The stokes field
+needs to be encoded as ``.i.``. For example:
+
+    >>> `SB1234.RACS_0123+43.beam01.i.image.fits`
+
+The wsclean formatted output string appends something denoted with ``-``. Within
+this code there is and attempt to rename the wsclean outputs to replace the ``-``
+with a ``.``.
+
+"""
 
 from __future__ import annotations
 
@@ -737,6 +751,8 @@ def run_wsclean_imager(
         imageset = combine_subbands_to_cube(
             imageset=imageset, remove_original_images=True
         )
+
+    imageset = rename_wsclean_prefix_in_imageset(input_imageset=imageset)
 
     logger.info(f"Constructed {imageset=}")
 
