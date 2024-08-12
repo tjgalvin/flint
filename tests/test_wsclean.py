@@ -3,6 +3,7 @@
 import os
 import shutil
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -11,6 +12,8 @@ from flint.imager.wsclean import (
     ImageSet,
     WSCleanCommand,
     WSCleanOptions,
+    _rename_wsclean_title,
+    _rename_wsclean_file,
     _resolve_wsclean_key_value_to_cli_str,
     _wsclean_output_callback,
     combine_subbands_to_cube,
@@ -44,6 +47,78 @@ def ms_example(tmpdir):
 def set_env():
     """Set up variables for a specific test"""
     os.environ["LOCALDIR"] = "Pirates/be/here"
+
+
+def test_rename_wsclean_path_move(tmpdir: Any):
+    """Rename the wsclean supplied part of a filename while moving a file"""
+    test_path = Path(tmpdir) / "move_file/"
+    test_path.mkdir(parents=True, exist_ok=True)
+
+    ex = test_path / Path("SB39400.RACS_0635-31.beam33.poli-MFS-image.fits")
+    out_ex = test_path / Path("SB39400.RACS_0635-31.beam33.poli.MFS.image.fits")
+
+    with open(ex, "w") as out_file:
+        out_file.write("example")
+
+    assert ex.exists()
+    assert not out_ex.exists()
+    assert _rename_wsclean_file(input_path=ex, rename_file=True) == out_ex
+    assert not ex.exists()
+    assert out_ex.exists()
+
+
+def test_rename_wsclean_path():
+    """Rename the wsclean supplied part of a filename"""
+
+    ex = Path("SB39400.RACS_0635-31.beam33.poli-MFS-image.fits")
+    out_ex = Path("SB39400.RACS_0635-31.beam33.poli.MFS.image.fits")
+    assert _rename_wsclean_file(input_path=ex) == out_ex
+
+    ex = Path("SB39400.RACS_0635-31.beam33.poli-MFS-image")
+    out_ex = Path("SB39400.RACS_0635-31.beam33.poli.MFS.image")
+    assert _rename_wsclean_file(input_path=ex) == out_ex
+
+    ex = Path("/a/path/that/is/a/parent/SB39400.RACS_0635-31.beam33.poli-MFS-image")
+    out_ex = Path("/a/path/that/is/a/parent/SB39400.RACS_0635-31.beam33.poli.MFS.image")
+    assert _rename_wsclean_file(input_path=ex) == out_ex
+
+
+def test_regex_rename_wsclean_title():
+    """Rename the wsclean supplied using regex"""
+
+    ex = "SB39400.RACS_0635-31.beam33.poli-MFS-image.fits"
+    out_ex = "SB39400.RACS_0635-31.beam33.poli.MFS.image.fits"
+    assert _rename_wsclean_title(name_str=ex) == out_ex
+
+    ex = "SB39400.RACS_0635-31.beam33.poli-MFS-image"
+    out_ex = "SB39400.RACS_0635-31.beam33.poli.MFS.image"
+    assert _rename_wsclean_title(name_str=ex) == out_ex
+
+    ex = "SB39400.RACS_0635-31.beam33.poli-MFS-image"
+    out_ex = "SB39400.RACS_0635.31.beam33.poli.MFS.image"
+    assert not _rename_wsclean_title(name_str=ex) == out_ex
+
+    ex = "SB39400.RACS_0635-31.beam33.poli.MFS.image.fits"
+    out_ex = "SB39400.RACS_0635-31.beam33.poli.MFS.image.fits"
+    assert _rename_wsclean_title(name_str=ex) == out_ex
+    assert _rename_wsclean_title(name_str=ex) is ex
+
+    ex = "SB39400.RACS_0635-31.beam33.poli-i-MFS-image"
+    out_ex = "SB39400.RACS_0635-31.beam33.poli.i.MFS.image"
+    assert _rename_wsclean_title(name_str=ex) == out_ex
+
+
+def test_regex_stokes_wsclean_title():
+    """Test whether all stokes values are picked up properly"""
+
+    prefix = "SB39400.RACS_0635-31.beam33.poli."
+    end = "-MFS-image.fits"
+    transformed = end.replace("-", ".")
+
+    for stokes in ("i", "q", "u", "v", "xx", "xy", "yx", "yy"):
+        ex = f"{prefix}-{stokes}{end}"
+        out_ex = f"{prefix}.{stokes}{transformed}"
+        assert _rename_wsclean_title(name_str=ex) == out_ex
 
 
 def test_combine_subbands_to_cube(tmpdir):
