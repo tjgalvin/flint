@@ -3,7 +3,7 @@
 import os
 import shutil
 from pathlib import Path
-from typing import Any
+from typing import Any, Dict
 
 import pytest
 
@@ -20,6 +20,7 @@ from flint.imager.wsclean import (
     create_wsclean_cmd,
     create_wsclean_name_argument,
     get_wsclean_output_names,
+    rename_wsclean_prefix_in_imageset,
 )
 from flint.ms import MS
 from flint.naming import create_imaging_name_prefix
@@ -65,6 +66,46 @@ def test_rename_wsclean_path_move(tmpdir: Any):
     assert _rename_wsclean_file(input_path=ex, rename_file=True) == out_ex
     assert not ex.exists()
     assert out_ex.exists()
+
+
+def _write_test_image(items: Any):
+    for item in items:
+        with Path(item).open("w") as out_file:
+            out_file.write(str(item))
+
+
+def test_rename_wsclean_imageset(tmpdir: Any):
+    """Ensure that items described in an image set are able to be properly renamed"""
+
+    test_dir = Path(tmpdir) / "imagesetrename"
+    test_dir.mkdir(parents=True, exist_ok=True)
+
+    # create some test files and ensure they all exist
+    keys: Dict[Any, Any] = {}
+    prefix = f"{str(test_dir)}/SB39400.RACS_0635-31.beam33.i"
+    keys["prefix"] = Path(prefix)
+    for mode in ("image", "residual"):
+        items = [
+            Path(f"{prefix}-{subband:04d}-{mode}.fits") for subband in range(4)
+        ] + [Path(f"{prefix}-MFS-{mode}.fits")]
+        _write_test_image(items=items)
+        keys[mode] = items
+        assert all([Path(f).exists() for f in items])
+
+    # form the image set that will have the wsclean appended properties string renamed
+    image_set = ImageSet(**keys)
+    new_image_set = rename_wsclean_prefix_in_imageset(input_imageset=image_set)
+
+    # test to see thhat files exists
+    assert new_image_set.prefix == prefix
+    assert new_image_set.image is not None
+    assert all([file.exists() for file in new_image_set.image])
+    assert new_image_set.residual is not None
+    assert all([file.exists() for file in new_image_set.residual])
+
+    # and ensure the originals no longer exist
+    assert all([not Path(file).exists() for file in keys["image"]])
+    assert all([not (file).exists() for file in keys["residual"]])
 
 
 def test_rename_wsclean_path():
