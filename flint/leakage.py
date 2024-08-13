@@ -29,7 +29,7 @@ class LeakageFilters(NamedTuple):
     """The upper limit on acceptable int/peak ratios"""
     lower_int_peak_ratio: float = 0.8
     """The lower limit on acceptable int/peak ratios"""
-    search_box_size: int = 4
+    search_box_size: int = 1
     """The size of a box to search for peak polarised signal in"""
     noise_box_size: int = 30
     """the size of a box to compute a local RMS noise measure from"""
