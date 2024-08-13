@@ -83,7 +83,7 @@ def test_rename_wsclean_imageset(tmpdir: Any):
     # create some test files and ensure they all exist
     keys: Dict[Any, Any] = {}
     prefix = f"{str(test_dir)}/SB39400.RACS_0635-31.beam33.i"
-    keys["prefix"] = Path(prefix)
+    keys["prefix"] = prefix
     for mode in ("image", "residual"):
         items = [
             Path(f"{prefix}-{subband:04d}-{mode}.fits") for subband in range(4)
@@ -94,6 +94,7 @@ def test_rename_wsclean_imageset(tmpdir: Any):
 
     # form the image set that will have the wsclean appended properties string renamed
     image_set = ImageSet(**keys)
+    assert isinstance(image_set, ImageSet)
     new_image_set = rename_wsclean_prefix_in_imageset(input_imageset=image_set)
 
     # test to see thhat files exists
