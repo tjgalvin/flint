@@ -75,8 +75,8 @@ def _load_fits_image(fits_path: Path) -> FITSImage:
     ), f"Unexpected file type for {fits_path=}, expected fits"
     logger.info(f"Opening {fits_path=}")
     with fits.open(fits_path) as in_fits:
-        image_data = in_fits[0].data
-        header = dict(in_fits[0].header.items())
+        image_data = in_fits[0].data  # type: ignore
+        header = dict(in_fits[0].header.items())  # type: ignore
         wcs = WCS(header)
 
     return FITSImage(data=image_data, header=header, wcs=wcs, path=fits_path)
@@ -350,7 +350,7 @@ def create_leakge_component_table(
     if isinstance(catalogue, Path):
         catalogue_suffix = catalogue.suffix
         output_base = (
-            catalogue.with_suffix(f".{pol}_leakage.{catalogue_suffix}")
+            catalogue.with_suffix(f".{pol}_leakage{catalogue_suffix}")
             if output_base is None
             else output_base
         )
