@@ -336,10 +336,9 @@ def generate_linmos_parameter_set(
         parset += (
             f"linmos.primarybeam      = ASKAP_PB\n"
             f"linmos.primarybeam.ASKAP_PB.image = {str(holofile.absolute())}\n"
-            # f"linmos.primarybeam.ASKAP_PB.alpha = {paf_alpha}\n"
             f"linmos.removeleakage    = true\n"
         )
-        if alpha:
+        if alpha is not None:
             parset += f"linmos.primarybeam.ASKAP_PB.alpha = {alpha} # in radians\n"
 
     # Now write the file, me hearty
