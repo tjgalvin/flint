@@ -263,7 +263,8 @@ def extract_pol_stats_in_box(
     pol_peak = None
     pol_noise = None
     pol_mean = None
-    for idx, box_size in enumerate((search_box_size, noise_box_size)):
+    # TODO: This loop should be reformed to allow iterating over something that defines the mode and box
+    for idx, box_size in enumerate((search_box_size, noise_box_size, noise_box_size)):
         box_delta = int(np.ceil(box_size / 2))
 
         y_edge_min = np.maximum(pixel_coords.y - box_delta, 0).astype(int)
