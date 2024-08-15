@@ -26,6 +26,9 @@
     - list the reference catalogues that are expected
 - Added `flint.leakage` CLI program to attempt to characterise leakage over
   polarisations, e.g. V/I
+- removing the `pol` string in the polarisation field of the
+  `ProcessedNameComponents`
+  - `wclean` output `-` separation character chhanged to `.`
 
 # 0.2.5
 

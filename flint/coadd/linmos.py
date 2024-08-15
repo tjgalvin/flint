@@ -96,7 +96,7 @@ def trim_fits_image(
     """
     logger.info(f"Trimming {image_path.name}")
     with fits.open(image_path) as fits_image:
-        data = fits_image[0].data
+        data = fits_image[0].data  # type: ignore
         logger.info(f"Original data shape: {data.shape}")
 
         image_shape = (data.shape[-2], data.shape[-1])
@@ -118,7 +118,7 @@ def trim_fits_image(
             bounding_box.ymin : bounding_box.ymax,
         ]
 
-        header = fits_image[0].header
+        header = fits_image[0].header  # type: ignore
         header["CRPIX1"] -= bounding_box.ymin
         header["CRPIX2"] -= bounding_box.xmin
 
@@ -162,7 +162,7 @@ def get_image_weight(
     ), f"Invalid {mode=} specified. Available modes: {weight_modes}"
 
     with fits.open(image_path, memmap=True) as in_fits:
-        image_data = in_fits[image_slice].data
+        image_data = in_fits[image_slice].data  # type: ignore
 
         assert len(
             image_data.shape
@@ -185,7 +185,7 @@ def get_image_weight(
             )
 
     logger.info(f"Weight {weight:.3f} for {image_path}")
-    return weight
+    return float(weight)
 
 
 def generate_weights_list_and_files(
@@ -336,11 +336,10 @@ def generate_linmos_parameter_set(
         parset += (
             f"linmos.primarybeam      = ASKAP_PB\n"
             f"linmos.primarybeam.ASKAP_PB.image = {str(holofile.absolute())}\n"
-            # f"linmos.primarybeam.ASKAP_PB.alpha = {paf_alpha}\n"
             f"linmos.removeleakage    = true\n"
         )
-        if alpha:
-            parset += f"linmos.primarybeam.ASKAP_PB.alpha = {alpha} # in radians\n"
+        assert alpha is not None, f"{alpha=}, which should not happen"
+        parset += f"linmos.primarybeam.ASKAP_PB.alpha = {alpha} # in radians\n"
 
     # Now write the file, me hearty
     logger.info(f"Writing parset to {str(parset_output_path)}.")

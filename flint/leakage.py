@@ -29,7 +29,7 @@ class LeakageFilters(NamedTuple):
     """The upper limit on acceptable int/peak ratios"""
     lower_int_peak_ratio: float = 0.8
     """The lower limit on acceptable int/peak ratios"""
-    search_box_size: int = 4
+    search_box_size: int = 1
     """The size of a box to search for peak polarised signal in"""
     noise_box_size: int = 30
     """the size of a box to compute a local RMS noise measure from"""
@@ -75,8 +75,8 @@ def _load_fits_image(fits_path: Path) -> FITSImage:
     ), f"Unexpected file type for {fits_path=}, expected fits"
     logger.info(f"Opening {fits_path=}")
     with fits.open(fits_path) as in_fits:
-        image_data = in_fits[0].data
-        header = dict(in_fits[0].header.items())
+        image_data = in_fits[0].data  # type: ignore
+        header = dict(in_fits[0].header.items())  # type: ignore
         wcs = WCS(header)
 
     return FITSImage(data=image_data, header=header, wcs=wcs, path=fits_path)
@@ -298,11 +298,31 @@ def extract_pol_stats_in_box(
     return pol_peak, pol_noise
 
 
+def _get_output_catalogue_path(
+    input_path: Path, pol: str, output_path: Optional[Path] = None
+) -> Path:
+    """Create the output leakage catalogue name"""
+    # NOTE: This is a separate function to test against after a silly. Might move with the other named Pirates
+    assert isinstance(input_path, Path)
+    input_suffix = input_path.suffix
+
+    output_path = (
+        input_path.with_suffix(f".{pol}_leakage{input_suffix}")
+        if output_path is None
+        else output_path
+    )
+    assert (
+        output_path is not None
+    ), f"{output_path=} is empty, and no catalogue path provided"
+
+    return Path(output_path)
+
+
 def create_leakge_component_table(
     pol_image: Path,
     catalogue: Union[Table, Path],
     pol: str = "v",
-    output_base: Optional[Path] = None,
+    output_path: Optional[Path] = None,
 ) -> Path:
     """Create a component catalogue that includes enough information to describe the
     polarisation fraction of sources across a field. This is intended to be used
@@ -318,7 +338,7 @@ def create_leakge_component_table(
         pol_image (Path): The polarised image that will be used to extract peak polarised flux from
         catalogue (Union[Table, Path]): Component table describing positions to extract flux from
         pol (str, optional): The polarisation stokes being considered. Defaults to "v".
-        output_base (Optional[Path], optional): The base name of the new catalogue. If `None` it is derived from the input `catalogue` path. Defaults to None.
+        output_path (Optional[Path], optional): The path of the new catalogue. If `None` it is derived from the input `catalogue` path. Defaults to None.
 
     Returns:
         Path: Path to the new catalogue use for leakage
@@ -347,22 +367,16 @@ def create_leakge_component_table(
     components[f"{pol}_peak"] = pol_peak
     components[f"{pol}_noise"] = pol_noise
 
-    if isinstance(catalogue, Path):
-        catalogue_suffix = catalogue.suffix
-        output_base = (
-            catalogue.with_suffix(f".{pol}_leakage.{catalogue_suffix}")
-            if output_base is None
-            else output_base
-        )
+    output_path = _get_output_catalogue_path(
+        input_path=catalogue if isinstance(catalogue, Path) else pol_image,
+        pol=pol,
+        output_path=output_path,
+    )
 
-    assert (
-        output_base is not None
-    ), f"{output_base=} is empty, and no catalogue path provided"
+    logger.info(f"Writing {output_path}")
+    components.write(output_path, overwrite=True)
 
-    logger.info(f"Writing {output_base}")
-    components.write(output_base, overwrite=True)
-
-    return output_base
+    return output_path
 
 
 def get_parser() -> ArgumentParser:

@@ -172,7 +172,7 @@ def task_run_bane_and_aegean(
         logger.info(f"Have extracted image: {image_paths}")
 
         # For the moment, will only source find on an MFS image
-        image_paths = [image for image in image_paths if "-MFS-" in str(image)]
+        image_paths = [image for image in image_paths if ".MFS." in str(image)]
         assert (
             len(image_paths) == 1
         ), "More than one image found after filter for MFS only images. "
@@ -462,7 +462,7 @@ def task_convolve_image(
 def task_linmos_images(
     images: Collection[Collection[Path]],
     container: Path,
-    filter: str = "-MFS-",
+    filter: str = ".MFS.",
     field_name: Optional[str] = None,
     suffix_str: str = "noselfcal",
     holofile: Optional[Path] = None,
@@ -476,7 +476,7 @@ def task_linmos_images(
     Args:
         images (Collection[Collection[Path]]): Images that will be co-added together
         container (Path): Path to singularity container that contains yandasoft
-        filter (str, optional): Filter to extract the images that will be extracted from the set of input images. These will be co-added. Defaults to "-MFS-".
+        filter (str, optional): Filter to extract the images that will be extracted from the set of input images. These will be co-added. Defaults to ".MFS.".
         field_name (Optional[str], optional): Name of the field, which is included in the output images created. Defaults to None.
         suffix_str (str, optional): Additional string added to the prefix of the output linmos image products. Defaults to "noselfcal".
         holofile (Optional[Path], optional): The FITS cube with the beam corrections derived from ASKAP holography. Defaults to None.
@@ -550,7 +550,7 @@ def _convolve_linmos(
     cutoff: float = 0.05,
     field_summary: Optional[FieldSummary] = None,
     convol_mode: str = "image",
-    convol_filter: str = "-MFS-",
+    convol_filter: str = ".MFS.",
     convol_suffix_str: str = "conv",
 ) -> LinmosCommand:
     """An internal function that launches the convolution to a common resolution
@@ -564,7 +564,7 @@ def _convolve_linmos(
         cutoff (float, optional): The primary beam attenuation cutoff supplied to linmos when coadding. Defaults to 0.05.
         field_summary (Optional[FieldSummary], optional): The summary of the field, including (importantly) to orientation of the third-axis. Defaults to None.
         convol_mode (str, optional): The mode passed to the convol task to describe the images to extract. Support image or residual.  Defaults to image.
-        convol_filter (str, optional): A text file applied when assessing images to co-add. Defaults to '-MFS-'.
+        convol_filter (str, optional): A text file applied when assessing images to co-add. Defaults to '.MFS.'.
         convol_suffix_str (str, optional): The suffix added to the convolved images. Defaults to 'conv'.
 
     Returns:
@@ -636,7 +636,7 @@ def _create_convol_linmos_images(
         beam_shape = task_get_common_beam.submit(
             wsclean_cmds=wsclean_cmds,
             cutoff=field_options.beam_cutoff,
-            filter="-MFS-",
+            filter=".MFS.",
             fixed_beam_shape=round_beam_shape,
         )
         # NOTE: The order matters here. The last linmos file is used
@@ -652,7 +652,7 @@ def _create_convol_linmos_images(
                     cutoff=field_options.pb_cutoff,
                     field_summary=field_summary,
                     convol_mode="residual",
-                    convol_filter="-MFS-",
+                    convol_filter=".MFS.",
                     convol_suffix_str=convol_suffix_str,
                 )
             )
@@ -665,7 +665,7 @@ def _create_convol_linmos_images(
                 cutoff=field_options.pb_cutoff,
                 field_summary=field_summary,
                 convol_mode="image",
-                convol_filter="-MFS-",
+                convol_filter=".MFS.",
                 convol_suffix_str=convol_suffix_str,
             )
         )

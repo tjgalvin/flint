@@ -11,12 +11,31 @@ from flint.leakage import (
     FITSImage,
     LeakageFilters,
     PixelCoords,
+    _get_output_catalogue_path,
     _load_fits_image,
     _load_component_table,
     filter_components,
     get_xy_pixel_coords,
 )
 from flint.utils import get_packaged_resource_path
+
+
+def test_get_catalogue_output_path():
+    """Make sure the name of the catalogue comes out as expected"""
+    catalogue = Path("SB1234.JACK_1234+56.i.round2_comp.fits")
+    pol = "v"
+
+    output_path = _get_output_catalogue_path(input_path=catalogue, pol=pol)
+    assert output_path == Path("SB1234.JACK_1234+56.i.round2_comp.v_leakage.fits")
+
+    spec_path = Path("JackSparrow_leakage.fits")
+    output_path = _get_output_catalogue_path(
+        input_path=catalogue, pol=pol, output_path=spec_path
+    )
+    assert output_path == spec_path
+
+    with pytest.raises(AssertionError):
+        _get_output_catalogue_path(input_path="notapathjack", pol=pol)
 
 
 def _get_aegean_catalogue():

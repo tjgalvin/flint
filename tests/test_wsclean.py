@@ -3,6 +3,7 @@
 import os
 import shutil
 from pathlib import Path
+from typing import Any, Dict
 
 import pytest
 
@@ -11,12 +12,15 @@ from flint.imager.wsclean import (
     ImageSet,
     WSCleanCommand,
     WSCleanOptions,
+    _rename_wsclean_title,
+    _rename_wsclean_file,
     _resolve_wsclean_key_value_to_cli_str,
     _wsclean_output_callback,
     combine_subbands_to_cube,
     create_wsclean_cmd,
     create_wsclean_name_argument,
     get_wsclean_output_names,
+    rename_wsclean_prefix_in_imageset,
 )
 from flint.ms import MS
 from flint.naming import create_imaging_name_prefix
@@ -44,6 +48,119 @@ def ms_example(tmpdir):
 def set_env():
     """Set up variables for a specific test"""
     os.environ["LOCALDIR"] = "Pirates/be/here"
+
+
+def test_rename_wsclean_path_move(tmpdir: Any):
+    """Rename the wsclean supplied part of a filename while moving a file"""
+    test_path = Path(tmpdir) / "move_file/"
+    test_path.mkdir(parents=True, exist_ok=True)
+
+    ex = test_path / Path("SB39400.RACS_0635-31.beam33.poli-MFS-image.fits")
+    out_ex = test_path / Path("SB39400.RACS_0635-31.beam33.poli.MFS.image.fits")
+
+    with open(ex, "w") as out_file:
+        out_file.write("example")
+
+    assert ex.exists()
+    assert not out_ex.exists()
+    assert _rename_wsclean_file(input_path=ex, rename_file=True) == out_ex
+    assert not ex.exists()
+    assert out_ex.exists()
+
+
+def _write_test_image(items: Any):
+    for item in items:
+        with Path(item).open("w") as out_file:
+            out_file.write(str(item))
+
+
+def test_rename_wsclean_imageset(tmpdir: Any):
+    """Ensure that items described in an image set are able to be properly renamed"""
+
+    test_dir = Path(tmpdir) / "imagesetrename"
+    test_dir.mkdir(parents=True, exist_ok=True)
+
+    # create some test files and ensure they all exist
+    keys: Dict[Any, Any] = {}
+    prefix = f"{str(test_dir)}/SB39400.RACS_0635-31.beam33.i"
+    keys["prefix"] = prefix
+    for mode in ("image", "residual"):
+        items = [
+            Path(f"{prefix}-{subband:04d}-{mode}.fits") for subband in range(4)
+        ] + [Path(f"{prefix}-MFS-{mode}.fits")]
+        _write_test_image(items=items)
+        keys[mode] = items
+        assert all([Path(f).exists() for f in items])
+
+    # form the image set that will have the wsclean appended properties string renamed
+    image_set = ImageSet(**keys)
+    assert isinstance(image_set, ImageSet)
+    new_image_set = rename_wsclean_prefix_in_imageset(input_imageset=image_set)
+
+    # test to see thhat files exists
+    assert new_image_set.prefix == prefix
+    assert new_image_set.image is not None
+    assert all([file.exists() for file in new_image_set.image])
+    assert new_image_set.residual is not None
+    assert all([file.exists() for file in new_image_set.residual])
+
+    # and ensure the originals no longer exist
+    assert all([not Path(file).exists() for file in keys["image"]])
+    assert all([not (file).exists() for file in keys["residual"]])
+
+
+def test_rename_wsclean_path():
+    """Rename the wsclean supplied part of a filename"""
+
+    ex = Path("SB39400.RACS_0635-31.beam33.poli-MFS-image.fits")
+    out_ex = Path("SB39400.RACS_0635-31.beam33.poli.MFS.image.fits")
+    assert _rename_wsclean_file(input_path=ex) == out_ex
+
+    ex = Path("SB39400.RACS_0635-31.beam33.poli-MFS-image")
+    out_ex = Path("SB39400.RACS_0635-31.beam33.poli.MFS.image")
+    assert _rename_wsclean_file(input_path=ex) == out_ex
+
+    ex = Path("/a/path/that/is/a/parent/SB39400.RACS_0635-31.beam33.poli-MFS-image")
+    out_ex = Path("/a/path/that/is/a/parent/SB39400.RACS_0635-31.beam33.poli.MFS.image")
+    assert _rename_wsclean_file(input_path=ex) == out_ex
+
+
+def test_regex_rename_wsclean_title():
+    """Rename the wsclean supplied using regex"""
+
+    ex = "SB39400.RACS_0635-31.beam33.poli-MFS-image.fits"
+    out_ex = "SB39400.RACS_0635-31.beam33.poli.MFS.image.fits"
+    assert _rename_wsclean_title(name_str=ex) == out_ex
+
+    ex = "SB39400.RACS_0635-31.beam33.poli-MFS-image"
+    out_ex = "SB39400.RACS_0635-31.beam33.poli.MFS.image"
+    assert _rename_wsclean_title(name_str=ex) == out_ex
+
+    ex = "SB39400.RACS_0635-31.beam33.poli-MFS-image"
+    out_ex = "SB39400.RACS_0635.31.beam33.poli.MFS.image"
+    assert not _rename_wsclean_title(name_str=ex) == out_ex
+
+    ex = "SB39400.RACS_0635-31.beam33.poli.MFS.image.fits"
+    out_ex = "SB39400.RACS_0635-31.beam33.poli.MFS.image.fits"
+    assert _rename_wsclean_title(name_str=ex) == out_ex
+    assert _rename_wsclean_title(name_str=ex) is ex
+
+    ex = "SB39400.RACS_0635-31.beam33.poli-i-MFS-image"
+    out_ex = "SB39400.RACS_0635-31.beam33.poli.i.MFS.image"
+    assert _rename_wsclean_title(name_str=ex) == out_ex
+
+
+def test_regex_stokes_wsclean_title():
+    """Test whether all stokes values are picked up properly"""
+
+    prefix = "SB39400.RACS_0635-31.beam33.poli."
+    end = "-MFS-image.fits"
+    transformed = end.replace("-", ".")
+
+    for stokes in ("i", "q", "u", "v", "xx", "xy", "yx", "yy"):
+        ex = f"{prefix}-{stokes}{end}"
+        out_ex = f"{prefix}.{stokes}{transformed}"
+        assert _rename_wsclean_title(name_str=ex) == out_ex
 
 
 def test_combine_subbands_to_cube(tmpdir):
@@ -120,7 +237,7 @@ def test_create_wsclean_name(ms_example):
 
     for pol in ("i", "I"):
         name = create_imaging_name_prefix(ms=ms_example, pol=pol)
-        assert name == "SB39400.RACS_0635-31.beam0.small.poli"
+        assert name == "SB39400.RACS_0635-31.beam0.small.i"
 
 
 def test_create_wsclean_name_argument(ms_example):
@@ -134,16 +251,14 @@ def test_create_wsclean_name_argument(ms_example):
 
     parent = str(Path(ms_example).parent)
     assert isinstance(name_argument_path, Path)
-    assert f"{parent}/SB39400.RACS_0635-31.beam0.small.poli" == str(name_argument_path)
+    assert f"{parent}/SB39400.RACS_0635-31.beam0.small.i" == str(name_argument_path)
 
     wsclean_options_2 = WSCleanOptions(temp_dir="/jack/sparrow")
     name_argument_path = create_wsclean_name_argument(
         wsclean_options=wsclean_options_2, ms=ms
     )
 
-    assert "/jack/sparrow/SB39400.RACS_0635-31.beam0.small.poli" == str(
-        name_argument_path
-    )
+    assert "/jack/sparrow/SB39400.RACS_0635-31.beam0.small.i" == str(name_argument_path)
 
 
 def test_create_wsclean_command(ms_example):

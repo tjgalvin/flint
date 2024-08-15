@@ -1,7 +1,22 @@
-"""Simple interface into wsclean"""
+"""Simple interface into wsclean
+
+Some notes around the file naming.
+
+A certain filenaming scheme is required for FITS files to perform leakage correction
+when co-adding them together in the yandasoft linmos application. The stokes field
+needs to be encoded as ``.i.``. For example:
+
+    >>> `SB1234.RACS_0123+43.beam01.i.image.fits`
+
+The wsclean formatted output string appends something denoted with ``-``. Within
+this code there is and attempt to rename the wsclean outputs to replace the ``-``
+with a ``.``.
+
+"""
 
 from __future__ import annotations
 
+import re
 from argparse import ArgumentParser
 from glob import glob
 from numbers import Number
@@ -164,6 +179,60 @@ class WSCleanCommand(NamedTuple):
         return WSCleanCommand(**_dict)
 
 
+def _rename_wsclean_title(name_str: str) -> str:
+    """Construct an apply a regular expression that aims to identify
+    the wsclean appended properties string within a file and replace
+    the `-` separator with a `.`.
+
+    Args:
+        name_str (str): The name that will be extracted and modified
+
+    Returns:
+        str: The modified string if a wsclean string was matched, otherwise the input `name-str`
+    """
+    search_re = r"(-(i|q|u|v|xx|xy|yx|yy))?-((MFS|[0-9]{4}))(-t[0-9]{5})?-(image|dirty|model|residual|psf)"
+    match_re = re.compile(search_re)
+
+    logger.info(f"{name_str=} {type(name_str)=}")
+    result = match_re.search(str(name_str))
+
+    if result is None:
+        return name_str
+
+    name = name_str.replace(result[0], result[0].replace("-", "."))
+
+    return name
+
+
+def _rename_wsclean_file(
+    input_path: Path,
+    rename_file: bool = False,
+) -> Path:
+    """Rename a file with wsclean appended string information to convert its
+    `-` separation markers with `.`. This should handle skipping the field
+    name of the target field observed.
+
+    Args:
+        input_path (Path): The file path that would be examined and modified
+        clean_parts (Union[int, Tuple[int, ...]], optional): Which parts of a split string will be modified. Defaults to -2.
+        rename_file (bool, optional): Whether the file should be moved / renamed. Defaults to False.
+
+    Returns:
+        Path: Path to the renamed file
+    """
+    input_path = Path(input_path)
+    file_name = Path(input_path.name)
+    new_name = _rename_wsclean_title(name_str=str(file_name))
+
+    new_path = input_path.parent / new_name
+
+    if rename_file:
+        logger.info(f"Renaming {input_path} to {new_path}")
+        input_path.rename(new_path)
+
+    return new_path
+
+
 def _wsclean_output_callback(line: str) -> None:
     """Call back function used to detect clean divergence"""
 
@@ -212,7 +281,7 @@ def get_wsclean_output_names(
     Returns:
         ImageSet: The file paths that wsclean should create/has created.
     """
-    # TODO: NEED TESTS!
+    # TODO: Use a regular expression for this
     subband_strs = [f"{subband:04}" for subband in range(subbands)]
     if include_mfs:
         subband_strs.append("MFS")
@@ -560,6 +629,41 @@ def combine_subbands_to_cube(
     return ImageSet(**imageset_dict)
 
 
+def rename_wsclean_prefix_in_imageset(input_imageset: ImageSet) -> ImageSet:
+    """Given an input imageset, rename the files contained in it to
+    remove the `-` separator that wsclean uses and replace it with `.`.
+
+    Files will be renamed on disk appropriately.
+
+    Args:
+        input_imageset (ImageSet): The collection of output wsclean products
+
+    Returns:
+        ImageSet: The updated imageset after replacing the separator and renaming files
+    """
+
+    input_args = options_to_dict(input_options=input_imageset)
+
+    check_keys = ("prefix", "image", "residual", "model", "dirty")
+
+    output_args: Dict[str, Any] = {}
+
+    for key, value in input_args.items():
+        if key == "prefix":
+            output_args[key] = _rename_wsclean_title(name_str=value)
+        elif key in check_keys and value is not None:
+            output_args[key] = [
+                _rename_wsclean_file(input_path=fits_path, rename_file=True)
+                for fits_path in value
+            ]
+        else:
+            output_args[key] = value
+
+    output_imageset = ImageSet(**output_args)
+
+    return output_imageset
+
+
 def run_wsclean_imager(
     wsclean_cmd: WSCleanCommand,
     container: Path,
@@ -648,6 +752,8 @@ def run_wsclean_imager(
         imageset = combine_subbands_to_cube(
             imageset=imageset, remove_original_images=True
         )
+
+    imageset = rename_wsclean_prefix_in_imageset(input_imageset=imageset)
 
     logger.info(f"Constructed {imageset=}")
 
