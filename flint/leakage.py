@@ -33,6 +33,8 @@ class LeakageFilters(NamedTuple):
     """The size of a box to search for peak polarised signal in"""
     noise_box_size: int = 30
     """the size of a box to compute a local RMS noise measure from"""
+    mean_box_size: int = 10
+    """The size of abox to compute a local mean measure over"""
     source_snr: float = 40
     """Minimum stokes-I signal-to-noise ratio"""
 
@@ -241,6 +243,7 @@ def extract_pol_stats_in_box(
     pixel_coords: PixelCoords,
     search_box_size: int,
     noise_box_size: int,
+    mean_box_size: int,
 ) -> PolStatistics:
     """Construct two boxes around nominated pixel coordinates to:
 
@@ -252,6 +255,7 @@ def extract_pol_stats_in_box(
         pixel_coords (PixelCoords): Collection of pixel positioncs to evaluate the peak polarisation and noise at
         search_box_size (int): Size of box to extract the maximum polarised signal from
         noise_box_size (int): Size of box to calculate the RMS over
+        mean_box_size (int): Size of box to calculate an mean over
 
     Returns:
        PolStatistics: Extracted statistics, including peak polarised signal, noise and mean
@@ -264,7 +268,7 @@ def extract_pol_stats_in_box(
     pol_noise = None
     pol_mean = None
     # TODO: This loop should be reformed to allow iterating over something that defines the mode and box
-    for idx, box_size in enumerate((search_box_size, noise_box_size, noise_box_size)):
+    for idx, box_size in enumerate((search_box_size, noise_box_size, mean_box_size)):
         box_delta = int(np.ceil(box_size / 2))
 
         y_edge_min = np.maximum(pixel_coords.y - box_delta, 0).astype(int)
@@ -382,6 +386,7 @@ def create_leakge_component_table(
         pixel_coords=pol_pixel_coords,
         search_box_size=leakage_filters.search_box_size,
         noise_box_size=leakage_filters.noise_box_size,
+        mean_box_size=leakage_filters.mean_box_size,
     )
     frac_values = pol_stats.peak / i_values
 
