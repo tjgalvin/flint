@@ -9,7 +9,13 @@ import numpy as np
 import pytest
 from astropy.io import fits
 
-from flint.coadd.linmos import BoundingBox, create_bound_box, trim_fits_image
+from flint.coadd.linmos import (
+    BoundingBox,
+    _get_alpha_linmos_option,
+    _get_holography_linmos_options,
+    create_bound_box,
+    trim_fits_image,
+)
 
 
 def create_fits_image(out_path, image_size=(1000, 1000)):
@@ -22,7 +28,47 @@ def create_fits_image(out_path, image_size=(1000, 1000)):
     fits.writeto(out_path, data=data, header=header)
 
 
+def test_linmos_alpha_option():
+    """Ensure the rotation string supplied to linmos is calculated appropriately"""
+
+    options_str = _get_alpha_linmos_option(pol_axis=None)
+    assert options_str == ""
+
+    options_str = _get_alpha_linmos_option(pol_axis=np.deg2rad(-45))
+    expected_str = "linmos.primarybeam.ASKAP_PB.alpha = 0.0 # in radians\n"
+    assert options_str == expected_str
+
+    with pytest.raises(AssertionError):
+        _get_alpha_linmos_option(pol_axis=1234)
+
+
+def test_linmos_holo_options(tmpdir):
+    holofile = Path(tmpdir) / "testholooptions/holo_file.fits"
+    holofile.parent.mkdir(parents=True, exist_ok=True)
+
+    with pytest.raises(AssertionError):
+        _get_holography_linmos_options(holofile=holofile, pol_axis=None)
+
+    assert _get_holography_linmos_options(holofile=None, pol_axis=None) == ""
+
+    with holofile.open("w") as f:
+        f.write("test")
+
+    parset = _get_holography_linmos_options(holofile=holofile, pol_axis=None)
+    assert "linmos.primarybeam      = ASKAP_PB\n" in parset
+    assert "linmos.removeleakage    = true\n" in parset
+    assert f"linmos.primarybeam.ASKAP_PB.image = {str(holofile.absolute())}\n" in parset
+    assert "linmos.primarybeam.ASKAP_PB.alpha" not in parset
+
+    parset = _get_holography_linmos_options(holofile=holofile, pol_axis=np.deg2rad(-45))
+    assert "linmos.primarybeam      = ASKAP_PB\n" in parset
+    assert "linmos.removeleakage    = true\n" in parset
+    assert f"linmos.primarybeam.ASKAP_PB.image = {str(holofile.absolute())}\n" in parset
+    assert "linmos.primarybeam.ASKAP_PB.alpha" in parset
+
+
 def test_trim_fits(tmp_path):
+    """Ensure that fits files can be trimmed appropriately based on row/columns with valid pixels"""
     tmp_dir = tmp_path / "image"
     tmp_dir.mkdir()
 

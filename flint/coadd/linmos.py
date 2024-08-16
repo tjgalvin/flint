@@ -242,6 +242,77 @@ def generate_weights_list_and_files(
     return weight_list
 
 
+def _get_alpha_linmos_option(pol_axis: Optional[float] = None) -> str:
+    """Compute the appropriate alpha term for linmos that is used to
+    describe the differential rotation of the ASKAP third-axis and the
+    footprint layout. The typical holography rotation is -45 degs. Internally
+    the `alpha` term is computed as:
+
+    >>> pol_axis - EXPECTED_HOLOGRAPHY_ROTATION_CONSTANT_RADIANS
+
+    Args:
+        pol_axis (Optional[float], optional): The prescribed polarisation axis value described in a MS. Defaults to None.
+
+    Returns:
+        str: Yandasoft linmos option to rotation the holography cubes
+    """
+
+    # Work out the appropriate rotation to provide linmos. This should
+    # be the differential pol. axis. rotation between the science field
+    # and the holography. At the moment this holography rotation is
+    # unknown to us (not stored in the cube header).
+    if pol_axis is None:
+        return ""
+
+    assert (
+        np.abs(pol_axis) <= 2.0 * np.pi
+    ), f"{pol_axis=}, which is outside +/- 2pi radians and seems unreasonable"
+
+    logger.info(
+        f"The constant assumed holography rotation is: {EXPECTED_HOLOGRAPHY_ROTATION_CONSTANT_RADIANS:.4f} radians"
+    )
+    logger.info(f"The extracted pol_axis of the field: {pol_axis:.4f} radians")
+    alpha = pol_axis - EXPECTED_HOLOGRAPHY_ROTATION_CONSTANT_RADIANS
+    logger.info(f"Differential rotation is: {alpha} rad")
+
+    return f"linmos.primarybeam.ASKAP_PB.alpha = {alpha} # in radians\n"
+
+
+def _get_holography_linmos_options(
+    holofile: Optional[Path] = None, pol_axis: Optional[float] = None
+) -> str:
+    """Construct the appropriate set of linmos options that
+    describe the use of the holography cube file to primary
+    beam correct the input images. This includes appropriately
+    rotating the holography (see `_get_alpha_linmos_options`).
+
+    Args:
+        holofile (Optional[Path], optional): Path to the holography cube file to primary beam correct with. Defaults to None.
+        pol_axis (Optional[float], optional): The rotation of the third axis as described in an ASAKP MS. Defaults to None.
+
+    Returns:
+        str: Set of linmos options to add to a parset file
+    """
+
+    if holofile is None:
+        return ""
+
+    # This requires an appropriate holography fits cube to
+    # have been created. This is typically done outside as
+    # part of operations.
+    logger.info(f"Using holography file {holofile} -- setting removeleakge to true")
+    assert holofile.exists(), f"{holofile=} has been specified but does not exist. "
+
+    parset = (
+        f"linmos.primarybeam      = ASKAP_PB\n"
+        f"linmos.primarybeam.ASKAP_PB.image = {str(holofile.absolute())}\n"
+        f"linmos.removeleakage    = true\n"
+    )
+    parset += _get_alpha_linmos_option(pol_axis=pol_axis)
+
+    return parset
+
+
 def generate_linmos_parameter_set(
     images: Collection[Path],
     parset_output_path: Path,
@@ -268,9 +339,6 @@ def generate_linmos_parameter_set(
     Returns:
         Path: Path to the output parset file.
     """
-
-    # TODO: Add the alpha linmos param
-
     img_str: List[str] = list(
         [str(p).replace(".fits", "") for p in images if p.exists()]
     )
@@ -296,19 +364,8 @@ def generate_linmos_parameter_set(
     # attribute drops the parent directory (absolute directory).
     parent_dir = linmos_names.image_fits.parent
 
-    # Work out the appropriate rotation to provide linmos. This should
-    # be the differential pol. axis. rotation between the science field
-    # and the holography. At the moment this holography rotation is
-    # unknown to us (not stored in the cube header).
-    alpha = None
-    if pol_axis:
-        logger.info(
-            f"The constant assumed holography rotation is: {EXPECTED_HOLOGRAPHY_ROTATION_CONSTANT_RADIANS:.4f} radians"
-        )
-        logger.info(f"The extracted pol_axis of the field: {pol_axis:.4f} radians")
-        alpha = pol_axis - EXPECTED_HOLOGRAPHY_ROTATION_CONSTANT_RADIANS
-        logger.info(f"Differential rotation is: {alpha} rad")
-
+    # TODO: This should be a list of one line strings that is grown based on
+    # options provided, then joined with a "\n".join(parset)
     # Parameters are taken from arrakis
     parset = (
         f"linmos.names            = {img_list}\n"
@@ -324,22 +381,8 @@ def generate_linmos_parameter_set(
         f"linmos.weightstate      = Inherent\n"
         f"linmos.cutoff           = {cutoff}\n"
     )
-
-    # This requires an appropriate holography fits cube to
-    # have been created. This is typically done outside as
-    # part of operations.
-    if holofile is not None:
-        logger.info(f"Using holography file {holofile} -- setting removeleakge to true")
-
-        assert holofile.exists(), f"{holofile=} has been specified but does not exist. "
-
-        parset += (
-            f"linmos.primarybeam      = ASKAP_PB\n"
-            f"linmos.primarybeam.ASKAP_PB.image = {str(holofile.absolute())}\n"
-            f"linmos.removeleakage    = true\n"
-        )
-        assert alpha is not None, f"{alpha=}, which should not happen"
-        parset += f"linmos.primarybeam.ASKAP_PB.alpha = {alpha} # in radians\n"
+    # Construct the holography section of the linmos parset
+    parset += _get_holography_linmos_options(holofile=holofile, pol_axis=pol_axis)
 
     # Now write the file, me hearty
     logger.info(f"Writing parset to {str(parset_output_path)}.")
