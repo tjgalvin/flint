@@ -819,8 +819,7 @@ def plot_astrometry_comparison(
     seps = pos1.separation(pos2)
     pas = pos1.position_angle(pos2)
 
-    # Apply corrections (were in the original code)
-    # TODO: Find out why this is necessary. Sky is curved nonsense doesn't depend on angle between sources
+    # Compute the detlaRA and deltaDec. Straight subtraction is not correct
     err_x = (seps * -np.sin(pas.radian)).to(u.arcsec).value
     err_y = (seps * np.cos(pas.radian)).to(u.arcsec).value
 
