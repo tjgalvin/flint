@@ -39,6 +39,7 @@ pandas = "*"
 ConfigArgParse = "^1.7"
 fitscube = "^0.4.3"
 astroquery = "^0.4.7"
+griffe = "0.48.0"
 
 [tool.poetry.group.dev.dependencies]
 black = "^23.3.0"
