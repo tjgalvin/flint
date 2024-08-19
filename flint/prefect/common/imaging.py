@@ -106,7 +106,8 @@ def task_potato_peel(
 
 @task
 def task_flag_ms_aoflagger(ms: FlagMS, container: Path) -> FlagMS:
-    extracted_ms = MS.cast(ms=ms)  # type: ignore - a product of the type alias, pirate thinks
+    # Pirate believes the type ignore below is due to the decorated function and type alias
+    extracted_ms = MS.cast(ms=ms)  # type: ignore
 
     extracted_ms = flag_ms_aoflagger(ms=extracted_ms, container=container)
 
