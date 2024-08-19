@@ -380,6 +380,7 @@ def generate_linmos_parameter_set(
         f"linmos.weighttype       = Combined\n"
         f"linmos.weightstate      = Inherent\n"
         f"linmos.cutoff           = {cutoff}\n"
+        f"linmos.finalcutoff           = 0.01\n"
     )
     # Construct the holography section of the linmos parset
     parset += _get_holography_linmos_options(holofile=holofile, pol_axis=pol_axis)
