@@ -181,6 +181,9 @@ def process_science_fields(
         preprocess_science_mss = task_copy_and_preprocess_casda_askap_ms.map(
             casda_ms=science_mss, output_directory=output_split_science_path
         )
+        preprocess_science_mss = task_flag_ms_aoflagger.map(  # type: ignore
+            ms=preprocess_science_mss, container=field_options.flagger_container
+        )
     else:
         # TODO: This will likely need to be expanded should any
         # other calibration strategies get added
