@@ -478,6 +478,13 @@ def setup_run_process_science_field(
 
     science_sbid = get_sbid_from_path(path=science_path)
 
+    if field_options.sbid_copy_path:
+        updated_sbid_copy_path = field_options.sbid_copy_path / f"{science_sbid}"
+        logger.info(f"Updating archive copy path to {updated_sbid_copy_path=}")
+        field_options = field_options.with_options(
+            sbid_copy_path=updated_sbid_copy_path
+        )
+
     dask_task_runner = get_dask_runner(cluster=cluster_config)
 
     process_science_fields.with_options(
