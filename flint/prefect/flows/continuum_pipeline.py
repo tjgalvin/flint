@@ -12,6 +12,7 @@ from configargparse import ArgumentParser
 from prefect import flow, tags, unmapped
 
 from flint.calibrate.aocalibrate import find_existing_solutions
+from flint.catalogue import verify_reference_catalogues
 from flint.coadd.linmos import LinmosCommand
 from flint.configuration import (
     Strategy,
@@ -66,6 +67,13 @@ def _check_field_options(field_options: FieldOptions) -> None:
         raise ValueError(
             "run_aegean and aegean container both need to be set is beam masks is being used. "
         )
+    if field_options.reference_catalogue_directory:
+        if not verify_reference_catalogues(
+            reference_directory=field_options.reference_catalogue_directory
+        ):
+            raise ValueError(
+                f"{field_options.reference_catalogue_directory=} does not appear to be valid. Check for reference catalogues"
+            )
 
 
 def _check_create_output_split_science_path(
