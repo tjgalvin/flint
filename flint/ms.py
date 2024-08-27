@@ -23,7 +23,7 @@ import astropy.units as u
 import numpy as np
 from astropy.coordinates import EarthLocation, SkyCoord
 from astropy.time import Time
-from casatools.table import table
+from casatools.table import table as table_object
 from fixms.fix_ms_corrs import fix_ms_corrs
 from fixms.fix_ms_dir import fix_ms_dir
 
@@ -31,6 +31,8 @@ from flint.logging import logger
 from flint.naming import create_ms_name
 from flint.options import MS
 from flint.utils import copy_directory, rsync_copy_directory
+
+table = table_object()
 
 
 class MSSummary(NamedTuple):

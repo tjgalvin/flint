@@ -5,10 +5,12 @@ from pathlib import Path
 
 import numpy as np
 import pytest
-from casatools.table import table
+from casatools.table import table as table_object
 
 from flint.flagging import flag_ms_zero_uvws
 from flint.utils import get_packaged_resource_path
+
+table = table_object()
 
 
 @pytest.fixture

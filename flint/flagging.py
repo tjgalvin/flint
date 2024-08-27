@@ -3,15 +3,16 @@
 from argparse import ArgumentParser
 from pathlib import Path
 from typing import Collection, NamedTuple, Optional, Union
-
 import numpy as np
-from casatools.table import table
+from casatools.table import table as table_object
 
 from flint.exceptions import MSError
 from flint.logging import logger
 from flint.ms import MS, check_column_in_ms, critical_ms_interaction, describe_ms
 from flint.sclient import run_singularity_command
 from flint.utils import get_packaged_resource_path
+
+table = table_object()
 
 
 class AOFlaggerCommand(NamedTuple):

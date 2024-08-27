@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Optional, Union
 
 import numpy as np
-from casatools.table import table
+from casatools.table import table as table_object
 
 from flint.calibrate.aocalibrate import AOSolutions, calibrate_apply_ms
 from flint.flagging import flag_ms_aoflagger
@@ -13,6 +13,8 @@ from flint.logging import logger
 from flint.ms import MS, describe_ms, preprocess_askap_ms, get_field_id_for_field
 from flint.naming import create_ms_name
 from flint.sky_model import KNOWN_1934_FILES, get_1934_model
+
+table = table_object()
 
 
 def plot_solutions(solutions_path: Path, ref_ant: Optional[int] = 0) -> None:

@@ -10,7 +10,7 @@ from pathlib import Path
 from shutil import copytree
 from typing import Any, Dict, NamedTuple, Optional
 
-from casatools.table import table
+from casatools.table import table as table_object
 from casatasks import applycal, cvel, gaincal, mstransform
 
 from flint.exceptions import GainCalError, MSError
@@ -19,6 +19,8 @@ from flint.logging import logger
 from flint.ms import MS, rename_ms_and_columns_for_selfcal
 from flint.naming import get_selfcal_ms_name
 from flint.utils import remove_files_folders, rsync_copy_directory, zip_folder
+
+table = table_object()
 
 
 class GainCalOptions(NamedTuple):

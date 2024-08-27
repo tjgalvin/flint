@@ -11,12 +11,14 @@ from astropy import units as u
 from astropy.coordinates import Angle, SkyCoord
 from astropy.table import QTable, Table
 from astropy.table.row import Row
-from casatools.table import table
+from casatools.table import table as table_object
 from scipy.optimize import curve_fit
 
 from flint.catalogue import KNOWN_REFERENCE_CATALOGUES, Catalogue
 from flint.logging import logger
 from flint.utils import get_packaged_resource_path
+
+table = table_object()
 
 KNOWN_PB_TYPES = ("gaussian", "sincsquared", "airy")
 

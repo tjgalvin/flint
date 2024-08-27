@@ -7,7 +7,7 @@ from pathlib import Path
 
 import numpy as np
 import pytest
-from casatools.table import table
+from casatools.table import table as table_object
 
 from flint.calibrate.aocalibrate import ApplySolutions
 from flint.exceptions import MSError
@@ -20,6 +20,8 @@ from flint.ms import (
     rename_ms_and_columns_for_selfcal,
 )
 from flint.utils import get_packaged_resource_path
+
+table = table_object()
 
 
 def test_find_mss(tmpdir):
@@ -61,7 +63,9 @@ def casda_example(tmpdir):
 def _test_the_data(ms):
     """Some very simple tests for the rotation. The expected numbers come from manually
     stabbing the MSs"""
-    from casatools.table import table
+    from casatools.table import table as table_object
+
+    table = table_object()
 
     with table(str(ms), ack=False) as tab:
         data = tab.getcol("DATA")

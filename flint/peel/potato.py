@@ -25,7 +25,7 @@ import astropy.units as u
 import numpy as np
 from astropy.coordinates import SkyCoord
 from astropy.table import Table
-from casatools.table import table
+from casatools.table import table as table_object
 
 from flint.imager.wsclean import WSCleanOptions
 from flint.logging import logger
@@ -37,6 +37,8 @@ from flint.utils import (
     generate_strict_stub_wcs_header,
     get_packaged_resource_path,
 )
+
+table = table_object()
 
 
 class PotatoConfigOptions(NamedTuple):
