@@ -203,6 +203,37 @@ class MatchResult(NamedTuple):
     """Brightness in Jy of source in the second survey"""
 
 
+def extract_inner_image_array_region(image: np.ndarray, fraction: float) -> np.ndarray:
+    """Extract an inner region of an image array. The size of the extracted array
+    is specified via the `fraction` parameter, which should be in the range of 0 to 1.
+
+    Args:
+        image (np.ndarray): The image to extract pixels from
+        fraction (float): The size of the region to extraction.
+
+    Returns:
+        np.ndarray: The extracted sub-region
+    """
+    assert 0.0 < fraction <= 1.0, f"{fraction=}, but has to be between 0.0 to 1.0"
+
+    image_shape = image.shape
+    yx_shape = np.array(image_shape[-2:])
+
+    yx_center = np.ceil(yx_shape / 2).astype(int)
+    box_size = (yx_shape * fraction).astype(int)
+    box_delta = np.ceil(box_size / 2).astype(int)
+
+    min_y = max(0, yx_center[0] - box_delta[0])
+    max_y = min(yx_shape[0], yx_center[0] + box_delta[0])
+
+    min_x = max(0, yx_center[1] - box_delta[1])
+    max_x = min(yx_shape[1], yx_center[1] + box_delta[1])
+
+    sub_image_array = image[..., min_y:max_y, min_x:max_x]
+
+    return sub_image_array
+
+
 def get_known_catalogue_info(name: str) -> Catalogue:
     """Return the parameters of a recognised catalogue.
 
@@ -291,11 +322,16 @@ def load_known_catalogue(
     return table, catalogue
 
 
-def get_rms_image_info(rms_path: Path) -> RMSImageInfo:
+def get_rms_image_info(rms_path: Path, extract_fraction: float = 0.5) -> RMSImageInfo:
     """Extract information about the RMS image and construct a representative structure
+
+    When computing the pixel statistics an inner region of the RMS map is extracted
+    to avoid the primary beam roll off. Other properties of the ``RMSImageInfo`` are
+    computed on the whole image (e.g. area)
 
     Args:
         rms_path (Path): The RMS image that will be presented
+        extract_fraction (float, optional): Extract the inner region of the base RMS image map. Defaults to 0.5.
 
     Returns:
         RMSImageInfo: Extracted RMS image information
@@ -304,6 +340,11 @@ def get_rms_image_info(rms_path: Path) -> RMSImageInfo:
     with fits.open(rms_path) as rms_image:
         rms_header = rms_image[0].header  # type: ignore
         rms_data = rms_image[0].data  # type: ignore
+
+    logger.info(f"Extracting inner region of {extract_fraction=} for RMS statistics")
+    sub_rms_data = extract_inner_image_array_region(
+        image=rms_data, fraction=extract_fraction
+    )
 
     valid_pixels = np.sum(np.isfinite(rms_data) & (rms_data != 0))
 
@@ -324,11 +365,11 @@ def get_rms_image_info(rms_path: Path) -> RMSImageInfo:
         area=area,
         wcs=wcs,
         centre=centre_sky,
-        median=np.nanmedian(rms_data),
-        minimum=np.nanmin(rms_data),
-        maximum=np.nanmax(rms_data),
-        std=float(np.nanstd(rms_data)),
-        mode=stats.mode(rms_data, keepdims=False).mode[0],
+        median=float(np.nanmedian(sub_rms_data)),
+        minimum=float(np.nanmin(sub_rms_data)),
+        maximum=float(np.nanmax(sub_rms_data)),
+        std=float(np.nanstd(sub_rms_data)),
+        mode=stats.mode(sub_rms_data, keepdims=False).mode[0],
     )
 
     return rms_image_info

@@ -29,6 +29,8 @@
 - removing the `pol` string in the polarisation field of the
   `ProcessedNameComponents`
   - `wclean` output `-` separation character chhanged to `.`
+- The median RMS of the field image is calculated on an inner region when
+  cnnstructing the validation plot
 
 # 0.2.5
 
