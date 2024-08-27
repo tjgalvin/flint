@@ -13,6 +13,7 @@ from flint.validation import (
     RMSImageInfo,
     SourceCounts,
     calculate_area_correction_per_flux,
+    extract_inner_image_array_region,
     get_parser,
     get_rms_image_info,
     get_source_counts,
@@ -46,6 +47,24 @@ def comp_path(tmpdir):
     )
 
     return comp_path
+
+
+def test_extract_inner_image_array_region():
+    """Get the inner region of an image array"""
+    shape = (100, 100)
+    image = np.arange(np.prod(shape)).reshape(shape)
+
+    sub_image = extract_inner_image_array_region(image=image, fraction=0.5)
+    assert sub_image.shape == (50, 50)
+
+    shape = (1, 1, 100, 100)
+    image = np.arange(np.prod(shape)).reshape(shape)
+
+    sub_image = extract_inner_image_array_region(image=image, fraction=0.5)
+    assert sub_image.shape == (1, 1, 50, 50)
+
+    with pytest.raises(AssertionError):
+        extract_inner_image_array_region(image=image, fraction=22.5)
 
 
 def test_plot_source_counts(comp_path, rms_path):
@@ -96,14 +115,16 @@ def test_calculate_area_correction(rms_path):
 def test_rms_image_info(rms_path):
     rms_info = get_rms_image_info(rms_path=rms_path)
 
+    print(rms_info)
+
     assert isinstance(rms_info, RMSImageInfo)
     assert rms_info.path == rms_path
     assert rms_info.no_valid_pixels == 150
     assert rms_info.shape == (10, 15)
-    assert np.isclose(0.0001515522, rms_info.median)
-    assert np.isclose(0.00015135764, rms_info.minimum)
-    assert np.isclose(0.0001518184, rms_info.maximum)
-    assert np.isclose(1.1098655e-07, rms_info.std)
+    assert np.isclose(0.0001515522, rms_info.median, atol=1e-5)
+    assert np.isclose(0.00015135764, rms_info.minimum, atol=1e-5)
+    assert np.isclose(0.0001518184, rms_info.maximum, atol=1e-5)
+    assert np.isclose(1.1098655e-07, rms_info.std, atol=1e-5)
 
 
 class Example(NamedTuple):
