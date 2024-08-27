@@ -23,7 +23,7 @@ import astropy.units as u
 import numpy as np
 from astropy.coordinates import EarthLocation, SkyCoord
 from astropy.time import Time
-from casatools.table import table, taql
+from casatools.table import table
 from fixms.fix_ms_corrs import fix_ms_corrs
 from fixms.fix_ms_dir import fix_ms_dir
 
@@ -399,7 +399,7 @@ def split_by_field(
     with table(str(ms.path), ack=False) as tab:  # noqa: F841
         for split_name, split_idx in zip(fields, field_idxs):
             logger.info(f"Selecting FIELD={split_name}")
-            sub_ms = taql(f"select * from $tab where FIELD_ID=={split_idx}")
+            sub_ms = table.taql(f"select * from $tab where FIELD_ID=={split_idx}")
 
             out_ms_str = create_ms_name(ms_path=ms.path, field=split_name)
             out_path = ms_out_dir / Path(out_ms_str).name

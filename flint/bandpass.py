@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Optional, Union
 
 import numpy as np
-from casacore.tables import table, taql
+from casatools.table import table
 
 from flint.calibrate.aocalibrate import AOSolutions, calibrate_apply_ms
 from flint.flagging import flag_ms_aoflagger
@@ -165,7 +165,7 @@ def extract_correct_bandpass_pointing(
 
     logger.info(f"Will create a MS, writing to {out_path}")
     with table(f"{str(ms.path)}") as tab:
-        field_ms = taql(f"select * from $tab where FIELD_ID=={field_id}")
+        field_ms = table.taql(f"select * from $tab where FIELD_ID=={field_id}")
         field_ms.copy(str(out_path), deep=True)
 
     return ms.with_options(path=out_path, beam=ms_summary.beam)
