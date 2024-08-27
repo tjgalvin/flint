@@ -10,7 +10,7 @@ from pathlib import Path
 from shutil import copytree
 from typing import Any, Dict, NamedTuple, Optional
 
-from casacore.tables import table
+from casatools.table import table
 from casatasks import applycal, cvel, gaincal, mstransform
 
 from flint.exceptions import GainCalError, MSError

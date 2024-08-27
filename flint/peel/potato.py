@@ -25,7 +25,7 @@ import astropy.units as u
 import numpy as np
 from astropy.coordinates import SkyCoord
 from astropy.table import Table
-from casacore.tables import table
+from casatools.table import table
 
 from flint.imager.wsclean import WSCleanOptions
 from flint.logging import logger

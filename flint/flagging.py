@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Collection, NamedTuple, Optional, Union
 
 import numpy as np
-from casacore.tables import table
+from casatools.table import table
 
 from flint.exceptions import MSError
 from flint.logging import logger

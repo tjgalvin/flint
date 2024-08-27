@@ -11,7 +11,7 @@ from astropy import units as u
 from astropy.coordinates import Angle, SkyCoord
 from astropy.table import QTable, Table
 from astropy.table.row import Row
-from casacore.tables import table
+from casatools.table import table
 from scipy.optimize import curve_fit
 
 from flint.catalogue import KNOWN_REFERENCE_CATALOGUES, Catalogue

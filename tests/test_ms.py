@@ -7,7 +7,7 @@ from pathlib import Path
 
 import numpy as np
 import pytest
-from casacore.tables import table
+from casatools.table import table
 
 from flint.calibrate.aocalibrate import ApplySolutions
 from flint.exceptions import MSError
@@ -61,7 +61,7 @@ def casda_example(tmpdir):
 def _test_the_data(ms):
     """Some very simple tests for the rotation. The expected numbers come from manually
     stabbing the MSs"""
-    from casacore.tables import table
+    from casatools.table import table
 
     with table(str(ms), ack=False) as tab:
         data = tab.getcol("DATA")
