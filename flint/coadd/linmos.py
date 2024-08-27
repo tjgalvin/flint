@@ -41,7 +41,8 @@ class BoundingBox(NamedTuple):
 
 
 def create_bound_box(image_data: np.ndarray, is_masked: bool = False) -> BoundingBox:
-    """Construct a bounding box around finite pixels.
+    """Construct a bounding box around finite pixels for a 2D image. This does not
+    support cube type images.
 
     If ``is_mask` is ``False``, the ``image_data`` will be masked internally using ``numpy.isfinite``.
 

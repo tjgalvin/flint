@@ -119,6 +119,7 @@ def test_trim_fits_image_matching(tmp_path):
 
 
 def test_bounding_box():
+    """Create a bounding box around a region of valid non-nan/inf pixels"""
     data = np.zeros((1000, 1000))
     data[10:600, 20:500] = 1
     data[data == 0] = np.nan
@@ -132,7 +133,18 @@ def test_bounding_box():
     assert bb.ymax == 499  # slices upper limit no inclusive
 
 
+def test_bounding_box_cube():
+    """Cube cut bounding boxes. Currently not supported."""
+    data = np.zeros((3, 1000, 1000))
+    data[:, 10:600, 20:500] = 1
+    data[data == 0] = np.nan
+
+    with pytest.raises(AssertionError):
+        create_bound_box(image_data=data)
+
+
 def test_bounding_box_with_mask():
+    """Create a bounding box where the input is converted to a boolean arrau"""
     data = np.zeros((1000, 1000))
     data[10:600, 20:500] = 1
 
