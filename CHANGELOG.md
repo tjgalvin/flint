@@ -31,6 +31,8 @@
   - `wclean` output `-` separation character chhanged to `.`
 - The median RMS of the field image is calculated on an inner region when
   cnnstructing the validation plot
+- Limit the number of sources to overlay on the RMS plot in the quick look
+  validation figure
 
 # 0.2.5
 

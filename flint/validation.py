@@ -28,6 +28,7 @@ F_SMALL = 7
 F_MED = 8
 F_LARGE = 12
 F_HUGE = 20
+MAX_SOURCES_TO_PLOT = 10000
 
 
 class ValidationCatalogues(NamedTuple):
@@ -528,15 +529,21 @@ def plot_rms_map(
     )
 
     if source_positions is not None:
-        ax.scatter(
-            source_positions.ra,  # type: ignore
-            source_positions.dec,  # type: ignore
-            marker="o",
-            edgecolor="black",
-            facecolor="none",
-            s=1,
-            transform=ax.get_transform("fk5"),
-        )
+        # If there are too many sources on the RMS map nothing can be seen
+        if len(source_positions) > MAX_SOURCES_TO_PLOT:
+            logger.info(
+                f"{len(source_positions)} sources, too many to plot. Skipping. "
+            )
+        else:
+            ax.scatter(
+                source_positions.ra,  # type: ignore
+                source_positions.dec,  # type: ignore
+                marker="o",
+                edgecolor="black",
+                facecolor="none",
+                s=0.1,
+                transform=ax.get_transform("fk5"),  # type: ignore
+            )
 
     ax.grid(color="0.5", ls="solid")
     ax.set_xlabel("RA (J2000)")
