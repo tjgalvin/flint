@@ -33,6 +33,7 @@
   cnnstructing the validation plot
 - Limit the number of sources to overlay on the RMS plot in the quick look
   validation figure
+- Replace the `cassatasks` with a casa in a container
 
 # 0.2.5
 

@@ -97,7 +97,7 @@ software that are outside the `python` ecosystem. For the moment there are no
 
 In a nutshell, the containers used throughout are passed in as command line
 arguments, whose context should be enough to explain what it is expecting. At
-the time of writing there are four containers for:
+the time of writing there are six containers for:
 
 - calibration: this should contain `calibrate` and `applysolutions`. These are
   tools written by Andre Offringa.
@@ -115,6 +115,13 @@ the time of writing there are four containers for:
   a python installable and importable package, there are potential conflicts
   with the `casatasks` and `python-casacore` modules that `flint` uses. See
   [potatopeel's github repository for more information](https://gitlab.com/Sunmish/potato/-/tree/main)
+- linear mosaicing: The `linmos` task from `yandasoft` is used to perform linear
+  mosaicing. Importanting this `linmos` is capable of using the ASKAP primary
+  beam responses characterised through holography. `yandasoft` docker images
+  [are available from the CSIRO dockerhub page.](https://hub.docker.com/r/csirocass/askapsoft).
+- self-calibration: `casa` is used to perform antenna-based self-calibration.
+  Specifically the tasks `gaincal`, `applysolutions`, `cvel` and `mstransform`
+  are used throughout this process.
 
 ## Configuration based settings
 

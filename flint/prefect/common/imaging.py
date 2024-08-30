@@ -216,6 +216,7 @@ def task_zip_ms(in_item: WSCleanCommand) -> Path:
 def task_gaincal_applycal_ms(
     ms: Union[MS, WSCleanCommand],
     round: int,
+    casa_container: Path,
     update_gain_cal_options: Optional[Dict[str, Any]] = None,
     archive_input_ms: bool = False,
     skip_selfcal: bool = False,
@@ -227,6 +228,7 @@ def task_gaincal_applycal_ms(
     Args:
         ms (Union[MS, WSCleanCommand]): A resulting wsclean output. This is used purely to extract the ``.ms`` attribute.
         round (int): Counter indication which self-calibration round is being performed. A name is included based on this.
+        casa_container (Path): A path to a singularity container with CASA tooling.
         update_gain_cal_options (Optional[Dict[str, Any]], optional): Options used to overwrite the default ``gaincal`` options. Defaults to None.
         archive_input_ms (bool, optional): If True the input measurement set is zipped. Defaults to False.
         skip_selfcal (bool, optional): Should this self-cal be skipped. If `True`, the a new MS is created but not calibrated the appropriate new name and returned.
@@ -251,6 +253,7 @@ def task_gaincal_applycal_ms(
     return gaincal_applycal_ms(
         ms=ms,
         round=round,
+        casa_container=casa_container,
         update_gain_cal_options=update_gain_cal_options,
         archive_input_ms=archive_input_ms,
         skip_selfcal=skip_selfcal,

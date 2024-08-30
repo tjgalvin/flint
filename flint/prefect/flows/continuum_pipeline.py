@@ -74,6 +74,11 @@ def _check_field_options(field_options: FieldOptions) -> None:
             raise ValueError(
                 f"{field_options.reference_catalogue_directory=} does not appear to be valid. Check for reference catalogues"
             )
+    if field_options.rounds is not None:
+        if field_options.rounds >= 1 and field_options.casa_container is None:
+            raise ValueError(
+                "CASA Container needs to be set if self-calibraiton is to be performed"
+            )
 
 
 def _check_create_output_split_science_path(
@@ -349,6 +354,7 @@ def process_science_fields(
                 skip_selfcal=skip_gaincal_current_round,
                 rename_ms=field_options.rename_ms,
                 archive_cal_table=True,
+                casa_container=field_options.casa_container,
                 wait_for=[
                     field_summary
                 ],  # To make sure field summary is created with unzipped MSs
@@ -581,6 +587,12 @@ def get_parser() -> ArgumentParser:
         help="Path to the potato peel singularity container",
     )
     parser.add_argument(
+        "--casa-container",
+        type=Path,
+        default=None,
+        help="Path to the CASA6 singularity container",
+    )
+    parser.add_argument(
         "--cluster-config",
         type=str,
         default="petrichor",
@@ -723,6 +735,7 @@ def cli() -> None:
     field_options = FieldOptions(
         flagger_container=args.flagger_container,
         calibrate_container=args.calibrate_container,
+        caa_container=args.casa_container,
         holofile=args.holofile,
         expected_ms=args.expected_ms,
         wsclean_container=args.wsclean_container,

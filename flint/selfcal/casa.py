@@ -11,7 +11,7 @@ from shutil import copytree
 from typing import Any, Dict, NamedTuple, Optional
 
 from casacore.tables import table
-from casatasks import applycal, cvel, gaincal, mstransform
+from casatasks import applycal, cvel, gaincal
 
 from flint.exceptions import GainCalError, MSError
 from flint.flagging import nan_zero_extreme_flag_ms
@@ -146,12 +146,42 @@ def copy_and_clean_ms_casagain(
     return ms
 
 
-def create_spws_in_ms(ms_path: Path, nspw: int) -> Path:
+def args_to_casa_task_string(task: str, **kwargs) -> str:
+    """Given a set of arguments, convert them to a string that can
+    be used to run the corresponding CASA task
+
+    Args:
+        task (str): The name of the task that will be executed
+
+    Returns:
+        str: The formatted string that will be given to CASA for execution
+    """
+    command = []
+    for k, v in kwargs.items():
+        v = str(v) if isinstance(v, Path) else v
+        command.append(f"{k}={v}")
+
+    task_command = f"{task}(" + ",".join(command) + ")"
+
+    return task_command
+
+
+def mstransform(casa_container: Path, ms: str, output_ms: str, **kwargs) -> None:
+    mstransform_str = args_to_casa_task_string(
+        task="mstransform", vis=str(ms), outputvis=str(output_ms), **kwargs
+    )
+    logger.info(f"{mstransform_str=}")
+
+    pass
+
+
+def create_spws_in_ms(casa_container: Path, ms_path: Path, nspw: int) -> Path:
     """Use the casa task mstransform to create `nspw` spectral windows
     in the input measurement set. This is necessary when attempting to
     use gaincal to solve for some frequency-dependent solution.
 
     Args:
+        casa_container (Path): Path to the singularity container with CASA tooling
         ms_path (Path): The measurement set that should be reformed to have `nspw` spectral windows
         nspw (int): The number of spectral windows to create
 
@@ -163,8 +193,9 @@ def create_spws_in_ms(ms_path: Path, nspw: int) -> Path:
     transform_ms = ms_path.with_suffix(".ms_transform")
 
     mstransform(
-        vis=str(ms_path),
-        outputvis=str(transform_ms),
+        casa_container=casa_container,
+        ms=str(ms_path),
+        output_ms=str(transform_ms),
         regridms=True,
         nspw=nspw,
         mode="channel",
@@ -220,6 +251,7 @@ def merge_spws_in_ms(ms_path: Path) -> Path:
 
 def gaincal_applycal_ms(
     ms: MS,
+    casa_container: Path,
     round: int = 1,
     gain_cal_options: Optional[GainCalOptions] = None,
     update_gain_cal_options: Optional[Dict[str, Any]] = None,
@@ -235,6 +267,7 @@ def gaincal_applycal_ms(
     Args:
         ms (MS): Measurement set that will be self-calibrated.
         round (int, optional): Round of self-calibration, which is used for unique names. Defaults to 1.
+        casa_container (Path): A path to a singularity container with CASA tooling.
         gain_cal_options (Optional[GainCalOptions], optional): Options provided to gaincal. Defaults to None.
         update_gain_cal_options (Optional[Dict[str, Any]], optional): Update the gain_cal_options with these. Defaults to None.
         archive_input_ms (bool, optional): If True, the input measurement set will be compressed into a single file. Defaults to False.
@@ -250,6 +283,8 @@ def gaincal_applycal_ms(
         MS: THe self-calibrated measurement set.
     """
     logger.info(f"Measurement set to be self-calibrated: ms={ms}")
+
+    assert casa_container.exists(), f"{casa_container=} does not exist. "
 
     if gain_cal_options is None:
         gain_cal_options = GainCalOptions()
@@ -285,7 +320,11 @@ def gaincal_applycal_ms(
     # single spw? Some tasks just work better with it - and this pirate likes a simple life
     # on the seven seas. Also have no feeling of what the yandasoft suite prefers.
     if gain_cal_options.nspw > 1:
-        cal_path = create_spws_in_ms(ms_path=cal_ms.path, nspw=gain_cal_options.nspw)
+        cal_path = create_spws_in_ms(
+            ms_path=cal_ms.path,
+            casa_container=casa_container,
+            nspw=gain_cal_options.nspw,
+        )
         # At the time of writing the output path returned above should always
         # be the same as the ms_path=, however me be a ye paranoid pirate who
         # trusts no one of the high seas
@@ -345,6 +384,12 @@ def get_parser() -> ArgumentParser:
         "ms", type=Path, help="Path to the measurement set to calibrate. "
     )
     gaincal_parser.add_argument(
+        "--casa-container",
+        type=Path,
+        default=None,
+        help="Path to the CASA6 singularity container",
+    )
+    gaincal_parser.add_argument(
         "--round", type=int, default=1, help="Self-calibration round number. "
     )
 
@@ -357,7 +402,9 @@ def cli() -> None:
     args = parser.parse_args()
 
     if args.mode == "gaincal":
-        gaincal_applycal_ms(ms=MS(path=args.ms), round=args.round)
+        gaincal_applycal_ms(
+            ms=MS(path=args.ms), round=args.round, casa_container=args.casa_container
+        )
 
 
 if __name__ == "__main__":

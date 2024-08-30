@@ -100,6 +100,8 @@ class FieldOptions(NamedTuple):
     """Path to the singularity aoflagger container"""
     calibrate_container: Path
     """Path to the singularity calibrate container"""
+    casa_container: Optional[Path] = None
+    """Path to the singularity CASA container"""
     expected_ms: int = 36
     """The expected number of measurement set files to find"""
     wsclean_container: Optional[Path] = None
