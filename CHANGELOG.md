@@ -36,6 +36,7 @@
 - Replace the `cassatasks` with a casa in a container
   - Added `flint.sclient.singularity_wrapper` decorator to help make running
     commands in a container easier
+  - Removed `casatasks` and `casadata` from dependencies
 
 # 0.2.5
 
