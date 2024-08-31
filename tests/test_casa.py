@@ -15,5 +15,5 @@ def test_args_to_casa_task_str():
     )
     assert isinstance(transform, str)
 
-    expected = "mstransform(regridms=True,nspw=1,mode=channel,nchan=-1)"
+    expected = "casa -c mstransform(regridms=True,nspw=1,mode='channel',nchan=-1)"
     assert transform == expected

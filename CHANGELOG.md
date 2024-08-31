@@ -34,6 +34,8 @@
 - Limit the number of sources to overlay on the RMS plot in the quick look
   validation figure
 - Replace the `cassatasks` with a casa in a container
+  - Added `flint.sclient.singularity_wrapper` decorator to help make running
+    commands in a container easier
 
 # 0.2.5
 

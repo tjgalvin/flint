@@ -11,13 +11,13 @@ from shutil import copytree
 from typing import Any, Dict, NamedTuple, Optional
 
 from casacore.tables import table
-from casatasks import applycal, cvel, gaincal
 
 from flint.exceptions import GainCalError, MSError
 from flint.flagging import nan_zero_extreme_flag_ms
 from flint.logging import logger
 from flint.ms import MS, rename_ms_and_columns_for_selfcal
 from flint.naming import get_selfcal_ms_name
+from flint.sclient import singularity_wrapper
 from flint.utils import remove_files_folders, rsync_copy_directory, zip_folder
 
 
@@ -49,6 +49,91 @@ class GainCalOptions(NamedTuple):
         _dict.update(**kwargs)
 
         return GainCalOptions(**_dict)
+
+
+def args_to_casa_task_string(task: str, **kwargs) -> str:
+    """Given a set of arguments, convert them to a string that can
+    be used to run the corresponding CASA task that can be passed
+    via ``casa -c`` for execution
+
+    Args:
+        task (str): The name of the task that will be executed
+
+    Returns:
+        str: The formatted string that will be given to CASA for execution
+    """
+    command = []
+    for k, v in kwargs.items():
+        if isinstance(v, (str, Path)):
+            arg = f"{k}='{str(v)}'"
+        else:
+            arg = f"{k}={v}"
+        command.append(arg)
+
+    task_command = f"casa -c {task}(" + ",".join(command) + ")"
+
+    return task_command
+
+
+# TODO There should be a general casa_command type function that accepts the task as a keyword
+# so that each casa task does not need an extra function
+
+
+@singularity_wrapper
+def mstransform(**kwargs) -> str:
+    """Construct and run CASA's ``mstransform`` task.
+
+    Args:
+        casa_container (Path): Container with the CASA tooling
+        ms (str): Path to the measurement set to transform
+        output_ms (str): Path of the output measurement set produced by the transform
+
+    Returns:
+        str: The ``mstransform`` string
+    """
+    mstransform_str = args_to_casa_task_string(task="mstransform", **kwargs)
+    logger.info(f"{mstransform_str=}")
+
+    return mstransform_str
+
+
+@singularity_wrapper
+def cvel(**kwargs) -> str:
+    """Generate the CASA cvel command
+
+    Returns:
+        str: The command to execute
+    """
+    cvel_str = args_to_casa_task_string(task="cvel", **kwargs)
+    logger.info(f"{cvel_str=}")
+
+    return cvel_str
+
+
+@singularity_wrapper
+def applycal(**kwargs) -> str:
+    """Generate the CASA applycal command
+
+    Returns:
+        str: The command to execute
+    """
+    applycal_str = args_to_casa_task_string(task="applycal", **kwargs)
+    logger.info(f"{applycal_str=}")
+
+    return applycal_str
+
+
+@singularity_wrapper
+def gaincal(**kwargs) -> str:
+    """Generate the CASA gaincal command
+
+    Returns:
+        str: The command to execute
+    """
+    applycal_str = args_to_casa_task_string(task="gaincal", **kwargs)
+    logger.info(f"{applycal_str=}")
+
+    return applycal_str
 
 
 def copy_and_clean_ms_casagain(
@@ -146,35 +231,6 @@ def copy_and_clean_ms_casagain(
     return ms
 
 
-def args_to_casa_task_string(task: str, **kwargs) -> str:
-    """Given a set of arguments, convert them to a string that can
-    be used to run the corresponding CASA task
-
-    Args:
-        task (str): The name of the task that will be executed
-
-    Returns:
-        str: The formatted string that will be given to CASA for execution
-    """
-    command = []
-    for k, v in kwargs.items():
-        v = str(v) if isinstance(v, Path) else v
-        command.append(f"{k}={v}")
-
-    task_command = f"{task}(" + ",".join(command) + ")"
-
-    return task_command
-
-
-def mstransform(casa_container: Path, ms: str, output_ms: str, **kwargs) -> None:
-    mstransform_str = args_to_casa_task_string(
-        task="mstransform", vis=str(ms), outputvis=str(output_ms), **kwargs
-    )
-    logger.info(f"{mstransform_str=}")
-
-    pass
-
-
 def create_spws_in_ms(casa_container: Path, ms_path: Path, nspw: int) -> Path:
     """Use the casa task mstransform to create `nspw` spectral windows
     in the input measurement set. This is necessary when attempting to
@@ -194,6 +250,7 @@ def create_spws_in_ms(casa_container: Path, ms_path: Path, nspw: int) -> Path:
 
     mstransform(
         casa_container=casa_container,
+        bind_dirs=(ms_path, transform_ms),
         ms=str(ms_path),
         output_ms=str(transform_ms),
         regridms=True,
@@ -220,7 +277,7 @@ def create_spws_in_ms(casa_container: Path, ms_path: Path, nspw: int) -> Path:
     return ms_path
 
 
-def merge_spws_in_ms(ms_path: Path) -> Path:
+def merge_spws_in_ms(casa_container: Path, ms_path: Path) -> Path:
     """Attempt to merge together all SPWs in the input measurement
     set using the `cvel` casa task. This can be a little fragile.
 
@@ -236,7 +293,13 @@ def merge_spws_in_ms(ms_path: Path) -> Path:
     logger.info("Will attempt to merge all spws using cvel.")
 
     cvel_ms_path = ms_path.with_suffix(".cvel")
-    cvel(vis=str(ms_path), outputvis=str(cvel_ms_path), mode="channel_b")
+    cvel(
+        container=casa_container,
+        bind_dir=(ms_path,),
+        vis=str(ms_path),
+        outputvis=str(cvel_ms_path),
+        mode="channel_b",
+    )
 
     logger.info(f"Successfully merged spws in {cvel_ms_path}")
 
@@ -331,6 +394,8 @@ def gaincal_applycal_ms(
         cal_ms = cal_ms.with_options(path=cal_path)
 
     gaincal(
+        container=casa_container,
+        bind_dirs=(cal_ms.path, cal_table),
         vis=str(cal_ms.path),
         caltable=str(cal_table),
         solint=gain_cal_options.solint,
@@ -352,14 +417,21 @@ def gaincal_applycal_ms(
 
     logger.info("Solutions have been solved. Applying them. ")
 
-    applycal(vis=str(cal_ms.path), gaintable=str(cal_table))
+    applycal(
+        casa_container=casa_container,
+        bind_dirs=(cal_ms.path, cal_table),
+        vis=str(cal_ms.path),
+        gaintable=str(cal_table),
+    )
 
     # This is used for when a frequency dependent self-calibration solution is requested
     # It is often useful (mandatory!) to have a single spw for some tasks - both of the casa
     # and everyone else variety.
     if gain_cal_options.nspw > 1:
         # putting it all back to a single spw
-        cal_ms_path = merge_spws_in_ms(ms_path=cal_ms.path)
+        cal_ms_path = merge_spws_in_ms(
+            casa_container=casa_container, ms_path=cal_ms.path
+        )
         # At the time of writing merge_spws_in_ms returns the ms_path=,
         # but this pirate trusts no one.
         cal_ms = cal_ms.with_options(path=cal_ms_path)
