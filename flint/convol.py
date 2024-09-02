@@ -74,7 +74,7 @@ def get_common_beam(
     if cutoff:
         logger.info(f"Setting beam cutoff to {cutoff} arcseconds. ")
 
-    beam, beams = beamcon_2D.getmaxbeam(files=image_strs, cutoff=cutoff)
+    beam, beams = beamcon_2D.get_common_beam(files=image_strs, cutoff=cutoff)
 
     beam_shape = BeamShape.from_radio_beam(beam)
     logger.info(f"Constructed {beam_shape=}")
