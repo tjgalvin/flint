@@ -295,7 +295,7 @@ def merge_spws_in_ms(casa_container: Path, ms_path: Path) -> Path:
     cvel_ms_path = ms_path.with_suffix(".cvel")
     cvel(
         container=casa_container,
-        bind_dir=(ms_path,),
+        bind_dirs=(ms_path,),
         vis=str(ms_path),
         outputvis=str(cvel_ms_path),
         mode="channel_b",
