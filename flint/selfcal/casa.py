@@ -70,7 +70,7 @@ def args_to_casa_task_string(task: str, **kwargs) -> str:
             arg = f"{k}={v}"
         command.append(arg)
 
-    task_command = f"casa -c {task}(" + ",".join(command) + ")"
+    task_command = f'casa -c "{task}(' + ",".join(command) + ')"'
 
     return task_command
 
