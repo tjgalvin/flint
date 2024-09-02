@@ -735,7 +735,7 @@ def cli() -> None:
     field_options = FieldOptions(
         flagger_container=args.flagger_container,
         calibrate_container=args.calibrate_container,
-        caa_container=args.casa_container,
+        casa_container=args.casa_container,
         holofile=args.holofile,
         expected_ms=args.expected_ms,
         wsclean_container=args.wsclean_container,
