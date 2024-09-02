@@ -37,6 +37,10 @@
   - Added `flint.sclient.singularity_wrapper` decorator to help make running
     commands in a container easier
   - Removed `casatasks` and `casadata` from dependencies
+- Moving to a minimum python=3.12 version
+  - Partly enabled by removing `casatasks` and `casadata`, partly required by
+    other dependencies that changed
+  - Notably the `numpy.distutils` started to complain
 
 # 0.2.5
 

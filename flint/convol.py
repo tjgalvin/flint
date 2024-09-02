@@ -116,7 +116,7 @@ def convolve_images(
 
     for image_path in image_paths:
         logger.info(f"Convolving {str(image_path.name)}")
-        beamcon_2D.worker(
+        beamcon_2D.beamcon_2d_on_fits(
             file=image_path,
             outdir=None,
             new_beam=radio_beam,
