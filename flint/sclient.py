@@ -51,7 +51,7 @@ def run_singularity_command(
             else None
         )
 
-        logger.debug(f"Constructed singularity bindings: {bind}")
+        logger.info(f"Constructed singularity bindings: {bind}")
 
     try:
         output = sclient.execute(
@@ -119,6 +119,11 @@ def singularity_wrapper(
         """
 
         task_str = fn(**kwargs)
+
+        assert isinstance(task_str, str), f"{task_str=}, but needs to be a string"
+
+        logger.info(f"wrapper {task_str=}")
+        logger.info(f"wrapper {bind_dirs=}")
 
         run_singularity_command(
             image=container,

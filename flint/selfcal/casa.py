@@ -65,12 +65,12 @@ def args_to_casa_task_string(task: str, **kwargs) -> str:
     command = []
     for k, v in kwargs.items():
         if isinstance(v, (str, Path)):
-            arg = f"{k}='{str(v)}'"
+            arg = rf"{k}='{str(v)}'"
         else:
-            arg = f"{k}={v}"
+            arg = rf"{k}={v}"
         command.append(arg)
 
-    task_command = f'casa -c "{task}(' + ",".join(command) + ')"'
+    task_command = fr'casa -c {task}(' + ",".join(command) + r')'
 
     return task_command
 
@@ -132,7 +132,7 @@ def gaincal(**kwargs) -> str:
     """
     applycal_str = args_to_casa_task_string(task="gaincal", **kwargs)
     logger.info(f"{applycal_str=}")
-
+    
     return applycal_str
 
 
@@ -194,7 +194,7 @@ def copy_and_clean_ms_casagain(
         # to exist. The INSTRUMENT_DATA column will also be removed.
         logger.info("About to open the table. ")
         with table(str(out_ms_path), readonly=False, ack=False) as tab:
-            logger.info("About tto get the colnames")
+            logger.info("About to get the colnames")
             colnames = tab.colnames()
             logger.info(f"Column names are: {colnames}")
             if ms.column == "DATA" and "CORRECTED_DATA" not in colnames:
@@ -250,7 +250,7 @@ def create_spws_in_ms(casa_container: Path, ms_path: Path, nspw: int) -> Path:
 
     mstransform(
         casa_container=casa_container,
-        bind_dirs=(ms_path, transform_ms),
+        bind_dirs=(ms_path.parent, transform_ms.parent),
         ms=str(ms_path),
         output_ms=str(transform_ms),
         regridms=True,
@@ -295,7 +295,7 @@ def merge_spws_in_ms(casa_container: Path, ms_path: Path) -> Path:
     cvel_ms_path = ms_path.with_suffix(".cvel")
     cvel(
         container=casa_container,
-        bind_dir=(ms_path,),
+        bind_dirs=(ms_path.parent,),
         vis=str(ms_path),
         outputvis=str(cvel_ms_path),
         mode="channel_b",
@@ -395,7 +395,7 @@ def gaincal_applycal_ms(
 
     gaincal(
         container=casa_container,
-        bind_dirs=(cal_ms.path, cal_table),
+        bind_dirs=(cal_ms.path.parent, cal_table.parent),
         vis=str(cal_ms.path),
         caltable=str(cal_table),
         solint=gain_cal_options.solint,
@@ -418,8 +418,8 @@ def gaincal_applycal_ms(
     logger.info("Solutions have been solved. Applying them. ")
 
     applycal(
-        casa_container=casa_container,
-        bind_dirs=(cal_ms.path, cal_table),
+        container=casa_container,
+        bind_dirs=(cal_ms.path.parent, cal_table.parent),
         vis=str(cal_ms.path),
         gaintable=str(cal_table),
     )
@@ -430,7 +430,7 @@ def gaincal_applycal_ms(
     if gain_cal_options.nspw > 1:
         # putting it all back to a single spw
         cal_ms_path = merge_spws_in_ms(
-            casa_container=casa_container, ms_path=cal_ms.path
+            container=casa_container, ms_path=cal_ms.path
         )
         # At the time of writing merge_spws_in_ms returns the ms_path=,
         # but this pirate trusts no one.
@@ -464,6 +464,9 @@ def get_parser() -> ArgumentParser:
     gaincal_parser.add_argument(
         "--round", type=int, default=1, help="Self-calibration round number. "
     )
+    gaincal_parser.add_argument(
+        "--column", type=str, default="DATA", help="The column to self-calibrate"
+    )
 
     return parser
 
@@ -475,7 +478,7 @@ def cli() -> None:
 
     if args.mode == "gaincal":
         gaincal_applycal_ms(
-            ms=MS(path=args.ms), round=args.round, casa_container=args.casa_container
+            ms=MS(path=args.ms, column=args.column), round=args.round, casa_container=args.casa_container
         )
 
 
