@@ -139,14 +139,17 @@ option classes that are expected to be user-tweakable, and provides the ability
 to change values of options throughout initial imaging and subsequent rounds of
 self-calibration.
 
-In a nutshell, the three _currently_ supported option classes that may be
+In a nutshell, the _currently_ supported option classes that may be
 tweaked through this template method are:
 
 - `WSCleanOptions` (shorthand `wsclean`)
 - `GainCalOptions` (shorthand `gaincal`)
 - `MaskingOptions` (shorthand `masking`)
+- `ArchiveOptions` (shorthand `archive`)
+- `BANEOptions` (shorthand `bane`)
+- `AegeanOptions` (shorthand `aegean`)
 
-All attributed supported by these options may be set in this template format.
+All attributed supported by these options may be set in this template format. Not that these options would have to be retrieved within a particular flow and passed to the appropriate functions - they are not (currently) automatically accessed.
 
 The `defaults` scope sets all of the default values of these classes. The
 `initial` scope overrides the default imaging `wsclean` options to be used with
