@@ -429,7 +429,7 @@ def gaincal_applycal_ms(
     # and everyone else variety.
     if gain_cal_options.nspw > 1:
         # putting it all back to a single spw
-        cal_ms_path = merge_spws_in_ms(container=casa_container, ms_path=cal_ms.path)
+        cal_ms_path = merge_spws_in_ms(casa_container=casa_container, ms_path=cal_ms.path)
         # At the time of writing merge_spws_in_ms returns the ms_path=,
         # but this pirate trusts no one.
         cal_ms = cal_ms.with_options(path=cal_ms_path)
