@@ -251,8 +251,8 @@ def create_spws_in_ms(casa_container: Path, ms_path: Path, nspw: int) -> Path:
     mstransform(
         container=casa_container,
         bind_dirs=(ms_path.parent, transform_ms.parent),
-        ms=str(ms_path),
-        output_ms=str(transform_ms),
+        vis=str(ms_path),
+        outputvis=str(transform_ms),
         regridms=True,
         nspw=nspw,
         mode="channel",
