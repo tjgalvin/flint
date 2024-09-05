@@ -24,7 +24,7 @@ def test_bane_options():
 
     assert isinstance(bane_str, str)
 
-    expected = "BANE this/is/a/test.fits --cores 8 --stripes 4 --grid 20 10 --box 2 1"
+    expected = "BANE this/is/a/test.fits --cores 8 --stripes 7 --grid 20 10 --box 2 1"
     assert expected == bane_str
 
 
@@ -39,14 +39,14 @@ def test_bane_options_with_defaults():
 
     assert isinstance(bane_str, str)
 
-    expected = "BANE this/is/a/test.fits --cores 8 --stripes 4"
+    expected = "BANE this/is/a/test.fits --cores 8 --stripes 7"
     assert expected == bane_str
 
     bane_opts = BANEOptions(box_size=(3, 5), grid_size=None)
     bane_str = _get_bane_command(
         image=Path("this/is/a/test.fits"), cores=8, bane_options=bane_opts
     )
-    expected = "BANE this/is/a/test.fits --cores 8 --stripes 4 --box 3 5"
+    expected = "BANE this/is/a/test.fits --cores 8 --stripes 7 --box 3 5"
     assert expected == bane_str
 
 
