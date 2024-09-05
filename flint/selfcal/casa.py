@@ -70,7 +70,7 @@ def args_to_casa_task_string(task: str, **kwargs) -> str:
             arg = rf"{k}={v}"
         command.append(arg)
 
-    task_command = fr'casa -c {task}(' + ",".join(command) + r')'
+    task_command = rf"casa -c {task}(" + ",".join(command) + r")"
 
     return task_command
 
@@ -132,7 +132,7 @@ def gaincal(**kwargs) -> str:
     """
     applycal_str = args_to_casa_task_string(task="gaincal", **kwargs)
     logger.info(f"{applycal_str=}")
-    
+
     return applycal_str
 
 
@@ -429,9 +429,7 @@ def gaincal_applycal_ms(
     # and everyone else variety.
     if gain_cal_options.nspw > 1:
         # putting it all back to a single spw
-        cal_ms_path = merge_spws_in_ms(
-            container=casa_container, ms_path=cal_ms.path
-        )
+        cal_ms_path = merge_spws_in_ms(container=casa_container, ms_path=cal_ms.path)
         # At the time of writing merge_spws_in_ms returns the ms_path=,
         # but this pirate trusts no one.
         cal_ms = cal_ms.with_options(path=cal_ms_path)
@@ -478,7 +476,9 @@ def cli() -> None:
 
     if args.mode == "gaincal":
         gaincal_applycal_ms(
-            ms=MS(path=args.ms, column=args.column), round=args.round, casa_container=args.casa_container
+            ms=MS(path=args.ms, column=args.column),
+            round=args.round,
+            casa_container=args.casa_container,
         )
 
 
