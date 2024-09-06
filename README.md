@@ -97,7 +97,7 @@ software that are outside the `python` ecosystem. For the moment there are no
 
 In a nutshell, the containers used throughout are passed in as command line
 arguments, whose context should be enough to explain what it is expecting. At
-the time of writing there are four containers for:
+the time of writing there are six containers for:
 
 - calibration: this should contain `calibrate` and `applysolutions`. These are
   tools written by Andre Offringa.
@@ -115,6 +115,13 @@ the time of writing there are four containers for:
   a python installable and importable package, there are potential conflicts
   with the `casatasks` and `python-casacore` modules that `flint` uses. See
   [potatopeel's github repository for more information](https://gitlab.com/Sunmish/potato/-/tree/main)
+- linear mosaicing: The `linmos` task from `yandasoft` is used to perform linear
+  mosaicing. Importanting this `linmos` is capable of using the ASKAP primary
+  beam responses characterised through holography. `yandasoft` docker images
+  [are available from the CSIRO dockerhub page.](https://hub.docker.com/r/csirocass/askapsoft).
+- self-calibration: `casa` is used to perform antenna-based self-calibration.
+  Specifically the tasks `gaincal`, `applysolutions`, `cvel` and `mstransform`
+  are used throughout this process.
 
 ## Configuration based settings
 
@@ -132,14 +139,20 @@ option classes that are expected to be user-tweakable, and provides the ability
 to change values of options throughout initial imaging and subsequent rounds of
 self-calibration.
 
-In a nutshell, the three _currently_ supported option classes that may be
-tweaked through this template method are:
+In a nutshell, the _currently_ supported option classes that may be tweaked
+through this template method are:
 
 - `WSCleanOptions` (shorthand `wsclean`)
 - `GainCalOptions` (shorthand `gaincal`)
 - `MaskingOptions` (shorthand `masking`)
+- `ArchiveOptions` (shorthand `archive`)
+- `BANEOptions` (shorthand `bane`)
+- `AegeanOptions` (shorthand `aegean`)
 
 All attributed supported by these options may be set in this template format.
+Not that these options would have to be retrieved within a particular flow and
+passed to the appropriate functions - they are not (currently) automatically
+accessed.
 
 The `defaults` scope sets all of the default values of these classes. The
 `initial` scope overrides the default imaging `wsclean` options to be used with

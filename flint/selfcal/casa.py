@@ -11,13 +11,13 @@ from shutil import copytree
 from typing import Any, Dict, NamedTuple, Optional
 
 from casacore.tables import table
-from casatasks import applycal, cvel, gaincal, mstransform
 
 from flint.exceptions import GainCalError, MSError
 from flint.flagging import nan_zero_extreme_flag_ms
 from flint.logging import logger
 from flint.ms import MS, rename_ms_and_columns_for_selfcal
 from flint.naming import get_selfcal_ms_name
+from flint.sclient import singularity_wrapper
 from flint.utils import remove_files_folders, rsync_copy_directory, zip_folder
 
 
@@ -49,6 +49,91 @@ class GainCalOptions(NamedTuple):
         _dict.update(**kwargs)
 
         return GainCalOptions(**_dict)
+
+
+def args_to_casa_task_string(task: str, **kwargs) -> str:
+    """Given a set of arguments, convert them to a string that can
+    be used to run the corresponding CASA task that can be passed
+    via ``casa -c`` for execution
+
+    Args:
+        task (str): The name of the task that will be executed
+
+    Returns:
+        str: The formatted string that will be given to CASA for execution
+    """
+    command = []
+    for k, v in kwargs.items():
+        if isinstance(v, (str, Path)):
+            arg = rf"{k}='{str(v)}'"
+        else:
+            arg = rf"{k}={v}"
+        command.append(arg)
+
+    task_command = rf"casa -c {task}(" + ",".join(command) + r")"
+
+    return task_command
+
+
+# TODO There should be a general casa_command type function that accepts the task as a keyword
+# so that each casa task does not need an extra function
+
+
+@singularity_wrapper
+def mstransform(**kwargs) -> str:
+    """Construct and run CASA's ``mstransform`` task.
+
+    Args:
+        casa_container (Path): Container with the CASA tooling
+        ms (str): Path to the measurement set to transform
+        output_ms (str): Path of the output measurement set produced by the transform
+
+    Returns:
+        str: The ``mstransform`` string
+    """
+    mstransform_str = args_to_casa_task_string(task="mstransform", **kwargs)
+    logger.info(f"{mstransform_str=}")
+
+    return mstransform_str
+
+
+@singularity_wrapper
+def cvel(**kwargs) -> str:
+    """Generate the CASA cvel command
+
+    Returns:
+        str: The command to execute
+    """
+    cvel_str = args_to_casa_task_string(task="cvel", **kwargs)
+    logger.info(f"{cvel_str=}")
+
+    return cvel_str
+
+
+@singularity_wrapper
+def applycal(**kwargs) -> str:
+    """Generate the CASA applycal command
+
+    Returns:
+        str: The command to execute
+    """
+    applycal_str = args_to_casa_task_string(task="applycal", **kwargs)
+    logger.info(f"{applycal_str=}")
+
+    return applycal_str
+
+
+@singularity_wrapper
+def gaincal(**kwargs) -> str:
+    """Generate the CASA gaincal command
+
+    Returns:
+        str: The command to execute
+    """
+    applycal_str = args_to_casa_task_string(task="gaincal", **kwargs)
+    logger.info(f"{applycal_str=}")
+
+    return applycal_str
 
 
 def copy_and_clean_ms_casagain(
@@ -109,7 +194,7 @@ def copy_and_clean_ms_casagain(
         # to exist. The INSTRUMENT_DATA column will also be removed.
         logger.info("About to open the table. ")
         with table(str(out_ms_path), readonly=False, ack=False) as tab:
-            logger.info("About tto get the colnames")
+            logger.info("About to get the colnames")
             colnames = tab.colnames()
             logger.info(f"Column names are: {colnames}")
             if ms.column == "DATA" and "CORRECTED_DATA" not in colnames:
@@ -146,12 +231,13 @@ def copy_and_clean_ms_casagain(
     return ms
 
 
-def create_spws_in_ms(ms_path: Path, nspw: int) -> Path:
+def create_spws_in_ms(casa_container: Path, ms_path: Path, nspw: int) -> Path:
     """Use the casa task mstransform to create `nspw` spectral windows
     in the input measurement set. This is necessary when attempting to
     use gaincal to solve for some frequency-dependent solution.
 
     Args:
+        casa_container (Path): Path to the singularity container with CASA tooling
         ms_path (Path): The measurement set that should be reformed to have `nspw` spectral windows
         nspw (int): The number of spectral windows to create
 
@@ -163,6 +249,8 @@ def create_spws_in_ms(ms_path: Path, nspw: int) -> Path:
     transform_ms = ms_path.with_suffix(".ms_transform")
 
     mstransform(
+        container=casa_container,
+        bind_dirs=(ms_path.parent, transform_ms.parent),
         vis=str(ms_path),
         outputvis=str(transform_ms),
         regridms=True,
@@ -189,7 +277,7 @@ def create_spws_in_ms(ms_path: Path, nspw: int) -> Path:
     return ms_path
 
 
-def merge_spws_in_ms(ms_path: Path) -> Path:
+def merge_spws_in_ms(casa_container: Path, ms_path: Path) -> Path:
     """Attempt to merge together all SPWs in the input measurement
     set using the `cvel` casa task. This can be a little fragile.
 
@@ -205,7 +293,13 @@ def merge_spws_in_ms(ms_path: Path) -> Path:
     logger.info("Will attempt to merge all spws using cvel.")
 
     cvel_ms_path = ms_path.with_suffix(".cvel")
-    cvel(vis=str(ms_path), outputvis=str(cvel_ms_path), mode="channel_b")
+    cvel(
+        container=casa_container,
+        bind_dirs=(ms_path.parent,),
+        vis=str(ms_path),
+        outputvis=str(cvel_ms_path),
+        mode="channel_b",
+    )
 
     logger.info(f"Successfully merged spws in {cvel_ms_path}")
 
@@ -220,6 +314,7 @@ def merge_spws_in_ms(ms_path: Path) -> Path:
 
 def gaincal_applycal_ms(
     ms: MS,
+    casa_container: Path,
     round: int = 1,
     gain_cal_options: Optional[GainCalOptions] = None,
     update_gain_cal_options: Optional[Dict[str, Any]] = None,
@@ -235,6 +330,7 @@ def gaincal_applycal_ms(
     Args:
         ms (MS): Measurement set that will be self-calibrated.
         round (int, optional): Round of self-calibration, which is used for unique names. Defaults to 1.
+        casa_container (Path): A path to a singularity container with CASA tooling.
         gain_cal_options (Optional[GainCalOptions], optional): Options provided to gaincal. Defaults to None.
         update_gain_cal_options (Optional[Dict[str, Any]], optional): Update the gain_cal_options with these. Defaults to None.
         archive_input_ms (bool, optional): If True, the input measurement set will be compressed into a single file. Defaults to False.
@@ -250,6 +346,8 @@ def gaincal_applycal_ms(
         MS: THe self-calibrated measurement set.
     """
     logger.info(f"Measurement set to be self-calibrated: ms={ms}")
+
+    assert casa_container.exists(), f"{casa_container=} does not exist. "
 
     if gain_cal_options is None:
         gain_cal_options = GainCalOptions()
@@ -285,13 +383,19 @@ def gaincal_applycal_ms(
     # single spw? Some tasks just work better with it - and this pirate likes a simple life
     # on the seven seas. Also have no feeling of what the yandasoft suite prefers.
     if gain_cal_options.nspw > 1:
-        cal_path = create_spws_in_ms(ms_path=cal_ms.path, nspw=gain_cal_options.nspw)
+        cal_path = create_spws_in_ms(
+            ms_path=cal_ms.path,
+            casa_container=casa_container,
+            nspw=gain_cal_options.nspw,
+        )
         # At the time of writing the output path returned above should always
         # be the same as the ms_path=, however me be a ye paranoid pirate who
         # trusts no one of the high seas
         cal_ms = cal_ms.with_options(path=cal_path)
 
     gaincal(
+        container=casa_container,
+        bind_dirs=(cal_ms.path.parent, cal_table.parent),
         vis=str(cal_ms.path),
         caltable=str(cal_table),
         solint=gain_cal_options.solint,
@@ -313,14 +417,21 @@ def gaincal_applycal_ms(
 
     logger.info("Solutions have been solved. Applying them. ")
 
-    applycal(vis=str(cal_ms.path), gaintable=str(cal_table))
+    applycal(
+        container=casa_container,
+        bind_dirs=(cal_ms.path.parent, cal_table.parent),
+        vis=str(cal_ms.path),
+        gaintable=str(cal_table),
+    )
 
     # This is used for when a frequency dependent self-calibration solution is requested
     # It is often useful (mandatory!) to have a single spw for some tasks - both of the casa
     # and everyone else variety.
     if gain_cal_options.nspw > 1:
         # putting it all back to a single spw
-        cal_ms_path = merge_spws_in_ms(ms_path=cal_ms.path)
+        cal_ms_path = merge_spws_in_ms(
+            casa_container=casa_container, ms_path=cal_ms.path
+        )
         # At the time of writing merge_spws_in_ms returns the ms_path=,
         # but this pirate trusts no one.
         cal_ms = cal_ms.with_options(path=cal_ms_path)
@@ -345,7 +456,16 @@ def get_parser() -> ArgumentParser:
         "ms", type=Path, help="Path to the measurement set to calibrate. "
     )
     gaincal_parser.add_argument(
+        "--casa-container",
+        type=Path,
+        default=None,
+        help="Path to the CASA6 singularity container",
+    )
+    gaincal_parser.add_argument(
         "--round", type=int, default=1, help="Self-calibration round number. "
+    )
+    gaincal_parser.add_argument(
+        "--column", type=str, default="DATA", help="The column to self-calibrate"
     )
 
     return parser
@@ -357,7 +477,11 @@ def cli() -> None:
     args = parser.parse_args()
 
     if args.mode == "gaincal":
-        gaincal_applycal_ms(ms=MS(path=args.ms), round=args.round)
+        gaincal_applycal_ms(
+            ms=MS(path=args.ms, column=args.column),
+            round=args.round,
+            casa_container=args.casa_container,
+        )
 
 
 if __name__ == "__main__":

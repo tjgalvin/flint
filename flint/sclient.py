@@ -51,7 +51,7 @@ def run_singularity_command(
             else None
         )
 
-        logger.debug(f"Constructed singularity bindings: {bind}")
+        logger.info(f"Constructed singularity bindings: {bind}")
 
     try:
         output = sclient.execute(
@@ -82,3 +82,56 @@ def run_singularity_command(
             logger.error(f"{get_job_info()}")
 
         raise e
+
+
+def singularity_wrapper(
+    fn: Callable,
+) -> Callable:
+    """A decorator function to around another function that when executed
+    returns a command to execute within a container. The returned function has
+    the arguments as ``run_singularity_command``, and any unused keywords are
+    passed to the wrapped function.
+
+    Args:
+        fn (Callable): The function that generates the command to execute
+
+    Returns:
+        Callable: Wrapper function
+    """
+
+    def wrapper(
+        container: Path,
+        bind_dirs: Optional[Union[Path, Collection[Path]]] = None,
+        stream_callback_func: Optional[Callable] = None,
+        **kwargs,
+    ) -> str:
+        """Function that can be used as a decorator on an input function. This function
+        should generate and return a command that will be executed within the specified container.
+
+        Args:
+            fn (Callable): The function that generates a command to execute. All ``**kwargs`` are passed to this function
+            container (Path): Path to the container that will be usede to execute the generated command
+            bind_dirs (Optional[Union[Path,Collection[Path]]], optional): Specifies a Path, or list of Paths, to bind to in the container. Defaults to None.
+            stream_callback_func (Optional[Callable], optional): Provide a function that is applied to each line of output text when singularity is running and `stream=True`. IF provide it should accept a single (string) parameter. If None, nothing happens. Defaultds to None.
+
+        Returns:
+            str: The command that was executed
+        """
+
+        task_str = fn(**kwargs)
+
+        assert isinstance(task_str, str), f"{task_str=}, but needs to be a string"
+
+        logger.info(f"wrapper {task_str=}")
+        logger.info(f"wrapper {bind_dirs=}")
+
+        run_singularity_command(
+            image=container,
+            command=f"{task_str}",
+            bind_dirs=bind_dirs,
+            stream_callback_func=stream_callback_func,
+        )
+
+        return task_str
+
+    return wrapper

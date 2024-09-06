@@ -47,9 +47,9 @@ class BeamShape(NamedTuple):
             BeamShape: The normalised container without astropy units.
         """
         return cls(
-            bmaj_arcsec=radio_beam.major.to(u.arcsecond).value,
-            bmin_arcsec=radio_beam.minor.to(u.arcsecond).value,
-            bpa_deg=radio_beam.pa.to(u.degree).value,
+            bmaj_arcsec=radio_beam.major.to(u.arcsecond).value,  # type: ignore
+            bmin_arcsec=radio_beam.minor.to(u.arcsecond).value,  # type: ignore
+            bpa_deg=radio_beam.pa.to(u.degree).value,  # type: ignore
         )
 
 
@@ -69,12 +69,11 @@ def get_common_beam(
     """
 
     logger.info(f"Calculating common beam size of {len(image_paths)} images. ")
-    image_strs = [str(img) for img in image_paths]
 
     if cutoff:
         logger.info(f"Setting beam cutoff to {cutoff} arcseconds. ")
 
-    beam, beams = beamcon_2D.getmaxbeam(files=image_strs, cutoff=cutoff)
+    beam, beams = beamcon_2D.get_common_beam(files=list(image_paths), cutoff=cutoff)
 
     beam_shape = BeamShape.from_radio_beam(beam)
     logger.info(f"Constructed {beam_shape=}")
@@ -117,7 +116,7 @@ def convolve_images(
 
     for image_path in image_paths:
         logger.info(f"Convolving {str(image_path.name)}")
-        beamcon_2D.worker(
+        beamcon_2D.beamcon_2d_on_fits(
             file=image_path,
             outdir=None,
             new_beam=radio_beam,

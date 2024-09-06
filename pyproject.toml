@@ -16,9 +16,9 @@ include = [
 ]
 
 [tool.poetry.dependencies]
-python = "3.8"
+python = "3.12"
 astropy = "*"
-numpy = "<1.24"
+numpy = "*"
 python-casacore = "*"
 scipy = "*"
 spython = "^0.3.1"
@@ -27,10 +27,7 @@ matplotlib = "*"
 prefect = "^2.10.0"
 prefect-dask = "^0.2.4"
 dask-jobqueue = "*"
-casadata = "^2023.7.3"
-#casatools = "6.5.3.28"
-casatasks = "6.5.1.23"
-RACS-tools = "^2.2.4"
+RACS-tools = "*"
 aegeantools = "2.3.0"
 radio-beam = "^0.3.4"
 reproject = "*"
@@ -39,7 +36,6 @@ pandas = "*"
 ConfigArgParse = "^1.7"
 fitscube = "^0.4.3"
 astroquery = "^0.4.7"
-griffe = "0.48.0"
 
 [tool.poetry.group.dev.dependencies]
 black = "^23.3.0"
