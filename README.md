@@ -9,6 +9,42 @@ Yarrrr-Harrrr fiddley-dee!
 
 <img src="docs/logo.jpeg" alt="Capn' Flint - Credit: DALLE 3" style="width:400px;"/>
 
+## Installation
+
+Provided an appropriate environment installation should be as simple as a
+`pip install`.
+
+However, on some systems there are interactions with `casacore` and building
+`python-casacore` appropriately. Issues have been noted that sometimes large
+measurement sets can become corrupted when interacting with them through
+`casacore.tables`. Although not entirely understood it appears to be related to
+the version of `python-casacore`, `numpy` and whether pre-built wheels are used.
+
+In practise it might be easier to leverage `conda` to install the appropriate
+`boost` and `casacore` libraries.
+
+A helpful script below may be of use.
+
+```
+
+BRANCH="main" # replace this with appropriate branch or tag
+DIR="flint_${BRANCH}"
+
+mkdir "${DIR}" || exit
+cd "${DIR}" || exit
+
+
+git clone git@github.com:tjgalvin/flint.git && \
+        cd flint && \
+        git checkout "${BRANCH}"
+
+conda create -y  -n "${DIR}" python=3.12 &&  \
+        source /home/$(whoami)/.bashrc && \
+        conda activate "${DIR}" && \
+        conda install -y -c conda-forge boost casacore && \
+        pip install -e .
+```
+
 ## About
 
 This `flint` package is trying to get a minimum start-to-finish calibration and
