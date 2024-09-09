@@ -16,7 +16,7 @@ include = [
 ]
 
 [tool.poetry.dependencies]
-python = "3.11"
+python = "^3.11"
 astropy = "*"
 numpy = "^1.26.0"
 python-casacore = "3.5.2" # newer version caused MS errors (maybe related to pre-built wheel)
