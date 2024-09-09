@@ -221,6 +221,8 @@ def copy_and_clean_ms_casagain(
                 logger.info("Renaming CORRECTED_DATA to DATA. ")
                 tab.renamecol("CORRECTED_DATA", "DATA")
 
+            tab.flush()
+
     # Note that the out_ms_path needs to be set, even if the data  column is initially DATA.
     # Since casa expects DATA, we will force the column to be DATA with the expectation that
     # previous pirates in the lines above have dealt with the renaming.
