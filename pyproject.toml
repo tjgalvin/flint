@@ -18,7 +18,7 @@ include = [
 [tool.poetry.dependencies]
 python = "3.11"
 astropy = "*"
-numpy = "1.26.0"
+numpy = "^1.26.0"
 python-casacore = "3.5.2" # newer version caused MS errors (maybe related to pre-built wheel)
 pydantic = "2.8.2" # version 2.9.0 caused prefect model validation error
 scipy = "*"
