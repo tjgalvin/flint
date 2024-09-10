@@ -21,7 +21,7 @@ jobs:
       - name: Install casacore and boost
         run: |
           sudo apt update -y
-          sudo apt install -y build-essential cmake gfortran g++ libboost-all-dev casacore-dev
+          sudo apt install -y build-essential liblapack-dev libboost-python-dev python3-dev wcslib-dev casacore-dev
       - name: Set up Python 3.12
         uses: actions/setup-python@v3
         with:
