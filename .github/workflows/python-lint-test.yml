@@ -18,7 +18,12 @@ jobs:
 
     steps:
       - uses: actions/checkout@v3
-      - name: Set up Python 3.8
+      - name: Install casacore and boost
+        run: |
+          apt install build-essential cmake gfortran g++ libncurses5-dev \
+          libreadline-dev flex bison libblas-dev liblapacke-dev libcfitsio-dev \
+          wcslib-dev libfftw3-dev
+      - name: Set up Python 3.12
         uses: actions/setup-python@v3
         with:
           python-version: "3.12"
