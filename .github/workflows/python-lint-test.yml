@@ -28,7 +28,7 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip uv
-          uv pip install --system pytest pytest-cov pre-commit black mypy .
+          PIP_NO_BINARY="python-casacore" pip install --system pytest pytest-cov pre-commit black mypy .
       - name: Lint with pre-commit
         run: |
           pre-commit run --all-files
