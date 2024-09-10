@@ -24,7 +24,7 @@ jobs:
           python-version: "3.12"
       - name: Install casacore and boost
         run: |
-          sudo apt install -y build-essential liblapack-dev libboost-python-dev python3-dev wcslib-dev casacore-dev
+          sudo apt install -y python-casacore build-essential liblapack-dev libboost-python-dev python3-dev wcslib-dev casacore-dev
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip uv
