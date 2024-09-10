@@ -18,18 +18,17 @@ jobs:
 
     steps:
       - uses: actions/checkout@v3
-      - name: Install casacore and boost
-        run: |
-          sudo apt update -y
-          sudo apt install -y build-essential liblapack-dev libboost-python-dev python3-dev wcslib-dev casacore-dev
       - name: Set up Python 3.12
         uses: actions/setup-python@v3
         with:
           python-version: "3.12"
+      - name: Install casacore and boost
+        run: |
+          sudo apt install -y build-essential liblapack-dev libboost-python-dev python3-dev wcslib-dev casacore-dev
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip uv
-          PIP_NO_BINARY="python-casacore" pip install pytest pytest-cov pre-commit black mypy .
+          uv pip install --system pytest pytest-cov pre-commit black mypy .
       - name: Lint with pre-commit
         run: |
           pre-commit run --all-files
