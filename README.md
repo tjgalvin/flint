@@ -163,7 +163,7 @@ the time of writing there are six containers for:
 - source peeling: `potatopeel` is a package that uses `wsclean`, `casa` and a
   customisable rule set to peel out troublesome annoying objects. Although it is
   a python installable and importable package, there are potential conflicts
-  with the `casatasks` and `python-casacore` modules that `flint` uses. See
+  with the `python-casacore` modules that `flint` uses. See
   [potatopeel's github repository for more information](https://gitlab.com/Sunmish/potato/-/tree/main)
 - linear mosaicing: The `linmos` task from `yandasoft` is used to perform linear
   mosaicing. Importanting this `linmos` is capable of using the ASKAP primary
@@ -171,7 +171,9 @@ the time of writing there are six containers for:
   [are available from the CSIRO dockerhub page.](https://hub.docker.com/r/csirocass/askapsoft).
 - self-calibration: `casa` is used to perform antenna-based self-calibration.
   Specifically the tasks `gaincal`, `applysolutions`, `cvel` and `mstransform`
-  are used throughout this process.
+  are used throughout this process. Careful selection of an appropriate CASA
+  version should be made to keep the `casacore` library in compatible state with
+  other components. Try the `docker://alecthomson/casa:ks9-5.8.0` image.
 
 ## Configuration based settings
 
