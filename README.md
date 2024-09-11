@@ -9,6 +9,56 @@ Yarrrr-Harrrr fiddley-dee!
 
 <img src="docs/logo.jpeg" alt="Capn' Flint - Credit: DALLE 3" style="width:400px;"/>
 
+## Installation
+
+Provided an appropriate environment installation should be as simple as a
+`pip install`.
+
+However, on some systems there are interactions with `casacore` and building
+`python-casacore` appropriately. Issues have been noted when interacting with
+large measurement sets across components with different `casacore` versions.
+This seems to happen even across container boundaries (i.e. different versions
+in containers might play a role). The exact cause is not at all understood, but
+it appears to be related to the version of `python-casacore`, `numpy` and
+whether pre-built wheels are used.
+
+In practise it might be easier to leverage `conda` to install the appropriate
+`boost` and `casacore` libraries.
+
+A helpful script below may be of use.
+
+```
+
+BRANCH="main" # replace this with appropriate branch or tag
+DIR="flint_${BRANCH}"
+PYVERSION="3.12"
+
+mkdir "${DIR}" || exit
+cd "${DIR}" || exit
+
+
+git clone git@github.com:tjgalvin/flint.git && \
+        cd flint && \
+        git checkout "${BRANCH}"
+
+conda create -y  -n "${DIR}" python="${PYVERSION}" &&  \
+        source /home/$(whoami)/.bashrc && \
+        conda activate "${DIR}" && \
+        conda install -y -c conda-forge boost casacore && \
+        PIP_NO_BINARY="python-casacore" pip install -e .
+```
+
+This may set up an appropriate environment that is compatible with the
+containers currently being used.
+
+### The error
+
+The error looked something like this:
+
+```
+An unhandled exception occurred: FiledesIO::read /path/to/data.ms/table.mf - read returned a bad value
+```
+
 ## About
 
 This `flint` package is trying to get a minimum start-to-finish calibration and
@@ -113,7 +163,7 @@ the time of writing there are six containers for:
 - source peeling: `potatopeel` is a package that uses `wsclean`, `casa` and a
   customisable rule set to peel out troublesome annoying objects. Although it is
   a python installable and importable package, there are potential conflicts
-  with the `casatasks` and `python-casacore` modules that `flint` uses. See
+  with the `python-casacore` modules that `flint` uses. See
   [potatopeel's github repository for more information](https://gitlab.com/Sunmish/potato/-/tree/main)
 - linear mosaicing: The `linmos` task from `yandasoft` is used to perform linear
   mosaicing. Importanting this `linmos` is capable of using the ASKAP primary
@@ -121,7 +171,9 @@ the time of writing there are six containers for:
   [are available from the CSIRO dockerhub page.](https://hub.docker.com/r/csirocass/askapsoft).
 - self-calibration: `casa` is used to perform antenna-based self-calibration.
   Specifically the tasks `gaincal`, `applysolutions`, `cvel` and `mstransform`
-  are used throughout this process.
+  are used throughout this process. Careful selection of an appropriate CASA
+  version should be made to keep the `casacore` library in compatible state with
+  other components. Try the `docker://alecthomson/casa:ks9-5.8.0` image.
 
 ## Configuration based settings
 

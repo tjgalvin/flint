@@ -535,6 +535,7 @@ def rename_column_in_ms(
 
         logger.info(f"Renaming {original_column_name} to {new_column_name}")
         tab.renamecol(oldname=original_column_name, newname=new_column_name)
+        tab.flush()
 
     if update_tracked_column:
         ms = ms.with_options(column=new_column_name)
@@ -603,6 +604,8 @@ def preprocess_askap_ms(
         ):
             logger.info(f"Renaming {data_column} to {instrument_column}.")
             tab.renamecol(data_column, instrument_column)
+
+        tab.flush()
 
     logger.info("Correcting the field table. ")
     fix_ms_dir(ms=str(ms.path))
@@ -676,6 +679,7 @@ def copy_and_preprocess_casda_askap_ms(
             data_column in column_names and instrument_column not in column_names
         ), f"{ms.path} column names failed. {data_column=} {instrument_column=} {column_names=}"
         tab.renamecol(data_column, instrument_column)
+        tab.flush()
 
     logger.info("Correcting directions. ")
     fix_ms_dir(ms=str(ms.path))
@@ -767,6 +771,8 @@ def rename_ms_and_columns_for_selfcal(
             data = "DATA"
             logger.info(f"Renaming {corrected_data} to DATA")
             tab.renamecol(corrected_data, data)
+
+        tab.flush()
 
     # This is a safe guard against my bad handling of the above / mutineers
     # There could be interplay with these columns when potato peel is used

@@ -152,6 +152,8 @@ def nan_zero_extreme_flag_ms(
             logger.info(f"Setting {np.sum(flags)} DATA items to NaN.")
             tab.putcol(data_column, data)
 
+        tab.close()
+
     return ms
 
 
