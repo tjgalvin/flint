@@ -11,7 +11,7 @@ from typing import Collection, List, NamedTuple, Optional
 
 import astropy.units as u
 from astropy.wcs import FITSFixedWarning
-from racs_tools import beamcon_2D
+from racs_tools import beamcon_2D, beamcon_3D
 from radio_beam import Beam
 
 from flint.logging import logger
@@ -51,6 +51,45 @@ class BeamShape(NamedTuple):
             bmin_arcsec=radio_beam.minor.to(u.arcsecond).value,  # type: ignore
             bpa_deg=radio_beam.pa.to(u.degree).value,  # type: ignore
         )
+
+
+def get_cube_common_beam(
+    cube_paths: Collection[Path], cutoff: Optional[float] = None
+) -> List[BeamShape]:
+    """Given a set of input cube FITS files, compute a common beam
+    for each channel.
+
+    Args:
+        cube_paths (Collection[Path]): Set of cube FITS files to inspect to derive a common beam
+        cutoff (Optional[float], optional): A cutoff value, in arcsec, that specifies the maximum BMAJ allowed. Defaults to None.
+
+    Returns:
+        List[BeamShape]: List of target beam shapes to use, corresponding to each channel
+    """
+
+    _, common_beam_data_list = beamcon_3D.smooth_fits_cube(
+        infiles_list=list(cube_paths),
+        dryrun=True,
+        cutoff=cutoff,
+        mode="natural",
+        conv_mode="robust",
+    )
+    # Make proper check here that accounts for NaNs
+    # assert all(
+    #     [
+    #         cb.commonbeams == common_beam_data_list[0].commonbeams
+    #         for cb in common_beam_data_list
+    #     ]
+    # ), f"Expected a single set of common beams for all fits cubes: {[cb.commonbeams for cb in common_beam_data_list]}"
+    beam_shape_list = [
+        BeamShape(
+            bmaj_arcsec=beam.major.to("arcsec").value,
+            bmin_arcsec=beam.minor.to("arcsec").value,
+            bpa_deg=beam.pa.to("degree").value,
+        )
+        for beam in common_beam_data_list[0]
+    ]
+    return beam_shape_list
 
 
 def get_common_beam(
@@ -176,6 +215,23 @@ def get_parser() -> ArgumentParser:
         help="Beams whose major-axis are larger then this (in arcseconds) are ignored from the calculation of the optimal beam.",
     )
 
+    cubemaxbeams_parser = subparsers.add_parser(
+        "cubemaxbeam",
+        help="Calculate the set of common beams across channels in a set of cubes",
+    )
+    cubemaxbeams_parser.add_argument(
+        "cubes",
+        type=Path,
+        nargs="+",
+        help="The images that will be convolved to a common resolution",
+    )
+    cubemaxbeams_parser.add_argument(
+        "--cutoff",
+        type=float,
+        default=None,
+        help="Beams whose major-axis are larger then this (in arcseconds) are ignored from the calculation of the optimal beam.",
+    )
+
     return parser
 
 
@@ -194,6 +250,11 @@ def cli() -> None:
             cutoff=args.cutoff,
             convol_suffix=args.convol_suffix,
         )
+    if args.mode == "cubemaxbeam":
+        common_beam_shape_list = get_cube_common_beam(
+            cube_paths=args.cubes, cutoff=args.cutoff
+        )
+        logger.info(f"Extracted {common_beam_shape_list=}")
 
 
 if __name__ == "__main__":
