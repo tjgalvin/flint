@@ -95,11 +95,7 @@ def get_cube_common_beam(
     ), f"Unexpected type for common beams. Expected Beams, got {type(first_cube_fits_beam)}"
 
     beam_shape_list = [
-        BeamShape(
-            bmaj_arcsec=beam.major.to("arcsec").value,  # type: ignore
-            bmin_arcsec=beam.minor.to("arcsec").value,  # type: ignore
-            bpa_deg=beam.pa.to("degree").value,  # type: ignore
-        )
+        BeamShape.from_radio_beam(radio_beam=beam)  # type: ignore
         for beam in first_cube_fits_beam
     ]
     return beam_shape_list
