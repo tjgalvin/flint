@@ -10,9 +10,10 @@ from pathlib import Path
 from typing import Collection, List, NamedTuple, Optional
 
 import astropy.units as u
+import numpy as np
 from astropy.wcs import FITSFixedWarning
 from racs_tools import beamcon_2D, beamcon_3D
-from radio_beam import Beam
+from radio_beam import Beam, Beams
 
 from flint.logging import logger
 
@@ -75,19 +76,31 @@ def get_cube_common_beam(
         conv_mode="robust",
     )
     # Make proper check here that accounts for NaNs
-    # assert all(
-    #     [
-    #         cb.commonbeams == common_beam_data_list[0].commonbeams
-    #         for cb in common_beam_data_list
-    #     ]
-    # ), f"Expected a single set of common beams for all fits cubes: {[cb.commonbeams for cb in common_beam_data_list]}"
+    for file in common_beam_data_list:
+        assert all(
+            (file[0].major == common_beam_data_list[0][0].major)
+            | np.isnan(file[0].major)
+        )
+        assert all(
+            (file[0].minor == common_beam_data_list[0][0].minor)
+            | np.isnan(file[0].minor)
+        )
+        assert all(
+            (file[0].pa == common_beam_data_list[0][0].pa) | np.isnan(file[0].pa)
+        )
+
+    first_cube_fits_beam = common_beam_data_list[0][0]
+    assert isinstance(
+        first_cube_fits_beam, Beams
+    ), f"Unexpected type for common beams. Expected Beams, got {type(first_cube_fits_beam)}"
+
     beam_shape_list = [
         BeamShape(
-            bmaj_arcsec=beam.major.to("arcsec").value,
-            bmin_arcsec=beam.minor.to("arcsec").value,
-            bpa_deg=beam.pa.to("degree").value,
+            bmaj_arcsec=beam.major.to("arcsec").value,  # type: ignore
+            bmin_arcsec=beam.minor.to("arcsec").value,  # type: ignore
+            bpa_deg=beam.pa.to("degree").value,  # type: ignore
         )
-        for beam in common_beam_data_list[0]
+        for beam in first_cube_fits_beam
     ]
     return beam_shape_list
 

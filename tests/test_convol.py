@@ -4,7 +4,10 @@ import pytest
 import shutil
 from pathlib import Path
 
-from flint.convol import get_cube_common_beam
+import numpy as np
+from astropy.io import fits
+
+from flint.convol import get_cube_common_beam, BeamShape
 from flint.utils import get_packaged_resource_path
 
 
@@ -30,4 +33,9 @@ def test_get_cube_common_beam(cube_fits) -> None:
     fits_files = list(cube_fits.glob("*sub.fits"))
     assert len(fits_files) == 10
 
-    _ = get_cube_common_beam(cube_paths=fits_files, cutoff=150.0)
+    data = fits.getdata(fits_files[0])
+    data_shape = np.squeeze(data).shape  # type: ignore
+
+    beam_list = get_cube_common_beam(cube_paths=fits_files, cutoff=150.0)
+    assert len(beam_list) == data_shape[0]
+    assert all([isinstance(b, BeamShape) for b in beam_list])
