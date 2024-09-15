@@ -320,6 +320,9 @@ def cli() -> None:
         get_common_beam(image_paths=args.images, cutoff=args.cutoff)
     if args.mode == "convol":
         if args.cubes:
+            assert all(
+                [check_if_cube_fits(fits_file=f) for f in args.images]
+            ), "Not all input files are FITS cubes"
             common_beams = get_cube_common_beam(
                 cube_paths=args.images, cutoff=args.cutoff
             )
@@ -329,7 +332,11 @@ def cli() -> None:
                 cutoff=args.cutoff,
                 convol_suffix=args.convol_suffix,
             )
+
         else:
+            assert not all(
+                [check_if_cube_fits(fits_file=f) for f in args.images]
+            ), "Not all input files are FITS images (not cubes)"
             common_beam = get_common_beam(image_paths=args.images, cutoff=args.cutoff)
             _ = convolve_images(
                 image_paths=args.images,
