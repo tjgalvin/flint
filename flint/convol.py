@@ -11,6 +11,7 @@ from typing import Collection, List, NamedTuple, Optional
 
 import astropy.units as u
 import numpy as np
+from astropy.io import fits
 from astropy.wcs import FITSFixedWarning
 from racs_tools import beamcon_2D, beamcon_3D
 from radio_beam import Beam, Beams
@@ -54,6 +55,29 @@ class BeamShape(NamedTuple):
         )
 
 
+def check_if_cube_fits(fits_file: Path) -> bool:
+    """Check to see whether the data component of a FITS images is a cube.
+    Returns ``True`` is the data-shape needs 3-dimensions to be represented.
+
+    Note: Unclear on usefulness
+
+    Args:
+        fits_file (Path): FITS file that will be examinined
+
+    Returns:
+        bool: Whether the input FITS file is a cube or not.
+    """
+
+    try:
+        squeeze_data = np.squeeze(fits.getdata(fits_file))  # type: ignore
+    except FileNotFoundError:
+        return False
+    except OSError:
+        return False
+
+    return len(squeeze_data.shape) == 3
+
+
 def get_cube_common_beam(
     cube_paths: Collection[Path], cutoff: Optional[float] = None
 ) -> List[BeamShape]:
@@ -74,6 +98,7 @@ def get_cube_common_beam(
         cutoff=cutoff,
         mode="natural",
         conv_mode="robust",
+        ncores=1,
     )
     # Make proper check here that accounts for NaNs
     for file in common_beam_data_list:
@@ -99,6 +124,42 @@ def get_cube_common_beam(
         for beam in first_cube_fits_beam
     ]
     return beam_shape_list
+
+
+def convolve_cubes(
+    cube_paths: Collection[Path],
+    beam_shapes: List[BeamShape],
+    cutoff: Optional[float] = None,
+    convol_suffix: str = "conv",
+) -> Collection[Path]:
+    logger.info(f"Will attempt to convol {len(cube_paths)} cubes")
+    if cutoff:
+        logger.info(f"Supplied cutoff {cutoff}")
+
+    # Extractubg the beam properties
+    beam_major_list = [float(beam.bmaj_arcsec) for beam in beam_shapes]
+    beam_minor_list = [float(beam.bmin_arcsec) for beam in beam_shapes]
+    beam_pa_list = [float(beam.bpa_deg) for beam in beam_shapes]
+
+    # Sanity test
+    assert len(beam_major_list) == len(beam_minor_list) == len(beam_pa_list)
+
+    logger.info("Convoling cubes")
+    cube_data_list, _ = beamcon_3D.smooth_fits_cube(
+        infiles_list=list(cube_paths),
+        dryrun=False,
+        cutoff=cutoff,
+        mode="natural",
+        conv_mode="robust",
+        bmaj=beam_major_list,
+        bmin=beam_minor_list,
+        bpa=beam_pa_list,
+        suffix=convol_suffix,
+    )
+
+    convol_cubes_path = [cube_data.filename for cube_data in cube_data_list]
+
+    return convol_cubes_path
 
 
 def get_common_beam(
@@ -206,6 +267,12 @@ def get_parser() -> ArgumentParser:
         default="conv",
         help="The suffix added to convolved images. ",
     )
+    convol_parser.add_argument(
+        "--cubes",
+        action="store_true",
+        default=False,
+        help="Treat the input files as cubes and use the corresponding 3D beam selection and convolution. ",
+    )
 
     maxbeam_parser = subparsers.add_parser(
         "maxbeam", help="Find the optimal beam size for a set of images."
@@ -252,13 +319,24 @@ def cli() -> None:
     if args.mode == "maxbeam":
         get_common_beam(image_paths=args.images, cutoff=args.cutoff)
     if args.mode == "convol":
-        common_beam = get_common_beam(image_paths=args.images, cutoff=args.cutoff)
-        _ = convolve_images(
-            image_paths=args.images,
-            beam_shape=common_beam,
-            cutoff=args.cutoff,
-            convol_suffix=args.convol_suffix,
-        )
+        if args.cubes:
+            common_beams = get_cube_common_beam(
+                cube_paths=args.images, cutoff=args.cutoff
+            )
+            _ = convolve_cubes(
+                cube_paths=args.images,
+                beam_shapes=common_beams,
+                cutoff=args.cutoff,
+                convol_suffix=args.convol_suffix,
+            )
+        else:
+            common_beam = get_common_beam(image_paths=args.images, cutoff=args.cutoff)
+            _ = convolve_images(
+                image_paths=args.images,
+                beam_shape=common_beam,
+                cutoff=args.cutoff,
+                convol_suffix=args.convol_suffix,
+            )
     if args.mode == "cubemaxbeam":
         common_beam_shape_list = get_cube_common_beam(
             cube_paths=args.cubes, cutoff=args.cutoff
