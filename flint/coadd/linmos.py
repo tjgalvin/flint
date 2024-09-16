@@ -2,7 +2,7 @@
 
 from argparse import ArgumentParser
 from pathlib import Path
-from typing import Collection, List, NamedTuple, Optional, Tuple
+from typing import Collection, List, NamedTuple, Optional, Tuple, Literal
 
 import numpy as np
 from astropy.io import fits
@@ -192,9 +192,48 @@ def trim_fits_image(
     return TrimImageResult(path=image_path, bounding_box=bounding_box)
 
 
+def _get_image_weight_plane(
+    image_data: np.ndarray, mode: Literal["std", "mad"] = "mad"
+) -> float:
+    """Extract the inverse variance weight for an input plane of data
+
+    Modes are 'std' or 'mad'.
+
+    Args:
+        image_data (np.ndarray): Data to consider
+        mode (str, optional): Statistic computation mode. Defaults to "mad".
+
+    Raises:
+        ValueError: Raised when modes unknown
+
+    Returns:
+        float: The inverse variance weight computerd
+    """
+
+    weight_modes = ("mad", "std")
+    assert (
+        mode in weight_modes
+    ), f"Invalid {mode=} specified. Available modes: {weight_modes}"
+
+    # remove non-finite numbers that would ruin the statistic
+    image_data = image_data[np.isfinite(image_data)]
+
+    if mode == "mad":
+        median = np.median(image_data)
+        mad = np.median(np.abs(image_data - median))
+        weight = 1.0 / mad**2
+    elif mode == "std":
+        std = np.std(image_data)
+        weight = 1.0 / std**2
+    else:
+        raise ValueError(f"Invalid {mode=} specified. Available modes: {weight_modes}")
+
+    return float(weight)
+
+
 def get_image_weight(
     image_path: Path, mode: str = "mad", image_slice: int = 0
-) -> float:
+) -> List[float]:
     """Compute an image weight supplied to linmos, which is used for optimally
     weighting overlapping images. Supported modes are 'mad' and 'mtd', which
     simply resolve to their numpy equivalents.
@@ -213,42 +252,39 @@ def get_image_weight(
         ValueError: Raised when a mode is requested but does not exist
 
     Returns:
-        float: The weight to supply to linmos
+        List[float]: The weight per channel to supply to linmos
     """
 
     logger.debug(
         f"Computing linmos weight using {mode=}, {image_slice=} for {image_path}. "
     )
-    weight_modes = ("mad", "std")
-    assert (
-        mode in weight_modes
-    ), f"Invalid {mode=} specified. Available modes: {weight_modes}"
 
+    weights: List[float] = []
     with fits.open(image_path, memmap=True) as in_fits:
         image_data = in_fits[image_slice].data  # type: ignore
 
-        assert len(
-            image_data.shape
+        assert (
+            len(image_data.shape) >= 2
         ), f"{len(image_data.shape)=} is less than two. Is this really an image?"
 
-        # remove non-finite numbers
-        image_data = image_data[np.isfinite(image_data)]
+        image_shape = image_data.shape[-2:]
+        image_data = (
+            image_data.reshape((-1, *image_shape))
+            if len(image_data.shape)
+            else image_data
+        )
 
-        logger.debug(f"Data shape is: {image_data.shape}")
-        if mode == "mad":
-            median = np.median(image_data)
-            mad = np.median(np.abs(image_data - median))
-            weight = 1.0 / mad**2
-        elif mode == "std":
-            std = np.std(image_data)
-            weight = 1.0 / std**2
-        else:
-            raise ValueError(
-                f"Invalid {mode=} specified. Available modes: {weight_modes}"
-            )
+        assert (
+            len(image_data.shape) == 3
+        ), f"Expected to have shape (chan, dec, ra), got {image_data.shape}"
 
-    logger.info(f"Weight {weight:.3f} for {image_path}")
-    return float(weight)
+        for idx, chan_image_data in enumerate(image_data):
+            weight = _get_image_weight_plane(image_data=chan_image_data)
+            logger.info(f"Channel {idx} {weight=:.3f} for {image_path}")
+
+            weights.append(weight)
+
+    return weights
 
 
 def generate_weights_list_and_files(
@@ -294,8 +330,11 @@ def generate_weights_list_and_files(
         with open(weight_file, "w") as out_file:
             logger.info(f"Writing {weight_file}")
             out_file.write("#Channel Weight\n")
-            image_weight = get_image_weight(image_path=image, mode=mode)
-            out_file.write(f"0 {image_weight}\n")
+            image_weights = get_image_weight(image_path=image, mode=mode)
+            weights = "\n".join(
+                [f"{idx} {weight}" for idx, weight in enumerate(image_weights)]
+            )
+            out_file.write(weights)
 
     weight_str = [
         str(weight_file) for weight_file in weight_file_list if weight_file.exists()

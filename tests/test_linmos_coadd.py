@@ -14,9 +14,26 @@ from flint.coadd.linmos import (
     _create_bound_box_plane,
     _get_alpha_linmos_option,
     _get_holography_linmos_options,
+    _get_image_weight_plane,
     create_bound_box,
+    generate_weights_list_and_files,
     trim_fits_image,
 )
+
+
+def test_get_image_weight_plane():
+    """The extraction of weights per plane"""
+    data = np.arange(100).reshape((10, 10))
+
+    with pytest.raises(AssertionError):
+        _get_image_weight_plane(image_data=data, mode="noexists")  # type: ignore
+
+    assert np.isclose(
+        0.0016, _get_image_weight_plane(image_data=data, mode="mad"), atol=0.0001
+    )
+    assert np.isclose(
+        0.00120012, _get_image_weight_plane(image_data=data, mode="std"), atol=0.0001
+    )
 
 
 def create_fits_image(out_path, image_size=(1000, 1000)):
@@ -27,6 +44,13 @@ def create_fits_image(out_path, image_size=(1000, 1000)):
     header = fits.header.Header({"CRPIX1": 10, "CRPIX2": 20})
 
     fits.writeto(out_path, data=data, header=header)
+
+
+def create_image_cube(out_path):
+    data = np.arange(20 * 100).reshape((20, 10, 10))
+    header = fits.header.Header({"CRPIX1": 10, "CRPIX2": 20, "CRPIX3": 1})
+
+    fits.writeto(out_path, header=header, data=data)
 
 
 def test_linmos_alpha_option():
@@ -41,6 +65,22 @@ def test_linmos_alpha_option():
 
     with pytest.raises(AssertionError):
         _get_alpha_linmos_option(pol_axis=1234)
+
+
+def test_get_image_weights(tmpdir):
+    """See whether the weights computed per plane in a cube work appropriately"""
+    cube_weight = Path(tmpdir) / "cubeweight"
+    cube_weight.mkdir(parents=True, exist_ok=True)
+    cube_fits = cube_weight / "cube.fits"
+
+    create_image_cube(out_path=cube_fits)
+    weight_file = cube_fits.with_suffix(".weights.txt")
+    assert not weight_file.exists()
+
+    generate_weights_list_and_files(image_paths=[cube_fits], mode="mad")
+    assert weight_file.exists()
+    lines = weight_file.read_text().split("\n")
+    assert len(lines) == 21, f"{lines}"
 
 
 def test_linmos_holo_options(tmpdir):
