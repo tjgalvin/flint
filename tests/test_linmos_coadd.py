@@ -11,6 +11,7 @@ from astropy.io import fits
 
 from flint.coadd.linmos import (
     BoundingBox,
+    _create_bound_box_plane,
     _get_alpha_linmos_option,
     _get_holography_linmos_options,
     create_bound_box,
@@ -87,6 +88,34 @@ def test_trim_fits(tmp_path):
     assert trim_data.shape == (589, 479)
 
 
+def test_trim_fits_cube(tmp_path):
+    """Ensure that fits files that has cube can be trimmed appropriately based on row/columns with valid pixels"""
+    tmp_dir = tmp_path / "cube"
+    tmp_dir.mkdir()
+
+    out_fits = tmp_dir / "example.fits"
+
+    cube_size = (12, 1000, 1000)
+    data = np.zeros(cube_size)
+    data[3, 10:600, 20:500] = 1
+    data[data == 0] = np.nan
+
+    header = fits.header.Header({"CRPIX1": 10, "CRPIX2": 20})
+
+    fits.writeto(out_fits, data=data, header=header)
+
+    og_hdr = fits.getheader(out_fits)
+    assert og_hdr["CRPIX1"] == 10
+    assert og_hdr["CRPIX2"] == 20
+
+    trim_fits_image(out_fits)
+    trim_hdr = fits.getheader(out_fits)
+    trim_data = fits.getdata(out_fits)
+    assert trim_hdr["CRPIX1"] == -10
+    assert trim_hdr["CRPIX2"] == 10
+    assert trim_data.shape == (12, 589, 479)  # type: ignore
+
+
 def test_trim_fits_image_matching(tmp_path):
     """See the the bounding box can be passed through for matching to cutout"""
 
@@ -133,14 +162,57 @@ def test_bounding_box():
     assert bb.ymax == 499  # slices upper limit no inclusive
 
 
+def test_bounding_box_none():
+    """Return None if there are no valid pixels to create a bounding box around"""
+    data = np.zeros((1000, 1000)) * np.nan
+
+    bb = _create_bound_box_plane(image_data=data)
+    assert bb is None
+
+    bb = create_bound_box(image_data=data)
+    assert isinstance(bb, BoundingBox)
+    assert bb.xmin == 0
+    assert bb.xmin == 0
+    assert bb.xmax == 999
+    assert bb.ymax == 999
+
+
 def test_bounding_box_cube():
-    """Cube cut bounding boxes. Currently not supported."""
+    """Cube cut bounding boxes."""
     data = np.zeros((3, 1000, 1000))
     data[:, 10:600, 20:500] = 1
     data[data == 0] = np.nan
 
     with pytest.raises(AssertionError):
-        create_bound_box(image_data=data)
+        _create_bound_box_plane(image_data=data)
+
+    bb = create_bound_box(image_data=data)
+    assert isinstance(bb, BoundingBox)
+    assert bb.xmin == 10
+    assert bb.xmax == 599
+    assert bb.ymin == 20
+    assert bb.ymax == 499
+
+
+def test_bounding_box_cube_different_bounds():
+    """Cube cut bounding boxes, where the largest bounding box that
+    captures all valid pixels"""
+    data = np.zeros((3, 1000, 1000))
+    data[0, 10:600, 20:500] = 1
+    data[1, 100:200, 600:800] = 1
+    data[2, 800:888, 20:500] = 1
+
+    data[data == 0] = np.nan
+
+    with pytest.raises(AssertionError):
+        _create_bound_box_plane(image_data=data)
+
+    bb = create_bound_box(image_data=data)
+    assert isinstance(bb, BoundingBox)
+    assert bb.xmin == 10
+    assert bb.xmax == 887
+    assert bb.ymin == 20
+    assert bb.ymax == 799
 
 
 def test_bounding_box_with_mask():

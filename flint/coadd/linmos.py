@@ -40,9 +40,50 @@ class BoundingBox(NamedTuple):
     """The original shape of the image"""
 
 
+def _create_bound_box_plane(
+    image_data: np.ndarray, is_masked: bool = False
+) -> Optional[BoundingBox]:
+    """Create a bounding box around pixels in a 2D image. If all
+    pixels are not valid, then ``None`` is returned.
+
+    Args:
+        image_data (np.ndarray): The 2D ina==mage to construct a bounding box around
+        is_masked (bool, optional): Whether to treat the image as booleans or values. Defaults to False.
+
+    Returns:
+        Optional[BoundingBox]: None if no valid pixels, a bounding box with the (xmin,xmax,ymin,ymax) of valid pixels
+    """
+    assert (
+        len(image_data.shape) == 2
+    ), f"Only two-dimensional arrays supported, received {image_data.shape}"
+
+    # First convert to a boolean array
+    image_valid = image_data if is_masked else np.isfinite(image_data)
+
+    if not any(image_valid.reshape(-1)):
+        logger.info("No pixels to creating bounding box for")
+        return None
+
+    # Then make them 1D arrays
+    x_valid = np.any(image_valid, axis=1)
+    y_valid = np.any(image_valid, axis=0)
+
+    # Now get the first and last index
+    xmin, xmax = np.where(x_valid)[0][[0, -1]]
+    ymin, ymax = np.where(y_valid)[0][[0, -1]]
+
+    return BoundingBox(
+        xmin=xmin, xmax=xmax, ymin=ymin, ymax=ymax, original_shape=image_data.shape
+    )
+
+
 def create_bound_box(image_data: np.ndarray, is_masked: bool = False) -> BoundingBox:
-    """Construct a bounding box around finite pixels for a 2D image. This does not
-    support cube type images.
+    """Construct a bounding box around finite pixels for a 2D image.
+
+    If a cube ids provided, the bounding box is constructed from pixels
+    as broadcast across all of the non-spatial dimensions.  That is to
+    say the single bounding box can be projected across all channel/stokes
+    channels
 
     If ``is_mask` is ``False``, the ``image_data`` will be masked internally using ``numpy.isfinite``.
 
@@ -53,20 +94,39 @@ def create_bound_box(image_data: np.ndarray, is_masked: bool = False) -> Boundin
     Returns:
         BoundingBox: The tight bounding box around pixels.
     """
-    assert (
-        len(image_data.shape) == 2
-    ), f"Only two-dimensional arrays supported, received {image_data.shape}"
+    reshaped_image_data = image_data.reshape((-1, *image_data.shape[-2:]))
+    logger.info(f"New image shape {reshaped_image_data.shape} from {image_data.shape}")
 
-    # First convert to a boolean array
-    image_valid = image_data if is_masked else np.isfinite(image_data)
+    bounding_boxes = [
+        _create_bound_box_plane(image_data=image, is_masked=is_masked)
+        for image in reshaped_image_data
+    ]
+    bounding_boxes = [bb for bb in bounding_boxes if bb is not None]
 
-    # Then make them 1D arrays
-    x_valid = np.any(image_valid, axis=1)
-    y_valid = np.any(image_valid, axis=0)
+    if len(bounding_boxes) == 0:
+        logger.info("No valid bounding box found. Constructing one for all pixels")
+        return BoundingBox(
+            xmin=0,
+            xmax=image_data.shape[-1] - 1,
+            ymin=0,
+            ymax=image_data.shape[-2] - 1,
+            original_shape=tuple(image_data.shape[-2:]),  # type: ignore
+        )
+    elif len(bounding_boxes) == 1:
+        assert bounding_boxes[0] is not None, "This should not happen"
+        return bounding_boxes[0]
 
-    # Now get the first and last index
-    xmin, xmax = np.where(x_valid)[0][[0, -1]]
-    ymin, ymax = np.where(y_valid)[0][[0, -1]]
+    assert all([bb is not None for bb in bounding_boxes])
+
+    logger.info(
+        f"Boounding boxes across {len(bounding_boxes)} constructed. Finsing limits. "
+    )
+    # The type ignores below are to avoid mypy believe bound_boxes could
+    # include None. The above checks should be sufficient
+    xmin = min([bb.xmin for bb in bounding_boxes])  # type: ignore
+    xmax = max([bb.xmax for bb in bounding_boxes])  # type: ignore
+    ymin = min([bb.ymin for bb in bounding_boxes])  # type: ignore
+    ymax = max([bb.ymax for bb in bounding_boxes])  # type: ignore
 
     return BoundingBox(
         xmin=xmin, xmax=xmax, ymin=ymin, ymax=ymax, original_shape=image_data.shape
@@ -104,9 +164,11 @@ def trim_fits_image(
         logger.info(f"The image dimensions are: {image_shape}")
 
         if not bounding_box:
+            logger.info("Constructing a new bounding box")
             bounding_box = create_bound_box(
                 image_data=np.squeeze(data), is_masked=False
             )
+            logger.info(f"Constructed {bounding_box=}")
         else:
             if image_shape != bounding_box.original_shape:
                 raise ValueError(
