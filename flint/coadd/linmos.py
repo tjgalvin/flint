@@ -603,6 +603,12 @@ def get_parser() -> ArgumentParser:
         help="Path to the holography FITS cube used for primary beam corrections",
     )
     parset_parser.add_argument(
+        "--pol-axis",
+        type=float,
+        default=2 * np.pi / 8,
+        help="The rotation in radians of the third-axis of the obseration. Defaults to PI/4",
+    )
+    parset_parser.add_argument(
         "--yandasoft-container",
         type=Path,
         default=None,
@@ -633,6 +639,7 @@ def cli() -> None:
                 linmos_names=linmos_names,
                 weight_list=args.weight_list,
                 holofile=args.holofile,
+                pol_axis=args.pol_axis,
             )
         else:
             linmos_images(
@@ -642,6 +649,7 @@ def cli() -> None:
                 weight_list=args.weight_list,
                 holofile=args.holofile,
                 container=args.yandasoft_container,
+                pol_axis=args.pol_axis,
             )
     elif args.mode == "trim":
         images = args.images
