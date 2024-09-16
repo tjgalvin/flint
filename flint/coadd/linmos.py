@@ -547,7 +547,7 @@ def linmos_images(
         linmos_parset.absolute().parent
     ]
     if holofile:
-        bind_dirs.append(holofile.absolute())
+        bind_dirs.append(holofile.absolute().parent)
 
     run_singularity_command(
         image=container, command=linmos_cmd_str, bind_dirs=bind_dirs
