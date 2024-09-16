@@ -2,6 +2,9 @@
 
 # dev
 
+- added in convolving of cubes to common resolution across channels
+- cubes are supported when computing the yandasoft linmos weights and trimming
+
 # 0.2.6
 
 - if `-temp-dir` used in wsclean then imaging products are produced here and
