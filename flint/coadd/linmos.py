@@ -610,7 +610,7 @@ def get_parser() -> ArgumentParser:
     )
 
     trim_parser = subparsers.add_parser(
-        "trim", help="Generate a yandasoft linmos parset"
+        "trim", help="Remove blank border of FITS image"
     )
 
     trim_parser.add_argument(
