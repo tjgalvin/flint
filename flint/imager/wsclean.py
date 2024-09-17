@@ -632,6 +632,8 @@ def combine_subbands_to_cube(
         output_cube_name = create_image_cube_name(
             image_prefix=Path(imageset.prefix), mode=mode
         )
+
+        # Write out the hdu to preserve the beam table constructed in fitscube
         logger.info(f"Writing {output_cube_name=}")
         hdu1.writeto(output_cube_name)
 
