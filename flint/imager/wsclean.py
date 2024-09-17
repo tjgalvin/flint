@@ -627,7 +627,7 @@ def combine_subbands_to_cube(
         # Cube is currently STOKES, FREQ, RA, DEC - needs to be FREQ, STOKES, RA, DEC
         data_cube = np.moveaxis(data_cube, 1, 0)
         hdu1[0].data = data_cube  # type: ignore
-        hdu1[1].header = new_header  # type: ignore
+        hdu1[0].header = new_header  # type: ignore
 
         output_cube_name = create_image_cube_name(
             image_prefix=Path(imageset.prefix), mode=mode
