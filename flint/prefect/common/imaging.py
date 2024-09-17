@@ -651,7 +651,6 @@ def _convolve_linmos(
     beam_shape: BeamShape,
     field_options: FieldOptions,
     linmos_suffix_str: str,
-    cutoff: float = 0.05,
     field_summary: Optional[FieldSummary] = None,
     convol_mode: str = "image",
     convol_filter: str = ".MFS.",
@@ -665,7 +664,6 @@ def _convolve_linmos(
         beam_shape (BeamShape): The beam shape that residual images will be convolved to
         field_options (FieldOptions): Options related to the processing of the field
         linmos_suffix_str (str): The suffix string passed to the linmos parset name
-        cutoff (float, optional): The primary beam attenuation cutoff supplied to linmos when coadding. Defaults to 0.05.
         field_summary (Optional[FieldSummary], optional): The summary of the field, including (importantly) to orientation of the third-axis. Defaults to None.
         convol_mode (str, optional): The mode passed to the convol task to describe the images to extract. Support image or residual.  Defaults to image.
         convol_filter (str, optional): A text file applied when assessing images to co-add. Defaults to '.MFS.'.
@@ -677,18 +675,19 @@ def _convolve_linmos(
 
     conv_images = task_convolve_image.map(
         wsclean_cmd=wsclean_cmds,
-        beam_shape=unmapped(beam_shape),
-        cutoff=150.0,
+        beam_shape=unmapped(beam_shape),  # type: ignore
+        cutoff=field_options.beam_cutoff,
         mode=convol_mode,
         filter=convol_filter,
         convol_suffix_str=convol_suffix_str,
     )
+    assert field_options.yandasoft_container is not None
     parset = task_linmos_images.submit(
-        images=conv_images,
+        images=conv_images,  # type: ignore
         container=field_options.yandasoft_container,
         suffix_str=linmos_suffix_str,
         holofile=field_options.holofile,
-        cutoff=cutoff,
+        cutoff=field_options.pb_cutoff,
         field_summary=field_summary,
     )  # type: ignore
 
@@ -750,10 +749,9 @@ def _create_convol_linmos_images(
             parsets.append(
                 _convolve_linmos(
                     wsclean_cmds=wsclean_cmds,
-                    beam_shape=beam_shape,
+                    beam_shape=beam_shape,  # type: ignore
                     field_options=field_options,
                     linmos_suffix_str=f"{linmos_suffix_str}.residual",
-                    cutoff=field_options.pb_cutoff,
                     field_summary=field_summary,
                     convol_mode="residual",
                     convol_filter=".MFS.",
@@ -763,10 +761,9 @@ def _create_convol_linmos_images(
         parsets.append(
             _convolve_linmos(
                 wsclean_cmds=wsclean_cmds,
-                beam_shape=beam_shape,
+                beam_shape=beam_shape,  # type: ignore
                 field_options=field_options,
                 linmos_suffix_str=linmos_suffix_str,
-                cutoff=field_options.pb_cutoff,
                 field_summary=field_summary,
                 convol_mode="image",
                 convol_filter=".MFS.",
@@ -788,7 +785,7 @@ def _create_convolve_linmos_cubes(
         suffixes.insert(0, additional_linmos_suffix_str)
     linmos_suffix_str = ".".join(suffixes)
 
-    beam_shapes = task_get_cube_common_beam(
+    beam_shapes = task_get_cube_common_beam.submit(
         wsclean_cmds=wsclean_cmds, cutoff=field_options.beam_cutoff
     )
     convolved_cubes = task_convolve_cube.map(
