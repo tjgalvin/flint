@@ -792,9 +792,9 @@ def _create_convolve_linmos_cubes(
         wsclean_cmds=wsclean_cmds, cutoff=field_options.beam_cutoff
     )
     convolved_cubes = task_convolve_cube.map(
-        wsclean_cmd=wsclean_cmds,
+        wsclean_cmd=wsclean_cmds,  # type: ignore
         cutoff=field_options.beam_cutoff,
-        mode="image",
+        mode=unmapped("image"),  # type: ignore
         beam_shapes=unmapped(beam_shapes),  # type: ignore
     )
 
