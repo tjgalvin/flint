@@ -740,7 +740,6 @@ def get_parser() -> ArgumentParser:
         "--coadd-cubes",
         default=False,
         action="store_true",
-        type=bool,
         help="Co-add cubes formed throughout imaging together. Cubes will be smoothed channel-wise to a common resolution. Only performed on final set of images",
     )
 
