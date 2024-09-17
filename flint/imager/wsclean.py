@@ -24,7 +24,6 @@ from pathlib import Path
 from typing import Any, Collection, Dict, List, NamedTuple, Optional, Tuple, Union
 
 import numpy as np
-from astropy.io import fits
 from fitscube.combine_fits import combine_fits
 
 from flint.exceptions import CleanDivergenceError
@@ -627,12 +626,14 @@ def combine_subbands_to_cube(
 
         # Cube is currently STOKES, FREQ, RA, DEC - needs to be FREQ, STOKES, RA, DEC
         data_cube = np.moveaxis(data_cube, 1, 0)
+        hdu1[0].data = data_cube  # type: ignore
+        hdu1[1].header = new_header  # type: ignore
 
         output_cube_name = create_image_cube_name(
             image_prefix=Path(imageset.prefix), mode=mode
         )
         logger.info(f"Writing {output_cube_name=}")
-        fits.writeto(output_cube_name, data=data_cube, header=new_header)
+        hdu1.writeto(output_cube_name)
 
         output_freqs_name = Path(output_cube_name).with_suffix(".freqs_Hz.txt")
         np.savetxt(output_freqs_name, freqs.to("Hz").value)

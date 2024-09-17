@@ -335,6 +335,7 @@ def generate_weights_list_and_files(
                 [f"{idx} {weight}" for idx, weight in enumerate(image_weights)]
             )
             out_file.write(weights)
+            out_file.write("\n")
 
     weight_str = [
         str(weight_file) for weight_file in weight_file_list if weight_file.exists()
