@@ -5,7 +5,7 @@ imaging flows.
 """
 
 from pathlib import Path
-from typing import Any, Collection, Dict, List, Optional, TypeVar, Union, Tuple
+from typing import Any, Collection, Dict, List, Literal, Optional, TypeVar, Union, Tuple
 
 import pandas as pd
 from prefect import task, unmapped
@@ -18,7 +18,13 @@ from flint.calibrate.aocalibrate import (
     select_aosolution_for_ms,
 )
 from flint.coadd.linmos import LinmosCommand, linmos_images
-from flint.convol import BeamShape, convolve_images, get_common_beam
+from flint.convol import (
+    BeamShape,
+    convolve_images,
+    get_common_beam,
+    get_cube_common_beam,
+    convolve_cubes,
+)
 from flint.flagging import flag_ms_aoflagger
 from flint.imager.wsclean import (
     ImageSet,
@@ -39,7 +45,12 @@ from flint.ms import (
     rename_column_in_ms,
     split_by_field,
 )
-from flint.naming import FITSMaskNames, get_beam_resolution_str, processed_ms_format
+from flint.naming import (
+    FITSMaskNames,
+    get_beam_resolution_str,
+    get_fits_cube_from_paths,
+    processed_ms_format,
+)
 from flint.options import FieldOptions
 from flint.peel.potato import potato_peel
 from flint.prefect.common.utils import upload_image_as_artifact
@@ -385,6 +396,95 @@ def task_get_common_beam(
 
 
 @task
+def task_get_cube_common_beam(
+    wsclean_cmds: Collection[WSCleanCommand],
+    cutoff: float = 25,
+) -> List[BeamShape]:
+    """Compute a common beam size  for input cubes.
+
+    Args:
+        wsclean_cmds (Collection[WSCleanCommand]): Input images whose restoring beam properties will be considered
+        cutoff (float, optional): Major axis larger than this valur, in arcseconds, will be ignored. Defaults to 25.
+
+    Returns:
+        List[BeamShape]: The final convolving beam size to be used per channel in cubes
+    """
+
+    images_to_consider: List[Path] = []
+
+    # TODO: This should support other image types
+    for wsclean_cmd in wsclean_cmds:
+        if wsclean_cmd.imageset is None:
+            logger.warning(
+                f"No imageset for {wsclean_cmd.ms} found. Has imager finished?"
+            )
+            continue
+        images_to_consider.extend(wsclean_cmd.imageset.image)
+
+    images_to_consider = get_fits_cube_from_paths(paths=images_to_consider)
+
+    logger.info(
+        f"Considering {len(images_to_consider)} images across {len(wsclean_cmds)} outputs. "
+    )
+
+    beam_shapes = get_cube_common_beam(cube_paths=images_to_consider, cutoff=cutoff)
+
+    return beam_shapes
+
+
+@task
+def task_convolve_cube(
+    wsclean_cmd: WSCleanCommand,
+    beam_shapes: List[BeamShape],
+    cutoff: float = 60,
+    mode: Literal["image"] = "image",
+    convol_suffix_str: str = "conv",
+) -> Collection[Path]:
+    """Convolve images to a specified resolution
+
+    Args:
+        wsclean_cmd (WSCleanCommand): Collection of output images from wsclean that will be convolved
+        beam_shapes (BeamShape): The shape images will be convolved to
+        cutoff (float, optional): Maximum major beam axis an image is allowed to have before it will not be convolved. Defaults to 60.
+        convol_suffix_str (str, optional): The suffix added to the convolved images. Defaults to 'conv'.
+
+    Returns:
+        Collection[Path]: Path to the output images that have been convolved.
+    """
+    assert (
+        wsclean_cmd.imageset is not None
+    ), f"{wsclean_cmd.ms} has no attached imageset."
+
+    supported_modes = ("image",)
+    logger.info(f"Extracting {mode}")
+    if mode == "image":
+        image_paths = list(wsclean_cmd.imageset.image)
+    else:
+        raise ValueError(f"{mode=} is not supported. Known modes are {supported_modes}")
+
+    logger.info(f"Extracting cubes from imageset {mode=}")
+    image_paths = get_fits_cube_from_paths(paths=image_paths)
+
+    # It is possible depending on how aggressively cleaning image products are deleted that these
+    # some cleaning products (e.g. residuals) do not exist. There are a number of ways one could consider
+    # handling this. The pirate in me feels like less is more, so an error will be enough. Keeping
+    # things simple and avoiding the problem is probably the better way of dealing with this
+    # situation. In time this would mean that we inspect and handle conflicting pipeline options.
+    assert (
+        image_paths is not None
+    ), f"{image_paths=} for {mode=} and {wsclean_cmd.imageset=}"
+
+    logger.info(f"Will convolve {image_paths}")
+
+    return convolve_cubes(
+        cube_paths=image_paths,
+        beam_shapes=beam_shapes,
+        cutoff=cutoff,
+        convol_suffix=convol_suffix_str,
+    )
+
+
+@task
 def task_convolve_image(
     wsclean_cmd: WSCleanCommand,
     beam_shape: BeamShape,
@@ -590,7 +690,7 @@ def _convolve_linmos(
         holofile=field_options.holofile,
         cutoff=cutoff,
         field_summary=field_summary,
-    )
+    )  # type: ignore
 
     return parset
 
@@ -675,6 +775,38 @@ def _create_convol_linmos_images(
         )
 
     return parsets
+
+
+def _create_convolve_linmos_cubes(
+    wsclean_cmds: Collection[WSCleanCommand],
+    field_options: FieldOptions,
+    current_round: Optional[int] = None,
+    additional_linmos_suffix_str: Optional[str] = "cube",
+):
+    suffixes = [f"round{current_round}" if current_round else "noselfcal"]
+    if additional_linmos_suffix_str:
+        suffixes.insert(0, additional_linmos_suffix_str)
+    linmos_suffix_str = ".".join(suffixes)
+
+    beam_shapes = task_get_cube_common_beam(
+        wsclean_cmds=wsclean_cmds, cutoff=field_options.beam_cutoff
+    )
+    convolved_cubes = task_convolve_cube.map(
+        wsclean_cmd=wsclean_cmds,
+        cutoff=field_options.beam_cutoff,
+        mode="image",
+        beam_shapes=unmapped(beam_shapes),  # type: ignore
+    )
+
+    assert field_options.yandasoft_container is not None
+    parset = task_linmos_images.submit(
+        images=convolved_cubes,  # type: ignore
+        container=field_options.yandasoft_container,
+        suffix_str=linmos_suffix_str,
+        holofile=field_options.holofile,
+        cutoff=field_options.pb_cutoff,
+    )
+    return parset
 
 
 @task
@@ -841,7 +973,7 @@ def task_create_validation_tables(
                 create_table_artifact(
                     table=df_dict,
                     description=f"{table.stem}",
-                )
+                )  # type: ignore
             elif isinstance(table, XMatchTables):
                 for subtable in table:
                     if subtable is None:
@@ -853,7 +985,7 @@ def task_create_validation_tables(
                     create_table_artifact(
                         table=df_dict,
                         description=f"{subtable.stem}",
-                    )
+                    )  # type: ignore
 
     return validation_tables
 

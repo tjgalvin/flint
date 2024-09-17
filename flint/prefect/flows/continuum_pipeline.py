@@ -33,6 +33,7 @@ from flint.options import FieldOptions, dump_field_options_to_yaml
 from flint.prefect.clusters import get_dask_runner
 from flint.prefect.common.imaging import (
     _create_convol_linmos_images,
+    _create_convolve_linmos_cubes,
     _validation_items,
     task_copy_and_preprocess_casda_askap_ms,
     task_create_apply_solutions_cmd,
@@ -78,6 +79,14 @@ def _check_field_options(field_options: FieldOptions) -> None:
         if field_options.rounds >= 1 and field_options.casa_container is None:
             raise ValueError(
                 "CASA Container needs to be set if self-calibraiton is to be performed"
+            )
+    if field_options.coadd_cubes:
+        if (
+            field_options.yandasoft_container is None
+            or not field_options.yandasoft_container
+        ):
+            raise ValueError(
+                "Unable to create linmos cubes without a yandasoft container"
             )
 
 
@@ -254,7 +263,7 @@ def process_science_fields(
         mss=preprocess_science_mss,
         cal_sbid_path=bandpass_path,
         holography_path=field_options.holofile,
-    )
+    )  # type: ignore
     logger.info(f"{field_summary=}")
 
     if field_options.wsclean_container is None:
@@ -312,12 +321,12 @@ def process_science_fields(
         if run_aegean:
             aegean_field_output = task_run_bane_and_aegean.submit(
                 image=parset, aegean_container=unmapped(field_options.aegean_container)
-            )
+            )  # type: ignore
             field_summary = task_update_field_summary.submit(
                 field_summary=field_summary,
                 aegean_outputs=aegean_field_output,
                 linmos_command=parset,
-            )
+            )  # type: ignore
             archive_wait_for.append(field_summary)
 
             if run_validation and field_options.reference_catalogue_directory:
@@ -358,7 +367,7 @@ def process_science_fields(
                 wait_for=[
                     field_summary
                 ],  # To make sure field summary is created with unzipped MSs
-            )
+            )  # type: ignore
             stokes_v_mss = cal_mss
 
             fits_beam_masks = None
@@ -420,12 +429,12 @@ def process_science_fields(
                 aegean_outputs = task_run_bane_and_aegean.submit(
                     image=parsets_self[-1],
                     aegean_container=unmapped(field_options.aegean_container),
-                )
+                )  # type: ignore
                 field_summary = task_update_field_summary.submit(
                     field_summary=field_summary,
                     aegean_outputs=aegean_outputs,
                     round=current_round,
-                )
+                )  # type: ignore
                 if run_validation:
                     assert field_options.reference_catalogue_directory, f"Reference catalogue directory should be set when {run_validation=}"
                     val_results = _validation_items(
@@ -434,6 +443,15 @@ def process_science_fields(
                         reference_catalogue_directory=field_options.reference_catalogue_directory,
                     )
                     archive_wait_for.append(val_results)
+
+    if field_options.coadd_cubes:
+        cube_parset = _create_convolve_linmos_cubes(
+            wsclean_cmds=wsclean_cmds,
+            field_options=field_options,
+            current_round=(field_options.rounds if field_options.rounds else None),
+            additional_linmos_suffix_str="cube",
+        )
+        archive_wait_for.append(cube_parset)
 
     if field_options.stokes_v_imaging:
         with tags("stokes-v"):
@@ -446,7 +464,7 @@ def process_science_fields(
                 update_wsclean_options=unmapped(stokes_v_wsclean_options),
                 fits_mask=fits_beam_masks,
                 wait_for=wsclean_cmds,  # Ensure that measurement sets are doubled up during imaging
-            )
+            )  # type: ignore
             if field_options.yandasoft_container:
                 parsets = _create_convol_linmos_images(
                     wsclean_cmds=wsclean_cmds,
@@ -474,7 +492,7 @@ def process_science_fields(
             max_round=field_options.rounds if field_options.rounds else None,
             update_archive_options=update_archive_options,
             wait_for=archive_wait_for,
-        )
+        )  # type: ignore
 
 
 def setup_run_process_science_field(
@@ -718,6 +736,13 @@ def get_parser() -> ArgumentParser:
         action="store_true",
         default=False,
     )
+    parser.add_argument(
+        "--coadd-cubes",
+        default=False,
+        action="store_true",
+        type=bool,
+        help="Co-add cubes formed throughout imaging together. Cubes will be smoothed channel-wise to a common resolution. Only performed on final set of images",
+    )
 
     return parser
 
@@ -764,6 +789,7 @@ def cli() -> None:
         sbid_copy_path=args.sbid_copy_path,
         rename_ms=args.rename_ms,
         stokes_v_imaging=args.stokes_v_imaging,
+        coadd_cubes=args.coadd_cubes,
     )
 
     setup_run_process_science_field(
