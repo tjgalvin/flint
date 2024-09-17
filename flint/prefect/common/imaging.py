@@ -566,7 +566,7 @@ def task_convolve_image(
 def task_linmos_images(
     images: Collection[Collection[Path]],
     container: Path,
-    filter: str = ".MFS.",
+    filter: Optional[str] = ".MFS.",
     field_name: Optional[str] = None,
     suffix_str: str = "noselfcal",
     holofile: Optional[Path] = None,
@@ -580,7 +580,7 @@ def task_linmos_images(
     Args:
         images (Collection[Collection[Path]]): Images that will be co-added together
         container (Path): Path to singularity container that contains yandasoft
-        filter (str, optional): Filter to extract the images that will be extracted from the set of input images. These will be co-added. Defaults to ".MFS.".
+        filter (Optional[str], optional): Filter to extract the images that will be extracted from the set of input images. These will be co-added. If None all images are co-aded. Defaults to ".MFS.".
         field_name (Optional[str], optional): Name of the field, which is included in the output images created. Defaults to None.
         suffix_str (str, optional): Additional string added to the prefix of the output linmos image products. Defaults to "noselfcal".
         holofile (Optional[Path], optional): The FITS cube with the beam corrections derived from ASKAP holography. Defaults to None.
@@ -595,10 +595,15 @@ def task_linmos_images(
     # TODO: Need to flatten images
     # TODO: Need a better way of getting field names
 
+    # TODO: Need a better filter approach. Would probably be better to
+    # have literals for the type of product (MFS, cube, model) to be
+    # sure of appropriate extraction
     all_images = [img for beam_images in images for img in beam_images]
     logger.info(f"Number of images to examine {len(all_images)}")
 
-    filter_images = [img for img in all_images if filter in str(img)]
+    filter_images = (
+        [img for img in all_images if filter in str(img)] if filter else all_images
+    )
     logger.info(f"Number of filtered images to linmos: {len(filter_images)}")
 
     candidate_image = filter_images[0]
@@ -802,6 +807,7 @@ def _create_convolve_linmos_cubes(
         suffix_str=linmos_suffix_str,
         holofile=field_options.holofile,
         cutoff=field_options.pb_cutoff,
+        filter=None,
     )
     return parset
 
