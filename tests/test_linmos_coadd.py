@@ -79,8 +79,9 @@ def test_get_image_weights(tmpdir):
 
     generate_weights_list_and_files(image_paths=[cube_fits], mode="mad")
     assert weight_file.exists()
+    # The file must end with a newline for linmos to work
     lines = weight_file.read_text().split("\n")
-    assert len(lines) == 21, f"{lines}"
+    assert len(lines) == 22, f"{lines}"
 
 
 def test_linmos_holo_options(tmpdir):

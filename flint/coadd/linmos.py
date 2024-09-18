@@ -37,7 +37,7 @@ class BoundingBox(NamedTuple):
     ymax: int
     """Maximum y pixel"""
     original_shape: Tuple[int, int]
-    """The original shape of the image"""
+    """The original shape of the image. If constructed against a cube this is the shape of a single plane."""
 
 
 def _create_bound_box_plane(
@@ -73,7 +73,7 @@ def _create_bound_box_plane(
     ymin, ymax = np.where(y_valid)[0][[0, -1]]
 
     return BoundingBox(
-        xmin=xmin, xmax=xmax, ymin=ymin, ymax=ymax, original_shape=image_data.shape
+        xmin=xmin, xmax=xmax, ymin=ymin, ymax=ymax, original_shape=image_data.shape[-2:]
     )
 
 
@@ -160,7 +160,7 @@ def trim_fits_image(
         data = fits_image[0].data  # type: ignore
         logger.info(f"Original data shape: {data.shape}")
 
-        image_shape = (data.shape[-2], data.shape[-1])
+        image_shape = data.shape[-2:]
         logger.info(f"The image dimensions are: {image_shape}")
 
         if not bounding_box:
@@ -170,7 +170,7 @@ def trim_fits_image(
             )
             logger.info(f"Constructed {bounding_box=}")
         else:
-            if image_shape != bounding_box.original_shape:
+            if image_shape != bounding_box.original_shape[-2:]:
                 raise ValueError(
                     f"Bounding box constructed against {bounding_box.original_shape}, but being applied to {image_shape=}"
                 )
