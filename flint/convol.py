@@ -326,12 +326,14 @@ def cli() -> None:
             common_beams = get_cube_common_beam(
                 cube_paths=args.images, cutoff=args.cutoff
             )
-            _ = convolve_cubes(
-                cube_paths=args.images,
-                beam_shapes=common_beams,
-                cutoff=args.cutoff,
-                convol_suffix=args.convol_suffix,
-            )
+            for image in args.images:
+                logger.info(f"Convoling {image}")
+                _ = convolve_cubes(
+                    cube_paths=[image],
+                    beam_shapes=common_beams,
+                    cutoff=args.cutoff,
+                    convol_suffix=args.convol_suffix,
+                )
 
         else:
             assert not all(
