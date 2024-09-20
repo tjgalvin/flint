@@ -29,10 +29,14 @@ def test_get_image_weight_plane():
         _get_image_weight_plane(image_data=data, mode="noexists")  # type: ignore
 
     assert np.isclose(
-        0.0016, _get_image_weight_plane(image_data=data, mode="mad"), atol=0.0001
+        0.0016,
+        _get_image_weight_plane(image_data=data, mode="mad", stride=1),
+        atol=0.0001,
     )
     assert np.isclose(
-        0.00120012, _get_image_weight_plane(image_data=data, mode="std"), atol=0.0001
+        0.00120012,
+        _get_image_weight_plane(image_data=data, mode="std", stride=1),
+        atol=0.0001,
     )
 
 
@@ -78,6 +82,23 @@ def test_get_image_weights(tmpdir):
     assert not weight_file.exists()
 
     generate_weights_list_and_files(image_paths=[cube_fits], mode="mad")
+    assert weight_file.exists()
+    # The file must end with a newline for linmos to work
+    lines = weight_file.read_text().split("\n")
+    assert len(lines) == 22, f"{lines}"
+
+
+def test_get_image_weight_with_strides(tmpdir):
+    """See whether the weights computed per plane in a cube work appropriately when striding over data"""
+    cube_weight = Path(tmpdir) / "cubeweight"
+    cube_weight.mkdir(parents=True, exist_ok=True)
+    cube_fits = cube_weight / "cube.fits"
+
+    create_image_cube(out_path=cube_fits)
+    weight_file = cube_fits.with_suffix(".weights.txt")
+    assert not weight_file.exists()
+
+    generate_weights_list_and_files(image_paths=[cube_fits], mode="mad", stride=10)
     assert weight_file.exists()
     # The file must end with a newline for linmos to work
     lines = weight_file.read_text().split("\n")

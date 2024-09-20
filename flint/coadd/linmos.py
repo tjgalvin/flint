@@ -193,7 +193,7 @@ def trim_fits_image(
 
 
 def _get_image_weight_plane(
-    image_data: np.ndarray, mode: Literal["std", "mad"] = "mad"
+    image_data: np.ndarray, mode: Literal["std", "mad"] = "mad", stride: int = 4
 ) -> float:
     """Extract the inverse variance weight for an input plane of data
 
@@ -202,6 +202,7 @@ def _get_image_weight_plane(
     Args:
         image_data (np.ndarray): Data to consider
         mode (str, optional): Statistic computation mode. Defaults to "mad".
+        stride (int, optional): Include every n'th pixel when computing the weight. '1' includes all pixels. Defaults to 1.
 
     Raises:
         ValueError: Raised when modes unknown
@@ -216,7 +217,7 @@ def _get_image_weight_plane(
     ), f"Invalid {mode=} specified. Available modes: {weight_modes}"
 
     # remove non-finite numbers that would ruin the statistic
-    image_data = image_data[np.isfinite(image_data)]
+    image_data = image_data[np.isfinite(image_data)][::stride]
 
     if mode == "mad":
         median = np.median(image_data)
@@ -232,7 +233,7 @@ def _get_image_weight_plane(
 
 
 def get_image_weight(
-    image_path: Path, mode: str = "mad", image_slice: int = 0
+    image_path: Path, mode: str = "mad", stride: int = 1, image_slice: int = 0
 ) -> List[float]:
     """Compute an image weight supplied to linmos, which is used for optimally
     weighting overlapping images. Supported modes are 'mad' and 'mtd', which
@@ -243,9 +244,14 @@ def get_image_weight(
     the same way, it does not necessarily have to correspond to an optimatelly
     calculated RMS.
 
+    The stride parameter will only include every N'th pixel when computing the
+    weights. A smaller set of pixels will reduce the time required to calculate
+    the weights, but may come at the cost of accuracy with large values.
+
     Args:
         image (Path): The path to the image fits file to inspect.
         mode (str, optional): Which mode should be used when calculating the weight. Defaults to 'mad'.
+        stride (int, optional): Include every n'th pixel when computing the weight. '1' includes all pixels. Defaults to 1.
         image_slice (int, optional): The image slice in the HDU list of the `image` fits file to inspect. Defaults to 0.
 
     Raises:
@@ -279,7 +285,7 @@ def get_image_weight(
         ), f"Expected to have shape (chan, dec, ra), got {image_data.shape}"
 
         for idx, chan_image_data in enumerate(image_data):
-            weight = _get_image_weight_plane(image_data=chan_image_data)
+            weight = _get_image_weight_plane(image_data=chan_image_data, stride=stride)
             logger.info(f"Channel {idx} {weight=:.3f} for {image_path}")
 
             weights.append(weight)
@@ -288,7 +294,7 @@ def get_image_weight(
 
 
 def generate_weights_list_and_files(
-    image_paths: Collection[Path], mode: str = "mad"
+    image_paths: Collection[Path], mode: str = "mad", stride: int = 1
 ) -> str:
     """Generate the expected linmos weight files, and construct an appropriate
     string that can be embedded into a linmos partset. These weights files will
@@ -304,6 +310,10 @@ def generate_weights_list_and_files(
     This function will create a corresponding text file for each input image. At
     the moment it is only intended to work on MFS images. It __is not__ currently
     intended to be used on image cubes.
+
+    The stride parameter will only include every N'th pixel when computing the
+    weights. A smaller set of pixels will reduce the time required to calculate
+    the weights, but may come at the cost of accuracy with large values.
 
     Args:
         image_paths (Collection[Path]): Images to iterate over to create a corresponding weights.txt file.
@@ -330,7 +340,7 @@ def generate_weights_list_and_files(
         with open(weight_file, "w") as out_file:
             logger.info(f"Writing {weight_file}")
             out_file.write("#Channel Weight\n")
-            image_weights = get_image_weight(image_path=image, mode=mode)
+            image_weights = get_image_weight(image_path=image, mode=mode, stride=stride)
             weights = "\n".join(
                 [f"{idx} {weight}" for idx, weight in enumerate(image_weights)]
             )
@@ -457,7 +467,9 @@ def generate_linmos_parameter_set(
     # quality. In reality, this should be updated to provide a RMS noise
     # estimate per-pixel of each image.
     if weight_list is None:
-        weight_list = generate_weights_list_and_files(image_paths=images, mode="mad")
+        weight_list = generate_weights_list_and_files(
+            image_paths=images, mode="mad", stride=4
+        )
 
     beam_order_strs = [str(extract_beam_from_name(str(p.name))) for p in images]
     beam_order_list = "[" + ",".join(beam_order_strs) + "]"

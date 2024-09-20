@@ -64,6 +64,13 @@ def _check_field_options(field_options: FieldOptions) -> None:
     run_aegean = (
         False if field_options.aegean_container is None else field_options.run_aegean
     )
+    if (
+        field_options.imaging_strategy is not None
+        and not field_options.imaging_strategy.exists()
+    ):
+        raise ValueError(
+            f"Imagign strategy file {field_options.imaging_strategy} is set, but the path does not exist"
+        )
     if field_options.use_beam_masks is True and run_aegean is False:
         raise ValueError(
             "run_aegean and aegean container both need to be set is beam masks is being used. "
