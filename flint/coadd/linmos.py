@@ -229,7 +229,8 @@ def _get_image_weight_plane(
     else:
         raise ValueError(f"Invalid {mode=} specified. Available modes: {weight_modes}")
 
-    return float(weight)
+    float_weight = float(weight)
+    return float_weight if np.isfinite(float_weight) else 0.0
 
 
 def get_image_weight(
@@ -468,7 +469,7 @@ def generate_linmos_parameter_set(
     # estimate per-pixel of each image.
     if weight_list is None:
         weight_list = generate_weights_list_and_files(
-            image_paths=images, mode="mad", stride=4
+            image_paths=images, mode="mad", stride=8
         )
 
     beam_order_strs = [str(extract_beam_from_name(str(p.name))) for p in images]

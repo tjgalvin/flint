@@ -39,6 +39,9 @@ def test_get_image_weight_plane():
         atol=0.0001,
     )
 
+    data = np.arange(100).reshape((10, 10)) * np.nan
+    assert _get_image_weight_plane(image_data=data) == 0.0
+
 
 def create_fits_image(out_path, image_size=(1000, 1000)):
     data = np.zeros(image_size)
