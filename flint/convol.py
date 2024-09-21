@@ -157,8 +157,22 @@ def convolve_cubes(
         suffix=convol_suffix,
     )
 
-    convol_cubes_path = [cube_data.filename for cube_data in cube_data_list]
+    # Construct the name of the new file created. For the moment this is done
+    # manually as it is not part of the returned object
+    # TODO: Extend the return struct from beamcon_3D to include output name
+    convol_cubes_path = [
+        Path(cube_data.filename).with_suffix(f".{convol_suffix}.fits")
+        for cube_data in cube_data_list
+    ]
 
+    # Show the mapping as a sanity check
+    for input_cube, output_cube in zip(list(cube_paths), convol_cubes_path):
+        logger.info(f"{input_cube=} convolved to {output_cube}")
+
+    # Trust no one
+    assert all(
+        [p.exists() for p in convol_cubes_path]
+    ), "A convolved cube does not exist"
     return convol_cubes_path
 
 
