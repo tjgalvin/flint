@@ -219,6 +219,9 @@ def _get_image_weight_plane(
     # remove non-finite numbers that would ruin the statistic
     image_data = image_data[np.isfinite(image_data)][::stride]
 
+    if np.all(~np.isfinite(image_data)):
+        return 0.0
+
     if mode == "mad":
         median = np.median(image_data)
         mad = np.median(np.abs(image_data - median))
