@@ -11,11 +11,36 @@ from astropy.io import fits
 
 from flint.coadd.linmos import (
     BoundingBox,
+    _create_bound_box_plane,
     _get_alpha_linmos_option,
     _get_holography_linmos_options,
+    _get_image_weight_plane,
     create_bound_box,
+    generate_weights_list_and_files,
     trim_fits_image,
 )
+
+
+def test_get_image_weight_plane():
+    """The extraction of weights per plane"""
+    data = np.arange(100).reshape((10, 10))
+
+    with pytest.raises(AssertionError):
+        _get_image_weight_plane(image_data=data, mode="noexists")  # type: ignore
+
+    assert np.isclose(
+        0.0016,
+        _get_image_weight_plane(image_data=data, mode="mad", stride=1),
+        atol=0.0001,
+    )
+    assert np.isclose(
+        0.00120012,
+        _get_image_weight_plane(image_data=data, mode="std", stride=1),
+        atol=0.0001,
+    )
+
+    data = np.arange(100).reshape((10, 10)) * np.nan
+    assert _get_image_weight_plane(image_data=data) == 0.0
 
 
 def create_fits_image(out_path, image_size=(1000, 1000)):
@@ -26,6 +51,13 @@ def create_fits_image(out_path, image_size=(1000, 1000)):
     header = fits.header.Header({"CRPIX1": 10, "CRPIX2": 20})
 
     fits.writeto(out_path, data=data, header=header)
+
+
+def create_image_cube(out_path):
+    data = np.arange(20 * 100).reshape((20, 10, 10))
+    header = fits.header.Header({"CRPIX1": 10, "CRPIX2": 20, "CRPIX3": 1})
+
+    fits.writeto(out_path, header=header, data=data)
 
 
 def test_linmos_alpha_option():
@@ -40,6 +72,40 @@ def test_linmos_alpha_option():
 
     with pytest.raises(AssertionError):
         _get_alpha_linmos_option(pol_axis=1234)
+
+
+def test_get_image_weights(tmpdir):
+    """See whether the weights computed per plane in a cube work appropriately"""
+    cube_weight = Path(tmpdir) / "cubeweight"
+    cube_weight.mkdir(parents=True, exist_ok=True)
+    cube_fits = cube_weight / "cube.fits"
+
+    create_image_cube(out_path=cube_fits)
+    weight_file = cube_fits.with_suffix(".weights.txt")
+    assert not weight_file.exists()
+
+    generate_weights_list_and_files(image_paths=[cube_fits], mode="mad")
+    assert weight_file.exists()
+    # The file must end with a newline for linmos to work
+    lines = weight_file.read_text().split("\n")
+    assert len(lines) == 22, f"{lines}"
+
+
+def test_get_image_weight_with_strides(tmpdir):
+    """See whether the weights computed per plane in a cube work appropriately when striding over data"""
+    cube_weight = Path(tmpdir) / "cubeweight"
+    cube_weight.mkdir(parents=True, exist_ok=True)
+    cube_fits = cube_weight / "cube.fits"
+
+    create_image_cube(out_path=cube_fits)
+    weight_file = cube_fits.with_suffix(".weights.txt")
+    assert not weight_file.exists()
+
+    generate_weights_list_and_files(image_paths=[cube_fits], mode="mad", stride=10)
+    assert weight_file.exists()
+    # The file must end with a newline for linmos to work
+    lines = weight_file.read_text().split("\n")
+    assert len(lines) == 22, f"{lines}"
 
 
 def test_linmos_holo_options(tmpdir):
@@ -85,6 +151,34 @@ def test_trim_fits(tmp_path):
     assert trim_hdr["CRPIX1"] == -10
     assert trim_hdr["CRPIX2"] == 10
     assert trim_data.shape == (589, 479)
+
+
+def test_trim_fits_cube(tmp_path):
+    """Ensure that fits files that has cube can be trimmed appropriately based on row/columns with valid pixels"""
+    tmp_dir = tmp_path / "cube"
+    tmp_dir.mkdir()
+
+    out_fits = tmp_dir / "example.fits"
+
+    cube_size = (12, 1000, 1000)
+    data = np.zeros(cube_size)
+    data[3, 10:600, 20:500] = 1
+    data[data == 0] = np.nan
+
+    header = fits.header.Header({"CRPIX1": 10, "CRPIX2": 20})
+
+    fits.writeto(out_fits, data=data, header=header)
+
+    og_hdr = fits.getheader(out_fits)
+    assert og_hdr["CRPIX1"] == 10
+    assert og_hdr["CRPIX2"] == 20
+
+    trim_fits_image(out_fits)
+    trim_hdr = fits.getheader(out_fits)
+    trim_data = fits.getdata(out_fits)
+    assert trim_hdr["CRPIX1"] == -10
+    assert trim_hdr["CRPIX2"] == 10
+    assert trim_data.shape == (12, 589, 479)  # type: ignore
 
 
 def test_trim_fits_image_matching(tmp_path):
@@ -133,14 +227,57 @@ def test_bounding_box():
     assert bb.ymax == 499  # slices upper limit no inclusive
 
 
+def test_bounding_box_none():
+    """Return None if there are no valid pixels to create a bounding box around"""
+    data = np.zeros((1000, 1000)) * np.nan
+
+    bb = _create_bound_box_plane(image_data=data)
+    assert bb is None
+
+    bb = create_bound_box(image_data=data)
+    assert isinstance(bb, BoundingBox)
+    assert bb.xmin == 0
+    assert bb.xmin == 0
+    assert bb.xmax == 999
+    assert bb.ymax == 999
+
+
 def test_bounding_box_cube():
-    """Cube cut bounding boxes. Currently not supported."""
+    """Cube cut bounding boxes."""
     data = np.zeros((3, 1000, 1000))
     data[:, 10:600, 20:500] = 1
     data[data == 0] = np.nan
 
     with pytest.raises(AssertionError):
-        create_bound_box(image_data=data)
+        _create_bound_box_plane(image_data=data)
+
+    bb = create_bound_box(image_data=data)
+    assert isinstance(bb, BoundingBox)
+    assert bb.xmin == 10
+    assert bb.xmax == 599
+    assert bb.ymin == 20
+    assert bb.ymax == 499
+
+
+def test_bounding_box_cube_different_bounds():
+    """Cube cut bounding boxes, where the largest bounding box that
+    captures all valid pixels"""
+    data = np.zeros((3, 1000, 1000))
+    data[0, 10:600, 20:500] = 1
+    data[1, 100:200, 600:800] = 1
+    data[2, 800:888, 20:500] = 1
+
+    data[data == 0] = np.nan
+
+    with pytest.raises(AssertionError):
+        _create_bound_box_plane(image_data=data)
+
+    bb = create_bound_box(image_data=data)
+    assert isinstance(bb, BoundingBox)
+    assert bb.xmin == 10
+    assert bb.xmax == 887
+    assert bb.ymin == 20
+    assert bb.ymax == 799
 
 
 def test_bounding_box_with_mask():

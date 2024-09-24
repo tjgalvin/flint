@@ -152,6 +152,8 @@ class FieldOptions(NamedTuple):
     """Rename MSs throughout rounds of imaging and self-cal instead of creating copies. This will delete data-columns throughout. """
     stokes_v_imaging: bool = False
     """Specifies whether Stokes-V imaging will be carried out after the final round of imagine (whether or not self-calibration is enabled). """
+    coadd_cubes: bool = False
+    """Co-add cubes formed throughout imaging together. Cubes will be smoothed channel-wise to a common resolution. Only performed on final set of images"""
 
     def with_options(self, **kwargs) -> FieldOptions:
         _dict = self._asdict()

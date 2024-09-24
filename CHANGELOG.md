@@ -2,6 +2,11 @@
 
 # dev
 
+- added in convolving of cubes to common resolution across channels
+- cubes are supported when computing the yandasoft linmos weights and trimming
+- `--coadd-cubes` option added to co-add cubes on the final imaging round
+  together to form a single field spectral cube
+
 # 0.2.6
 
 - if `-temp-dir` used in wsclean then imaging products are produced here and

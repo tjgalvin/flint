@@ -193,10 +193,33 @@ def test_combine_subbands_to_cube(tmpdir):
     with pytest.raises(TypeError):
         _ = combine_subbands_to_cube(imageset=files, remove_original_images=False)  # type: ignore
 
+
+def test_combine_subbands_to_cube2(tmpdir):
+    """Load in example fits images to combine into a cube without deleting original"""
+    files = [
+        get_packaged_resource_path(
+            package="flint.data.tests",
+            filename=f"SB56659.RACS_0940-04.beam17.round3-000{i}-image.sub.fits",
+        )
+        for i in range(3)
+    ]
+    files = [Path(shutil.copy(Path(f), Path(tmpdir))) for f in files]
+
+    assert len(files) == 3
+    assert all([f.exists() for f in files])
+    file_parent = files[0].parent
+    prefix = f"{file_parent}/SB56659.RACS_0940-04.beam17.round3"
+    imageset = ImageSet(
+        prefix=prefix,
+        image=files,
+    )
+
     new_imageset = combine_subbands_to_cube(
         imageset=imageset, remove_original_images=True
     )
     assert all([not file.exists() for file in files])
+    assert new_imageset.prefix == imageset.prefix
+    assert len(new_imageset.image) == 1
 
 
 def test_resolve_key_value_to_cli():

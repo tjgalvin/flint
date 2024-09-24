@@ -19,12 +19,34 @@ from flint.naming import (
     extract_components_from_name,
     get_aocalibrate_output_path,
     get_beam_resolution_str,
+    get_fits_cube_from_paths,
     get_potato_output_base_path,
     get_sbid_from_path,
     get_selfcal_ms_name,
     processed_ms_format,
     raw_ms_format,
 )
+
+
+def test_get_cube_fits_from_paths():
+    """Identify the files that contain the cube field and are fits"""
+    files = [
+        "SB63789.EMU_1743-51.beam03.round4.i.image.cube.fits",
+        "SB63789.EMU_1743-51.beam03.round4.i.image.cube.other.fields.fits",
+        "SB63789.EMU_1743-51.beam03.round4.i.MFS.image.optimal.conv.fits",
+        "SB63789.EMU_1743-51.beam03.round4.i.MFS.residual.optimal.conv.fits",
+        "SB63789.EMU_1743-51.beam03.round4.i.MFS.image.fits",
+        "SB63789.EMU_1743-51.beam03.round4.i.MFS.residual.fits",
+    ]
+    files = [Path(f) for f in files]
+
+    cube_files = get_fits_cube_from_paths(paths=files)
+
+    assert len(cube_files) == 2
+    assert cube_files[0] == Path("SB63789.EMU_1743-51.beam03.round4.i.image.cube.fits")
+    assert cube_files[1] == Path(
+        "SB63789.EMU_1743-51.beam03.round4.i.image.cube.other.fields.fits"
+    )
 
 
 def test_create_image_cube_name():

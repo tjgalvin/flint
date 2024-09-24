@@ -11,6 +11,24 @@ from flint.logging import logger
 from flint.options import MS
 
 
+def get_fits_cube_from_paths(paths: List[Path]) -> List[Path]:
+    """Given a list of files, find the ones that appear to be FITS files
+    and contain the ``.cube.`` field indicator. A regular expression searching
+    for both the ``.cube.`` and ``.fits`` file type is used.
+
+    Args:
+        paths (List[Path]): The set of paths to examine to identify potential cube fits images from
+
+    Returns:
+        List[Path]: Set of paths matching the search criteria
+    """
+    cube_expression = re.compile(r"\.cube\..*fits$")
+
+    cube_files = [path for path in paths if bool(cube_expression.search(str(path)))]
+
+    return cube_files
+
+
 def create_image_cube_name(
     image_prefix: Path, mode: str, suffix: str = "cube.fits"
 ) -> Path:
