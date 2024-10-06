@@ -68,8 +68,13 @@ def test_get_cube_common_beam_and_convol_cubes(cube_fits) -> None:
     assert all([isinstance(b, BeamShape) for b in beam_list])
 
     # This appears to make pytest lock up
-    # cube_paths = convolve_cubes(
-    #     cube_paths=fits_files, beam_shapes=beam_list, cutoff=150.0
-    # )
-    # assert all([isinstance(p, Path) for p in cube_paths])
-    # assert all([p.exists() for p in cube_paths])
+    from flint.convol import convolve_cubes
+
+    cube_paths = convolve_cubes(
+        cube_paths=fits_files,
+        beam_shapes=beam_list,
+        cutoff=150.0,
+        executor_type="process",
+    )
+    assert all([isinstance(p, Path) for p in cube_paths])
+    assert all([p.exists() for p in cube_paths])
