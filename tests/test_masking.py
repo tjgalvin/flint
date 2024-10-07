@@ -7,13 +7,86 @@ from astropy.io import fits
 from flint.masking import (
     MaskingOptions,
     _verify_set_positive_seed_clip,
+    beam_shape_erode,
     consider_beam_mask_round,
+    create_beam_mask_kernel,
     create_snr_mask_from_fits,
     minimum_boxcar_artefact_mask,
 )
 from flint.naming import FITSMaskNames
 
 SHAPE = (100, 100)
+
+
+def test_create_beam_mask_kernel():
+    """See whether the beam kernel creation mask can return a correct mask"""
+    fits_header = fits.Header(
+        dict(
+            CDELT1=-0.000694444444444444,
+            CDELT2=0.000694444444444444,
+            BMAJ=0.00340540107886635,
+            BMIN=0.00283268735470751,
+            BPA=74.6618858613889,
+        )
+    )
+    mask_1 = create_beam_mask_kernel(fits_header=fits_header)
+    assert mask_1.shape == (100, 100)
+    assert np.sum(mask_1) == 12
+
+    mask_2 = create_beam_mask_kernel(fits_header=fits_header, minimum_response=0.1)
+    assert mask_2.shape == (100, 100)
+    assert np.sum(mask_2) == 52
+
+    with pytest.raises(AssertionError):
+        fits_header = fits.Header(
+            dict(
+                CDELT1=-0.000694444444444444,
+                CDELT2=0.2000694444444444444,
+                BMAJ=0.00340540107886635,
+                BMIN=0.00283268735470751,
+                BPA=74.6618858613889,
+            )
+        )
+        create_beam_mask_kernel(fits_header=fits_header)
+
+    with pytest.raises(KeyError):
+        fits_header = fits.Header(
+            dict(
+                CDELT1=-0.000694444444444444,
+                BMAJ=0.00340540107886635,
+                BMIN=0.00283268735470751,
+                BPA=74.6618858613889,
+            )
+        )
+        create_beam_mask_kernel(fits_header=fits_header)
+
+
+def test_beam_shape_erode():
+    """Ensure that the beam shape erosion approach works. This should drop out pixels
+    should the beam shape structure connectivity be statisifed"""
+    fits_header = fits.Header(
+        dict(
+            CDELT1=-0.000694444444444444,
+            CDELT2=0.000694444444444444,
+            BMAJ=0.00340540107886635,
+            BMIN=0.00283268735470751,
+            BPA=74.6618858613889,
+        )
+    )
+
+    mask = np.zeros((500, 500)).astype(bool)
+
+    mask[300, 300] = True
+    assert np.sum(mask) == 1
+
+    new_mask = beam_shape_erode(mask=mask, fits_header=fits_header)
+    assert np.sum(new_mask) == 0
+
+    mask = np.zeros((200, 200)).astype(bool)
+    mask[100:130, 100:130] = True
+    assert np.sum(mask) == 900
+    erode_mask = beam_shape_erode(mask=mask, fits_header=fits_header)
+    assert np.sum(erode_mask) == 729
 
 
 def test_consider_beam_masking_round():

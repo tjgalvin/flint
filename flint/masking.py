@@ -65,6 +65,10 @@ class MaskingOptions(NamedTuple):
     """Size of the boxcar filter"""
     minimum_boxcar_increase_factor: float = 1.2
     """The factor used to construct minimum positive signal threshold for an island """
+    beam_shape_erode: bool = False
+    """Erode the mask using the shape of the restoring beam"""
+    beam_shape_erode_minimum_response: float = 0.6
+    """The minimum response of the beam that is used to form t he erode structure shape"""
 
     def with_options(self, **kwargs) -> MaskingOptions:
         """Return a new instance of the MaskingOptions"""
@@ -109,7 +113,7 @@ def consider_beam_mask_round(
     )  # type: ignore
 
 
-def make_beam_mask_kernel(
+def create_beam_mask_kernel(
     fits_header: fits.Header, kernel_size=100, minimum_response: float = 0.6
 ) -> np.ndarray:
     """Make a mask using the shape of a beam in a FITS Header object. The
@@ -128,9 +132,10 @@ def make_beam_mask_kernel(
     Returns:
         np.ndarray: Boolean mask of the kernel shape
     """
+    assert minimum_response > 0, f"{minimum_response=}, should be positive"
 
     POSITION_KEYS = ("CDELT1", "CDELT2")
-    if all([key in fits_header for key in POSITION_KEYS]):
+    if not all([key in fits_header for key in POSITION_KEYS]):
         raise KeyError(f"{POSITION_KEYS=}  all need to be present")
 
     beam = Beam.from_fits_header(fits_header)
@@ -146,6 +151,43 @@ def make_beam_mask_kernel(
     )
 
     return k.array > (np.max(k.array) * minimum_response)
+
+
+def beam_shape_erode(
+    mask: np.ndarray, fits_header: fits.Header, minimum_response: float = 0.6
+) -> np.ndarray:
+    """Construct a kernel representing the shape of the restoring beam at
+    a particular level, and use it as the basis of a binary erosion of the
+    input mask.
+
+    The ``fits_header`` is used to construct the beam shape that matches the
+    same pixel size
+
+    Args:
+        mask (np.ndarray): The current mask that will be eroded based on the beam shape
+        fits_header (fits.Header): The fits header of the mask used to generate the beam kernel shape
+        minimum_response (float, optional): The minimum response of the main restoring beam to craft the shape from. Defaults to 0.6.
+
+    Returns:
+        np.ndarray: The eroded beam shape
+    """
+
+    if not all([key in fits_header for key in ["BMAJ", "BMIN", "BPA"]]):
+        logger.warning(
+            "Beam parameters missing. Not performing the beam shape erosion. "
+        )
+        return mask
+
+    logger.info("Eroding the mask using the beam shape")
+    beam_mask_kernel = create_beam_mask_kernel(
+        fits_header=fits_header, minimum_response=minimum_response
+    )
+
+    erode_mask = scipy_binary_erosion(
+        input=mask, iterations=1, structure=beam_mask_kernel
+    )
+
+    return erode_mask
 
 
 def extract_beam_mask_from_mosaic(
