@@ -8,6 +8,7 @@ from argparse import ArgumentParser
 from pathlib import Path
 from typing import Collection, NamedTuple, Optional, Union
 
+import astropy.units as u
 import numpy as np
 from astropy.io import fits
 from astropy.wcs import WCS
@@ -19,6 +20,7 @@ from scipy.ndimage import (
     binary_erosion as scipy_binary_erosion,  # Rename to distinguish from skimage
 )
 from scipy.ndimage import label, minimum_filter
+from radio_beam import Beam
 
 from flint.logging import logger
 from flint.naming import FITSMaskNames, create_fits_mask_names
@@ -105,6 +107,45 @@ def consider_beam_mask_round(
         or (isinstance(mask_rounds, (list, tuple)))
         and current_round in mask_rounds
     )  # type: ignore
+
+
+def make_beam_msk_kernel(
+    fits_header: fits.Header, kernel_size=100, minimum_response: float = 0.6
+) -> np.ndarray:
+    """Make a mask using the shape of a beam in a FITS Header object. The
+    beam properties in the ehader are used to generate the two-dimensional
+    Gaussian main lobe, from which a cut is made based on the minimum
+    power.
+
+    Args:
+        fits_header (fits.Header): The FITS header to create beam from
+        kernel_size (int, optional): Size of the output kernel in pixels. Will be a square. Defaults to 100.
+        minimum_response (float, optional): Minimum response of the beam shape for the mask to be constructed from. Defaults to 0.6.
+
+    Raises:
+        KeyError: Raised if CDELT1 and CDELT2 missing
+
+    Returns:
+        np.ndarray: Boolean mask of the kernel shape
+    """
+
+    POSITION_KEYS = ("CDELT1", "CDELT2")
+    if all([key in fits_header for key in POSITION_KEYS]):
+        raise KeyError(f"{POSITION_KEYS=}  all need to be present")
+
+    beam = Beam.from_fits_header(fits_header)
+    assert isinstance(beam, Beam)
+
+    cdelt1, cdelt2 = np.abs(fits_header["CDELT1"]), np.abs(fits_header["CDELT2"])  # type: ignore
+    assert np.isclose(
+        cdelt1, cdelt2
+    ), f"Pixel scales {cdelt1=} {cdelt2=}, but must be equal"
+
+    k = beam.as_kernel(
+        pixscale=cdelt1 * u.Unit("deg"), x_size=kernel_size, y_size=kernel_size
+    )
+
+    return k.array > (np.max(k.array) * minimum_response)
 
 
 def extract_beam_mask_from_mosaic(
