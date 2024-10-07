@@ -109,7 +109,7 @@ def consider_beam_mask_round(
     )  # type: ignore
 
 
-def make_beam_msk_kernel(
+def make_beam_mask_kernel(
     fits_header: fits.Header, kernel_size=100, minimum_response: float = 0.6
 ) -> np.ndarray:
     """Make a mask using the shape of a beam in a FITS Header object. The
