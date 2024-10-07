@@ -89,6 +89,26 @@ def test_beam_shape_erode():
     assert np.sum(erode_mask) == 729
 
 
+def test_beam_shape_erode_nobeam():
+    """Ensure that the beam shape erosion approach works. This should drop out pixels
+    should the beam shape structure connectivity be statisifed. This should simply return
+    the input array since there is no beam information"""
+    fits_header = fits.Header(
+        dict(
+            CDELT1=-0.000694444444444444,
+            CDELT2=0.000694444444444444,
+        )
+    )
+
+    mask = np.zeros((500, 500)).astype(bool)
+
+    mask[300, 300] = True
+    assert np.sum(mask) == 1
+    new_mask = beam_shape_erode(mask=mask, fits_header=fits_header)
+    assert new_mask is mask
+    assert np.sum(new_mask) == 1
+
+
 def test_consider_beam_masking_round():
     """Test to ensure the beam mask consideration log is correct"""
     lower = ("all", "ALL", "aLl")
