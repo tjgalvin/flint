@@ -28,7 +28,7 @@ matplotlib = "*"
 prefect = "^2.10.0"
 prefect-dask = "^0.2.4"
 dask-jobqueue = "*"
-RACS-tools = "*"
+RACS-tools = { git = "https://github.com/AlecThomson/RACS-tools.git@8e5d919e9938eda19fc7b8a915f855e8b8e0e514" } # allows array of beam shapes in beamcon_3D
 aegeantools = "2.3.0"
 radio-beam = "^0.3.4"
 reproject = "*"
