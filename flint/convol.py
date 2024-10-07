@@ -7,7 +7,7 @@ from __future__ import annotations
 import warnings
 from argparse import ArgumentParser
 from pathlib import Path
-from typing import Collection, List, NamedTuple, Optional
+from typing import Collection, List, Literal, NamedTuple, Optional
 
 import astropy.units as u
 import numpy as np
@@ -131,6 +131,7 @@ def convolve_cubes(
     beam_shapes: List[BeamShape],
     cutoff: Optional[float] = None,
     convol_suffix: str = "conv",
+    executor_type: Literal["thread", "process", "mpi"] = "thread",
 ) -> Collection[Path]:
     logger.info(f"Will attempt to convol {len(cube_paths)} cubes")
     if cutoff:
@@ -155,6 +156,7 @@ def convolve_cubes(
         bmin=beam_minor_list,
         bpa=beam_pa_list,
         suffix=convol_suffix,
+        executor_type=executor_type,
     )
 
     # Construct the name of the new file created. For the moment this is done
