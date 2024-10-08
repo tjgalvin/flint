@@ -670,11 +670,14 @@ def create_snr_mask_from_fits(
         fits_image=fits_image_path, include_signal_path=create_signal_fits
     )
 
+    # TODOL Make the bkg and rms images optional. Don't need to load if mbc is usede
     with fits.open(fits_image_path) as fits_image:
         fits_header = fits_image[0].header  # type: ignore
-        with fits.open(fits_bkg_path) as fits_bkg:
-            logger.info("Subtracting background")
-            signal_data = fits_image[0].data - fits_bkg[0].data  # type: ignore
+        signal_data = fits_image[0].data  # type: ignore
+
+    with fits.open(fits_bkg_path) as fits_bkg:
+        logger.info("Subtracting background")
+        signal_data -= fits_bkg[0].data  # type: ignore
 
     with fits.open(fits_rms_path) as fits_rms:
         logger.info("Dividing by RMS")
@@ -698,7 +701,8 @@ def create_snr_mask_from_fits(
     # case of a fits file, the file may either contain a single frequency or it may
     # contain a cube of images.
     if masking_options.flood_fill:
-        # TODO: This function should really just accept a MaskingOptions directly
+        # TODO: The image and signal masks both don't need to be inputs. Image is only used
+        # if mbc = True
         mask_data = reverse_negative_flood_fill(
             signal=np.squeeze(signal_data),
             image=np.squeeze(fits.getdata(fits_image_path)),
