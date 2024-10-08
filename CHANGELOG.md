@@ -6,6 +6,11 @@
 - cubes are supported when computing the yandasoft linmos weights and trimming
 - `--coadd-cubes` option added to co-add cubes on the final imaging round
   together to form a single field spectral cube
+- Cleaning up the `flint_masking` CLI:
+  - added more options
+  - removed references to butterworth filter
+  - marked `minimum_boxcar)artefact_mask` as deprecated and to be removed
+- Added initial `beam_shape_erode` to masking operations
 
 # 0.2.6
 
