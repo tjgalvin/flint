@@ -4,7 +4,7 @@ thought being towards FITS images.
 
 from __future__ import annotations
 
-from argparse import ArgumentParser
+from argparse import ArgumentParser, Namespace
 from pathlib import Path
 from typing import Collection, NamedTuple, Optional, Union
 
@@ -26,6 +26,8 @@ from flint.logging import logger
 from flint.naming import FITSMaskNames, create_fits_mask_names
 from flint.utils import get_pixels_per_beam
 
+# TODO: Need to remove a fair amount of old approaches, and deprecate some of the toy functions
+
 
 class MaskingOptions(NamedTuple):
     """Contains options for the creation of clean masks from some subject
@@ -36,16 +38,16 @@ class MaskingOptions(NamedTuple):
     base_snr_clip: float = 4
     """A base clipping level to be used should other options not be activated"""
     flood_fill: bool = True
-    """Whether to attempt to flood fill when constructing a mask. This should be `True` for `grow_low_snr_islands` and `suppress_artefacts   to have an effect. """
+    """Whether to attempt to flood fill when constructing a mask. This should be `True` for ``grow_low_snr_islands`` and ``suppress_artefacts`` to have an effect. """
     flood_fill_positive_seed_clip: float = 4.5
-    """The clipping level to seed islands that will be grown to lower SNR"""
+    """The clipping level to seed islands that will be grown to lower signal metric"""
     flood_fill_positive_flood_clip: float = 1.5
     """Clipping level used to grow seeded islands down to"""
     flood_fill_use_mbc: bool = False
     """If True, the clipping levels are used as the `increase_factor` when using a minimum absolute clip"""
     flood_fill_use_mbc_box_size: int = 75
     """The size of the mbc box size should mbc be used"""
-    suppress_artefacts: bool = True
+    suppress_artefacts: bool = False
     """Whether to attempt artefacts based on the presence of significant negatives"""
     suppress_artefacts_negative_seed_clip: float = 5
     """The significance level of a negative island for the sidelobe suppression to be activated. This should be a positive number (the signal map is internally inverted)"""
@@ -59,7 +61,7 @@ class MaskingOptions(NamedTuple):
     """The minimum significance levels of pixels to be to seed low SNR islands for consideration"""
     grow_low_snr_island_size: int = 768
     """The number of pixels an island has to be for it to be accepted"""
-    minimum_boxcar: bool = True
+    minimum_boxcar: bool = False
     """Use the boxcar minimum threshold to compare to remove artefacts"""
     minimum_boxcar_size: int = 100
     """Size of the boxcar filter"""
@@ -346,6 +348,7 @@ def minimum_boxcar_artefact_mask(
     island region is larger to the maximum signal then that island
     is omitted.
 
+    This is planned to be deprecated.
 
     Args:
         signal (np.ndarray): The input signl to use
@@ -356,6 +359,10 @@ def minimum_boxcar_artefact_mask(
     Returns:
         np.ndarray: _description_
     """
+    import warnings
+
+    warnings.warn("minimum_boxcar_artefacts to be removed. ", DeprecationWarning)
+    return island_mask
 
     logger.info(
         f"Running boxcar minimum island clip with {boxcar_size=} {increase_factor=}"
@@ -407,7 +414,7 @@ def suppress_artefact_mask(
     pixels_per_beam: Optional[float] = None,
     large_island_threshold: float = 1.0,
 ) -> np.ndarray:
-    """Attempt to grow mask that sepresses artefacts around bright sources. Small islands
+    """Attempt to grow mask that suppresses artefacts around bright sources. Small islands
     of negative emission seed pixels, which then grow out. Bright positive pixels are not
     allowed to change (which presumably are the source of negative artetfacts).
 
@@ -419,6 +426,8 @@ def suppress_artefact_mask(
 
     For this reason the guard mask should be sufficiently high to protect the main source but nuke the fask positive islands
 
+    Consider using ``minimum_absolute_clip``, which has a simpler set of options and has
+    largely the same intended result.
 
     Args:
         signal (np.ndarray): The signal mask,
@@ -662,14 +671,14 @@ def create_snr_mask_from_fits(
     )
 
     with fits.open(fits_image_path) as fits_image:
-        fits_header = fits_image[0].header
+        fits_header = fits_image[0].header  # type: ignore
         with fits.open(fits_bkg_path) as fits_bkg:
             logger.info("Subtracting background")
-            signal_data = fits_image[0].data - fits_bkg[0].data
+            signal_data = fits_image[0].data - fits_bkg[0].data  # type: ignore
 
     with fits.open(fits_rms_path) as fits_rms:
         logger.info("Dividing by RMS")
-        signal_data /= fits_rms[0].data
+        signal_data /= fits_rms[0].data  # type: ignore
 
     if create_signal_fits:
         logger.info(f"Writing {mask_names.signal_fits}")
@@ -701,6 +710,13 @@ def create_snr_mask_from_fits(
         logger.info(f"Clipping using a {masking_options.base_snr_clip=}")
         mask_data = (signal_data > masking_options.base_snr_clip).astype(np.int32)
 
+    if masking_options.beam_shape_erode:
+        mask_data = beam_shape_erode(
+            mask=mask_data,
+            fits_header=fits_header,
+            minimum_response=masking_options.beam_shape_erode_minimum_response,
+        )
+
     logger.info(f"Writing {mask_names.mask_fits}")
     fits.writeto(
         filename=mask_names.mask_fits,
@@ -722,7 +738,7 @@ def get_parser() -> ArgumentParser:
     )
 
     fits_parser = subparser.add_parser(
-        "snrmask",
+        "mask",
         help="Create a mask for an image, using its RMS and BKG images (e.g. outputs from BANE). Output FITS image will default to the image with a mask suffix.",
     )
     fits_parser.add_argument("image", type=Path, help="Path to the input image. ")
@@ -740,22 +756,52 @@ def get_parser() -> ArgumentParser:
         help="Save the signal map. Defaults to the same as image with a signal suffix. ",
     )
     fits_parser.add_argument(
-        "--min-snr",
+        "--base-snr-clip",
         type=float,
         default=4,
-        help="The minimum SNR required for a pixel to be marked as valid. ",
+        help="A base clipping level to be used should other options not be activated",
     )
     fits_parser.add_argument(
-        "--use-butterworth",
+        "--flood-fill",
         action="store_true",
-        help="Apply a butterworth filter to smooth the total intensity image before computing the signal map. ",
+        default=False,
+        help="Whether to attempt to flood fill when constructing a mask. This should be `True` for `grow_low_snr_islands` and `suppress_artefacts to have an effect. ",
     )
     fits_parser.add_argument(
-        "--connectivity-shape",
-        default=(4, 4),
-        nargs=2,
+        "--flood-fill-positive-seed-clip",
+        type=float,
+        default=4.5,
+        help="The clipping level to seed islands that will be grown to lower signal metric",
+    )
+    fits_parser.add_argument(
+        "--flood-fill-positive-flood-clip",
+        type=float,
+        default=1.5,
+        help="Clipping level used to grow seeded islands down to",
+    )
+    fits_parser.add_argument(
+        "--flood-fill-use-mbc",
+        action="store_true",
+        default=False,
+        help="If True, the clipping levels are used as the `increase_factor` when using a minimum absolute clip. ",
+    )
+    fits_parser.add_argument(
+        "--flood-fill-use-mbc-box-size",
         type=int,
-        help="The connectivity matrix to use when applying a binary erosion. Only used when using the butterworth smoothing filter. ",
+        default=75,
+        help="The size of the mbc box size should mbc be used",
+    )
+    fits_parser.add_argument(
+        "--beam-shape-erode",
+        action="store_true",
+        default=False,
+        help="Erode the mask using the shape of the restoring beam",
+    )
+    fits_parser.add_argument(
+        "--beam-shape-erode-minimum-response",
+        type=float,
+        default=0.6,
+        help="The minimum response of the beam that is used to form t he erode structure shape",
     )
 
     extract_parser = subparser.add_parser(
@@ -778,13 +824,28 @@ def get_parser() -> ArgumentParser:
     return parser
 
 
+def _args_to_mask_options(args: Namespace) -> MaskingOptions:
+    """Convert the args namespace to a MaskingOptions"""
+    masking_options = MaskingOptions(
+        base_snr_clip=args.base_snr_clip,
+        flood_fill=args.flood_fill,
+        flood_fill_positive_seed_clip=args.flood_fill_positive_seed_clip,
+        flood_fill_positive_flood_clip=args.flood_fill_positive_flood_clip,
+        flood_fill_use_mbc=args.flood_fill_use_mbc,
+        flood_fill_use_mbc_box_size=args.flood_fill_use_mbc_box_size,
+        beam_shape_erode=args.beam_shape_erode,
+        beam_shape_erode_minimum_response=args.beam_shape_erode_minimum_response,
+    )
+    return masking_options
+
+
 def cli():
     parser = get_parser()
 
     args = parser.parse_args()
 
     if args.mode == "snrmask":
-        masking_options = MaskingOptions(base_snr_clip=args.min_snr)
+        masking_options = _args_to_mask_options(args=args)
         create_snr_mask_from_fits(
             fits_image_path=args.image,
             fits_rms_path=args.rms,

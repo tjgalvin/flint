@@ -6,16 +6,33 @@ from astropy.io import fits
 
 from flint.masking import (
     MaskingOptions,
+    _args_to_mask_options,
     _verify_set_positive_seed_clip,
     beam_shape_erode,
     consider_beam_mask_round,
     create_beam_mask_kernel,
     create_snr_mask_from_fits,
+    get_parser,
     minimum_boxcar_artefact_mask,
 )
 from flint.naming import FITSMaskNames
 
 SHAPE = (100, 100)
+
+
+def test_arg_parser_cli_and_masking_options():
+    """See if the CLI parser is constructed with correct set of
+    options which are properly converted to a MaskingOptions object"""
+    parser = get_parser()
+    args = parser.parse_args(
+        args="mask img rms bkg --flood-fill --flood-fill-positive-seed-clip 10 --flood-fill-positive-flood-clip 1. --flood-fill-use-mbc --flood-fill-use-mbc-box-size 100".split()
+    )
+    masking_options = _args_to_mask_options(args=args)
+    assert isinstance(masking_options, MaskingOptions)
+    assert masking_options.flood_fill
+    assert masking_options.flood_fill_use_mbc
+    assert masking_options.flood_fill_positive_seed_clip == 10.0
+    assert masking_options.flood_fill_positive_flood_clip == 1.0
 
 
 def test_create_beam_mask_kernel():
@@ -148,13 +165,16 @@ def test_minimum_boxcar_artefact():
         signal=img, island_mask=img_mask, boxcar_size=10
     )
     assert np.all(img_mask == out_mask)
-    assert img_mask is not out_mask
+    assert out_mask is img_mask  # minimum boxcar artefact mask to be deprecated
+    # assert img_mask is not out_mask
 
     img[41:45, 30:40] = -20
     out_mask = minimum_boxcar_artefact_mask(
         signal=img, island_mask=img_mask, boxcar_size=10
     )
-    assert not np.all(img_mask == out_mask)
+    assert out_mask is img_mask  # minimum boxcar artefact mask to be deprecated
+
+    # assert not np.all(img_mask == out_mask)
 
 
 def test_minimum_boxcar_artefact_blanked():
@@ -171,8 +191,10 @@ def test_minimum_boxcar_artefact_blanked():
     out_mask = minimum_boxcar_artefact_mask(
         signal=img, island_mask=img_mask, boxcar_size=10, increase_factor=1000
     )
-    assert out_mask is not img_mask
-    assert np.all(out_mask[30:40, 30:40] == False)  # noqa
+    assert out_mask is img_mask  # minimum boxcar artefact mask will be deprecated
+
+    # assert out_mask is not img_mask
+    # assert np.all(out_mask[30:40, 30:40] == False)  # noqa
 
 
 def test_minimum_boxcar_large_bright_island():
