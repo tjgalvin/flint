@@ -134,7 +134,9 @@ def create_beam_mask_kernel(
     Returns:
         np.ndarray: Boolean mask of the kernel shape
     """
-    assert minimum_response > 0, f"{minimum_response=}, should be positive"
+    assert (
+        0.0 < minimum_response < 1.0
+    ), f"{minimum_response=}, should be between 0 to 1 (exclusive)"
 
     POSITION_KEYS = ("CDELT1", "CDELT2")
     if not all([key in fits_header for key in POSITION_KEYS]):
@@ -180,7 +182,7 @@ def beam_shape_erode(
         )
         return mask
 
-    logger.info("Eroding the mask using the beam shape")
+    logger.info(f"Eroding the mask using the beam shape with {minimum_response=}")
     beam_mask_kernel = create_beam_mask_kernel(
         fits_header=fits_header, minimum_response=minimum_response
     )
@@ -841,7 +843,7 @@ def get_parser() -> ArgumentParser:
         "--beam-shape-erode-minimum-response",
         type=float,
         default=0.6,
-        help="The minimum response of the beam that is used to form t he erode structure shape",
+        help="The minimum response of the beam that is used to form t he erode structure shape. Smaller numbers correspond to a larger shape which means islands are more aggressively removed",
     )
 
     extract_parser = subparser.add_parser(
