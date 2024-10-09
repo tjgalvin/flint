@@ -816,7 +816,6 @@ def _create_convolve_linmos_cubes(
 def task_create_image_mask_model(
     image: Union[LinmosCommand, ImageSet, WSCleanCommand],
     image_products: AegeanOutputs,
-    min_snr: Optional[float] = 3.5,
     update_masking_options: Optional[Dict[str, Any]] = None,
 ) -> FITSMaskNames:
     """Create a mask from a linmos image, with the intention of providing it as a clean mask
@@ -825,7 +824,6 @@ def task_create_image_mask_model(
     Args:
         linmos_parset (LinmosCommand): Linmos command and associated meta-data
         image_products (AegeanOutputs): Images of the RMS and BKG
-        min_snr (float, optional): The minimum S/N a pixel should be for it to be included in the clean mask.
         update_masking_options (Optional[Dict[str,Any]], optional): Updated options supplied to the default MaskingOptions. Defaults to None.
 
 
