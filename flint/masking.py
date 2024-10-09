@@ -185,11 +185,16 @@ def beam_shape_erode(
         fits_header=fits_header, minimum_response=minimum_response
     )
 
+    # This handles any unsqueezed dimensions
+    beam_mask_kernel = beam_mask_kernel.reshape(
+        mask.shape[:-2] + beam_mask_kernel.shape
+    )
+
     erode_mask = scipy_binary_erosion(
         input=mask, iterations=1, structure=beam_mask_kernel
     )
 
-    return erode_mask
+    return erode_mask.astype(mask.dtype)
 
 
 def extract_beam_mask_from_mosaic(
@@ -879,7 +884,7 @@ def cli():
 
     args = parser.parse_args()
 
-    if args.mode == "snrmask":
+    if args.mode == "mask":
         masking_options = _args_to_mask_options(args=args)
         create_snr_mask_from_fits(
             fits_image_path=args.image,
