@@ -304,51 +304,61 @@ def get_options_from_strategy(
     return options
 
 
-def wrapper_options_from_strategy(fn: Callable) -> Callable:
+def wrapper_options_from_strategy(update_options_keyword: str):
     """Decorator intended to allow options to be pulled from the
     strategy file when function is called. See ``get_options_from_strategy``
     for options that this function enables.
 
-    The wrapped function requires the ``update_options`` keyword, otherwise
-    an error is raised.
+    ``update_options_keyword`` specifies the name of the
+    keyword argument that the options extracted from the strategy
+    file will be passed to.
 
     Args:
-        fn (Callable): The callable function that will be assigned the additional keywords
-        update_options_keyword (str, optional): Which keyword argument the extract options would be passed to. Defaults to "update_options".
-
-    Returns:
-        Callable: The updated function
+        update_options_keyword (str): The keyword option to update from the wrapped function
     """
-    update_options_keyword = "update_options"
-    signature = inspect.signature(fn)
-    if update_options_keyword not in signature.parameters:
-        raise MissingParameter(
-            f"{update_options_keyword=} not in {signature.parameters} of {fn.__name__}"
-        )
 
-    def wrapper(
-        strategy: Union[Strategy, None, Path] = None,
-        mode: str = "wsclean",
-        *args,
-        round: Union[str, int] = "initial",
-        max_round_override: bool = True,
-        operation: Optional[str] = None,
-        **kwargs,
-    ) -> Dict[Any, Any]:
-        if strategy:
-            update_options = get_options_from_strategy(
-                strategy=strategy,
-                mode=mode,
-                round=round,
-                max_round_override=max_round_override,
-                operation=operation,
+    def _wrapper(fn: Callable) -> Callable:
+        """Decorator intended to allow options to be pulled from the
+        strategy file when function is called. See ``get_options_from_strategy``
+        for options that this function enables.
+
+        Args:
+            fn (Callable): The callable function that will be assigned the additional keywords
+
+        Returns:
+            Callable: The updated function
+        """
+        signature = inspect.signature(fn)
+        if update_options_keyword not in signature.parameters:
+            raise MissingParameter(
+                f"{update_options_keyword=} not in {signature.parameters} of {fn.__name__}"
             )
-            logger.info(f"Adding extracted options to {update_options_keyword}")
-            kwargs[update_options_keyword] = update_options
 
-        return fn(*args, **kwargs)
+        def wrapper(
+            strategy: Union[Strategy, None, Path] = None,
+            mode: str = "wsclean",
+            *args,
+            round: Union[str, int] = "initial",
+            max_round_override: bool = True,
+            operation: Optional[str] = None,
+            **kwargs,
+        ) -> Dict[Any, Any]:
+            if strategy:
+                update_options = get_options_from_strategy(
+                    strategy=strategy,
+                    mode=mode,
+                    round=round,
+                    max_round_override=max_round_override,
+                    operation=operation,
+                )
+                logger.info(f"Adding extracted options to {update_options_keyword}")
+                kwargs[update_options_keyword] = update_options
 
-    return wrapper
+            return fn(*args, **kwargs)
+
+        return wrapper
+
+    return _wrapper
 
 
 def verify_configuration(input_strategy: Strategy, raise_on_error: bool = True) -> bool:

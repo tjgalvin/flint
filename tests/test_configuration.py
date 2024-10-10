@@ -265,7 +265,7 @@ def test_get_mask_options_from_path(package_strategy_path):
         assert masking[k] == masking2[k]
 
 
-@wrapper_options_from_strategy
+@wrapper_options_from_strategy(update_options_keyword="update_options")
 def print_return_values(update_options):
     return "Jack", update_options
 
@@ -285,7 +285,7 @@ def test_wrapper_function(package_strategy_path):
 
     with pytest.raises(MissingParameter):
 
-        @wrapper_options_from_strategy
+        @wrapper_options_from_strategy(update_options_keyword="JackNotHere")
         def no_workie():
             return 1
 
