@@ -327,7 +327,7 @@ def wrapper_options_from_strategy(fn: Callable) -> Callable:
         )
 
     def wrapper(
-        strategy: Union[Strategy, None, Path],
+        strategy: Union[Strategy, None, Path] = None,
         mode: str = "wsclean",
         *args,
         round: Union[str, int] = "initial",
@@ -335,15 +335,17 @@ def wrapper_options_from_strategy(fn: Callable) -> Callable:
         operation: Optional[str] = None,
         **kwargs,
     ) -> Dict[Any, Any]:
-        update_options = get_options_from_strategy(
-            strategy=strategy,
-            mode=mode,
-            round=round,
-            max_round_override=max_round_override,
-            operation=operation,
-        )
-        logger.info(f"Adding extracted options to {update_options_keyword}")
-        kwargs[update_options_keyword] = update_options
+        if strategy:
+            update_options = get_options_from_strategy(
+                strategy=strategy,
+                mode=mode,
+                round=round,
+                max_round_override=max_round_override,
+                operation=operation,
+            )
+            logger.info(f"Adding extracted options to {update_options_keyword}")
+            kwargs[update_options_keyword] = update_options
+
         return fn(*args, **kwargs)
 
     return wrapper
