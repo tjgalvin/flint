@@ -1,6 +1,6 @@
 # Change log
 
-# dev
+# 0.2.7
 
 - added in convolving of cubes to common resolution across channels
 - cubes are supported when computing the yandasoft linmos weights and trimming
