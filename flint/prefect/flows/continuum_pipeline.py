@@ -400,7 +400,6 @@ def process_science_fields(
                 fits_beam_masks = task_create_image_mask_model.map(
                     image=wsclean_cmds,
                     image_products=beam_aegean_outputs,
-                    min_snr=3.5,
                     update_masking_options=unmapped(masking_options),
                 )
 

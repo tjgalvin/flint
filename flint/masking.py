@@ -4,7 +4,7 @@ thought being towards FITS images.
 
 from __future__ import annotations
 
-from argparse import ArgumentParser
+from argparse import ArgumentParser, Namespace
 from pathlib import Path
 from typing import Collection, NamedTuple, Optional, Union
 
@@ -26,6 +26,8 @@ from flint.logging import logger
 from flint.naming import FITSMaskNames, create_fits_mask_names
 from flint.utils import get_pixels_per_beam
 
+# TODO: Need to remove a fair amount of old approaches, and deprecate some of the toy functions
+
 
 class MaskingOptions(NamedTuple):
     """Contains options for the creation of clean masks from some subject
@@ -36,16 +38,16 @@ class MaskingOptions(NamedTuple):
     base_snr_clip: float = 4
     """A base clipping level to be used should other options not be activated"""
     flood_fill: bool = True
-    """Whether to attempt to flood fill when constructing a mask. This should be `True` for `grow_low_snr_islands` and `suppress_artefacts   to have an effect. """
+    """Whether to attempt to flood fill when constructing a mask. This should be `True` for ``grow_low_snr_islands`` and ``suppress_artefacts`` to have an effect. """
     flood_fill_positive_seed_clip: float = 4.5
-    """The clipping level to seed islands that will be grown to lower SNR"""
+    """The clipping level to seed islands that will be grown to lower signal metric"""
     flood_fill_positive_flood_clip: float = 1.5
     """Clipping level used to grow seeded islands down to"""
     flood_fill_use_mbc: bool = False
     """If True, the clipping levels are used as the `increase_factor` when using a minimum absolute clip"""
     flood_fill_use_mbc_box_size: int = 75
     """The size of the mbc box size should mbc be used"""
-    suppress_artefacts: bool = True
+    suppress_artefacts: bool = False
     """Whether to attempt artefacts based on the presence of significant negatives"""
     suppress_artefacts_negative_seed_clip: float = 5
     """The significance level of a negative island for the sidelobe suppression to be activated. This should be a positive number (the signal map is internally inverted)"""
@@ -59,12 +61,16 @@ class MaskingOptions(NamedTuple):
     """The minimum significance levels of pixels to be to seed low SNR islands for consideration"""
     grow_low_snr_island_size: int = 768
     """The number of pixels an island has to be for it to be accepted"""
-    minimum_boxcar: bool = True
+    minimum_boxcar: bool = False
     """Use the boxcar minimum threshold to compare to remove artefacts"""
     minimum_boxcar_size: int = 100
     """Size of the boxcar filter"""
     minimum_boxcar_increase_factor: float = 1.2
     """The factor used to construct minimum positive signal threshold for an island """
+    beam_shape_erode: bool = False
+    """Erode the mask using the shape of the restoring beam"""
+    beam_shape_erode_minimum_response: float = 0.6
+    """The minimum response of the beam that is used to form t he erode structure shape"""
 
     def with_options(self, **kwargs) -> MaskingOptions:
         """Return a new instance of the MaskingOptions"""
@@ -109,7 +115,7 @@ def consider_beam_mask_round(
     )  # type: ignore
 
 
-def make_beam_msk_kernel(
+def create_beam_mask_kernel(
     fits_header: fits.Header, kernel_size=100, minimum_response: float = 0.6
 ) -> np.ndarray:
     """Make a mask using the shape of a beam in a FITS Header object. The
@@ -128,9 +134,12 @@ def make_beam_msk_kernel(
     Returns:
         np.ndarray: Boolean mask of the kernel shape
     """
+    assert (
+        0.0 < minimum_response < 1.0
+    ), f"{minimum_response=}, should be between 0 to 1 (exclusive)"
 
     POSITION_KEYS = ("CDELT1", "CDELT2")
-    if all([key in fits_header for key in POSITION_KEYS]):
+    if not all([key in fits_header for key in POSITION_KEYS]):
         raise KeyError(f"{POSITION_KEYS=}  all need to be present")
 
     beam = Beam.from_fits_header(fits_header)
@@ -146,6 +155,48 @@ def make_beam_msk_kernel(
     )
 
     return k.array > (np.max(k.array) * minimum_response)
+
+
+def beam_shape_erode(
+    mask: np.ndarray, fits_header: fits.Header, minimum_response: float = 0.6
+) -> np.ndarray:
+    """Construct a kernel representing the shape of the restoring beam at
+    a particular level, and use it as the basis of a binary erosion of the
+    input mask.
+
+    The ``fits_header`` is used to construct the beam shape that matches the
+    same pixel size
+
+    Args:
+        mask (np.ndarray): The current mask that will be eroded based on the beam shape
+        fits_header (fits.Header): The fits header of the mask used to generate the beam kernel shape
+        minimum_response (float, optional): The minimum response of the main restoring beam to craft the shape from. Defaults to 0.6.
+
+    Returns:
+        np.ndarray: The eroded beam shape
+    """
+
+    if not all([key in fits_header for key in ["BMAJ", "BMIN", "BPA"]]):
+        logger.warning(
+            "Beam parameters missing. Not performing the beam shape erosion. "
+        )
+        return mask
+
+    logger.info(f"Eroding the mask using the beam shape with {minimum_response=}")
+    beam_mask_kernel = create_beam_mask_kernel(
+        fits_header=fits_header, minimum_response=minimum_response
+    )
+
+    # This handles any unsqueezed dimensions
+    beam_mask_kernel = beam_mask_kernel.reshape(
+        mask.shape[:-2] + beam_mask_kernel.shape
+    )
+
+    erode_mask = scipy_binary_erosion(
+        input=mask, iterations=1, structure=beam_mask_kernel
+    )
+
+    return erode_mask.astype(mask.dtype)
 
 
 def extract_beam_mask_from_mosaic(
@@ -304,6 +355,7 @@ def minimum_boxcar_artefact_mask(
     island region is larger to the maximum signal then that island
     is omitted.
 
+    This is planned to be deprecated.
 
     Args:
         signal (np.ndarray): The input signl to use
@@ -314,6 +366,10 @@ def minimum_boxcar_artefact_mask(
     Returns:
         np.ndarray: _description_
     """
+    import warnings
+
+    warnings.warn("minimum_boxcar_artefacts to be removed. ", DeprecationWarning)
+    return island_mask
 
     logger.info(
         f"Running boxcar minimum island clip with {boxcar_size=} {increase_factor=}"
@@ -365,7 +421,7 @@ def suppress_artefact_mask(
     pixels_per_beam: Optional[float] = None,
     large_island_threshold: float = 1.0,
 ) -> np.ndarray:
-    """Attempt to grow mask that sepresses artefacts around bright sources. Small islands
+    """Attempt to grow mask that suppresses artefacts around bright sources. Small islands
     of negative emission seed pixels, which then grow out. Bright positive pixels are not
     allowed to change (which presumably are the source of negative artetfacts).
 
@@ -377,6 +433,8 @@ def suppress_artefact_mask(
 
     For this reason the guard mask should be sufficiently high to protect the main source but nuke the fask positive islands
 
+    Consider using ``minimum_absolute_clip``, which has a simpler set of options and has
+    largely the same intended result.
 
     Args:
         signal (np.ndarray): The signal mask,
@@ -466,11 +524,8 @@ def _verify_set_positive_seed_clip(
 
 
 def reverse_negative_flood_fill(
+    base_image: np.ndarray,
     masking_options: MaskingOptions,
-    image: Optional[np.ndarray] = None,
-    rms: Optional[np.ndarray] = None,
-    background: Optional[np.ndarray] = None,
-    signal: Optional[np.ndarray] = None,
     pixels_per_beam: Optional[float] = None,
 ) -> np.ndarray:
     """Attempt to:
@@ -498,15 +553,12 @@ def reverse_negative_flood_fill(
     * if there are bright negative artefacts there are likely bright positive artefacts nearby
     * such negative pixels are ~10% level artefacts from a presumed bright sources
 
-    Optionally, the `growlow_snr_mask` may also be considered via the `grow_low_snr` and `grow_low_island_size`
+    Optionally, the `grow_low_snr_mask` may also be considered via the `grow_low_snr` and `grow_low_island_size`
     parameters.
 
     Args:
+        base_image (np.ndarray): The base image or signal map that is used throughout the fill procedure.
         masking_options (MaskingOptions): Options to carry out masking.
-        image (Optional[np.ndarray], optional): The total intensity pixels to have the mask for. Defaults to None.
-        rms (Optional[np.ndarray], optional): The noise across the image. Defaults to None.
-        background (Optional[np.ndarray], optional): The background acros the image. If None, zeros are assumed. Defaults to None.
-        signal(Optional[np.ndarray], optional): A signal map. Defaults to None.
         pixels_per_beam (Optional[float], optional): The number of pixels that cover a beam. Defaults to None.
 
     Returns:
@@ -516,18 +568,14 @@ def reverse_negative_flood_fill(
     logger.info("Will be reversing flood filling")
     logger.info(f"{masking_options=} ")
 
-    signal = _get_signal_image(
-        image=image, rms=rms, background=background, signal=signal
-    )
-
-    if masking_options.flood_fill_use_mbc and image is not None:
+    if masking_options.flood_fill_use_mbc:
         positive_mask = minimum_absolute_clip(
-            image=image,
+            image=base_image,
             increase_factor=masking_options.flood_fill_positive_seed_clip,
             box_size=masking_options.flood_fill_use_mbc_box_size,
         )
         flood_floor_mask = minimum_absolute_clip(
-            image=image,
+            image=base_image,
             increase_factor=masking_options.flood_fill_positive_flood_clip,
             box_size=masking_options.flood_fill_use_mbc_box_size,
         )
@@ -535,13 +583,13 @@ def reverse_negative_flood_fill(
         # Sanity check the upper clip level, you rotten seadog
         positive_seed_clip = _verify_set_positive_seed_clip(
             positive_seed_clip=masking_options.flood_fill_positive_seed_clip,
-            signal=signal,
+            signal=base_image,
         )
         # Here we create the mask image that will start the binary dilation
         # process, and we will ensure only pixels above the `positive_flood_clip`
         # are allowed to be dilated. In other words we are growing the mask
-        positive_mask = signal >= positive_seed_clip
-        flood_floor_mask = signal > masking_options.flood_fill_positive_flood_clip
+        positive_mask = base_image >= positive_seed_clip
+        flood_floor_mask = base_image > masking_options.flood_fill_positive_flood_clip
 
     positive_dilated_mask = scipy_binary_dilation(
         input=positive_mask,
@@ -552,7 +600,7 @@ def reverse_negative_flood_fill(
 
     if masking_options.minimum_boxcar:
         positive_dilated_mask = minimum_boxcar_artefact_mask(
-            signal=signal,
+            signal=base_image,
             island_mask=positive_dilated_mask,
             boxcar_size=masking_options.minimum_boxcar_size,
             increase_factor=masking_options.minimum_boxcar_increase_factor,
@@ -561,7 +609,7 @@ def reverse_negative_flood_fill(
     negative_dilated_mask = None
     if masking_options.suppress_artefacts:
         negative_dilated_mask = suppress_artefact_mask(
-            signal=signal,
+            signal=base_image,
             negative_seed_clip=masking_options.suppress_artefacts_negative_seed_clip,
             guard_negative_dilation=masking_options.suppress_artefacts_guard_negative_dilation,
             pixels_per_beam=pixels_per_beam,
@@ -573,7 +621,7 @@ def reverse_negative_flood_fill(
 
     if masking_options.grow_low_snr_island:
         low_snr_mask = grow_low_snr_mask(
-            signal=signal,
+            signal=base_image,
             grow_low_snr=masking_options.grow_low_snr_island_clip,
             grow_low_island_size=masking_options.grow_low_snr_island_size,
             region_mask=negative_dilated_mask,
@@ -583,17 +631,57 @@ def reverse_negative_flood_fill(
     return positive_dilated_mask.astype(np.int32)
 
 
+def _create_signal_from_rmsbkg(
+    image: Union[Path, np.ndarray],
+    rms: Union[Path, np.ndarray],
+    bkg: Union[Path, np.ndarray],
+) -> np.ndarray:
+    logger.info("Creating signal image")
+
+    if isinstance(image, Path):
+        with fits.open(image) as in_fits:
+            logger.info(f"Loading {image}")
+            image = in_fits[0].data  # type: ignore
+
+    assert isinstance(
+        image, np.ndarray
+    ), f"Expected the image to be a numpy array by now, instead have {type(image)}"
+
+    if isinstance(bkg, Path):
+        with fits.open(bkg) as in_fits:
+            logger.info(f"Loading {bkg=}")
+            bkg = in_fits[0].data  # type: ignore
+
+    logger.info("Subtracting background")
+    image -= bkg
+
+    if isinstance(rms, Path):
+        with fits.open(rms) as in_fits:
+            logger.info(f"Loading {rms=}")
+            rms = in_fits[0].data  # type: ignore
+
+    logger.info("Dividing by rms")
+    image /= rms
+
+    return np.array(image)
+
+
+def _need_to_make_signal(masking_options: MaskingOptions) -> bool:
+    """Isolated functions to consider whether a signal image is needed"""
+    return not masking_options.flood_fill_use_mbc
+
+
 def create_snr_mask_from_fits(
     fits_image_path: Path,
-    fits_rms_path: Path,
-    fits_bkg_path: Path,
     masking_options: MaskingOptions,
+    fits_rms_path: Optional[Path],
+    fits_bkg_path: Optional[Path],
     create_signal_fits: bool = False,
     overwrite: bool = True,
 ) -> FITSMaskNames:
     """Create a mask for an input FITS image based on a signal to noise given a corresponding pair of RMS and background FITS images.
 
-    Internally the signal image is computed as something akin to:
+    Internally should a signal image be needed it is computed as something akin to:
     > signal = (image - background) / rms
 
     This is done in a staged manner to minimise the number of (potentially large) images
@@ -602,13 +690,15 @@ def create_snr_mask_from_fits(
     Each of the input images needs to share the same shape. This means that compression
     features offered by some tooling (e.g. BANE --compress) can not be used.
 
+    Depending on the `MaksingOptions` used the signal image may not be needed.
+
     Once the signal map as been computed, all pixels below ``min_snr`` are flagged.
 
     Args:
         fits_image_path (Path): Path to the FITS file containing an image
-        fits_rms_path (Path): Path to the FITS file with an RMS image corresponding to ``fits_image_path``
-        fits_bkg_path (Path): Path to the FITS file with an baclground image corresponding to ``fits_image_path``
         masking_options (MaskingOptions): Configurables on the masking operation procedure.
+        fits_rms_path (Optional[Path], optional): Path to the FITS file with an RMS image corresponding to ``fits_image_path``. Defaults to None.
+        fits_bkg_path (Optional[Path], optional): Path to the FITS file with an background image corresponding to ``fits_image_path``. Defaults to None.
         create_signal_fits (bool, optional): Create an output signal map. Defaults to False.
         overwrite (bool): Passed to `fits.writeto`, and will overwrite files should they exist. Defaults to True.
 
@@ -619,24 +709,27 @@ def create_snr_mask_from_fits(
         fits_image=fits_image_path, include_signal_path=create_signal_fits
     )
 
+    # TODOL Make the bkg and rms images optional. Don't need to load if mbc is usede
     with fits.open(fits_image_path) as fits_image:
-        fits_header = fits_image[0].header
-        with fits.open(fits_bkg_path) as fits_bkg:
-            logger.info("Subtracting background")
-            signal_data = fits_image[0].data - fits_bkg[0].data
+        fits_header = fits_image[0].header  # type: ignore
+        signal_data = fits_image[0].data  # type: ignore
 
-    with fits.open(fits_rms_path) as fits_rms:
-        logger.info("Dividing by RMS")
-        signal_data /= fits_rms[0].data
-
-    if create_signal_fits:
-        logger.info(f"Writing {mask_names.signal_fits}")
-        fits.writeto(
-            filename=mask_names.signal_fits,
-            data=signal_data,
-            header=fits_header,
-            overwrite=overwrite,
+    if _need_to_make_signal(masking_options=masking_options):
+        assert isinstance(fits_rms_path, Path) and isinstance(
+            fits_bkg_path, Path
+        ), "Expected paths for input RMS and bkg FITS files"
+        signal_data = _create_signal_from_rmsbkg(
+            image=signal_data, rms=fits_rms_path, bkg=fits_bkg_path
         )
+
+        if create_signal_fits:
+            logger.info(f"Writing {mask_names.signal_fits}")
+            fits.writeto(
+                filename=mask_names.signal_fits,
+                data=signal_data,
+                header=fits_header,
+                overwrite=overwrite,
+            )
 
     pixels_per_beam = get_pixels_per_beam(fits_path=fits_image_path)
 
@@ -647,10 +740,10 @@ def create_snr_mask_from_fits(
     # case of a fits file, the file may either contain a single frequency or it may
     # contain a cube of images.
     if masking_options.flood_fill:
-        # TODO: This function should really just accept a MaskingOptions directly
+        # TODO: The image and signal masks both don't need to be inputs. Image is only used
+        # if mbc = True
         mask_data = reverse_negative_flood_fill(
-            signal=np.squeeze(signal_data),
-            image=np.squeeze(fits.getdata(fits_image_path)),
+            base_image=np.squeeze(signal_data),
             masking_options=masking_options,
             pixels_per_beam=pixels_per_beam,
         )
@@ -658,6 +751,13 @@ def create_snr_mask_from_fits(
     else:
         logger.info(f"Clipping using a {masking_options.base_snr_clip=}")
         mask_data = (signal_data > masking_options.base_snr_clip).astype(np.int32)
+
+    if masking_options.beam_shape_erode:
+        mask_data = beam_shape_erode(
+            mask=mask_data,
+            fits_header=fits_header,
+            minimum_response=masking_options.beam_shape_erode_minimum_response,
+        )
 
     logger.info(f"Writing {mask_names.mask_fits}")
     fits.writeto(
@@ -680,15 +780,15 @@ def get_parser() -> ArgumentParser:
     )
 
     fits_parser = subparser.add_parser(
-        "snrmask",
-        help="Create a mask for an image, using its RMS and BKG images (e.g. outputs from BANE). Output FITS image will default to the image with a mask suffix.",
+        "mask",
+        help="Create a mask for an image, potentially using its RMS and BKG images (e.g. outputs from BANE). Output FITS image will default to the image with a mask suffix.",
     )
     fits_parser.add_argument("image", type=Path, help="Path to the input image. ")
     fits_parser.add_argument(
-        "rms", type=Path, help="Path to the RMS of the input image. "
+        "--rms-fits", type=Path, help="Path to the RMS of the input image. "
     )
     fits_parser.add_argument(
-        "bkg", type=Path, help="Path to the BKG of the input image. "
+        "--bkg-fits", type=Path, help="Path to the BKG of the input image. "
     )
 
     fits_parser.add_argument(
@@ -698,22 +798,52 @@ def get_parser() -> ArgumentParser:
         help="Save the signal map. Defaults to the same as image with a signal suffix. ",
     )
     fits_parser.add_argument(
-        "--min-snr",
+        "--base-snr-clip",
         type=float,
         default=4,
-        help="The minimum SNR required for a pixel to be marked as valid. ",
+        help="A base clipping level to be used should other options not be activated",
     )
     fits_parser.add_argument(
-        "--use-butterworth",
+        "--flood-fill",
         action="store_true",
-        help="Apply a butterworth filter to smooth the total intensity image before computing the signal map. ",
+        default=False,
+        help="Whether to attempt to flood fill when constructing a mask. This should be `True` for `grow_low_snr_islands` and `suppress_artefacts to have an effect. ",
     )
     fits_parser.add_argument(
-        "--connectivity-shape",
-        default=(4, 4),
-        nargs=2,
+        "--flood-fill-positive-seed-clip",
+        type=float,
+        default=4.5,
+        help="The clipping level to seed islands that will be grown to lower signal metric",
+    )
+    fits_parser.add_argument(
+        "--flood-fill-positive-flood-clip",
+        type=float,
+        default=1.5,
+        help="Clipping level used to grow seeded islands down to",
+    )
+    fits_parser.add_argument(
+        "--flood-fill-use-mbc",
+        action="store_true",
+        default=False,
+        help="If True, the clipping levels are used as the `increase_factor` when using a minimum absolute clip. ",
+    )
+    fits_parser.add_argument(
+        "--flood-fill-use-mbc-box-size",
         type=int,
-        help="The connectivity matrix to use when applying a binary erosion. Only used when using the butterworth smoothing filter. ",
+        default=75,
+        help="The size of the mbc box size should mbc be used",
+    )
+    fits_parser.add_argument(
+        "--beam-shape-erode",
+        action="store_true",
+        default=False,
+        help="Erode the mask using the shape of the restoring beam",
+    )
+    fits_parser.add_argument(
+        "--beam-shape-erode-minimum-response",
+        type=float,
+        default=0.6,
+        help="The minimum response of the beam that is used to form t he erode structure shape. Smaller numbers correspond to a larger shape which means islands are more aggressively removed",
     )
 
     extract_parser = subparser.add_parser(
@@ -736,17 +866,32 @@ def get_parser() -> ArgumentParser:
     return parser
 
 
+def _args_to_mask_options(args: Namespace) -> MaskingOptions:
+    """Convert the args namespace to a MaskingOptions"""
+    masking_options = MaskingOptions(
+        base_snr_clip=args.base_snr_clip,
+        flood_fill=args.flood_fill,
+        flood_fill_positive_seed_clip=args.flood_fill_positive_seed_clip,
+        flood_fill_positive_flood_clip=args.flood_fill_positive_flood_clip,
+        flood_fill_use_mbc=args.flood_fill_use_mbc,
+        flood_fill_use_mbc_box_size=args.flood_fill_use_mbc_box_size,
+        beam_shape_erode=args.beam_shape_erode,
+        beam_shape_erode_minimum_response=args.beam_shape_erode_minimum_response,
+    )
+    return masking_options
+
+
 def cli():
     parser = get_parser()
 
     args = parser.parse_args()
 
-    if args.mode == "snrmask":
-        masking_options = MaskingOptions(base_snr_clip=args.min_snr)
+    if args.mode == "mask":
+        masking_options = _args_to_mask_options(args=args)
         create_snr_mask_from_fits(
             fits_image_path=args.image,
-            fits_rms_path=args.rms,
-            fits_bkg_path=args.bkg,
+            fits_rms_path=args.rms_fits,
+            fits_bkg_path=args.bkg_fits,
             create_signal_fits=args.save_signal,
             masking_options=masking_options,
         )
