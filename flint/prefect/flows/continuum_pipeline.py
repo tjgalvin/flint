@@ -292,7 +292,7 @@ def process_science_fields(
     wsclean_cmds = task_wsclean_imager.map(
         in_ms=preprocess_science_mss,
         wsclean_container=field_options.wsclean_container,
-        strategy=strategy,
+        strategy=unmapped(strategy),
         mode="wsclean",
         round="initial",
     )
@@ -406,7 +406,7 @@ def process_science_fields(
                 in_ms=cal_mss,
                 wsclean_container=field_options.wsclean_container,
                 fits_mask=fits_beam_masks,
-                strategy=strategy,
+                strategy=unmapped(strategy),
                 mode="wsclean",
                 round=current_round,
             )
