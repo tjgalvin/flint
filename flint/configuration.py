@@ -7,6 +7,7 @@ throughout the pipeline.
 import inspect
 import shutil
 from argparse import ArgumentParser
+from functools import wraps
 from pathlib import Path
 from typing import Any, Callable, Dict, Optional, Union
 
@@ -337,6 +338,7 @@ def wrapper_options_from_strategy(update_options_keyword: str):
                 f"{update_options_keyword=} not in {signature.parameters} of {fn.__name__}"
             )
 
+        @wraps(fn)
         def wrapper(
             strategy: Union[Strategy, None, Path] = None,
             mode: str = "wsclean",
@@ -359,6 +361,8 @@ def wrapper_options_from_strategy(update_options_keyword: str):
 
             return fn(*args, **kwargs)
 
+        # Update the name of the function to indicate the wrapped function
+        # wrapper.__name__ = fn.__name__
         return wrapper
 
     return _wrapper

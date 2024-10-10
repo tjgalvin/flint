@@ -267,11 +267,14 @@ def test_get_mask_options_from_path(package_strategy_path):
 
 @wrapper_options_from_strategy(update_options_keyword="update_options")
 def print_return_values(update_options):
+    "example doc string"
     return "Jack", update_options
 
 
 def test_wrapper_function(package_strategy_path):
     """See if the wrapper to get strategy options from a file works nicely"""
+    assert print_return_values.__name__ == "print_return_values"
+    assert print_return_values.__doc__ == "example doc string"
     val, update_options = print_return_values(strategy=package_strategy_path)
     assert val == "Jack"
 
