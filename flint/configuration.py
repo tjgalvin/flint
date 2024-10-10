@@ -7,7 +7,6 @@ throughout the pipeline.
 import inspect
 import shutil
 from argparse import ArgumentParser
-from functools import wraps
 from pathlib import Path
 from typing import Any, Callable, Dict, Optional, Union
 
@@ -340,7 +339,7 @@ def wrapper_options_from_strategy(update_options_keyword: str):
 
         # This will ensure that the properties of ``fn`` like ``__name__`` and ``__doc``
         # are carried forward to the returned function
-        @wraps(fn)
+        # @wraps(fn)
         def wrapper(
             *args,
             strategy: Union[Strategy, None, Path] = None,
@@ -363,6 +362,9 @@ def wrapper_options_from_strategy(update_options_keyword: str):
 
             return fn(*args, **kwargs)
 
+        # Keep the function name and docs correct
+        wrapper.__name__ = fn.__name__
+        wrapper.__doc__ = fn.__doc__
         return wrapper
 
     return _wrapper
