@@ -1,6 +1,7 @@
 import filecmp
 from pathlib import Path
 
+from click import MissingParameter
 import pytest
 
 from flint.configuration import (
@@ -13,6 +14,7 @@ from flint.configuration import (
     get_selfcal_options_from_yaml,
     load_strategy_yaml,
     verify_configuration,
+    wrapper_options_from_strategy,
     write_strategy_to_yaml,
 )
 from flint.utils import get_packaged_resource_path
@@ -253,8 +255,6 @@ def test_get_mask_options_from_path(package_strategy_path):
         strategy=package_strategy, mode="masking", round=1
     )
 
-    print(strategy)
-
     assert isinstance(masking2, dict)
     assert masking2["flood_fill_positive_seed_clip"] == 40
 
@@ -263,6 +263,31 @@ def test_get_mask_options_from_path(package_strategy_path):
             continue
 
         assert masking[k] == masking2[k]
+
+
+@wrapper_options_from_strategy
+def print_return_values(update_options):
+    return "Jack", update_options
+
+
+def test_wrapper_function(package_strategy_path):
+    """See if the wrapper to get strategy options from a file works nicely"""
+    val, update_options = print_return_values(strategy=package_strategy_path)
+    assert val == "Jack"
+
+    val, update_options = print_return_values(
+        strategy=Path(package_strategy_path), mode="masking", round="initial"
+    )
+
+    assert val == "Jack"
+    assert isinstance(update_options, dict)
+    assert update_options["flood_fill_positive_seed_clip"] == 4.5
+
+    with pytest.raises(MissingParameter):
+
+        @wrapper_options_from_strategy
+        def no_workie():
+            return 1
 
 
 def test_get_modes(package_strategy):
