@@ -338,11 +338,13 @@ def wrapper_options_from_strategy(update_options_keyword: str):
                 f"{update_options_keyword=} not in {signature.parameters} of {fn.__name__}"
             )
 
+        # This will ensure that the properties of ``fn`` like ``__name__`` and ``__doc``
+        # are carried forward to the returned function
         @wraps(fn)
         def wrapper(
+            *args,
             strategy: Union[Strategy, None, Path] = None,
             mode: str = "wsclean",
-            *args,
             round: Union[str, int] = "initial",
             max_round_override: bool = True,
             operation: Optional[str] = None,
@@ -361,8 +363,6 @@ def wrapper_options_from_strategy(update_options_keyword: str):
 
             return fn(*args, **kwargs)
 
-        # Update the name of the function to indicate the wrapped function
-        # wrapper.__name__ = fn.__name__
         return wrapper
 
     return _wrapper

@@ -266,6 +266,35 @@ def test_get_mask_options_from_path(package_strategy_path):
 
 
 @wrapper_options_from_strategy(update_options_keyword="update_options")
+def return_values(val, update_options):
+    "example doc string"
+    return val, update_options
+
+
+def test_wrapper_function_val(package_strategy_path):
+    """See if the wrapper to get strategy options from a file works nicely"""
+
+    # These asserts make sure that the  properties of the wrappede function are
+    # carried forward to the returned function
+    assert return_values.__name__ == "return_values"
+    assert return_values.__doc__ == "example doc string"
+    in_val = "ThisIsJack"
+    val, update_options = return_values(val=in_val, strategy=package_strategy_path)
+    assert val == in_val
+
+    val, update_options = return_values(
+        val=in_val,
+        strategy=Path(package_strategy_path),
+        mode="masking",
+        round="initial",
+    )
+
+    assert val == in_val
+    assert isinstance(update_options, dict)
+    assert update_options["flood_fill_positive_seed_clip"] == 4.5
+
+
+@wrapper_options_from_strategy(update_options_keyword="update_options")
 def print_return_values(update_options):
     "example doc string"
     return "Jack", update_options
@@ -273,6 +302,9 @@ def print_return_values(update_options):
 
 def test_wrapper_function(package_strategy_path):
     """See if the wrapper to get strategy options from a file works nicely"""
+
+    # These asserts make sure that the  properties of the wrappede function are
+    # carried forward to the returned function
     assert print_return_values.__name__ == "print_return_values"
     assert print_return_values.__doc__ == "example doc string"
     val, update_options = print_return_values(strategy=package_strategy_path)
