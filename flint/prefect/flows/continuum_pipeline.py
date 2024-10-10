@@ -292,7 +292,9 @@ def process_science_fields(
     wsclean_cmds = task_wsclean_imager.map(
         in_ms=preprocess_science_mss,
         wsclean_container=field_options.wsclean_container,
-        update_wsclean_options=unmapped(wsclean_init),
+        strategy=strategy,
+        mode="wsclean",
+        round="initial",
     )
     # TODO: This should be waited!
     beam_summaries = task_create_beam_summary.map(
@@ -353,9 +355,6 @@ def process_science_fields(
             gain_cal_options = get_options_from_strategy(
                 strategy=strategy, mode="gaincal", round=current_round
             )
-            wsclean_options = get_options_from_strategy(
-                strategy=strategy, mode="wsclean", round=current_round
-            )
 
             skip_gaincal_current_round = consider_skip_selfcal_on_round(
                 current_round=current_round,
@@ -406,8 +405,10 @@ def process_science_fields(
             wsclean_cmds = task_wsclean_imager.map(
                 in_ms=cal_mss,
                 wsclean_container=field_options.wsclean_container,
-                update_wsclean_options=unmapped(wsclean_options),
                 fits_mask=fits_beam_masks,
+                strategy=strategy,
+                mode="wsclean",
+                round=current_round,
             )
             archive_wait_for.extend(wsclean_cmds)
 

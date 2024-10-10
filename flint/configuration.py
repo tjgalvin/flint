@@ -313,6 +313,9 @@ def wrapper_options_from_strategy(update_options_keyword: str):
     keyword argument that the options extracted from the strategy
     file will be passed to.
 
+    Should `strategy` ne set to ``None`` then the function
+    will be called without any options being extracted.
+
     Args:
         update_options_keyword (str): The keyword option to update from the wrapped function
     """

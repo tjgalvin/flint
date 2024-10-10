@@ -18,6 +18,7 @@ from flint.calibrate.aocalibrate import (
     select_aosolution_for_ms,
 )
 from flint.coadd.linmos import LinmosCommand, linmos_images
+from flint.configuration import wrapper_options_from_strategy
 from flint.convol import (
     BeamShape,
     convolve_images,
@@ -274,6 +275,7 @@ def task_gaincal_applycal_ms(
 
 
 @task
+@wrapper_options_from_strategy(update_options_keyword="update_wsclean_options")
 def task_wsclean_imager(
     in_ms: Union[ApplySolutions, MS],
     wsclean_container: Path,
