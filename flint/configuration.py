@@ -8,7 +8,7 @@ import inspect
 import shutil
 from argparse import ArgumentParser
 from pathlib import Path
-from typing import Any, Callable, Dict, Optional, Union
+from typing import Any, Callable, Dict, ParamSpec, Optional, TypeVar, Union
 
 from click import MissingParameter
 import yaml
@@ -311,6 +311,10 @@ def get_options_from_strategy(
     return options
 
 
+P = ParamSpec("P")
+T = TypeVar("T")
+
+
 def wrapper_options_from_strategy(update_options_keyword: str):
     """Decorator intended to allow options to be pulled from the
     strategy file when function is called. See ``get_options_from_strategy``
@@ -327,7 +331,7 @@ def wrapper_options_from_strategy(update_options_keyword: str):
         update_options_keyword (str): The keyword option to update from the wrapped function
     """
 
-    def _wrapper(fn: Callable) -> Callable:
+    def _wrapper(fn: Callable[P, T]) -> Callable:
         """Decorator intended to allow options to be pulled from the
         strategy file when function is called. See ``get_options_from_strategy``
         for options that this function enables.
@@ -348,14 +352,14 @@ def wrapper_options_from_strategy(update_options_keyword: str):
         # prefect confuxed, wherein it throws an error saying the strategy, mode, round options
         # are not part of the wrappede fn's function signature.
         def wrapper(
-            *args,
             strategy: Union[Strategy, None, Path] = None,
             mode: str = "wsclean",
             round_info: Union[str, int] = "initial",
             max_round_override: bool = True,
             operation: Optional[str] = None,
-            **kwargs,
-        ) -> Dict[Any, Any]:
+            *args: P.args,
+            **kwargs: P.kwargs,
+        ) -> T:
             if update_options_keyword in kwargs:
                 logger.info(
                     f"{update_options_keyword} explicitly passed to {fn.__name__}. Ignoring attempts to load strategy file. "
