@@ -349,7 +349,11 @@ def wrapper_options_from_strategy(update_options_keyword: str):
             operation: Optional[str] = None,
             **kwargs,
         ) -> Dict[Any, Any]:
-            if strategy:
+            if update_options_keyword in kwargs:
+                logger.info(
+                    f"{update_options_keyword} explicitly passed to {fn.__name__}. Ignoring attempts to load strategy file. "
+                )
+            elif strategy:
                 update_options = get_options_from_strategy(
                     strategy=strategy,
                     mode=mode,

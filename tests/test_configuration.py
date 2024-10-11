@@ -266,7 +266,7 @@ def test_get_mask_options_from_path(package_strategy_path):
 
 
 @wrapper_options_from_strategy(update_options_keyword="update_options")
-def return_values(val, update_options):
+def return_values(val, update_options=None):
     "example doc string"
     return val, update_options
 
@@ -281,6 +281,14 @@ def test_wrapper_function_val(package_strategy_path):
     in_val = "ThisIsJack"
     val, update_options = return_values(val=in_val, strategy=package_strategy_path)
     assert val == in_val
+
+    # This makes sure that we can override the lookup from the strategy file
+    # by explicitly passing through the update_options keyword
+    val, update_options = return_values(
+        val=in_val, update_options="ignoring", strategy=package_strategy_path
+    )
+    assert val == in_val
+    assert update_options == "ignoring"
 
     val, update_options = return_values(
         val=in_val,
