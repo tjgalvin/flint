@@ -380,7 +380,7 @@ def wrapper_options_from_strategy(update_options_keyword: str):
         # Keep the function name and docs correct
         wrapper.__name__ = fn.__name__
         wrapper.__doc__ = fn.__doc__
-        return wrapper
+        return wrapper  # type: ignore
 
     return _wrapper
 
