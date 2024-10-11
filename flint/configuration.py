@@ -337,9 +337,9 @@ def wrapper_options_from_strategy(update_options_keyword: str):
                 f"{update_options_keyword=} not in {signature.parameters} of {fn.__name__}"
             )
 
-        # This will ensure that the properties of ``fn`` like ``__name__`` and ``__doc``
-        # are carried forward to the returned function
-        # @wraps(fn)
+        # Don't use functools.wraps. It does something to the expected args/kwargs that makes
+        # prefect confuxed, wherein it throws an error saying the strategy, mode, round options
+        # are not part of the wrappede fn's function signature.
         def wrapper(
             *args,
             strategy: Union[Strategy, None, Path] = None,

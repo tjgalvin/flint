@@ -352,10 +352,6 @@ def process_science_fields(
         with tags(f"selfcal-{current_round}"):
             final_round = current_round == field_options.rounds
 
-            gain_cal_options = get_options_from_strategy(
-                strategy=strategy, mode="gaincal", round=current_round
-            )
-
             skip_gaincal_current_round = consider_skip_selfcal_on_round(
                 current_round=current_round,
                 skip_selfcal_on_rounds=field_options.skip_selfcal_on_rounds,
@@ -363,13 +359,15 @@ def process_science_fields(
 
             cal_mss = task_gaincal_applycal_ms.map(
                 ms=wsclean_cmds,
-                round=current_round,
-                update_gain_cal_options=unmapped(gain_cal_options),
+                selfcal_round=current_round,
                 archive_input_ms=field_options.zip_ms,
                 skip_selfcal=skip_gaincal_current_round,
                 rename_ms=field_options.rename_ms,
                 archive_cal_table=True,
                 casa_container=field_options.casa_container,
+                strategy=unmapped(strategy),
+                mode="gaincal",
+                round=current_round,
                 wait_for=[
                     field_summary
                 ],  # To make sure field summary is created with unzipped MSs
