@@ -296,7 +296,8 @@ def process_science_fields(
         strategy=unmapped(strategy),
         mode="wsclean",
         round_info="initial",
-    )
+    )  # type: ignore
+
     # TODO: This should be waited!
     beam_summaries = task_create_beam_summary.map(
         ms=preprocess_science_mss, imageset=wsclean_cmds
@@ -400,7 +401,7 @@ def process_science_fields(
                     strategy=unmapped(strategy),
                     mode="masking",
                     round_info=current_round,
-                )
+                )  # type: ignore
 
             wsclean_cmds = task_wsclean_imager.map(
                 in_ms=cal_mss,
@@ -409,7 +410,7 @@ def process_science_fields(
                 strategy=unmapped(strategy),
                 mode="wsclean",
                 round_info=current_round,
-            )
+            )  # type: ignore
             archive_wait_for.extend(wsclean_cmds)
 
             # Do source finding on the last round of self-cal'ed images

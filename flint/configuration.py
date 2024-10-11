@@ -331,7 +331,7 @@ def wrapper_options_from_strategy(update_options_keyword: str):
         update_options_keyword (str): The keyword option to update from the wrapped function
     """
 
-    def _wrapper(fn: Callable[P, T]) -> Callable:
+    def _wrapper(fn: Callable[P, T]) -> Callable[P, T]:
         """Decorator intended to allow options to be pulled from the
         strategy file when function is called. See ``get_options_from_strategy``
         for options that this function enables.
