@@ -277,15 +277,16 @@ def process_science_fields(
         logger.info("No wsclean container provided. Rerutning. ")
         return
 
-    wsclean_init = get_options_from_strategy(
-        strategy=strategy, mode="wsclean", round="initial"
-    )
-
     if field_options.potato_container:
+        # The call into potato peel task has two potential update option keywords.
+        # So for the moment we will not use the task decorated version.
+        potato_wsclean_init = get_options_from_strategy(
+            strategy=strategy, mode="wsclean", round="initial"
+        )
         preprocess_science_mss = task_potato_peel.map(
             ms=preprocess_science_mss,
             potato_container=field_options.potato_container,
-            update_wsclean_options=unmapped(wsclean_init),
+            update_wsclean_options=unmapped(potato_wsclean_init),
         )
 
     stokes_v_mss = preprocess_science_mss
@@ -380,12 +381,11 @@ def process_science_fields(
                 mask_rounds=field_options.use_beam_mask_rounds,
                 allow_beam_masks=field_options.use_beam_masks,
             ):
-                masking_options = get_options_from_strategy(
-                    strategy=strategy, mode="masking", round=current_round
-                )
-                # The is intended to only run the beam wise aegean if it has not already
-                # been done. Immedidatedly after the first round of shallow cleaning
-                # aegean could be run.
+                # Early versions of the masking procedure required aegean outputs
+                # to construct the sginal images. Since aegean is run outside of
+                # this self-cal loop once already, we can skip their creation on
+                # the first loop
+                # TODO: the aegean outputs are only needed should the signal image be needed
                 beam_aegean_outputs = (
                     task_run_bane_and_aegean.map(
                         image=wsclean_cmds,
@@ -397,7 +397,9 @@ def process_science_fields(
                 fits_beam_masks = task_create_image_mask_model.map(
                     image=wsclean_cmds,
                     image_products=beam_aegean_outputs,
-                    update_masking_options=unmapped(masking_options),
+                    strategy=unmapped(strategy),
+                    mode="masking",
+                    round=current_round,
                 )
 
             wsclean_cmds = task_wsclean_imager.map(

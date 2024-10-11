@@ -816,6 +816,7 @@ def _create_convolve_linmos_cubes(
 
 
 @task
+@wrapper_options_from_strategy(update_options_keyword="update_masking_options")
 def task_create_image_mask_model(
     image: Union[LinmosCommand, ImageSet, WSCleanCommand],
     image_products: AegeanOutputs,
