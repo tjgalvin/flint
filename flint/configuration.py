@@ -222,7 +222,7 @@ def get_image_options_from_yaml(
 def get_options_from_strategy(
     strategy: Union[Strategy, None, Path],
     mode: str = "wsclean",
-    round: Union[str, int] = "initial",
+    round_info: Union[str, int] = "initial",
     max_round_override: bool = True,
     operation: Optional[str] = None,
 ) -> Dict[Any, Any]:
@@ -241,7 +241,7 @@ def get_options_from_strategy(
     Args:
         strategy (Union[Strategy,None,Path]): A loaded instance of a strategy file. If `None` is provided then an empty dictionary is returned. If `Path` attempt to load the strategy file.
         mode (str, optional): Which set of options to load. Typical values are `wsclean`, `gaincal` and `masking`. Defaults to "wsclean".
-        round (Union[str, int], optional): Which round to load options for. May be `initial` or an `int` (which indicated a self-calibration round). Defaults to "initial".
+        round_info (Union[str, int], optional): Which round to load options for. May be `initial` or an `int` (which indicated a self-calibration round). Defaults to "initial".
         max_round_override (bool, optional): Check whether an integer round number is recorded. If it is higher than the largest self-cal round specified, set it to the last self-cal round. If False this is not performed. Defaults to True.
         operation (Optional[str], optional): Get options related to a specific operation. Defaults to None.
 
@@ -262,13 +262,17 @@ def get_options_from_strategy(
     assert isinstance(
         strategy, (Strategy, dict)
     ), f"Unknown input strategy type {type(strategy)}"
-    assert round == "initial" or isinstance(
-        round, int
-    ), f"{round=} not a known value or type. "
+    assert round_info == "initial" or isinstance(
+        round_info, int
+    ), f"{round_info=} not a known value or type. "
 
     # Override the round if requested
-    if isinstance(round, int) and max_round_override and "selfcal" in strategy.keys():
-        round = min(round, max(strategy["selfcal"].keys()))
+    if (
+        isinstance(round_info, int)
+        and max_round_override
+        and "selfcal" in strategy.keys()
+    ):
+        round_info = min(round_info, max(strategy["selfcal"].keys()))
 
     # step one, get the defaults
     options = dict(**strategy["defaults"][mode]) if mode in strategy["defaults"] else {}
@@ -286,16 +290,19 @@ def get_options_from_strategy(
             )
         if mode in strategy[operation]:
             update_options = dict(**strategy[operation][mode])
-    elif round == "initial":
+    elif round_info == "initial":
         # separate function to avoid a missing mode from raising value error
         if mode in strategy["initial"]:
             update_options = dict(**strategy["initial"][mode])
-    elif isinstance(round, int):
+    elif isinstance(round_info, int):
         # separate function to avoid a missing mode from raising value error
-        if round in strategy["selfcal"] and mode in strategy["selfcal"][round]:
-            update_options = dict(**strategy["selfcal"][round][mode])
+        if (
+            round_info in strategy["selfcal"]
+            and mode in strategy["selfcal"][round_info]
+        ):
+            update_options = dict(**strategy["selfcal"][round_info][mode])
     else:
-        raise ValueError(f"{round=} not recognised.")
+        raise ValueError(f"{round_info=} not recognised.")
 
     if update_options:
         logger.debug(f"Updating options with {update_options=}")
@@ -344,7 +351,7 @@ def wrapper_options_from_strategy(update_options_keyword: str):
             *args,
             strategy: Union[Strategy, None, Path] = None,
             mode: str = "wsclean",
-            round: Union[str, int] = "initial",
+            round_info: Union[str, int] = "initial",
             max_round_override: bool = True,
             operation: Optional[str] = None,
             **kwargs,
@@ -357,7 +364,7 @@ def wrapper_options_from_strategy(update_options_keyword: str):
                 update_options = get_options_from_strategy(
                     strategy=strategy,
                     mode=mode,
-                    round=round,
+                    round_info=round_info,
                     max_round_override=max_round_override,
                     operation=operation,
                 )
@@ -408,7 +415,7 @@ def verify_configuration(input_strategy: Strategy, raise_on_error: bool = True) 
     else:
         for key in input_strategy["initial"].keys():
             options = get_options_from_strategy(
-                strategy=input_strategy, mode=key, round="initial"
+                strategy=input_strategy, mode=key, round_info="initial"
             )
             try:
                 _ = MODE_OPTIONS_MAPPING[key](**options)
@@ -423,16 +430,16 @@ def verify_configuration(input_strategy: Strategy, raise_on_error: bool = True) 
         if not all([isinstance(i, int) for i in round_keys]):
             errors.append("The keys into the self-calibration should be ints. ")
 
-        for round in round_keys:
-            for mode in input_strategy["selfcal"][round]:
+        for round_info in round_keys:
+            for mode in input_strategy["selfcal"][round_info]:
                 options = get_options_from_strategy(
-                    strategy=input_strategy, mode=mode, round=round
+                    strategy=input_strategy, mode=mode, round_info=round_info
                 )
                 try:
                     _ = MODE_OPTIONS_MAPPING[mode](**options)
                 except TypeError as typeerror:
                     errors.append(
-                        f"{mode=} mode in {round=} incorrectly formed. {typeerror} "
+                        f"{mode=} mode in {round_info=} incorrectly formed. {typeerror} "
                     )
 
     for operation in KNOWN_OPERATIONS:
@@ -534,8 +541,8 @@ def create_default_yaml(
     if selfcal_rounds:
         logger.info(f"Creating {selfcal_rounds} self-calibration rounds. ")
         selfcal: Dict[int, Any] = {}
-        for round in range(1, selfcal_rounds + 1):
-            selfcal[round] = {
+        for selfcal_round in range(1, selfcal_rounds + 1):
+            selfcal[selfcal_round] = {
                 "wsclean": {},
                 "gaincal": {},
                 "masking": {},

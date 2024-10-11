@@ -193,19 +193,19 @@ def test_get_options(strategy):
     # test to make sure we can generate a default strategy (see pytest fixture)
     # read it backinto a dict and then access some attributes
     wsclean = get_options_from_strategy(
-        strategy=strategy, mode="wsclean", round="initial"
+        strategy=strategy, mode="wsclean", round_info="initial"
     )
     assert isinstance(wsclean, dict)
     # example options
     assert wsclean["data_column"] == "CORRECTED_DATA"
 
-    wsclean = get_options_from_strategy(strategy=strategy, mode="wsclean", round=1)
+    wsclean = get_options_from_strategy(strategy=strategy, mode="wsclean", round_info=1)
     assert isinstance(wsclean, dict)
     # example options
     assert wsclean["data_column"] == "CORRECTED_DATA"
 
     archive = get_options_from_strategy(
-        strategy=strategy, mode="archive", round="initial"
+        strategy=strategy, mode="archive", round_info="initial"
     )
     assert isinstance(archive, dict)
     assert len(archive) > 0
@@ -218,14 +218,14 @@ def test_get_options(strategy):
 def test_get_mask_options(package_strategy):
     """Basic test to prove masking operation behaves well"""
     masking = get_options_from_strategy(
-        strategy=package_strategy, mode="masking", round="initial"
+        strategy=package_strategy, mode="masking", round_info="initial"
     )
 
     assert isinstance(masking, dict)
     assert masking["flood_fill_positive_seed_clip"] == 4.5
 
     masking2 = get_options_from_strategy(
-        strategy=package_strategy, mode="masking", round=1
+        strategy=package_strategy, mode="masking", round_info=1
     )
 
     print(strategy)
@@ -245,14 +245,14 @@ def test_get_mask_options_from_path(package_strategy_path):
     package_strategy = Path(package_strategy_path)
 
     masking = get_options_from_strategy(
-        strategy=package_strategy, mode="masking", round="initial"
+        strategy=package_strategy, mode="masking", round_info="initial"
     )
 
     assert isinstance(masking, dict)
     assert masking["flood_fill_positive_seed_clip"] == 4.5
 
     masking2 = get_options_from_strategy(
-        strategy=package_strategy, mode="masking", round=1
+        strategy=package_strategy, mode="masking", round_info=1
     )
 
     assert isinstance(masking2, dict)
@@ -294,7 +294,7 @@ def test_wrapper_function_val(package_strategy_path):
         val=in_val,
         strategy=Path(package_strategy_path),
         mode="masking",
-        round="initial",
+        round_info="initial",
     )
 
     assert val == in_val
@@ -319,7 +319,7 @@ def test_wrapper_function(package_strategy_path):
     assert val == "Jack"
 
     val, update_options = print_return_values(
-        strategy=Path(package_strategy_path), mode="masking", round="initial"
+        strategy=Path(package_strategy_path), mode="masking", round_info="initial"
     )
 
     assert val == "Jack"
@@ -339,7 +339,7 @@ def test_get_modes(package_strategy):
     strategy = package_strategy
 
     for mode in ("wsclean", "gaincal", "masking"):
-        test = get_options_from_strategy(strategy=strategy, mode=mode, round=1)
+        test = get_options_from_strategy(strategy=strategy, mode=mode, round_info=1)
         assert isinstance(test, dict)
         assert len(test.keys()) > 0
 
@@ -347,10 +347,12 @@ def test_get_modes(package_strategy):
 def test_bad_round(package_strategy):
     # make sure incorrect round is handled properly
     with pytest.raises(AssertionError):
-        _ = get_options_from_strategy(strategy=package_strategy, round="doesnotexists")
+        _ = get_options_from_strategy(
+            strategy=package_strategy, round_info="doesnotexists"
+        )
 
     with pytest.raises(AssertionError):
-        _ = get_options_from_strategy(strategy=package_strategy, round=1.23456)
+        _ = get_options_from_strategy(strategy=package_strategy, round_info=1.23456)
 
 
 def test_empty_strategy_empty_options():
@@ -366,7 +368,7 @@ def test_max_round_override(package_strategy):
     # round is sound
     strategy = package_strategy
 
-    opts = get_options_from_strategy(strategy=strategy, round=9999)
+    opts = get_options_from_strategy(strategy=strategy, round_info=9999)
     assert isinstance(opts, dict)
     assert opts["data_column"] == "TheLastRoundIs3"
 
@@ -395,15 +397,19 @@ def test_updated_get_options(package_strategy):
     assert isinstance(strategy, Strategy)
 
     wsclean_init = get_options_from_strategy(
-        strategy=strategy, mode="wsclean", round="initial"
+        strategy=strategy, mode="wsclean", round_info="initial"
     )
     assert wsclean_init["data_column"] == "CORRECTED_DATA"
 
-    wsclean_1 = get_options_from_strategy(strategy=strategy, mode="wsclean", round=1)
+    wsclean_1 = get_options_from_strategy(
+        strategy=strategy, mode="wsclean", round_info=1
+    )
     assert wsclean_init["data_column"] == "CORRECTED_DATA"
     assert wsclean_1["data_column"] == "EXAMPLE"
 
-    wsclean_2 = get_options_from_strategy(strategy=strategy, mode="wsclean", round=2)
+    wsclean_2 = get_options_from_strategy(
+        strategy=strategy, mode="wsclean", round_info=2
+    )
     assert wsclean_2["multiscale"] is False
     assert wsclean_2["data_column"] == "CORRECTED_DATA"
 

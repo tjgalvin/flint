@@ -281,7 +281,7 @@ def process_science_fields(
         # The call into potato peel task has two potential update option keywords.
         # So for the moment we will not use the task decorated version.
         potato_wsclean_init = get_options_from_strategy(
-            strategy=strategy, mode="wsclean", round="initial"
+            strategy=strategy, mode="wsclean", round_info="initial"
         )
         preprocess_science_mss = task_potato_peel.map(
             ms=preprocess_science_mss,
@@ -295,7 +295,7 @@ def process_science_fields(
         wsclean_container=field_options.wsclean_container,
         strategy=unmapped(strategy),
         mode="wsclean",
-        round="initial",
+        round_info="initial",
     )
     # TODO: This should be waited!
     beam_summaries = task_create_beam_summary.map(
@@ -368,7 +368,7 @@ def process_science_fields(
                 casa_container=field_options.casa_container,
                 strategy=unmapped(strategy),
                 mode="gaincal",
-                round=current_round,
+                round_info=current_round,
                 wait_for=[
                     field_summary
                 ],  # To make sure field summary is created with unzipped MSs
@@ -399,7 +399,7 @@ def process_science_fields(
                     image_products=beam_aegean_outputs,
                     strategy=unmapped(strategy),
                     mode="masking",
-                    round=current_round,
+                    round_info=current_round,
                 )
 
             wsclean_cmds = task_wsclean_imager.map(
@@ -408,7 +408,7 @@ def process_science_fields(
                 fits_mask=fits_beam_masks,
                 strategy=unmapped(strategy),
                 mode="wsclean",
-                round=current_round,
+                round_info=current_round,
             )
             archive_wait_for.extend(wsclean_cmds)
 
