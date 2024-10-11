@@ -368,7 +368,7 @@ def minimum_boxcar_artefact_mask(
     """
     import warnings
 
-    warnings.warn("minimum_boxcar_artefacts to be removed. ", DeprecationWarning)
+    warnings.warning("minimum_boxcar_artefacts to be removed. ", DeprecationWarning)
     return island_mask
 
     logger.info(
