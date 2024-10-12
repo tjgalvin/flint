@@ -1,5 +1,9 @@
 # Change log
 
+# dev
+
+- added `wrapper_options_from_strategy` decorator helper function
+
 # 0.2.7
 
 - added in convolving of cubes to common resolution across channels

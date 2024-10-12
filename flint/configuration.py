@@ -4,11 +4,13 @@ be used to specify the options for imaging and self-calibration
 throughout the pipeline.
 """
 
+import inspect
 import shutil
 from argparse import ArgumentParser
 from pathlib import Path
-from typing import Any, Dict, Optional, Union
+from typing import Any, Callable, Dict, ParamSpec, Optional, TypeVar, Union
 
+from click import MissingParameter
 import yaml
 
 from flint.imager.wsclean import WSCleanOptions
@@ -220,7 +222,7 @@ def get_image_options_from_yaml(
 def get_options_from_strategy(
     strategy: Union[Strategy, None, Path],
     mode: str = "wsclean",
-    round: Union[str, int] = "initial",
+    round_info: Union[str, int] = "initial",
     max_round_override: bool = True,
     operation: Optional[str] = None,
 ) -> Dict[Any, Any]:
@@ -239,7 +241,7 @@ def get_options_from_strategy(
     Args:
         strategy (Union[Strategy,None,Path]): A loaded instance of a strategy file. If `None` is provided then an empty dictionary is returned. If `Path` attempt to load the strategy file.
         mode (str, optional): Which set of options to load. Typical values are `wsclean`, `gaincal` and `masking`. Defaults to "wsclean".
-        round (Union[str, int], optional): Which round to load options for. May be `initial` or an `int` (which indicated a self-calibration round). Defaults to "initial".
+        round_info (Union[str, int], optional): Which round to load options for. May be `initial` or an `int` (which indicated a self-calibration round). Defaults to "initial".
         max_round_override (bool, optional): Check whether an integer round number is recorded. If it is higher than the largest self-cal round specified, set it to the last self-cal round. If False this is not performed. Defaults to True.
         operation (Optional[str], optional): Get options related to a specific operation. Defaults to None.
 
@@ -260,13 +262,17 @@ def get_options_from_strategy(
     assert isinstance(
         strategy, (Strategy, dict)
     ), f"Unknown input strategy type {type(strategy)}"
-    assert round == "initial" or isinstance(
-        round, int
-    ), f"{round=} not a known value or type. "
+    assert round_info == "initial" or isinstance(
+        round_info, int
+    ), f"{round_info=} not a known value or type. "
 
     # Override the round if requested
-    if isinstance(round, int) and max_round_override and "selfcal" in strategy.keys():
-        round = min(round, max(strategy["selfcal"].keys()))
+    if (
+        isinstance(round_info, int)
+        and max_round_override
+        and "selfcal" in strategy.keys()
+    ):
+        round_info = min(round_info, max(strategy["selfcal"].keys()))
 
     # step one, get the defaults
     options = dict(**strategy["defaults"][mode]) if mode in strategy["defaults"] else {}
@@ -284,22 +290,99 @@ def get_options_from_strategy(
             )
         if mode in strategy[operation]:
             update_options = dict(**strategy[operation][mode])
-    elif round == "initial":
+    elif round_info == "initial":
         # separate function to avoid a missing mode from raising value error
         if mode in strategy["initial"]:
             update_options = dict(**strategy["initial"][mode])
-    elif isinstance(round, int):
+    elif isinstance(round_info, int):
         # separate function to avoid a missing mode from raising value error
-        if round in strategy["selfcal"] and mode in strategy["selfcal"][round]:
-            update_options = dict(**strategy["selfcal"][round][mode])
+        if (
+            round_info in strategy["selfcal"]
+            and mode in strategy["selfcal"][round_info]
+        ):
+            update_options = dict(**strategy["selfcal"][round_info][mode])
     else:
-        raise ValueError(f"{round=} not recognised.")
+        raise ValueError(f"{round_info=} not recognised.")
 
     if update_options:
         logger.debug(f"Updating options with {update_options=}")
         options.update(update_options)
 
     return options
+
+
+P = ParamSpec("P")
+T = TypeVar("T")
+
+
+def wrapper_options_from_strategy(update_options_keyword: str):
+    """Decorator intended to allow options to be pulled from the
+    strategy file when function is called. See ``get_options_from_strategy``
+    for options that this function enables.
+
+    ``update_options_keyword`` specifies the name of the
+    keyword argument that the options extracted from the strategy
+    file will be passed to.
+
+    Should `strategy` ne set to ``None`` then the function
+    will be called without any options being extracted.
+
+    Args:
+        update_options_keyword (str): The keyword option to update from the wrapped function
+    """
+
+    def _wrapper(fn: Callable[P, T]) -> Callable[P, T]:
+        """Decorator intended to allow options to be pulled from the
+        strategy file when function is called. See ``get_options_from_strategy``
+        for options that this function enables.
+
+        Args:
+            fn (Callable): The callable function that will be assigned the additional keywords
+
+        Returns:
+            Callable: The updated function
+        """
+        signature = inspect.signature(fn)
+        if update_options_keyword not in signature.parameters:
+            raise MissingParameter(
+                f"{update_options_keyword=} not in {signature.parameters} of {fn.__name__}"
+            )
+
+        # Don't use functools.wraps. It does something to the expected args/kwargs that makes
+        # prefect confuxed, wherein it throws an error saying the strategy, mode, round options
+        # are not part of the wrappede fn's function signature.
+        def wrapper(
+            strategy: Union[Strategy, None, Path] = None,
+            mode: str = "wsclean",
+            round_info: Union[str, int] = "initial",
+            max_round_override: bool = True,
+            operation: Optional[str] = None,
+            *args: P.args,
+            **kwargs: P.kwargs,
+        ) -> T:
+            if update_options_keyword in kwargs:
+                logger.info(
+                    f"{update_options_keyword} explicitly passed to {fn.__name__}. Ignoring attempts to load strategy file. "
+                )
+            elif strategy:
+                update_options = get_options_from_strategy(
+                    strategy=strategy,
+                    mode=mode,
+                    round_info=round_info,
+                    max_round_override=max_round_override,
+                    operation=operation,
+                )
+                logger.info(f"Adding extracted options to {update_options_keyword}")
+                kwargs[update_options_keyword] = update_options
+
+            return fn(*args, **kwargs)
+
+        # Keep the function name and docs correct
+        wrapper.__name__ = fn.__name__
+        wrapper.__doc__ = fn.__doc__
+        return wrapper  # type: ignore
+
+    return _wrapper
 
 
 def verify_configuration(input_strategy: Strategy, raise_on_error: bool = True) -> bool:
@@ -336,7 +419,7 @@ def verify_configuration(input_strategy: Strategy, raise_on_error: bool = True) 
     else:
         for key in input_strategy["initial"].keys():
             options = get_options_from_strategy(
-                strategy=input_strategy, mode=key, round="initial"
+                strategy=input_strategy, mode=key, round_info="initial"
             )
             try:
                 _ = MODE_OPTIONS_MAPPING[key](**options)
@@ -351,16 +434,16 @@ def verify_configuration(input_strategy: Strategy, raise_on_error: bool = True) 
         if not all([isinstance(i, int) for i in round_keys]):
             errors.append("The keys into the self-calibration should be ints. ")
 
-        for round in round_keys:
-            for mode in input_strategy["selfcal"][round]:
+        for round_info in round_keys:
+            for mode in input_strategy["selfcal"][round_info]:
                 options = get_options_from_strategy(
-                    strategy=input_strategy, mode=mode, round=round
+                    strategy=input_strategy, mode=mode, round_info=round_info
                 )
                 try:
                     _ = MODE_OPTIONS_MAPPING[mode](**options)
                 except TypeError as typeerror:
                     errors.append(
-                        f"{mode=} mode in {round=} incorrectly formed. {typeerror} "
+                        f"{mode=} mode in {round_info=} incorrectly formed. {typeerror} "
                     )
 
     for operation in KNOWN_OPERATIONS:
@@ -462,8 +545,8 @@ def create_default_yaml(
     if selfcal_rounds:
         logger.info(f"Creating {selfcal_rounds} self-calibration rounds. ")
         selfcal: Dict[int, Any] = {}
-        for round in range(1, selfcal_rounds + 1):
-            selfcal[round] = {
+        for selfcal_round in range(1, selfcal_rounds + 1):
+            selfcal[selfcal_round] = {
                 "wsclean": {},
                 "gaincal": {},
                 "masking": {},

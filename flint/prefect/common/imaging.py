@@ -18,6 +18,7 @@ from flint.calibrate.aocalibrate import (
     select_aosolution_for_ms,
 )
 from flint.coadd.linmos import LinmosCommand, linmos_images
+from flint.configuration import wrapper_options_from_strategy
 from flint.convol import (
     BeamShape,
     convolve_images,
@@ -224,9 +225,10 @@ def task_zip_ms(in_item: WSCleanCommand) -> Path:
 
 
 @task
+@wrapper_options_from_strategy(update_options_keyword="update_gain_cal_options")
 def task_gaincal_applycal_ms(
     ms: Union[MS, WSCleanCommand],
-    round: int,
+    selfcal_round: int,
     casa_container: Path,
     update_gain_cal_options: Optional[Dict[str, Any]] = None,
     archive_input_ms: bool = False,
@@ -238,7 +240,7 @@ def task_gaincal_applycal_ms(
 
     Args:
         ms (Union[MS, WSCleanCommand]): A resulting wsclean output. This is used purely to extract the ``.ms`` attribute.
-        round (int): Counter indication which self-calibration round is being performed. A name is included based on this.
+        selfcal_round (int): Counter indication which self-calibration round is being performed. A name is included based on this.
         casa_container (Path): A path to a singularity container with CASA tooling.
         update_gain_cal_options (Optional[Dict[str, Any]], optional): Options used to overwrite the default ``gaincal`` options. Defaults to None.
         archive_input_ms (bool, optional): If True the input measurement set is zipped. Defaults to False.
@@ -263,7 +265,7 @@ def task_gaincal_applycal_ms(
 
     return gaincal_applycal_ms(
         ms=ms,
-        round=round,
+        round=selfcal_round,
         casa_container=casa_container,
         update_gain_cal_options=update_gain_cal_options,
         archive_input_ms=archive_input_ms,
@@ -274,6 +276,7 @@ def task_gaincal_applycal_ms(
 
 
 @task
+@wrapper_options_from_strategy(update_options_keyword="update_wsclean_options")
 def task_wsclean_imager(
     in_ms: Union[ApplySolutions, MS],
     wsclean_container: Path,
@@ -813,6 +816,7 @@ def _create_convolve_linmos_cubes(
 
 
 @task
+@wrapper_options_from_strategy(update_options_keyword="update_masking_options")
 def task_create_image_mask_model(
     image: Union[LinmosCommand, ImageSet, WSCleanCommand],
     image_products: AegeanOutputs,

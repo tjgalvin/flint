@@ -277,23 +277,27 @@ def process_science_fields(
         logger.info("No wsclean container provided. Rerutning. ")
         return
 
-    wsclean_init = get_options_from_strategy(
-        strategy=strategy, mode="wsclean", round="initial"
-    )
-
     if field_options.potato_container:
+        # The call into potato peel task has two potential update option keywords.
+        # So for the moment we will not use the task decorated version.
+        potato_wsclean_init = get_options_from_strategy(
+            strategy=strategy, mode="wsclean", round_info="initial"
+        )
         preprocess_science_mss = task_potato_peel.map(
             ms=preprocess_science_mss,
             potato_container=field_options.potato_container,
-            update_wsclean_options=unmapped(wsclean_init),
+            update_wsclean_options=unmapped(potato_wsclean_init),
         )
 
     stokes_v_mss = preprocess_science_mss
     wsclean_cmds = task_wsclean_imager.map(
         in_ms=preprocess_science_mss,
         wsclean_container=field_options.wsclean_container,
-        update_wsclean_options=unmapped(wsclean_init),
-    )
+        strategy=unmapped(strategy),
+        mode="wsclean",
+        round_info="initial",
+    )  # type: ignore
+
     # TODO: This should be waited!
     beam_summaries = task_create_beam_summary.map(
         ms=preprocess_science_mss, imageset=wsclean_cmds
@@ -350,13 +354,6 @@ def process_science_fields(
         with tags(f"selfcal-{current_round}"):
             final_round = current_round == field_options.rounds
 
-            gain_cal_options = get_options_from_strategy(
-                strategy=strategy, mode="gaincal", round=current_round
-            )
-            wsclean_options = get_options_from_strategy(
-                strategy=strategy, mode="wsclean", round=current_round
-            )
-
             skip_gaincal_current_round = consider_skip_selfcal_on_round(
                 current_round=current_round,
                 skip_selfcal_on_rounds=field_options.skip_selfcal_on_rounds,
@@ -364,13 +361,15 @@ def process_science_fields(
 
             cal_mss = task_gaincal_applycal_ms.map(
                 ms=wsclean_cmds,
-                round=current_round,
-                update_gain_cal_options=unmapped(gain_cal_options),
+                selfcal_round=current_round,
                 archive_input_ms=field_options.zip_ms,
                 skip_selfcal=skip_gaincal_current_round,
                 rename_ms=field_options.rename_ms,
                 archive_cal_table=True,
                 casa_container=field_options.casa_container,
+                strategy=unmapped(strategy),
+                mode="gaincal",
+                round_info=current_round,
                 wait_for=[
                     field_summary
                 ],  # To make sure field summary is created with unzipped MSs
@@ -383,12 +382,11 @@ def process_science_fields(
                 mask_rounds=field_options.use_beam_mask_rounds,
                 allow_beam_masks=field_options.use_beam_masks,
             ):
-                masking_options = get_options_from_strategy(
-                    strategy=strategy, mode="masking", round=current_round
-                )
-                # The is intended to only run the beam wise aegean if it has not already
-                # been done. Immedidatedly after the first round of shallow cleaning
-                # aegean could be run.
+                # Early versions of the masking procedure required aegean outputs
+                # to construct the sginal images. Since aegean is run outside of
+                # this self-cal loop once already, we can skip their creation on
+                # the first loop
+                # TODO: the aegean outputs are only needed should the signal image be needed
                 beam_aegean_outputs = (
                     task_run_bane_and_aegean.map(
                         image=wsclean_cmds,
@@ -400,15 +398,19 @@ def process_science_fields(
                 fits_beam_masks = task_create_image_mask_model.map(
                     image=wsclean_cmds,
                     image_products=beam_aegean_outputs,
-                    update_masking_options=unmapped(masking_options),
-                )
+                    strategy=unmapped(strategy),
+                    mode="masking",
+                    round_info=current_round,
+                )  # type: ignore
 
             wsclean_cmds = task_wsclean_imager.map(
                 in_ms=cal_mss,
                 wsclean_container=field_options.wsclean_container,
-                update_wsclean_options=unmapped(wsclean_options),
                 fits_mask=fits_beam_masks,
-            )
+                strategy=unmapped(strategy),
+                mode="wsclean",
+                round_info=current_round,
+            )  # type: ignore
             archive_wait_for.extend(wsclean_cmds)
 
             # Do source finding on the last round of self-cal'ed images
