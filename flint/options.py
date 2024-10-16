@@ -11,8 +11,10 @@ from __future__ import (  # Used for mypy/pylance to like the return type of MS.
     annotations,
 )
 
+from argparse import ArgumentParser, Namespace
 from pathlib import Path
-from typing import Any, Collection, Dict, List, NamedTuple, Optional, Union
+from pydantic import BaseModel, ConfigDict
+from typing import Any, Collection, Dict, List, NamedTuple, Optional, Union, TypeVar
 
 import yaml
 
@@ -40,10 +42,93 @@ def options_to_dict(input_options: Any) -> Dict:
     if "_asdict" in dir(input_options):
         return input_options._asdict()
 
+    if issubclass(input_options, BaseModel):
+        return dict(**input_options.__dict__)
+
     try:
         return dict(**input_options)
     except TypeError:
         raise TypeError(f"Input options is not known: {type(input_options)}")
+
+
+T = TypeVar("T", bound=BaseModel)
+
+
+class BaseOptions(BaseModel):
+    """A base class that Options style flint classes can
+    inherit from. This is derived from ``pydantic.BaseModel``,
+    and can be used for validation of supplied values.
+
+    Class derived from ``BaseOptions`` are immutable by
+    default, and have the docstrings of attributes
+    extracted.
+    """
+
+    model_config = ConfigDict(from_attributes=True, use_attribute_docstrings=True)
+
+    def with_options(self: T, /, **kwargs) -> T:
+        new_args = self.__dict__.copy()
+        new_args.update(**kwargs)
+
+        return self.__class__(**new_args)
+
+
+def add_options_to_parser(
+    parser: ArgumentParser, options_class: type[BaseOptions]
+) -> ArgumentParser:
+    """Given an established argument parser and a class derived
+    from a ``pydantic.BaseModel``, populate the argument parser
+    with the model properties.
+
+    Args:
+        parser (ArgumentParser): Parser that arguments will be added to
+        options_class (type[BaseModel]): A ``Options`` style class derived from ``BaseOptions``
+
+    Returns:
+        ArgumentParser: Updated argument parser
+    """
+
+    assert issubclass(
+        options_class, BaseModel
+    ), f"{options_class=} is not a pydantic BaseModel"
+
+    for name, field in options_class.model_fields.items():
+        field_name = name.replace("_", "-")
+        field_name = f"--{field_name}" if not field.is_required() else field_name
+
+        field_default = field.default
+        action = "store"
+        if field.annotation is bool:
+            action = "store_false" if field.default else "store_true"
+            logger.info(f"{name=} {action=}")
+
+        parser.add_argument(
+            field_name, help=field.description, action=action, default=field_default
+        )
+
+    return parser
+
+
+U = TypeVar("U", bound=BaseOptions)
+
+
+def create_options_from_parser(parser_namespace: Namespace, options_class: U) -> U:
+    assert issubclass(
+        options_class,
+        BaseModel,  # type: ignore
+    ), f"{options_class=} is not a pydantic BaseModel"
+
+    args = (
+        vars(parser_namespace)
+        if not isinstance(parser_namespace, dict)
+        else parser_namespace
+    )
+
+    opts_dict = {}
+    for name, field in options_class.model_fields.items():
+        opts_dict[name] = args[name]
+
+    return options_class(**opts_dict)
 
 
 class BandpassOptions(NamedTuple):

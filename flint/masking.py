@@ -4,9 +4,9 @@ thought being towards FITS images.
 
 from __future__ import annotations
 
-from argparse import ArgumentParser, Namespace
+from argparse import ArgumentParser
 from pathlib import Path
-from typing import Collection, NamedTuple, Optional, Union
+from typing import Collection, Optional, Union
 
 import astropy.units as u
 import numpy as np
@@ -24,12 +24,13 @@ from radio_beam import Beam
 
 from flint.logging import logger
 from flint.naming import FITSMaskNames, create_fits_mask_names
+from flint.options import BaseOptions, add_options_to_parser, create_options_from_parser
 from flint.utils import get_pixels_per_beam
 
 # TODO: Need to remove a fair amount of old approaches, and deprecate some of the toy functions
 
 
-class MaskingOptions(NamedTuple):
+class MaskingOptions(BaseOptions):
     """Contains options for the creation of clean masks from some subject
     image. Clipping levels specified are in units of RMS (or sigma). They
     are NOT in absolute units.
@@ -37,7 +38,7 @@ class MaskingOptions(NamedTuple):
 
     base_snr_clip: float = 4
     """A base clipping level to be used should other options not be activated"""
-    flood_fill: bool = True
+    flood_fill: bool = False
     """Whether to attempt to flood fill when constructing a mask. This should be `True` for ``grow_low_snr_islands`` and ``suppress_artefacts`` to have an effect. """
     flood_fill_positive_seed_clip: float = 4.5
     """The clipping level to seed islands that will be grown to lower signal metric"""
@@ -70,14 +71,7 @@ class MaskingOptions(NamedTuple):
     beam_shape_erode: bool = False
     """Erode the mask using the shape of the restoring beam"""
     beam_shape_erode_minimum_response: float = 0.6
-    """The minimum response of the beam that is used to form t he erode structure shape"""
-
-    def with_options(self, **kwargs) -> MaskingOptions:
-        """Return a new instance of the MaskingOptions"""
-        _dict = self._asdict()
-        _dict.update(**kwargs)
-
-        return MaskingOptions(**_dict)
+    """The minimum response of the beam that is used to form the erode structure shape"""
 
 
 def consider_beam_mask_round(
@@ -784,66 +778,15 @@ def get_parser() -> ArgumentParser:
         help="Create a mask for an image, potentially using its RMS and BKG images (e.g. outputs from BANE). Output FITS image will default to the image with a mask suffix.",
     )
     fits_parser.add_argument("image", type=Path, help="Path to the input image. ")
+    fits_parser = add_options_to_parser(
+        parser=fits_parser, options_class=MaskingOptions
+    )
+
     fits_parser.add_argument(
         "--rms-fits", type=Path, help="Path to the RMS of the input image. "
     )
     fits_parser.add_argument(
         "--bkg-fits", type=Path, help="Path to the BKG of the input image. "
-    )
-
-    fits_parser.add_argument(
-        "-s",
-        "--save-signal",
-        action="store_true",
-        help="Save the signal map. Defaults to the same as image with a signal suffix. ",
-    )
-    fits_parser.add_argument(
-        "--base-snr-clip",
-        type=float,
-        default=4,
-        help="A base clipping level to be used should other options not be activated",
-    )
-    fits_parser.add_argument(
-        "--flood-fill",
-        action="store_true",
-        default=False,
-        help="Whether to attempt to flood fill when constructing a mask. This should be `True` for `grow_low_snr_islands` and `suppress_artefacts to have an effect. ",
-    )
-    fits_parser.add_argument(
-        "--flood-fill-positive-seed-clip",
-        type=float,
-        default=4.5,
-        help="The clipping level to seed islands that will be grown to lower signal metric",
-    )
-    fits_parser.add_argument(
-        "--flood-fill-positive-flood-clip",
-        type=float,
-        default=1.5,
-        help="Clipping level used to grow seeded islands down to",
-    )
-    fits_parser.add_argument(
-        "--flood-fill-use-mbc",
-        action="store_true",
-        default=False,
-        help="If True, the clipping levels are used as the `increase_factor` when using a minimum absolute clip. ",
-    )
-    fits_parser.add_argument(
-        "--flood-fill-use-mbc-box-size",
-        type=int,
-        default=75,
-        help="The size of the mbc box size should mbc be used",
-    )
-    fits_parser.add_argument(
-        "--beam-shape-erode",
-        action="store_true",
-        default=False,
-        help="Erode the mask using the shape of the restoring beam",
-    )
-    fits_parser.add_argument(
-        "--beam-shape-erode-minimum-response",
-        type=float,
-        default=0.6,
-        help="The minimum response of the beam that is used to form t he erode structure shape. Smaller numbers correspond to a larger shape which means islands are more aggressively removed",
     )
 
     extract_parser = subparser.add_parser(
@@ -866,28 +809,15 @@ def get_parser() -> ArgumentParser:
     return parser
 
 
-def _args_to_mask_options(args: Namespace) -> MaskingOptions:
-    """Convert the args namespace to a MaskingOptions"""
-    masking_options = MaskingOptions(
-        base_snr_clip=args.base_snr_clip,
-        flood_fill=args.flood_fill,
-        flood_fill_positive_seed_clip=args.flood_fill_positive_seed_clip,
-        flood_fill_positive_flood_clip=args.flood_fill_positive_flood_clip,
-        flood_fill_use_mbc=args.flood_fill_use_mbc,
-        flood_fill_use_mbc_box_size=args.flood_fill_use_mbc_box_size,
-        beam_shape_erode=args.beam_shape_erode,
-        beam_shape_erode_minimum_response=args.beam_shape_erode_minimum_response,
-    )
-    return masking_options
-
-
 def cli():
     parser = get_parser()
 
     args = parser.parse_args()
 
     if args.mode == "mask":
-        masking_options = _args_to_mask_options(args=args)
+        masking_options = create_options_from_parser(
+            parser_namespace=args, options_class=MaskingOptions
+        )
         create_snr_mask_from_fits(
             fits_image_path=args.image,
             fits_rms_path=args.rms_fits,
