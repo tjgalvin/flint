@@ -74,13 +74,18 @@ class BaseOptions(BaseModel):
     extracted.
     """
 
-    model_config = ConfigDict(from_attributes=True, use_attribute_docstrings=True)
+    model_config = ConfigDict(
+        from_attributes=True, use_attribute_docstrings=True, extra="forbid"
+    )
 
     def with_options(self: T, /, **kwargs) -> T:
         new_args = self.__dict__.copy()
         new_args.update(**kwargs)
 
         return self.__class__(**new_args)
+
+    def _asdict(self) -> Dict[str, Any]:
+        return self.__dict__
 
 
 def add_options_to_parser(
