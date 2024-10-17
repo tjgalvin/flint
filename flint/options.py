@@ -14,7 +14,17 @@ from __future__ import (  # Used for mypy/pylance to like the return type of MS.
 from argparse import ArgumentParser, Namespace
 from pathlib import Path
 from pydantic import BaseModel, ConfigDict
-from typing import Any, Collection, Dict, List, NamedTuple, Optional, Union, TypeVar
+from typing import (
+    Any,
+    Collection,
+    Dict,
+    List,
+    NamedTuple,
+    Optional,
+    Union,
+    TypeVar,
+    get_origin,
+)
 
 import yaml
 
@@ -92,18 +102,32 @@ def add_options_to_parser(
         options_class, BaseModel
     ), f"{options_class=} is not a pydantic BaseModel"
 
+    group = parser.add_argument_group(
+        title=f"Inputs for {options_class.__name__}",
+        description="Options for the masking options example",
+    )
+
     for name, field in options_class.model_fields.items():
         field_name = name.replace("_", "-")
         field_name = f"--{field_name}" if not field.is_required() else field_name
 
+        field_type = get_origin(field.annotation)
+
         field_default = field.default
         action = "store"
-        if field.annotation is bool:
+        nargs = None
+        if field_type is bool:
             action = "store_false" if field.default else "store_true"
-            logger.info(f"{name=} {action=}")
+            logger.debug(f"{name=} {action=}")
+        if field_type in (list, tuple, set):
+            nargs = "+"
 
-        parser.add_argument(
-            field_name, help=field.description, action=action, default=field_default
+        group.add_argument(
+            field_name,
+            help=field.description,
+            nargs=nargs,
+            action=action,
+            default=field_default,
         )
 
     return parser
