@@ -23,6 +23,7 @@ from typing import (
     Optional,
     Union,
     TypeVar,
+    get_args,
     get_origin,
 )
 
@@ -75,7 +76,7 @@ class BaseOptions(BaseModel):
     """
 
     model_config = ConfigDict(
-        from_attributes=True, use_attribute_docstrings=True, extra="forbid"
+        frozen=True, from_attributes=True, use_attribute_docstrings=True, extra="forbid"
     )
 
     def with_options(self: T, /, **kwargs) -> T:
@@ -117,6 +118,8 @@ def add_options_to_parser(
         field_name = f"--{field_name}" if not field.is_required() else field_name
 
         field_type = get_origin(field.annotation)
+        field_args = get_args(field.annotation)
+        iterable_types = (list, tuple, set)
 
         field_default = field.default
         action = "store"
@@ -124,7 +127,10 @@ def add_options_to_parser(
         if field_type is bool:
             action = "store_false" if field.default else "store_true"
             logger.debug(f"{name=} {action=}")
-        if field_type in (list, tuple, set):
+        elif field_type in iterable_types or (
+            field_type is Union
+            and any(get_origin(p) in iterable_types for p in field_args)
+        ):
             nargs = "+"
 
         group.add_argument(
