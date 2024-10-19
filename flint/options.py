@@ -121,25 +121,17 @@ def add_options_to_parser(
         field_args = get_args(field.annotation)
         iterable_types = (list, tuple, set)
 
-        field_default = field.default
-        action = "store"
-        nargs = None
-        if field_type is bool:
-            action = "store_false" if field.default else "store_true"
-            logger.debug(f"{name=} {action=}")
+        options = dict(action="store", help=field.description, default=field.default)
+
+        if field.annotation is bool:
+            options["action"] = "store_false" if field.default else "store_true"
         elif field_type in iterable_types or (
             field_type is Union
             and any(get_origin(p) in iterable_types for p in field_args)
         ):
-            nargs = "+"
+            options["nargs"] = "+"
 
-        group.add_argument(
-            field_name,
-            help=field.description,
-            nargs=nargs,
-            action=action,
-            default=field_default,
-        )
+        group.add_argument(field_name, **options)  # type: ignore
 
     return parser
 

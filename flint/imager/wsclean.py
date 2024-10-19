@@ -30,7 +30,12 @@ from flint.exceptions import CleanDivergenceError
 from flint.logging import logger
 from flint.ms import MS
 from flint.naming import create_image_cube_name, create_imaging_name_prefix
-from flint.options import options_to_dict
+from flint.options import (
+    options_to_dict,
+    BaseOptions,
+    add_options_to_parser,
+    create_options_from_parser,
+)
 from flint.sclient import run_singularity_command
 from flint.utils import (
     get_environment_variable,
@@ -57,7 +62,7 @@ class ImageSet(NamedTuple):
     """Residual images."""
 
 
-class WSCleanOptions(NamedTuple):
+class WSCleanOptions(BaseOptions):
     """A basic container to handle WSClean options. These attributes should
     conform to the same option name in the calling signature of wsclean
 
@@ -98,7 +103,7 @@ class WSCleanOptions(NamedTuple):
     """Enable multiscale deconvolution"""
     multiscale_scale_bias: float = 0.75
     """Multiscale bias term"""
-    multiscale_scales: Optional[Collection[int]] = (
+    multiscale_scales: Tuple[int, ...] = (
         0,
         15,
         25,
@@ -149,13 +154,6 @@ class WSCleanOptions(NamedTuple):
     """The path to a temporary directory where files will be wrritten. """
     pol: str = "i"
     """The polarisation to be imaged"""
-
-    def with_options(self, **kwargs) -> WSCleanOptions:
-        """Return a new instance of WSCleanOptions with updated components"""
-        _dict = self._asdict()
-        _dict.update(**kwargs)
-
-        return WSCleanOptions(**_dict)
 
 
 class WSCleanCommand(NamedTuple):
@@ -834,11 +832,8 @@ def get_parser() -> ArgumentParser:
         default=None,
         help="Path to a singularity container with wsclean installed. ",
     )
-    wsclean_parser.add_argument(
-        "--data-column",
-        type=str,
-        default="CORRECTED_DATA",
-        help="The column name to image. ",
+    wsclean_parser = add_options_to_parser(
+        parser=wsclean_parser, options_class=WSCleanOptions
     )
 
     return parser
@@ -856,8 +851,14 @@ def cli() -> None:
             logger.setLevel(logging.DEBUG)
 
         ms = MS(path=args.ms, column=args.data_column)
-
-        wsclean_imager(ms=ms, wsclean_container=args.wsclean_container)
+        wsclean_options: WSCleanOptions = create_options_from_parser(
+            parser_namespace=args, options_class=WSCleanOptions
+        )
+        wsclean_imager(
+            ms=ms,
+            wsclean_container=args.wsclean_container,
+            update_wsclean_options=wsclean_options._asdict(),
+        )
 
 
 if __name__ == "__main__":
