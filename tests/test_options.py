@@ -4,11 +4,52 @@ to create it
 """
 
 from pathlib import Path
+from typing import List
 
 import pytest
+from pydantic.fields import FieldInfo
 
-from flint.options import FieldOptions, dump_field_options_to_yaml, options_to_dict
+from flint.options import (
+    FieldOptions,
+    dump_field_options_to_yaml,
+    options_to_dict,
+    _create_argparse_options,
+)
 from flint.prefect.flows.continuum_pipeline import get_parser
+
+
+def test_fieldinfo_to_argparse_options():
+    """The pydantic ``FieldInfo`` object is used to generate the options that would be
+    splat into an ArgumentParser.add_argument method. Ensure the expected mappings from
+    types to argument options make sense"""
+    field = FieldInfo(default=1, annotation=int, description="An example description")
+    field_name, field_options = _create_argparse_options(
+        name="jack_sparrow", field=field
+    )
+    assert field_name == "--jack-sparrow"
+    assert field_options["action"] == "store"
+    assert field_options["default"] == 1
+    assert field_options["help"] == "An example description"
+
+    field = FieldInfo(annotation=int, description="An example description")
+    field_name, field_options = _create_argparse_options(
+        name="jack_sparrow", field=field
+    )
+    assert field_name == "jack_sparrow"
+    assert field_options["action"] == "store"
+    assert field_options["help"] == "An example description"
+
+    field = FieldInfo(
+        default=[1, 2, 3, 4], annotation=List[int], description="An example description"
+    )
+    field_name, field_options = _create_argparse_options(
+        name="jack_sparrow", field=field
+    )
+    assert field_name == "--jack-sparrow"
+    assert field_options["action"] == "store"
+    assert field_options["default"] == [1, 2, 3, 4]
+    assert field_options["help"] == "An example description"
+    assert field_options["nargs"] == "+"
 
 
 def test_options_to_dict():

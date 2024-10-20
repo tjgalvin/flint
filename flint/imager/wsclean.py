@@ -852,7 +852,8 @@ def cli() -> None:
 
         ms = MS(path=args.ms, column=args.data_column)
         wsclean_options: WSCleanOptions = create_options_from_parser(
-            parser_namespace=args, options_class=WSCleanOptions
+            parser_namespace=args,
+            options_class=WSCleanOptions,  # type: ignore
         )
         wsclean_imager(
             ms=ms,

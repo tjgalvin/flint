@@ -187,3 +187,19 @@ def test_archive_new_tar_patterns():
         tar_file_re_patterns=new_patterns
     )
     assert len(new_archive_options.tar_file_re_patterns) == before_count + 1
+
+
+def test_archiveoptions_with_options():
+    """Ensure that the with_options interface for ArchiveOptions works"""
+
+    archive_options = ArchiveOptions()
+    default_copy = archive_options.copy_file_re_patterns
+    update_options = ("Jack", "was", "here")
+    new_options = archive_options.with_options(copy_file_re_patterns=update_options)
+
+    assert new_options.copy_file_re_patterns != default_copy
+    assert new_options.copy_file_re_patterns == update_options
+    assert archive_options is not new_options
+
+    new_dict = new_options._asdict()
+    assert new_dict["copy_file_re_patterns"] == update_options

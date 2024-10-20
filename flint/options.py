@@ -17,7 +17,6 @@ from pydantic import BaseModel, ConfigDict
 from pydantic.fields import FieldInfo
 from typing import (
     Any,
-    Collection,
     Dict,
     List,
     NamedTuple,
@@ -96,8 +95,8 @@ class BaseOptions(BaseModel):
 
 def _create_argparse_options(name: str, field: FieldInfo) -> Tuple[str, Dict[str, Any]]:
     """Convert a pydantic Field into ``dict`` to splate into ArgumentParser.add_argument()"""
-    field_name = name.replace("_", "-")
-    field_name = f"--{field_name}" if not field.is_required() else field_name
+
+    field_name = name if field.is_required() else "--" + name.replace("_", "-")
 
     field_type = get_origin(field.annotation)
     field_args = get_args(field.annotation)
@@ -348,19 +347,13 @@ DEFAULT_TAR_RE_PATTERNS = (
 DEFAULT_COPY_RE_PATTERNS = (r".*linmos.*fits", r".*weight\.fits", r".*png", r".*csv")
 
 
-class ArchiveOptions(NamedTuple):
+class ArchiveOptions(BaseOptions):
     """Container for options related to archiving products from flint workflows"""
 
-    tar_file_re_patterns: Collection[str] = DEFAULT_TAR_RE_PATTERNS
+    tar_file_re_patterns: Tuple[str, ...] = DEFAULT_TAR_RE_PATTERNS
     """Regular-expressions to use to collect files that should be tarballed"""
-    copy_file_re_patterns: Collection[str] = DEFAULT_COPY_RE_PATTERNS
+    copy_file_re_patterns: Tuple[str, ...] = DEFAULT_COPY_RE_PATTERNS
     """Regular-expressions used to identify files to copy into a final location (not tarred)"""
-
-    def with_options(self, **kwargs) -> ArchiveOptions:
-        opts = self._asdict()
-        opts.update(**kwargs)
-
-        return ArchiveOptions(**opts)
 
 
 class MS(NamedTuple):
