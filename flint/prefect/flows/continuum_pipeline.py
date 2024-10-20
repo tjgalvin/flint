@@ -579,6 +579,12 @@ def get_parser() -> ArgumentParser:
         default="petrichor",
         help="Path to a cluster configuration file, or a known cluster name. ",
     )
+    parser.add_argument(
+        "--skip-bandpass-check",
+        default=False,
+        action="store_true",
+        help="Skip checking whether the path containing bandpass solutions exists (e.g. if solutions have already been applied)",
+    )
 
     parser = add_options_to_parser(parser=parser, options_class=FieldOptions)
 
