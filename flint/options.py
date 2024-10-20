@@ -215,7 +215,7 @@ class BandpassOptions(NamedTuple):
     """Flag Jones matrix if any amplitudes with a Jones are above this value"""
 
 
-class FieldOptions(NamedTuple):
+class FieldOptions(BaseOptions):
     """Container that represents the flint related options that
     might be used throughout components related to the actual
     pipeline.

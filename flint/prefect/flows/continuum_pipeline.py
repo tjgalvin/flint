@@ -29,7 +29,12 @@ from flint.naming import (
     extract_components_from_name,
     get_sbid_from_path,
 )
-from flint.options import FieldOptions, dump_field_options_to_yaml
+from flint.options import (
+    FieldOptions,
+    dump_field_options_to_yaml,
+    add_options_to_parser,
+    create_options_from_parser,
+)
 from flint.prefect.clusters import get_dask_runner
 from flint.prefect.common.imaging import (
     _create_convol_linmos_images,
@@ -553,204 +558,19 @@ def get_parser() -> ArgumentParser:
         help="Path to directories containing the beam-wise science measurementsets that will have solutions copied over and applied.",
     )
     parser.add_argument(
-        "--calibrated-bandpass-path",
-        type=Path,
-        default=None,
-        help="Path to directory containing the uncalibrated beam-wise measurement sets that contain the bandpass calibration source. If None then the '--sky-model-directory' should be provided. ",
-    )
-    parser.add_argument(
-        "--imaging-strategy",
-        type=Path,
-        default=None,
-        help="Path to a FLINT yaml file that specifies options to use throughout iamging. ",
-    )
-    parser.add_argument(
         "--split-path",
         type=Path,
         default=Path("."),
         help="Location to write field-split MSs to. Will attempt to use the parent name of a directory when writing out a new MS. ",
     )
     parser.add_argument(
-        "--holofile",
+        "--calibrated-bandpass-path",
         type=Path,
         default=None,
-        help="Path to the holography FITS cube used for primary beam corrections",
+        help="Path to directory containing the uncalibrated beam-wise measurement sets that contain the bandpass calibration source. If None then the '--sky-model-directory' should be provided. ",
     )
 
-    parser.add_argument(
-        "--expected-ms",
-        type=int,
-        default=36,
-        help="The expected number of measurement sets to find. ",
-    )
-    parser.add_argument(
-        "--calibrate-container",
-        type=Path,
-        default="aocalibrate.sif",
-        help="Path to container that holds AO calibrate and applysolutions. ",
-    )
-    parser.add_argument(
-        "--flagger-container",
-        type=Path,
-        default="flagger.sif",
-        help="Path to container with aoflagger software. ",
-    )
-    parser.add_argument(
-        "--wsclean-container",
-        type=Path,
-        default=None,
-        help="Path to the wsclean singularity container",
-    )
-    parser.add_argument(
-        "--yandasoft-container",
-        type=Path,
-        default=None,
-        help="Path to the singularity container with yandasoft",
-    )
-    parser.add_argument(
-        "--potato-container",
-        type=Path,
-        default=None,
-        help="Path to the potato peel singularity container",
-    )
-    parser.add_argument(
-        "--casa-container",
-        type=Path,
-        default=None,
-        help="Path to the CASA6 singularity container",
-    )
-    parser.add_argument(
-        "--cluster-config",
-        type=str,
-        default="petrichor",
-        help="Path to a cluster configuration file, or a known cluster name. ",
-    )
-    parser.add_argument(
-        "--selfcal-rounds",
-        type=int,
-        default=2,
-        help="The number of selfcalibration rounds to perform. ",
-    )
-    parser.add_argument(
-        "--skip-selfcal-on-rounds",
-        type=int,
-        nargs="+",
-        default=None,
-        help="Do not perform the derive and apply self-calibration solutions on these rounds",
-    )
-    parser.add_argument(
-        "--zip-ms",
-        action="store_true",
-        help="Zip up measurement sets as imaging and self-calibration is carried out.",
-    )
-    parser.add_argument(
-        "--run-aegean",
-        action="store_true",
-        help="Run the aegean source finder on images. ",
-    )
-    parser.add_argument(
-        "--aegean-container",
-        type=Path,
-        default=None,
-        help="Path to the singularity container with aegean",
-    )
-    parser.add_argument(
-        "--no-imaging",
-        action="store_true",
-        help="Do not perform any imaging, only derive bandpass solutions and apply to sources. ",
-    )
-    parser.add_argument(
-        "--reference-catalogue-directory",
-        type=Path,
-        default=None,
-        help="Path to the directory containing the ICFS, NVSS and SUMSS reference catalogues. These are required for validation plots. ",
-    )
-    parser.add_argument(
-        "--linmos-residuals",
-        action="store_true",
-        help="Co-add the per-beam cleaning residuals into a field image",
-    )
-    parser.add_argument(
-        "--beam-cutoff",
-        type=float,
-        default=150,
-        help="Cutoff in arcseconds that is used to flagged synthesised beams were deriving a common resolution to smooth to when forming the linmos images",
-    )
-    parser.add_argument(
-        "--fixed-beam-shape",
-        nargs=3,
-        type=float,
-        default=None,
-        help="Specify the final beamsize of linmos field images in (arcsec, arcsec, deg)",
-    )
-    parser.add_argument(
-        "--pb-cutoff",
-        type=float,
-        default=0.1,
-        help="Primary beam attenuation cutoff to use during linmos",
-    )
-    parser.add_argument(
-        "--use-preflagger",
-        action="store_true",
-        default=False,
-        help="Whether to use (or search for solutions with) the preflagger operations applied to the bandpass gain solutions",
-    )
-    parser.add_argument(
-        "--use-beam-masks",
-        default=False,
-        action="store_true",
-        help="Construct a clean mask from an MFS image for the next round of imaging. May adjust some of the imaging options per found if activated. ",
-    )
-    beam_mask_options = parser.add_mutually_exclusive_group()
-    beam_mask_options.add_argument(
-        "--use-beam-mask-rounds",
-        default=None,
-        type=int,
-        nargs="+",
-        help="If --use-beam-masks is provided, this option specifies from which round of self-calibration the masking operation will be used onwards from. Specific rounds can be set here. ",
-    )
-    beam_mask_options.add_argument(
-        "--use-beam-masks-from",
-        default=1,
-        type=int,
-        help="If --use-beam-masks is provided, this option specifies from which round of self-calibration the masking operation will be used onwards from. ",
-    )
-    parser.add_argument(
-        "--sbid-archive-path",
-        type=Path,
-        default=None,
-        help="Path that SBID archive tarballs will be created under. If None no archive tarballs are created. See ArchiveOptions. ",
-    )
-    parser.add_argument(
-        "--sbid-copy-path",
-        type=Path,
-        default=None,
-        help="Path that final processed products will be copied into. If None no copying of file products is performed. See ArchiveOptions. ",
-    )
-    parser.add_argument(
-        "--skip-bandpass-check",
-        default=False,
-        action="store_true",
-        help="Skip checking whether the path containing bandpass solutions exists (e.g. if solutions have already been applied)",
-    )
-    parser.add_argument(
-        "--rename-ms",
-        action="store_true",
-        default=False,
-        help="Rename MSs throughout rounds of imaging and self-cal instead of creating copies. This will delete data-columns throughout. ",
-    )
-    parser.add_argument(
-        "--stokes-v-imaging",
-        help="Enables stokes-v imaging after the final round of imaging (whether",
-        action="store_true",
-        default=False,
-    )
-    parser.add_argument(
-        "--coadd-cubes",
-        default=False,
-        action="store_true",
-        help="Co-add cubes formed throughout imaging together. Cubes will be smoothed channel-wise to a common resolution. Only performed on final set of images",
-    )
+    parser = add_options_to_parser(parser=parser, options_class=FieldOptions)
 
     return parser
 
@@ -765,39 +585,43 @@ def cli() -> None:
 
     args = parser.parse_args()
 
-    field_options = FieldOptions(
-        flagger_container=args.flagger_container,
-        calibrate_container=args.calibrate_container,
-        casa_container=args.casa_container,
-        holofile=args.holofile,
-        expected_ms=args.expected_ms,
-        wsclean_container=args.wsclean_container,
-        yandasoft_container=args.yandasoft_container,
-        potato_container=args.potato_container,
-        rounds=args.selfcal_rounds,
-        skip_selfcal_on_rounds=args.skip_selfcal_on_rounds,
-        zip_ms=args.zip_ms,
-        run_aegean=args.run_aegean,
-        aegean_container=args.aegean_container,
-        no_imaging=args.no_imaging,
-        reference_catalogue_directory=args.reference_catalogue_directory,
-        linmos_residuals=args.linmos_residuals,
-        beam_cutoff=args.beam_cutoff,
-        fixed_beam_shape=args.fixed_beam_shape,
-        pb_cutoff=args.pb_cutoff,
-        use_preflagger=args.use_preflagger,
-        use_beam_masks=args.use_beam_masks,
-        use_beam_mask_rounds=(
-            args.use_beam_mask_rounds
-            if args.use_beam_mask_rounds
-            else args.use_beam_masks_from
-        ),  # defaults value of args.use_beam_masks_from is 1
-        imaging_strategy=args.imaging_strategy,
-        sbid_archive_path=args.sbid_archive_path,
-        sbid_copy_path=args.sbid_copy_path,
-        rename_ms=args.rename_ms,
-        stokes_v_imaging=args.stokes_v_imaging,
-        coadd_cubes=args.coadd_cubes,
+    # field_options = FieldOptions(
+    #     flagger_container=args.flagger_container,
+    #     calibrate_container=args.calibrate_container,
+    #     casa_container=args.casa_container,
+    #     holofile=args.holofile,
+    #     expected_ms=args.expected_ms,
+    #     wsclean_container=args.wsclean_container,
+    #     yandasoft_container=args.yandasoft_container,
+    #     potato_container=args.potato_container,
+    #     rounds=args.selfcal_rounds,
+    #     skip_selfcal_on_rounds=args.skip_selfcal_on_rounds,
+    #     zip_ms=args.zip_ms,
+    #     run_aegean=args.run_aegean,
+    #     aegean_container=args.aegean_container,
+    #     no_imaging=args.no_imaging,
+    #     reference_catalogue_directory=args.reference_catalogue_directory,
+    #     linmos_residuals=args.linmos_residuals,
+    #     beam_cutoff=args.beam_cutoff,
+    #     fixed_beam_shape=args.fixed_beam_shape,
+    #     pb_cutoff=args.pb_cutoff,
+    #     use_preflagger=args.use_preflagger,
+    #     use_beam_masks=args.use_beam_masks,
+    #     use_beam_mask_rounds=(
+    #         args.use_beam_mask_rounds
+    #         if args.use_beam_mask_rounds
+    #         else args.use_beam_masks_from
+    #     ),  # defaults value of args.use_beam_masks_from is 1
+    #     imaging_strategy=args.imaging_strategy,
+    #     sbid_archive_path=args.sbid_archive_path,
+    #     sbid_copy_path=args.sbid_copy_path,
+    #     rename_ms=args.rename_ms,
+    #     stokes_v_imaging=args.stokes_v_imaging,
+    #     coadd_cubes=args.coadd_cubes,
+    # )
+    field_options = create_options_from_parser(
+        parser_namespace=args,
+        options_class=FieldOptions,  # type: ignore
     )
 
     setup_run_process_science_field(
