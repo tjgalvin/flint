@@ -384,7 +384,11 @@ def process_science_fields(
             fits_beam_masks = None
             if consider_beam_mask_round(
                 current_round=current_round,
-                mask_rounds=field_options.use_beam_mask_rounds,
+                mask_rounds=(
+                    field_options.use_beam_mask_rounds
+                    if field_options.use_beam_mask_rounds
+                    else field_options.use_beam_mask_from
+                ),
                 allow_beam_masks=field_options.use_beam_masks,
             ):
                 # Early versions of the masking procedure required aegean outputs
@@ -568,6 +572,12 @@ def get_parser() -> ArgumentParser:
         type=Path,
         default=None,
         help="Path to directory containing the uncalibrated beam-wise measurement sets that contain the bandpass calibration source. If None then the '--sky-model-directory' should be provided. ",
+    )
+    parser.add_argument(
+        "--cluster-config",
+        type=str,
+        default="petrichor",
+        help="Path to a cluster configuration file, or a known cluster name. ",
     )
 
     parser = add_options_to_parser(parser=parser, options_class=FieldOptions)
