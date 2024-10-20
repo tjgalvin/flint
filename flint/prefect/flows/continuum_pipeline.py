@@ -385,9 +385,9 @@ def process_science_fields(
             if consider_beam_mask_round(
                 current_round=current_round,
                 mask_rounds=(
-                    field_options.use_beam_mask_rounds
-                    if field_options.use_beam_mask_rounds
-                    else field_options.use_beam_mask_from
+                    field_options.use_beam_masks_rounds
+                    if field_options.use_beam_masks_rounds
+                    else field_options.use_beam_masks_from
                 ),
                 allow_beam_masks=field_options.use_beam_masks,
             ):
