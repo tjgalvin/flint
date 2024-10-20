@@ -272,7 +272,9 @@ class FieldOptions(BaseOptions):
     """Whether to apply (or search for solutions with) a bandpass smoothing operation applied"""
     use_beam_masks: bool = True
     """Construct beam masks from MFS images to use for the next round of imaging. """
-    use_beam_mask_rounds: Union[str, List[int], int] = 1
+    use_beam_mask_from: int = 1
+    """If `use_beam_masks` is True, this sets the round where beam masks will be generated from"""
+    use_beam_mask_rounds: Optional[List[int]] = None
     """If `use_beam_masks` is True, this sets which rounds should have a mask applied"""
     imaging_strategy: Optional[Path] = None
     """Path to a FLINT imaging yaml file that contains settings to use throughout imaging"""
