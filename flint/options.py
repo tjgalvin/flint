@@ -55,8 +55,11 @@ def options_to_dict(input_options: Any) -> Dict:
     if "_asdict" in dir(input_options):
         return input_options._asdict()
 
-    if issubclass(input_options, BaseModel):
-        return dict(**input_options.__dict__)
+    try:
+        if issubclass(input_options, BaseModel):
+            return dict(**input_options.__dict__)
+    except TypeError:
+        logger.debug(f"can not use issubclass on {input_options}")
 
     try:
         return dict(**input_options)
