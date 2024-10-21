@@ -10,9 +10,8 @@ from typing import Any, Collection, Dict, List, Tuple
 from flint.configuration import get_options_from_strategy
 from flint.logging import logger
 from flint.options import (
-    DEFAULT_COPY_RE_PATTERNS,
-    DEFAULT_TAR_RE_PATTERNS,
     ArchiveOptions,
+    add_options_to_parser,
 )
 
 
@@ -200,20 +199,14 @@ def get_parser() -> ArgumentParser:
         dest="mode", help="Operation mode of flint_archive"
     )
 
-    list_parser = subparser.add_parser("list")
+    list_parser = subparser.add_parser(
+        "list", help="List the files that would be copied"
+    )
     list_parser.add_argument(
         "--base-path",
         type=Path,
         default=Path("."),
         help="Base directory to perform glob expressions",
-    )
-
-    list_parser.add_argument(
-        "--file-patterns",
-        nargs="+",
-        default=DEFAULT_TAR_RE_PATTERNS,
-        type=str,
-        help="The regular expression patterns to evaluate",
     )
     list_parser.add_argument(
         "--strategy-yaml-path",
@@ -221,7 +214,15 @@ def get_parser() -> ArgumentParser:
         default=None,
         help="Path to a strategy file with a archive section. Overrides any --file-patterns. ",
     )
-
+    list_parser.add_argument(
+        "--mode",
+        choices=("create", "copy"),
+        default="copy",
+        help="Which set of RE patterns to present, those for the tarball (create) or those for copy",
+    )
+    list_parser = add_options_to_parser(
+        parser=list_parser, options_class=ArchiveOptions
+    )
     create_parser = subparser.add_parser("create", help="Create a tarfile archive")
     create_parser.add_argument(
         "tar_out_path", type=Path, help="Path of the output tar file to be created"
@@ -233,12 +234,8 @@ def get_parser() -> ArgumentParser:
         help="Base directory to perform glob expressions",
     )
 
-    create_parser.add_argument(
-        "--tar-file-patterns",
-        nargs="+",
-        default=DEFAULT_TAR_RE_PATTERNS,
-        type=str,
-        help="The regular expression patterns to evaluate inside the base path directory",
+    create_parser = add_options_to_parser(
+        parser=create_parser, options_class=ArchiveOptions
     )
     create_parser.add_argument(
         "--strategy-yaml-path",
@@ -262,12 +259,8 @@ def get_parser() -> ArgumentParser:
         help="Base directory to perform glob expressions",
     )
 
-    copy_parser.add_argument(
-        "--copy-file-patterns",
-        nargs="+",
-        default=DEFAULT_COPY_RE_PATTERNS,
-        type=str,
-        help="The regular expression patterns to evaluate inside the base path directory",
+    copy_parser = add_options_to_parser(
+        parser=copy_parser, options_class=ArchiveOptions
     )
     copy_parser.add_argument(
         "--strategy-yaml-path",
@@ -294,11 +287,16 @@ def cli() -> None:
 
         files = resolve_glob_expressions(
             base_path=args.base_path,
-            file_re_patterns=archive_options.tar_file_re_patterns,
+            file_re_patterns=(
+                archive_options.tar_file_re_patterns
+                if args.mode == "create"
+                else archive_options.copy_file_re_patterns
+            ),
         )
-
         for count, file in enumerate(sorted(files)):
             logger.info(f"{count} of {len(files)}, {file}")
+        logger.info(f"{len(files)} for mode={args.mode}")
+
     elif args.mode == "create":
         update_options_create: Dict[str, Any] = (
             get_archive_options_from_yaml(strategy_yaml_path=args.strategy_yaml_path)

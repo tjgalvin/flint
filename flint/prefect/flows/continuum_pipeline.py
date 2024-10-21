@@ -601,40 +601,6 @@ def cli() -> None:
 
     args = parser.parse_args()
 
-    # field_options = FieldOptions(
-    #     flagger_container=args.flagger_container,
-    #     calibrate_container=args.calibrate_container,
-    #     casa_container=args.casa_container,
-    #     holofile=args.holofile,
-    #     expected_ms=args.expected_ms,
-    #     wsclean_container=args.wsclean_container,
-    #     yandasoft_container=args.yandasoft_container,
-    #     potato_container=args.potato_container,
-    #     rounds=args.selfcal_rounds,
-    #     skip_selfcal_on_rounds=args.skip_selfcal_on_rounds,
-    #     zip_ms=args.zip_ms,
-    #     run_aegean=args.run_aegean,
-    #     aegean_container=args.aegean_container,
-    #     no_imaging=args.no_imaging,
-    #     reference_catalogue_directory=args.reference_catalogue_directory,
-    #     linmos_residuals=args.linmos_residuals,
-    #     beam_cutoff=args.beam_cutoff,
-    #     fixed_beam_shape=args.fixed_beam_shape,
-    #     pb_cutoff=args.pb_cutoff,
-    #     use_preflagger=args.use_preflagger,
-    #     use_beam_masks=args.use_beam_masks,
-    #     use_beam_mask_rounds=(
-    #         args.use_beam_mask_rounds
-    #         if args.use_beam_mask_rounds
-    #         else args.use_beam_masks_from
-    #     ),  # defaults value of args.use_beam_masks_from is 1
-    #     imaging_strategy=args.imaging_strategy,
-    #     sbid_archive_path=args.sbid_archive_path,
-    #     sbid_copy_path=args.sbid_copy_path,
-    #     rename_ms=args.rename_ms,
-    #     stokes_v_imaging=args.stokes_v_imaging,
-    #     coadd_cubes=args.coadd_cubes,
-    # )
     field_options = create_options_from_parser(
         parser_namespace=args,
         options_class=FieldOptions,  # type: ignore
