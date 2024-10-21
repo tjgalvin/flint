@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any, Collection, Dict, List, Tuple
 
 from flint.configuration import get_options_from_strategy
+from flint.exceptions import TarArchiveError
 from flint.logging import logger
 from flint.options import (
     ArchiveOptions,
@@ -157,7 +158,9 @@ def tar_files_into(
     logger.info(f"Created {tar_out_path}")
 
     if verify:
-        verify_tarball(tarball=tar_out_path)
+        tar_success = verify_tarball(tarball=tar_out_path)
+        if not tar_success:
+            raise TarArchiveError(f"Failed to verify {tar_out_path=}")
 
     return tar_out_path
 

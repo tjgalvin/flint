@@ -3,6 +3,11 @@
 # dev
 
 - added `wrapper_options_from_strategy` decorator helper function
+- Created `BaseOptions` from a `pydantic.BaseModel` class.
+- Added functions to
+  - create `ArgumentParser` options from a `BaseOptions` class
+  - load arguments into an `BaseOptions` class from a `ArgumentParser`
+  - starting to move some classes over to this approaches (including some CLIs)
 
 # 0.2.7
 

@@ -20,3 +20,7 @@ class CleanDivergenceError(Exception):
     """Raised if it is detected that cleaning has diverged."""
 
     pass
+
+
+class TarArchiveError(Exception):
+    """Raised it the flint tarball is not created successfullty"""
