@@ -8,6 +8,7 @@
   - create `ArgumentParser` options from a `BaseOptions` class
   - load arguments into an `BaseOptions` class from a `ArgumentParser`
   - starting to move some classes over to this approaches (including some CLIs)
+- Added a verify tarball function to verify archives
 
 # 0.2.7
 

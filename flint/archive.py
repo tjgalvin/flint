@@ -162,6 +162,8 @@ def tar_files_into(
         if not tar_success:
             raise TarArchiveError(f"Failed to verify {tar_out_path=}")
 
+        logger.info(f"{tar_out_path=} appears to be correctly formed")
+
     return tar_out_path
 
 
