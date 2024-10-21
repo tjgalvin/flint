@@ -2,6 +2,8 @@
 
 import re
 import shutil
+import subprocess
+import shlex
 import tarfile
 from argparse import ArgumentParser
 from pathlib import Path
@@ -88,13 +90,46 @@ def copy_files_into(copy_out_path: Path, files_to_copy: Collection[Path]) -> Pat
     return copy_out_path
 
 
+def verify_tarball(
+    tarball: Path,
+) -> bool:
+    """Verify that a tarball was created properly by examining its
+    table. Internally this calls ``tar`` through a subprocess call.
+    Hence, ``tar`` needs to be available on the system PATH.
+
+    Args:
+        tarball (Path): The tarball to examine
+
+    Returns:
+        bool: True if the ``tar``s exit code is 0, False otherwise
+    """
+    tarball = Path(tarball)  # trust nothing
+    assert (
+        tarball.exists() and tarball.is_file()
+    ), f"{tarball} is not a file or does not exist"
+    assert tarball.suffix == ".tar", f"{tarball=} appears to not have a .tar extension"
+
+    cmd = f"tar -tvf {str(tarball)}"
+    logger.info(f"Verifying {tarball=}")
+    popen = subprocess.Popen(shlex.split(cmd), stderr=subprocess.PIPE)
+    with popen.stderr:  # type: ignore
+        for line in iter(popen.stderr.readline, b""):
+            logger.error(line.decode().strip())
+    exitcode = popen.wait()
+
+    return exitcode == 0
+
+
 # TODO: Add a clobber option
-def tar_files_into(tar_out_path: Path, files_to_tar: Collection[Path]) -> Path:
+def tar_files_into(
+    tar_out_path: Path, files_to_tar: Collection[Path], verify: bool = True
+) -> Path:
     """Create a tar file given a desired output path and list of files to tar.
 
     Args:
         tar_out_path (Path): The output path of the tarball. The parent directory will be created if necessary.
         files_to_tar (Collection[Path]): All the files to tarball up
+        verify (bool, optional): Verify that the tarball was correctly formed. Defaults to True.
 
     Raises:
         FileExistsError: The path of the tarball created
@@ -120,6 +155,10 @@ def tar_files_into(tar_out_path: Path, files_to_tar: Collection[Path]) -> Path:
             tar.add(file, arcname=file.name)
 
     logger.info(f"Created {tar_out_path}")
+
+    if verify:
+        verify_tarball(tarball=tar_out_path)
+
     return tar_out_path
 
 
