@@ -1,9 +1,30 @@
 """Some specific tests around the pydantic base options model
 that we are using to construct a BaseOptions class"""
 
+import pytest
 from argparse import ArgumentParser
 
+from pydantic import ValidationError
+
 from flint.options import BaseOptions, add_options_to_parser, create_options_from_parser
+
+
+def test_ensure_options_frozen():
+    """BaseOption classes should be immutable, so an error
+    should be raised"""
+
+    class NewOptions(BaseOptions):
+        a: int
+        """An example"""
+        b: float
+        """Another example"""
+
+    new_options = NewOptions(a=1, b=1.23)
+    with pytest.raises(ValidationError):
+        # can't update the immutable class
+        new_options.a = 33
+        # raise error on argument not existing
+        _ = NewOptions(a=1, b=1, jack="sparrow")  # type: ignore
 
 
 def test_baseoptions_argparse():

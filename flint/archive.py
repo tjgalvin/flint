@@ -114,7 +114,7 @@ def verify_tarball(
     logger.info(f"Verifying {tarball=}")
     popen = subprocess.Popen(shlex.split(cmd), stderr=subprocess.PIPE)
     with popen.stderr:  # type: ignore
-        for line in iter(popen.stderr.readline, b""):
+        for line in iter(popen.stderr.readline, b""):  # type: ignore
             logger.error(line.decode().strip())
     exitcode = popen.wait()
 

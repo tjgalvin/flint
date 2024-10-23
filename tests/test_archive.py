@@ -125,27 +125,29 @@ def test_archive_parser(glob_files):
     args = parser.parse_args("list".split())
 
     assert isinstance(args.base_path, Path)
-    assert args.file_patterns == DEFAULT_TAR_RE_PATTERNS
+    assert args.tar_file_re_patterns == DEFAULT_TAR_RE_PATTERNS
 
     example_path = Path("this/no/exist")
     args = parser.parse_args(f"list --base-path {str(example_path)}".split())
     assert isinstance(args.base_path, Path)
     assert args.base_path == example_path
 
-    args = parser.parse_args(r"list --file-patterns '.*linmos.*' '.*MFS.*'".split())
-    assert len(args.file_patterns) == 2
+    args = parser.parse_args(
+        r"list --copy-file-re-patterns '.*linmos.*' '.*MFS.*'".split()
+    )
+    assert len(args.copy_file_re_patterns) == 2
 
     example_path = Path(base_dir)
     args = parser.parse_args(
-        f"list --base-path {str(example_path)} --file-patterns *pdf".split()
+        f"list --base-path {str(example_path)} --copy-file-re-patterns *pdf".split()
     )
     assert isinstance(args.base_path, Path)
     assert args.base_path == example_path
-    assert args.file_patterns == ["*pdf"]
+    assert args.copy_file_re_patterns == ["*pdf"]
 
-    cmd = r"create --tar-file-patterns '.*linmos.*' '.*MFS.*' '.*beam[0-9]+\.round4-????-image\.fits' --base-path 39420 test_archive_tarball/39420.tar"
+    cmd = r"create --tar-file-re-patterns '.*linmos.*' '.*MFS.*' '.*beam[0-9]+\.round4-????-image\.fits' --base-path 39420 test_archive_tarball/39420.tar"
     args = parser.parse_args(cmd.split())
-    assert len(args.tar_file_patterns) == 3
+    assert len(args.tar_file_re_patterns) == 3
 
 
 def test_tar_ball_files(temp_files):

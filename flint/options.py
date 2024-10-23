@@ -266,7 +266,7 @@ class FieldOptions(BaseOptions):
     """Specify the final beamsize of linmos field images in (arcsec, arcsec, deg)"""
     pb_cutoff: float = 0.1
     """Primary beam attenuation cutoff to use during linmos"""
-    use_preflagger: bool = True
+    use_preflagger: bool = False
     """Whether to apply (or search for solutions with) bandpass solutions that have gone through the preflagging operations"""
     use_smoothed: bool = False
     """Whether to apply (or search for solutions with) a bandpass smoothing operation applied"""

@@ -104,7 +104,7 @@ def test_config_field_options(tmpdir):
         --wsclean-container /scratch3/projects/spiceracs/singularity_images/wsclean_force_mask.sif
         --yandasoft-container /scratch3/gal16b/containers/yandasoft.sif
         --cluster-config /scratch3/gal16b/split/petrichor.yaml
-        --selfcal-rounds 2
+        --rounds 2
         --split-path $(pwd)
         --zip-ms
         --run-aegean
@@ -131,7 +131,7 @@ def test_config_field_options(tmpdir):
         expected_ms=args.expected_ms,
         wsclean_container=args.wsclean_container,
         yandasoft_container=args.yandasoft_container,
-        rounds=args.selfcal_rounds,
+        rounds=args.rounds,
         zip_ms=args.zip_ms,
         run_aegean=args.run_aegean,
         aegean_container=args.aegean_container,
@@ -162,7 +162,7 @@ def test_create_field_options():
         --wsclean-container /scratch3/projects/spiceracs/singularity_images/wsclean_force_mask.sif
         --yandasoft-container /scratch3/gal16b/containers/yandasoft.sif
         --cluster-config /scratch3/gal16b/split/petrichor.yaml
-        --selfcal-rounds 2
+        --rounds 2
         --split-path $(pwd)
         --zip-ms
         --run-aegean
@@ -179,7 +179,7 @@ def test_create_field_options():
         expected_ms=args.expected_ms,
         wsclean_container=args.wsclean_container,
         yandasoft_container=args.yandasoft_container,
-        rounds=args.selfcal_rounds,
+        rounds=args.rounds,
         zip_ms=args.zip_ms,
         run_aegean=args.run_aegean,
         aegean_container=args.aegean_container,
@@ -210,7 +210,7 @@ def test_create_field_options2():
         --wsclean-container /scratch3/projects/spiceracs/singularity_images/wsclean_force_mask.sif
         --yandasoft-container /scratch3/gal16b/containers/yandasoft.sif
         --cluster-config /scratch3/gal16b/split/petrichor.yaml
-        --selfcal-rounds 2
+        --rounds 2
         --split-path $(pwd)
         --run-aegean
         --aegean-container '/scratch3/gal16b/containers/aegean.sif'
@@ -226,7 +226,7 @@ def test_create_field_options2():
         expected_ms=args.expected_ms,
         wsclean_container=args.wsclean_container,
         yandasoft_container=args.yandasoft_container,
-        rounds=args.selfcal_rounds,
+        rounds=args.rounds,
         zip_ms=args.zip_ms,
         run_aegean=args.run_aegean,
         aegean_container=args.aegean_container,
@@ -257,7 +257,7 @@ def test_create_field_options3():
         --wsclean-container /scratch3/projects/spiceracs/singularity_images/wsclean_force_mask.sif
         --yandasoft-container /scratch3/gal16b/containers/yandasoft.sif
         --cluster-config /scratch3/gal16b/split/petrichor.yaml
-        --selfcal-rounds 2
+        --rounds 2
         --split-path $(pwd)
         --run-aegean
         --aegean-container '/scratch3/gal16b/containers/aegean.sif'
@@ -273,7 +273,7 @@ def test_create_field_options3():
         expected_ms=args.expected_ms,
         wsclean_container=args.wsclean_container,
         yandasoft_container=args.yandasoft_container,
-        rounds=args.selfcal_rounds,
+        rounds=args.rounds,
         zip_ms=args.zip_ms,
         run_aegean=args.run_aegean,
         aegean_container=args.aegean_container,
