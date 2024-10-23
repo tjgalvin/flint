@@ -611,7 +611,7 @@ def cli() -> None:
         science_path=args.science_path,
         bandpass_path=args.calibrated_bandpass_path,
         split_path=args.split_path,
-        field_options=field_options,  # type: ignore
+        field_options=field_options,
         skip_bandpass_check=args.skip_bandpass_check,
     )
 
