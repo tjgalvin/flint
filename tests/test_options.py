@@ -14,6 +14,7 @@ from flint.options import (
     dump_field_options_to_yaml,
     options_to_dict,
     _create_argparse_options,
+    create_options_from_parser,
 )
 from flint.prefect.flows.continuum_pipeline import get_parser
 
@@ -108,6 +109,8 @@ def test_config_field_options(tmpdir):
         --split-path $(pwd)
         --zip-ms
         --run-aegean
+        --use-beam-masks
+        --use-preflagger
         --aegean-container '/scratch3/gal16b/containers/aegean.sif'
         --reference-catalogue-directory '/scratch3/gal16b/reference_catalogues/'
         --linmos-residuals
@@ -124,31 +127,17 @@ def test_config_field_options(tmpdir):
         --cli-config {str(output_file)}""".split()
     )
 
-    field_options = FieldOptions(
-        flagger_container=args.flagger_container,
-        calibrate_container=args.calibrate_container,
-        holofile=args.holofile,
-        expected_ms=args.expected_ms,
-        wsclean_container=args.wsclean_container,
-        yandasoft_container=args.yandasoft_container,
-        rounds=args.rounds,
-        zip_ms=args.zip_ms,
-        run_aegean=args.run_aegean,
-        aegean_container=args.aegean_container,
-        no_imaging=args.no_imaging,
-        reference_catalogue_directory=args.reference_catalogue_directory,
-        linmos_residuals=args.linmos_residuals,
-        beam_cutoff=args.beam_cutoff,
-        pb_cutoff=args.pb_cutoff,
-        use_preflagger=args.use_preflagger,
+    field_options = create_options_from_parser(
+        parser_namespace=args, options_class=FieldOptions
     )
 
     assert isinstance(field_options, FieldOptions)
-    assert field_options.use_preflagger is False
     assert field_options.zip_ms is True
     assert field_options.linmos_residuals is True
     assert field_options.rounds == 2
     assert isinstance(field_options.wsclean_container, Path)
+    assert field_options.use_beam_masks
+    assert field_options.use_preflagger
 
 
 def test_create_field_options():
