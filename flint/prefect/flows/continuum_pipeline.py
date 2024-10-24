@@ -603,7 +603,7 @@ def cli() -> None:
 
     field_options: FieldOptions = create_options_from_parser(
         parser_namespace=args,
-        options_class=FieldOptions,  # type: ignore
+        options_class=FieldOptions,
     )
 
     setup_run_process_science_field(

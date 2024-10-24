@@ -27,7 +27,11 @@ from flint.flagging import flag_ms_aoflagger
 from flint.logging import logger
 from flint.ms import MS, preprocess_askap_ms, split_by_field
 from flint.naming import get_sbid_from_path
-from flint.options import BandpassOptions
+from flint.options import (
+    BandpassOptions,
+    add_options_to_parser,
+    create_options_from_parser,
+)
 from flint.prefect.clusters import get_dask_runner
 from flint.prefect.common.utils import upload_image_as_artifact
 from flint.sky_model import get_1934_model
@@ -337,77 +341,13 @@ def get_parser() -> ArgumentParser:
     )
 
     parser.add_argument(
-        "--expected-ms",
-        type=int,
-        default=36,
-        help="The expected number of measurement sets to find. ",
-    )
-    parser.add_argument(
-        "--calibrate-container",
-        type=Path,
-        default="aocalibrate.sif",
-        help="Path to container that holds AO calibrate and applysolutions. ",
-    )
-    parser.add_argument(
-        "--flagger-container",
-        type=Path,
-        default="flagger.sif",
-        help="Path to container with aoflagger software. ",
-    )
-    parser.add_argument(
         "--cluster-config",
         type=str,
         default="petrichor",
         help="Path to a cluster configuration file, or a known cluster name. ",
     )
-    parser.add_argument(
-        "--smooth-solutions",
-        default=False,
-        action="store_true",
-        help="Smooth the bandpass solutions",
-    )
-    parser.add_argument(
-        "--smooth-window-size",
-        default=16,
-        type=int,
-        help="Size of the smoothing Savgol window when smoothing bandpass solutions",
-    )
-    parser.add_argument(
-        "--smooth-polynomial-order",
-        default=4,
-        type=int,
-        help="Order of the polynomial when smoothing the bandpass solutions with the Savgol filter",
-    )
-    parser.add_argument(
-        "--flag-calibrate-rounds",
-        type=int,
-        default=3,
-        help="The number of times a bandpass solution will be derived, applied and flagged. ",
-    )
-    parser.add_argument(
-        "--minuv",
-        type=float,
-        default=None,
-        help="The minimum baseline length, in meters, for data to be included in bandpass calibration stage",
-    )
-    parser.add_argument(
-        "--preflagger-ant-mean-tolerance",
-        type=float,
-        default=0.2,
-        help="Tolerance of the mean x/y antenna gain ratio test before antenna is flagged",
-    )
-    parser.add_argument(
-        "--preflagger-mesh-ant-flags",
-        default=False,
-        action="store_true",
-        help="Share channel flags from bandpass solutions between all antennas",
-    )
-    parser.add_argument(
-        "--preflagger-jones-max-amplitude",
-        default=None,
-        type=float,
-        help="Flag Jones matrix if any amplitudes with a Jones are above this value",
-    )
+
+    parser = add_options_to_parser(parser=parser, options_class=BandpassOptions)
 
     return parser
 
@@ -421,17 +361,8 @@ def cli() -> None:
 
     args = parser.parse_args()
 
-    bandpass_options = BandpassOptions(
-        flagger_container=args.flagger_container,
-        calibrate_container=args.calibrate_container,
-        expected_ms=args.expected_ms,
-        smooth_solutions=args.smooth_solutions,
-        smooth_window_size=args.smooth_window_size,
-        smooth_polynomial_order=args.smooth_polynomial_order,
-        flag_calibrate_rounds=args.flag_calibrate_rounds,
-        minuv=args.minuv,
-        preflagger_ant_mean_tolerance=args.preflagger_ant_mean_tolerance,
-        preflagger_mesh_ant_flags=args.preflagger_mesh_ant_flags,
+    bandpass_options = create_options_from_parser(
+        parser_namespace=args, options_class=BandpassOptions
     )
 
     setup_run_bandpass_flow(
