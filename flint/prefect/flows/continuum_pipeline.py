@@ -601,7 +601,7 @@ def cli() -> None:
 
     args = parser.parse_args()
 
-    field_options = create_options_from_parser(
+    field_options: FieldOptions = create_options_from_parser(
         parser_namespace=args,
         options_class=FieldOptions,  # type: ignore
     )
@@ -611,7 +611,7 @@ def cli() -> None:
         science_path=args.science_path,
         bandpass_path=args.calibrated_bandpass_path,
         split_path=args.split_path,
-        field_options=field_options,  # type: ignore
+        field_options=field_options,
         skip_bandpass_check=args.skip_bandpass_check,
     )
 
