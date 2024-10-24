@@ -270,7 +270,7 @@ class FieldOptions(BaseOptions):
     """Whether to apply (or search for solutions with) bandpass solutions that have gone through the preflagging operations"""
     use_smoothed: bool = False
     """Whether to apply (or search for solutions with) a bandpass smoothing operation applied"""
-    use_beam_masks: bool = True
+    use_beam_masks: bool = False
     """Construct beam masks from MFS images to use for the next round of imaging. """
     use_beam_masks_from: int = 1
     """If `use_beam_masks` is True, this sets the round where beam masks will be generated from"""
