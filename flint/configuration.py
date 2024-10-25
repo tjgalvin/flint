@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import Any, Callable, Dict, ParamSpec, Optional, TypeVar, Union
 
 from click import MissingParameter
+from pydantic import ValidationError
 import yaml
 
 from flint.imager.wsclean import WSCleanOptions
@@ -423,7 +424,7 @@ def verify_configuration(input_strategy: Strategy, raise_on_error: bool = True) 
             )
             try:
                 _ = MODE_OPTIONS_MAPPING[key](**options)
-            except TypeError as typeerror:
+            except (ValidationError, TypeError) as typeerror:
                 errors.append(
                     f"{key} mode in initial round incorrectly formed. {typeerror} "
                 )

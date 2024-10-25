@@ -114,7 +114,7 @@ def test_verify_options_with_class_missing_initial(package_strategy):
 
 
 def test_verify_options_with_class(package_strategy):
-    # ebsure that the errors raised from options passed through
+    # ensure that the errors raised from options passed through
     # to the input structures correctly raise errors should they
     # be misconfigured (e.g. option supplied does not exist, missing
     # mandatory argument)
@@ -129,8 +129,9 @@ def test_verify_options_with_class(package_strategy):
     verify_configuration(input_strategy=strategy)
 
     strategy["selfcal"][1]["masking"]["ThisDoesNotExist"] = "ThisDoesNotExist"
+
     with pytest.raises(ValueError):
-        verify_configuration(input_strategy=strategy)
+        verify_configuration(input_strategy=strategy, raise_on_error=True)
 
 
 def test_create_yaml_file(tmpdir):

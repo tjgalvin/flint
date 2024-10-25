@@ -2,17 +2,19 @@
 
 import re
 import shutil
+import subprocess
+import shlex
 import tarfile
 from argparse import ArgumentParser
 from pathlib import Path
 from typing import Any, Collection, Dict, List, Tuple
 
 from flint.configuration import get_options_from_strategy
+from flint.exceptions import TarArchiveError
 from flint.logging import logger
 from flint.options import (
-    DEFAULT_COPY_RE_PATTERNS,
-    DEFAULT_TAR_RE_PATTERNS,
     ArchiveOptions,
+    add_options_to_parser,
 )
 
 
@@ -89,13 +91,46 @@ def copy_files_into(copy_out_path: Path, files_to_copy: Collection[Path]) -> Pat
     return copy_out_path
 
 
+def verify_tarball(
+    tarball: Path,
+) -> bool:
+    """Verify that a tarball was created properly by examining its
+    table. Internally this calls ``tar`` through a subprocess call.
+    Hence, ``tar`` needs to be available on the system PATH.
+
+    Args:
+        tarball (Path): The tarball to examine
+
+    Returns:
+        bool: True if the ``tar``s exit code is 0, False otherwise
+    """
+    tarball = Path(tarball)  # trust nothing
+    assert (
+        tarball.exists() and tarball.is_file()
+    ), f"{tarball} is not a file or does not exist"
+    assert tarball.suffix == ".tar", f"{tarball=} appears to not have a .tar extension"
+
+    cmd = f"tar -tvf {str(tarball)}"
+    logger.info(f"Verifying {tarball=}")
+    popen = subprocess.Popen(shlex.split(cmd), stderr=subprocess.PIPE)
+    with popen.stderr:  # type: ignore
+        for line in iter(popen.stderr.readline, b""):  # type: ignore
+            logger.error(line.decode().strip())
+    exitcode = popen.wait()
+
+    return exitcode == 0
+
+
 # TODO: Add a clobber option
-def tar_files_into(tar_out_path: Path, files_to_tar: Collection[Path]) -> Path:
+def tar_files_into(
+    tar_out_path: Path, files_to_tar: Collection[Path], verify: bool = True
+) -> Path:
     """Create a tar file given a desired output path and list of files to tar.
 
     Args:
         tar_out_path (Path): The output path of the tarball. The parent directory will be created if necessary.
         files_to_tar (Collection[Path]): All the files to tarball up
+        verify (bool, optional): Verify that the tarball was correctly formed. Defaults to True.
 
     Raises:
         FileExistsError: The path of the tarball created
@@ -121,6 +156,14 @@ def tar_files_into(tar_out_path: Path, files_to_tar: Collection[Path]) -> Path:
             tar.add(file, arcname=file.name)
 
     logger.info(f"Created {tar_out_path}")
+
+    if verify:
+        tar_success = verify_tarball(tarball=tar_out_path)
+        if not tar_success:
+            raise TarArchiveError(f"Failed to verify {tar_out_path=}")
+
+        logger.info(f"{tar_out_path=} appears to be correctly formed")
+
     return tar_out_path
 
 
@@ -200,20 +243,14 @@ def get_parser() -> ArgumentParser:
         dest="mode", help="Operation mode of flint_archive"
     )
 
-    list_parser = subparser.add_parser("list")
+    list_parser = subparser.add_parser(
+        "list", help="List the files that would be copied"
+    )
     list_parser.add_argument(
         "--base-path",
         type=Path,
         default=Path("."),
         help="Base directory to perform glob expressions",
-    )
-
-    list_parser.add_argument(
-        "--file-patterns",
-        nargs="+",
-        default=DEFAULT_TAR_RE_PATTERNS,
-        type=str,
-        help="The regular expression patterns to evaluate",
     )
     list_parser.add_argument(
         "--strategy-yaml-path",
@@ -221,7 +258,15 @@ def get_parser() -> ArgumentParser:
         default=None,
         help="Path to a strategy file with a archive section. Overrides any --file-patterns. ",
     )
-
+    list_parser.add_argument(
+        "--mode",
+        choices=("create", "copy"),
+        default="copy",
+        help="Which set of RE patterns to present, those for the tarball (create) or those for copy",
+    )
+    list_parser = add_options_to_parser(
+        parser=list_parser, options_class=ArchiveOptions
+    )
     create_parser = subparser.add_parser("create", help="Create a tarfile archive")
     create_parser.add_argument(
         "tar_out_path", type=Path, help="Path of the output tar file to be created"
@@ -233,12 +278,8 @@ def get_parser() -> ArgumentParser:
         help="Base directory to perform glob expressions",
     )
 
-    create_parser.add_argument(
-        "--tar-file-patterns",
-        nargs="+",
-        default=DEFAULT_TAR_RE_PATTERNS,
-        type=str,
-        help="The regular expression patterns to evaluate inside the base path directory",
+    create_parser = add_options_to_parser(
+        parser=create_parser, options_class=ArchiveOptions
     )
     create_parser.add_argument(
         "--strategy-yaml-path",
@@ -262,12 +303,8 @@ def get_parser() -> ArgumentParser:
         help="Base directory to perform glob expressions",
     )
 
-    copy_parser.add_argument(
-        "--copy-file-patterns",
-        nargs="+",
-        default=DEFAULT_COPY_RE_PATTERNS,
-        type=str,
-        help="The regular expression patterns to evaluate inside the base path directory",
+    copy_parser = add_options_to_parser(
+        parser=copy_parser, options_class=ArchiveOptions
     )
     copy_parser.add_argument(
         "--strategy-yaml-path",
@@ -294,11 +331,16 @@ def cli() -> None:
 
         files = resolve_glob_expressions(
             base_path=args.base_path,
-            file_re_patterns=archive_options.tar_file_re_patterns,
+            file_re_patterns=(
+                archive_options.tar_file_re_patterns
+                if args.mode == "create"
+                else archive_options.copy_file_re_patterns
+            ),
         )
-
         for count, file in enumerate(sorted(files)):
             logger.info(f"{count} of {len(files)}, {file}")
+        logger.info(f"{len(files)} for mode={args.mode}")
+
     elif args.mode == "create":
         update_options_create: Dict[str, Any] = (
             get_archive_options_from_yaml(strategy_yaml_path=args.strategy_yaml_path)

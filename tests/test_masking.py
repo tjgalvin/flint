@@ -7,12 +7,12 @@ from astropy.io import fits
 from flint.masking import (
     MaskingOptions,
     _create_signal_from_rmsbkg,
-    _args_to_mask_options,
     _need_to_make_signal,
     _verify_set_positive_seed_clip,
     beam_shape_erode,
     consider_beam_mask_round,
     create_beam_mask_kernel,
+    create_options_from_parser,
     create_snr_mask_from_fits,
     get_parser,
     minimum_boxcar_artefact_mask,
@@ -71,7 +71,9 @@ def test_arg_parser_cli_and_masking_options():
     args = parser.parse_args(
         args="mask img --rms-fits rms --bkg-fits bkg --flood-fill --flood-fill-positive-seed-clip 10 --flood-fill-positive-flood-clip 1. --flood-fill-use-mbc --flood-fill-use-mbc-box-size 100".split()
     )
-    masking_options = _args_to_mask_options(args=args)
+    masking_options = create_options_from_parser(
+        parser_namespace=args, options_class=MaskingOptions
+    )
     assert isinstance(masking_options, MaskingOptions)
     assert masking_options.flood_fill
     assert masking_options.flood_fill_use_mbc
