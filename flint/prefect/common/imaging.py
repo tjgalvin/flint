@@ -162,7 +162,8 @@ def task_extract_solution_path(calibrate_cmd: CalibrateCommand) -> Path:
     return calibrate_cmd.solution_path
 
 
-@task
+# BANE sometimes gets cauht in some stalled staTE
+@task(timeout_seconds=60 * 45, retries=3)
 def task_run_bane_and_aegean(
     image: Union[WSCleanCommand, LinmosCommand], aegean_container: Path
 ) -> AegeanOutputs:
