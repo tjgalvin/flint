@@ -103,6 +103,8 @@ class WSCleanOptions(BaseOptions):
     """Enable multiscale deconvolution"""
     multiscale_scale_bias: float = 0.75
     """Multiscale bias term"""
+    multiscale_gain: Optional[float] = None
+    """Size of step made in the subminor loop of multi-scale. Default currently 0.2, but shows sign of instability. A value of 0.1 might be more stable."""
     multiscale_scales: Tuple[int, ...] = (
         0,
         15,
