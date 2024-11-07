@@ -330,9 +330,8 @@ def task_wsclean_imager(
         convergence_wsclean_options = dict(size=size, mgain=mgain)
         # dicts are mutable. Don't want to change for everything. Unclear to me
         # how prefect would behave here.
-        update_wsclean_options = update_wsclean_options.copy().update(
-            **convergence_wsclean_options
-        )
+        update_wsclean_options = update_wsclean_options.copy()
+        update_wsclean_options.update(**convergence_wsclean_options)
         logger.warn(
             f"Clean divergence dertected. Rerunning. Updated options {convergence_wsclean_options=}"
         )
