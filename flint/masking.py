@@ -48,26 +48,18 @@ class MaskingOptions(BaseOptions):
     """If True, the clipping levels are used as the `increase_factor` when using a minimum absolute clip"""
     flood_fill_use_mbc_box_size: int = 75
     """The size of the mbc box size should mbc be used"""
-    suppress_artefacts: bool = False
-    """Whether to attempt artefacts based on the presence of significant negatives"""
-    suppress_artefacts_negative_seed_clip: float = 5
-    """The significance level of a negative island for the sidelobe suppression to be activated. This should be a positive number (the signal map is internally inverted)"""
-    suppress_artefacts_guard_negative_dilation: float = 40
-    """The minimum positive significance pixels should have to be guarded when attempting to suppress artefacts around bright sources"""
-    suppress_artefacts_large_island_threshold: float = 1.0
-    """Threshold in units of beams for an island of negative pixels to be considered large"""
+    flood_fill_use_mbc_adative_step_factor: float = 2.0
+    """Stepping size used to increase box by should adaptive detect poor boxcar statistics"""
+    flood_fill_use_mbc_adaptive_positive_threshold: float = 0.7
+    """A box is consider too small for a pixel if the fractional proportion of positive pixels is larger than this fractional threshold (0 to 1)"""
+    flood_fill_use_mbc_adaptive_max_depth: Optional[int] = None
+    """Determines the number of adaptive boxcar scales to use when constructing seed mask. If None no adaptive boxcar sizes"""
     grow_low_snr_island: bool = False
     """Whether to attempt to grow a mask to capture islands of low SNR (e.g. diffuse emission)"""
     grow_low_snr_island_clip: float = 1.75
     """The minimum significance levels of pixels to be to seed low SNR islands for consideration"""
     grow_low_snr_island_size: int = 768
     """The number of pixels an island has to be for it to be accepted"""
-    minimum_boxcar: bool = False
-    """Use the boxcar minimum threshold to compare to remove artefacts"""
-    minimum_boxcar_size: int = 100
-    """Size of the boxcar filter"""
-    minimum_boxcar_increase_factor: float = 1.2
-    """The factor used to construct minimum positive signal threshold for an island """
     beam_shape_erode: bool = False
     """Erode the mask using the shape of the restoring beam"""
     beam_shape_erode_minimum_response: float = 0.6
@@ -333,146 +325,6 @@ def grow_low_snr_mask(
     return low_snr_mask
 
 
-# TODO> Allow box car size to be scaled in proportion to beam size
-def minimum_boxcar_artefact_mask(
-    signal: np.ndarray,
-    island_mask: np.ndarray,
-    boxcar_size: int,
-    increase_factor: float = 2.0,
-) -> np.ndarray:
-    """Attempt to remove islands from a potential clean mask by
-    examining surrounding pixels. A boxcar is applied to find the
-    minimum signal to noise in a small localised region. For each
-    island the maximum signal is considered.
-
-    If the absolute minimum signal increased by a factor in an
-    island region is larger to the maximum signal then that island
-    is omitted.
-
-    This is planned to be deprecated.
-
-    Args:
-        signal (np.ndarray): The input signl to use
-        island_mask (np.ndarray): The current island mask derived by other methods
-        boxcar_size (int): Size of the minimum boxcar size
-        increase_factor (float, optional): Factor to increase the minimum signal by. Defaults to 2.0.
-
-    Returns:
-        np.ndarray: _description_
-    """
-    import warnings
-
-    warnings.warn("minimum_boxcar_artefacts to be removed. ", DeprecationWarning)
-    return island_mask
-
-    logger.info(
-        f"Running boxcar minimum island clip with {boxcar_size=} {increase_factor=}"
-    )
-
-    # Make a copy of the original island mask to avoid unintended persistence
-    mask = island_mask.copy()
-
-    # label each of the islands with a id
-    mask_labels, _ = label(island_mask, structure=np.ones((3, 3)))  # type: ignore
-    uniq_labels = np.unique(mask_labels)
-    logger.info(f"Number of unique islands: {len(uniq_labels)}")
-
-    rolling_min = minimum_filter(signal, boxcar_size)
-
-    # For each island work out the maximum signal in the island and the minimum signal
-    # at the island in the output of the boxcar.
-    island_min, island_max = {}, {}
-    for island_id in uniq_labels:
-        if island_id == 0:
-            continue
-
-        # compute the mask once. These could be a dixt comprehension
-        # but then this mask is computed twice
-        island_id_mask = mask_labels == island_id
-
-        island_max[island_id] = np.max(signal[island_id_mask])
-        island_min[island_id] = np.min(rolling_min[island_id_mask])
-
-    # Nuke the weak ones, mask and report
-    eliminate = [
-        k
-        for k in island_max
-        if island_max[k] < np.abs(increase_factor * island_min[k])
-        and island_min[k] < 0.0
-    ]
-    # Walk the plank
-    mask[np.isin(mask_labels, eliminate)] = False
-
-    logger.info(f"Eliminated {len(eliminate)} islands")
-
-    return mask
-
-
-def suppress_artefact_mask(
-    signal: np.ndarray,
-    negative_seed_clip: float,
-    guard_negative_dilation: float,
-    pixels_per_beam: Optional[float] = None,
-    large_island_threshold: float = 1.0,
-) -> np.ndarray:
-    """Attempt to grow mask that suppresses artefacts around bright sources. Small islands
-    of negative emission seed pixels, which then grow out. Bright positive pixels are not
-    allowed to change (which presumably are the source of negative artetfacts).
-
-    The assumption here is that:
-
-    - no genuine source of negative sky emission
-    - negative islands are around bright sources with deconvolution/calibration errors
-    - if there are brightish negative islands there is also positive brightish arteefact islands nearby
-
-    For this reason the guard mask should be sufficiently high to protect the main source but nuke the fask positive islands
-
-    Consider using ``minimum_absolute_clip``, which has a simpler set of options and has
-    largely the same intended result.
-
-    Args:
-        signal (np.ndarray): The signal mask,
-        negative_seed_clip (float): The minimum significance level to seed. This is a positive number (as it is applied to the inverted signal).
-        guard_negative_dilation (float): Regions of positive emission above this are protected. This is positive.
-        pixels_per_beam (Optional[float], optional): The number of pixels per beam. If not None, seed islands larger than this many pixels are removed. Defaults to None.
-        large_island_threshold (float, optional): The number of beams required for a large island of negative pixels to be dropped as an artefact seed. Only used if `pixels_per_beam` is set. Defaults to 1.0.
-
-    Returns:
-        np.ndarray: The artefact suppression mask
-    """
-    # This Pirate thinks provided the background is handled
-    # that taking the inverse is correct
-    negative_signal = -1 * signal
-
-    negative_mask = negative_signal > negative_seed_clip
-
-    if pixels_per_beam:
-        mask_labels, no_labels = label(negative_mask, structure=np.ones((3, 3)))
-        _, counts = np.unique(mask_labels.flatten(), return_counts=True)
-
-        clip_pixels_threshold = large_island_threshold * pixels_per_beam
-        logger.info(
-            f"Removing negative islands larger than {clip_pixels_threshold} pixels with {large_island_threshold=}, {pixels_per_beam=}"
-        )
-
-        large_islands = [
-            idx
-            for idx, count in enumerate(counts)
-            if count > clip_pixels_threshold and idx > 0
-        ]
-        logger.info(f"Removing islands with labels: {large_islands=}")
-        negative_mask[np.isin(mask_labels, large_islands)] = False
-
-    negative_dilated_mask = scipy_binary_dilation(
-        input=negative_mask,
-        mask=signal < guard_negative_dilation,
-        iterations=10,
-        structure=np.ones((3, 3)),
-    )
-
-    return negative_dilated_mask
-
-
 def minimum_absolute_clip(
     image: np.ndarray, increase_factor: float = 2.0, box_size: int = 100
 ) -> np.ndarray:
@@ -592,33 +444,11 @@ def reverse_negative_flood_fill(
         structure=np.ones((3, 3)),
     )
 
-    if masking_options.minimum_boxcar:
-        positive_dilated_mask = minimum_boxcar_artefact_mask(
-            signal=base_image,
-            island_mask=positive_dilated_mask,
-            boxcar_size=masking_options.minimum_boxcar_size,
-            increase_factor=masking_options.minimum_boxcar_increase_factor,
-        )
-
-    negative_dilated_mask = None
-    if masking_options.suppress_artefacts:
-        negative_dilated_mask = suppress_artefact_mask(
-            signal=base_image,
-            negative_seed_clip=masking_options.suppress_artefacts_negative_seed_clip,
-            guard_negative_dilation=masking_options.suppress_artefacts_guard_negative_dilation,
-            pixels_per_beam=pixels_per_beam,
-            large_island_threshold=masking_options.suppress_artefacts_large_island_threshold,
-        )
-
-        # and here we set the presumable nasty islands to False
-        positive_dilated_mask[negative_dilated_mask] = False
-
     if masking_options.grow_low_snr_island:
         low_snr_mask = grow_low_snr_mask(
             signal=base_image,
             grow_low_snr=masking_options.grow_low_snr_island_clip,
             grow_low_island_size=masking_options.grow_low_snr_island_size,
-            region_mask=negative_dilated_mask,
         )
         positive_dilated_mask[low_snr_mask] = True
 

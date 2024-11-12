@@ -9,6 +9,9 @@
   - load arguments into an `BaseOptions` class from a `ArgumentParser`
   - starting to move some classes over to this approaches (including some CLIs)
 - Added a verify tarball function to verify archives
+- Removed `suppress_artefact` and `minimum_absolute_clip` functions from
+  `flint.masking`
+-
 
 # 0.2.7
 
