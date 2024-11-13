@@ -555,7 +555,7 @@ def reverse_negative_flood_fill(
             increase_factor=masking_options.flood_fill_positive_seed_clip,
             box_size=masking_options.flood_fill_use_mbc_box_size,
             adaptive_max_depth=masking_options.flood_fill_use_mbc_adaptive_max_depth,
-            adaptive_box_step=masking_options.flood_fill_use_mbc_adative_step_factor,
+            adaptive_box_step=masking_options.flood_fill_use_mbc_adaptive_step_factor,
             adaptive_skew_delta=masking_options.flood_fill_use_mbc_adaptive_skew_delta,
         )
         flood_floor_mask = minimum_absolute_clip(
