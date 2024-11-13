@@ -414,6 +414,9 @@ def _adaptive_minimum_absolute_clip(
         if np.all(~skew_results.skew_mask):
             logger.info("No skewed islands detected")
             break
+        if any([box_size > dim for dim in image.shape]):
+            logger.info(f"{box_size=} larger than a dimension in {image.shape=}")
+            break
 
         logger.info(f"({box_round}) Growing {box_size=} {adaptive_box_step=}")
         box_size = int(box_size * adaptive_box_step)
