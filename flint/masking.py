@@ -755,7 +755,6 @@ def get_parser() -> ArgumentParser:
     )
     fits_parser.add_argument(
         "--save-signal",
-        type=bool,
         action="store_true",
         help="Save the signal image internally generated (should it be generated)",
     )
