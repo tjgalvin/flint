@@ -15,10 +15,34 @@ from flint.masking import (
     create_options_from_parser,
     create_snr_mask_from_fits,
     get_parser,
+    _minimum_absolute_clip,
 )
 from flint.naming import FITSMaskNames
 
 SHAPE = (100, 100)
+
+
+def test_minimum_absolute_clip():
+    """The minimum absolute clipping process accepts an image
+    and returns a mask.  At its heart it applies a ``minimum_filter``
+    from scipy."""
+
+    image = np.ones(SHAPE) * -1.0
+    image[10, 10] = -2
+    mbc_mask = _minimum_absolute_clip(image=image, box_size=10)
+    assert np.all(~mbc_mask)
+
+    image[12, 12] = 5
+    mbc_mask = _minimum_absolute_clip(image=image)
+    assert np.sum(mbc_mask) == 1
+
+    image[12, 12] = 0
+    mbc_mask = _minimum_absolute_clip(image=image)
+    assert np.all(~mbc_mask)
+
+    image[12, 12] = 5
+    mbc_mask = _minimum_absolute_clip(image=image, increase_factor=3)
+    assert np.all(~mbc_mask)
 
 
 def test_create_signal_from_rmsbkg():

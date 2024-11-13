@@ -6,7 +6,7 @@ from __future__ import annotations
 
 from argparse import ArgumentParser
 from pathlib import Path
-from typing import Collection, Optional, Union
+from typing import Collection, Optional, Union, NamedTuple
 
 import astropy.units as u
 import numpy as np
@@ -20,6 +20,7 @@ from scipy.ndimage import (
     binary_erosion as scipy_binary_erosion,  # Rename to distinguish from skimage
 )
 from scipy.ndimage import label, minimum_filter
+from scipy.signal import fftconvolve
 from radio_beam import Beam
 
 from flint.logging import logger
@@ -50,8 +51,8 @@ class MaskingOptions(BaseOptions):
     """The size of the mbc box size should mbc be used"""
     flood_fill_use_mbc_adative_step_factor: float = 2.0
     """Stepping size used to increase box by should adaptive detect poor boxcar statistics"""
-    flood_fill_use_mbc_adaptive_positive_threshold: float = 0.7
-    """A box is consider too small for a pixel if the fractional proportion of positive pixels is larger than this fractional threshold (0 to 1)"""
+    flood_fill_use_mbc_adaptive_skew_delta: float = 0.2
+    """A box is consider too small for a pixel if the fractional proportion of positive pixels is larger than the deviation away of (0.5 + frac). This threshold is therefore 0 to 0.5"""
     flood_fill_use_mbc_adaptive_max_depth: Optional[int] = None
     """Determines the number of adaptive boxcar scales to use when constructing seed mask. If None no adaptive boxcar sizes"""
     grow_low_snr_island: bool = False
@@ -325,7 +326,48 @@ def grow_low_snr_mask(
     return low_snr_mask
 
 
-def minimum_absolute_clip(
+class SkewResult(NamedTuple):
+    positive_pixel_frac: np.ndarray
+    """The fraction of positive pixels in a boxcar function"""
+    skew_mask: np.ndarray
+    """Mask of pixel positions indicating which positions failed the skew test"""
+    box_size: int
+    """Size of the boxcar window applies"""
+    skew_delta: float
+    """The test threshold for skew"""
+
+
+def create_boxcar_skew_mask(
+    image: np.ndarray, skew_delta: float, box_size: int
+) -> np.ndarray:
+    assert 0.0 < skew_delta < 0.5, f"{skew_delta=}, but should be 0.0 to 0.5"
+    assert (
+        len(image.shape) == 2
+    ), f"Expected two dimensions, got image shape of {image.shape}"
+    logger.info(f"Computing boxcar skew with {box_size=} and {skew_delta=}")
+    positive_pixels = (image > 0.0).astype(np.float32)
+
+    # Counting positive pixel fraction here. The su
+    window_shape = (box_size, box_size)
+    positive_pixel_fraction = fftconvolve(
+        in1=positive_pixels, in2=np.ones(window_shape, dtype=np.float32), mode="same"
+    ) / np.prod(window_shape)
+    positive_pixel_fraction = np.clip(
+        positive_pixel_fraction, 0.0, 1.0
+    )  # trust nothing
+
+    skew_mask = positive_pixel_fraction > (0.5 + skew_delta)
+    logger.info(f"{np.sum(skew_mask)} pixels above {skew_delta=} with {box_size=}")
+
+    return SkewResult(
+        positive_pixel_frac=positive_pixel_fraction,
+        skew_mask=skew_mask,
+        skew_delta=skew_delta,
+        box_size=box_size,
+    )
+
+
+def _minimum_absolute_clip(
     image: np.ndarray, increase_factor: float = 2.0, box_size: int = 100
 ) -> np.ndarray:
     """Given an input image or signal array, construct a simple image mask by applying a
@@ -350,6 +392,96 @@ def minimum_absolute_clip(
     # )
 
     return image_mask
+
+
+def _adaptive_minimum_absolute_clip(
+    image: np.ndarray,
+    increase_factor: float = 2.0,
+    box_size: int = 100,
+    adaptive_max_depth: int = 3,
+    adaptive_box_step: float = 2.0,
+    adaptive_skew_delta: float = 0.2,
+) -> np.ndarray:
+    logger.info(
+        f"Using adaptive minimum absolute clip with {box_size=} {adaptive_skew_delta=}"
+    )
+    min_value = minimum_filter(input=image, size=box_size)
+
+    for box_round in range(adaptive_max_depth, 0, -1):
+        skew_results = create_boxcar_skew_mask(
+            image=image, skew_delta=adaptive_skew_delta, box_size=box_size
+        )
+        if np.all(~skew_results.skew_mask):
+            logger.info("No skewed islands detected")
+            break
+
+        logger.info(f"({box_round}) Growing {box_size=} {adaptive_box_step=}")
+        box_size = int(box_size * adaptive_box_step)
+        _min_value = minimum_filter(input=image, size=box_size)
+        logger.debug("Slicing minimum values into place")
+
+        min_value[skew_results.skew_mask] = _min_value[skew_results.skew_mask]
+
+    mask = image > (np.abs(min_value) * increase_factor)
+
+    return mask
+
+
+def minimum_absolute_clip(
+    image: np.ndarray,
+    increase_factor: float = 2.0,
+    box_size: int = 100,
+    adaptive_max_depth: Optional[int] = None,
+    adaptive_box_step: float = 2.0,
+    adaptive_skew_delta: float = 0.2,
+) -> np.ndarray:
+    """Implements minimum absolute clip method. A minimum filter of a particular
+    boxc size is applied to the input image. The absolute of the output is taken
+    and increased by a guard factor, which forms the clipping level used to construct
+    a clean mask:
+
+    >>> image > (absolute(minimum_filter(image, box)) * factor)
+
+    The idea is only valid for zero mean and normally distributed pixels, with
+    positive definite flux, making it appropriate for Stokes I.
+
+    Larger box sizes and guard factors will make the mask more conservative. Should
+    the boxcar be too small relative to some feature it is aligned it is possible
+    that an excess of positive pixels will produce an less than optimal clipping
+    level. An adaptive box size mode, if activated, attempts to use a larger box
+    around these regions.
+
+    The basic idea being detecting regions where the boxcar is too small is around
+    the idea that there should be a similar number of positive to negative pixels.
+    Should there be too many positive pixels in a region it is likely there is an
+
+    Args:
+        image (np.ndarray): Image to create a mask for
+        increase_factor (float, optional): The guard factor used to inflate the absolute of the minimum filter. Defaults to 2.0.
+        box_size (int, optional): Size of the box car of the minimum filter. Defaults to 100.
+        adaptive_max_depth (Optional[int], optional): The maximum number of rounds that the adaptive mode is allowed to perform when rescaling boxcar results in certain directions. Defaults to None.
+        adaptive_box_step (float, optional): A multiplicative factor to increase the boxcar size by each round. Defaults to 2.0.
+        adaptive_skew_delta (float, optional): Minimum deviation from 0.5 that needs to be met to classify a region as skewed. Defaults to 0.2.
+
+    Returns:
+        np.ndarray: Final mask
+    """
+
+    if adaptive_max_depth is None:
+        return _minimum_absolute_clip(
+            image=image, box_size=box_size, increase_factor=increase_factor
+        )
+
+    adaptive_max_depth = int(adaptive_max_depth)
+
+    return _adaptive_minimum_absolute_clip(
+        image=image,
+        increase_factor=increase_factor,
+        box_size=box_size,
+        adaptive_max_depth=adaptive_max_depth,
+        adaptive_box_step=adaptive_box_step,
+        adaptive_skew_delta=adaptive_skew_delta,
+    )
 
 
 def _verify_set_positive_seed_clip(
