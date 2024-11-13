@@ -49,7 +49,7 @@ class MaskingOptions(BaseOptions):
     """If True, the clipping levels are used as the `increase_factor` when using a minimum absolute clip"""
     flood_fill_use_mbc_box_size: int = 75
     """The size of the mbc box size should mbc be used"""
-    flood_fill_use_mbc_adative_step_factor: float = 2.0
+    flood_fill_use_mbc_adaptive_step_factor: float = 2.0
     """Stepping size used to increase box by should adaptive detect poor boxcar statistics"""
     flood_fill_use_mbc_adaptive_skew_delta: float = 0.2
     """A box is consider too small for a pixel if the fractional proportion of positive pixels is larger than the deviation away of (0.5 + frac). This threshold is therefore 0 to 0.5"""
