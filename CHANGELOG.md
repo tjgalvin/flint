@@ -11,7 +11,7 @@
 - Added a verify tarball function to verify archives
 - Removed `suppress_artefact` and `minimum_absolute_clip` functions from
   `flint.masking`
--
+- Added an adaptive box selection mode to the minimum absolute algorithm
 
 # 0.2.7
 
