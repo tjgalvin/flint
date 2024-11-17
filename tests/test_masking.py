@@ -15,11 +15,72 @@ from flint.masking import (
     create_options_from_parser,
     create_snr_mask_from_fits,
     get_parser,
-    minimum_boxcar_artefact_mask,
+    _minimum_absolute_clip,
+    minimum_absolute_clip,
 )
 from flint.naming import FITSMaskNames
 
 SHAPE = (100, 100)
+
+
+def test_adaptive_minimum_absolute_clip():
+    """Activate the adaptive mode of the mac"""
+
+    image = np.ones((2000, 2000)) * -1.2
+    image[100:200, 100:200] = 1.0
+    mask = minimum_absolute_clip(
+        image=image,
+        box_size=50,
+        increase_factor=1.1,
+        adaptive_max_depth=1,
+        adaptive_box_step=4.0,
+        adaptive_skew_delta=0.2,
+    )
+    assert np.all(~mask)
+
+    image = np.ones((2000, 2000)) * -1.2
+    image[100:200, 100:200] = 1.0
+    image[110, 130] = 2000
+    mask = minimum_absolute_clip(
+        image=image,
+        box_size=50,
+        increase_factor=1.1,
+        adaptive_max_depth=1,
+        adaptive_box_step=4.0,
+        adaptive_skew_delta=0.2,
+    )
+    assert np.sum(mask) == 1
+
+
+def test_private_minimum_absolute_clip():
+    """The minimum absolute clipping process accepts an image
+    and returns a mask.  At its heart it applies a ``minimum_filter``
+    from scipy."""
+
+    image = np.ones(SHAPE) * -1.0
+    image[10, 10] = -2
+    private_mbc_mask = _minimum_absolute_clip(image=image, box_size=10)
+    mbc_mask = minimum_absolute_clip(image=image, box_size=10)
+    assert np.all(~mbc_mask)
+    assert np.all(private_mbc_mask == mbc_mask)
+
+    image[12, 12] = 5
+    private_mbc_mask = _minimum_absolute_clip(image=image)
+    mbc_mask = minimum_absolute_clip(image=image)
+    assert np.sum(mbc_mask) == 1
+    assert np.all(private_mbc_mask == mbc_mask)
+
+    image[12, 12] = 0
+    private_mbc_mask = _minimum_absolute_clip(image=image)
+    mbc_mask = minimum_absolute_clip(image=image)
+    assert np.all(~mbc_mask)
+    assert np.all(private_mbc_mask == mbc_mask)
+
+    image[12, 12] = 5
+    private_mbc_mask = _minimum_absolute_clip(image=image, increase_factor=3)
+    mbc_mask = minimum_absolute_clip(image=image, increase_factor=3)
+    assert np.all(~mbc_mask)
+    assert np.all(private_mbc_mask == mbc_mask)
 
 
 def test_create_signal_from_rmsbkg():
@@ -196,66 +257,6 @@ def test_consider_beam_masking_round():
         current_round=3, mask_rounds=1, allow_beam_masks=True
     )
     assert consider_beam_mask_round(current_round=1, mask_rounds=1)
-
-
-def test_minimum_boxcar_artefact():
-    """See if the minimum box care artefact suppressor can suppress the
-    bright artefact when a bright negative artefact
-    """
-    img = np.zeros((SHAPE))
-
-    img[30:40, 30:40] = 10
-    img_mask = img > 5
-
-    out_mask = minimum_boxcar_artefact_mask(
-        signal=img, island_mask=img_mask, boxcar_size=10
-    )
-    assert np.all(img_mask == out_mask)
-    assert out_mask is img_mask  # minimum boxcar artefact mask to be deprecated
-    # assert img_mask is not out_mask
-
-    img[41:45, 30:40] = -20
-    out_mask = minimum_boxcar_artefact_mask(
-        signal=img, island_mask=img_mask, boxcar_size=10
-    )
-    assert out_mask is img_mask  # minimum boxcar artefact mask to be deprecated
-
-    # assert not np.all(img_mask == out_mask)
-
-
-def test_minimum_boxcar_artefact_blanked():
-    """See if the minimum box care artefact suppressor can suppress the
-    bright artefact when a bright negative artefact
-    """
-    img = np.zeros((SHAPE))
-
-    img[30:40, 30:40] = 10
-    img[41:45, 30:40] = -20
-
-    img_mask = img > 5
-
-    out_mask = minimum_boxcar_artefact_mask(
-        signal=img, island_mask=img_mask, boxcar_size=10, increase_factor=1000
-    )
-    assert out_mask is img_mask  # minimum boxcar artefact mask will be deprecated
-
-    # assert out_mask is not img_mask
-    # assert np.all(out_mask[30:40, 30:40] == False)  # noqa
-
-
-def test_minimum_boxcar_large_bright_island():
-    """This one checks to make sure that if the boxcar is smaller than
-    a positive islane that the island is not the island_min
-    """
-
-    img = np.zeros(SHAPE)
-    img[30:40, 30:40] = 10
-    img_mask = img > 5
-
-    out_mask = minimum_boxcar_artefact_mask(
-        signal=img, island_mask=img_mask, boxcar_size=2
-    )
-    assert np.all(img_mask == out_mask)
 
 
 @pytest.fixture
