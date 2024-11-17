@@ -54,9 +54,6 @@ defaults:
     flood_fill: true
     flood_fill_positive_seed_clip: 4.5
     flood_fill_positive_flood_clip: 1.5
-    suppress_artefacts: true
-    suppress_artefacts_negative_seed_clip: 5
-    suppress_artefacts_guard_negative_dilation: 40
     grow_low_snr_island: true
     grow_low_snr_island_clip: 1.75
     grow_low_snr_island_size: 768
