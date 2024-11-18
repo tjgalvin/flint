@@ -156,6 +156,8 @@ class WSCleanOptions(BaseOptions):
     """The path to a temporary directory where files will be wrritten. """
     pol: str = "i"
     """The polarisation to be imaged"""
+    save_source_list: bool = False
+    """Saves the found clean components as a BBS/DP3 text sky model"""
 
 
 class WSCleanCommand(NamedTuple):
