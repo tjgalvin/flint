@@ -497,7 +497,7 @@ def process_science_fields(
 
     # zip up the final measurement set, which is not included in the above loop
     if field_options.zip_ms:
-        task_zip_ms.map(in_item=wsclean_cmds)
+        task_zip_ms.map(in_item=wsclean_cmds, wait_for=archive_wait_for)
 
     if field_options.sbid_archive_path or field_options.sbid_copy_path and run_aegean:
         update_archive_options = get_options_from_strategy(
