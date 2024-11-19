@@ -181,6 +181,40 @@ class WSCleanCommand(NamedTuple):
         return WSCleanCommand(**_dict)
 
 
+def get_wsclean_output_source_list_path(name_path: Path, pol: str = "i") -> Path:
+    """WSClean can produce a text file that describes the components
+    that it cleaned, their type, scale and brightness. These are
+    placed in a file that is:
+
+    >> {name}.{pol}-sources.txt
+
+    where ``name`` represented the `-name` component. Given
+    an input measurement set path or this `-name` value return
+    the expected source list text file. ``pol`` is the stokes
+    that the source is expected.
+
+    Args:
+        name_path (Path): Value of the ``-name`` option. If `str` converted to a ``Path``
+        pol (str, optional): The polarisation to add to the name. Defaults to "i".
+
+    Returns:
+        Path: Path to the source list text file
+    """
+
+    # ye not be trusted
+    name_path = Path(name_path)
+    base_name = name_path.name
+    if ".ms" == Path(base_name).suffix:
+        base_name = Path(base_name).stem
+
+    logger.info(f"{base_name=} extracted from {name_path=}")
+
+    source_list_name = f"{base_name}.{pol}-sources.txt"
+    source_list_path = name_path.parent / source_list_name
+
+    return source_list_path
+
+
 def _rename_wsclean_title(name_str: str) -> str:
     """Construct an apply a regular expression that aims to identify
     the wsclean appended properties string within a file and replace
