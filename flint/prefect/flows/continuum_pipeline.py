@@ -307,7 +307,7 @@ def process_science_fields(
     beam_summaries = task_create_beam_summary.map(
         ms=preprocess_science_mss, imageset=wsclean_cmds
     )
-
+    archive_wait_for.extend(beam_summaries)
     archive_wait_for.extend(wsclean_cmds)
 
     beam_aegean_outputs = None
