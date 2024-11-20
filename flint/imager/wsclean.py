@@ -51,15 +51,15 @@ class ImageSet(NamedTuple):
 
     prefix: str
     """Prefix of the images and other output products. This should correspond to the -name argument from wsclean"""
-    image: Collection[Path]
+    image: List[Path]
     """Images produced. """
-    psf: Optional[Collection[Path]] = None
+    psf: Optional[List[Path]] = None
     """References to the PSFs produced by wsclean. """
-    dirty: Optional[Collection[Path]] = None
+    dirty: Optional[List[Path]] = None
     """Dirty images. """
-    model: Optional[Collection[Path]] = None
+    model: Optional[List[Path]] = None
     """Model images.  """
-    residual: Optional[Collection[Path]] = None
+    residual: Optional[List[Path]] = None
     """Residual images."""
 
 
