@@ -177,7 +177,7 @@ class WSCleanCommand(BaseOptions):
 
 
 def get_wsclean_output_source_list_path(
-    name_path: Union[str, Path], pol: str = "i"
+    name_path: Union[str, Path], pol: Optional[str] = None
 ) -> Path:
     """WSClean can produce a text file that describes the components
     that it cleaned, their type, scale and brightness. These are
@@ -192,7 +192,7 @@ def get_wsclean_output_source_list_path(
 
     Args:
         name_path (Union[str,Path]): Value of the ``-name`` option. If `str` converted to a ``Path``
-        pol (str, optional): The polarisation to add to the name. Defaults to "i".
+        pol (Optional[str], optional): The polarisation to add to the name. If None the -source.txt suffix is simply appended. Defaults to None.
 
     Returns:
         Path: Path to the source list text file
@@ -206,7 +206,9 @@ def get_wsclean_output_source_list_path(
 
     logger.info(f"{base_name=} extracted from {name_path=}")
 
-    source_list_name = f"{base_name}.{pol}-sources.txt"
+    source_list_name = (
+        f"{base_name}.{pol}-sources.txt" if pol else f"{base_name}-sources.txt"
+    )
     source_list_path = name_path.parent / source_list_name
 
     return source_list_path
@@ -330,7 +332,7 @@ def get_wsclean_output_names(
     if isinstance(output_types, str):
         output_types = (output_types,)
 
-    images: Dict[str, Collection[Path]] = {}
+    images: Dict[str, List[Path]] = {}
     for image_type in ("image", "dirty", "model", "residual"):
         if image_type not in output_types:
             continue

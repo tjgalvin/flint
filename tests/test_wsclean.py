@@ -37,19 +37,25 @@ def test_get_wsclean_output_source_list_path():
     example = Path("/flint/pirates/SB58992.RACS_1726-73.beam22.ms")
     source_path = Path("/flint/pirates/SB58992.RACS_1726-73.beam22.i-sources.txt")
 
-    test_source_path = get_wsclean_output_source_list_path(name_path=example)
+    test_source_path = get_wsclean_output_source_list_path(name_path=example, pol="i")
     assert source_path == test_source_path
 
     example = Path("/flint/pirates/SB58992.RACS_1726-73.beam22")
     source_path = Path("/flint/pirates/SB58992.RACS_1726-73.beam22.i-sources.txt")
 
-    test_source_path = get_wsclean_output_source_list_path(name_path=example)
+    test_source_path = get_wsclean_output_source_list_path(name_path=example, pol="i")
     assert source_path == test_source_path
 
     example = "SB58992.RACS_1726-73.beam22"
     source_path = Path("SB58992.RACS_1726-73.beam22.i-sources.txt")
 
-    test_source_path = get_wsclean_output_source_list_path(name_path=example)
+    test_source_path = get_wsclean_output_source_list_path(name_path=example, pol="i")
+    assert source_path == test_source_path
+
+    example = "SB58992.RACS_1726-73.beam22"
+    source_path = Path("SB58992.RACS_1726-73.beam22-sources.txt")
+
+    test_source_path = get_wsclean_output_source_list_path(name_path=example, pol=None)
     assert source_path == test_source_path
 
 
