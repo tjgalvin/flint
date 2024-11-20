@@ -543,6 +543,36 @@ def rename_column_in_ms(
     return ms
 
 
+def remove_columns_from_ms(
+    ms: Union[MS, Path], columns_to_remove: Union[str, List[str]]
+) -> List[str]:
+    """Attempt to remove a collection of columns from a measurement set.
+    If any of the provided columns do not exist they are ignored.
+
+    Args:
+        ms (Union[MS, Path]): The measurement set to inspect and remove columns from
+        columns_to_remove (Union[str, List[str]]): Collection of column names to remove. If a single column internally it is cast to a list of length 1.
+
+    Returns:
+        List[str]: Collection of column names removed
+    """
+
+    if isinstance(columns_to_remove, str):
+        columns_to_remove = [columns_to_remove]
+
+    ms = MS.cast(ms=ms)
+    with table(tablename=str(ms.path), readonly=False, ack=False) as tab:
+        colnames = tab.colnames()
+        columns_to_remove = [c for c in columns_to_remove if c in colnames]
+        if len(columns_to_remove) == 0:
+            logger.info(f"All columns provided do not exist in {ms.path}")
+        else:
+            logger.info(f"Removing {columns_to_remove=} from {ms.path}")
+            tab.removecols(columnnames=columns_to_remove)
+
+    return columns_to_remove
+
+
 def preprocess_askap_ms(
     ms: Union[MS, Path],
     data_column: str = "DATA",

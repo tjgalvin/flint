@@ -6,17 +6,18 @@ import shutil
 from pathlib import Path
 
 import numpy as np
+from pydantic import ValidationError
 import pytest
 from casacore.tables import table
 
 from flint.calibrate.aocalibrate import ApplySolutions
-from flint.exceptions import MSError
 from flint.ms import (
     MS,
     check_column_in_ms,
     copy_and_preprocess_casda_askap_ms,
     find_mss,
     get_phase_dir_from_ms,
+    remove_columns_from_ms,
     rename_ms_and_columns_for_selfcal,
 )
 from flint.utils import get_packaged_resource_path
@@ -213,10 +214,58 @@ def test_ms_from_options():
 
 
 def test_raise_error_ms_from_options():
+    """Ensure validation error is raised when not casting correct
+    ms path type"""
+    # TODO: remove this test as pydantic prevents this from happening
     path = Path("example.ms")
-    solutions = ApplySolutions(
-        cmd="none", solution_path=Path("example_sols.bin"), ms=path
+    with pytest.raises(ValidationError):
+        _ = ApplySolutions(cmd="none", solution_path=Path("example_sols.bin"), ms=path)
+
+    # with pytest.raises((MSError, ValidationError)):
+    #     MS.cast(solutions)
+
+
+@pytest.fixture
+def ms_remove_example(tmpdir):
+    """Create a copy of the MS that will be modified."""
+    ms_zip = Path(
+        get_packaged_resource_path(
+            package="flint.data.tests",
+            filename="SB39400.RACS_0635-31.beam0.small.ms.zip",
+        )
+    )
+    outpath = Path(tmpdir) / "Removecols_39400"
+
+    shutil.unpack_archive(ms_zip, outpath)
+
+    ms_path = Path(outpath) / "SB39400.RACS_0635-31.beam0.small.ms"
+
+    return ms_path
+
+
+def _get_column_names(ms_path):
+    with table(str(ms_path)) as tab:
+        column_names = tab.colnames()
+
+    return column_names
+
+
+def test_remove_columns_from_ms(ms_remove_example):
+    """Load an example MS to remove columns from"""
+    original_columns = _get_column_names(ms_path=ms_remove_example)
+
+    removed_columns = remove_columns_from_ms(
+        ms=ms_remove_example, columns_to_remove="DATA"
     )
 
-    with pytest.raises(MSError):
-        MS.cast(solutions)
+    updated_columns = _get_column_names(ms_path=ms_remove_example)
+    diff = set(original_columns) - set(updated_columns)
+    assert len(diff) == 1
+    assert list(diff)[0] == "DATA"
+    assert removed_columns[0] == "DATA"
+    assert len(removed_columns) == 1
+
+    removed_columns = remove_columns_from_ms(
+        ms=ms_remove_example, columns_to_remove="DATA"
+    )
+    assert len(removed_columns) == 0

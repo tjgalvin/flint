@@ -301,6 +301,7 @@ def process_science_fields(
         strategy=unmapped(strategy),
         mode="wsclean",
         round_info="initial",
+        calibrate_container=field_options.calibrate_container,
     )  # type: ignore
 
     # TODO: This should be waited!
@@ -419,6 +420,7 @@ def process_science_fields(
                 strategy=unmapped(strategy),
                 mode="wsclean",
                 round_info=current_round,
+                calibrate_container=field_options.calibrate_container,
             )  # type: ignore
             archive_wait_for.extend(wsclean_cmds)
 

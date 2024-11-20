@@ -283,6 +283,7 @@ def task_wsclean_imager(
     wsclean_container: Path,
     update_wsclean_options: Optional[Dict[str, Any]] = None,
     fits_mask: Optional[FITSMaskNames] = None,
+    calibrate_container: Optional[Path] = None,
 ) -> WSCleanCommand:
     """Run the wsclean imager against an input measurement set
 
@@ -291,6 +292,7 @@ def task_wsclean_imager(
         wsclean_container (Path): Path to a singularity container with wsclean packages
         update_wsclean_options (Optional[Dict[str, Any]], optional): Options to update from the default wsclean options. Defaults to None.
         fits_mask (Optional[FITSMaskNames], optional): A path to a clean guard mask. Defaults to None.
+        calibrate_container (Optional[Path], optional): The aocalibrate container that has the ``addmodel`` program. is ``wsclean -save-source-list` is used then the model will be predicted at full resolution
 
     Returns:
         WSCleanCommand: A resulting wsclean command and resulting meta-data
@@ -312,6 +314,7 @@ def task_wsclean_imager(
             ms=ms,
             wsclean_container=wsclean_container,
             update_wsclean_options=update_wsclean_options,
+            calibrate_container=calibrate_container,
         )
     except CleanDivergenceError:
         # NOTE: If the cleaning failed retry with some larger images
@@ -340,6 +343,7 @@ def task_wsclean_imager(
             ms=ms,
             wsclean_container=wsclean_container,
             update_wsclean_options=update_wsclean_options,
+            calibrate_container=calibrate_container,
         )
 
 

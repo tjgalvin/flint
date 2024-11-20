@@ -26,6 +26,7 @@ from typing import Any, Collection, Dict, List, NamedTuple, Optional, Tuple, Uni
 import numpy as np
 from fitscube.combine_fits import combine_fits
 
+from flint.calibrate.aocalibrate import AddModelOptions, add_model
 from flint.exceptions import CleanDivergenceError
 from flint.logging import logger
 from flint.ms import MS
@@ -160,7 +161,7 @@ class WSCleanOptions(BaseOptions):
     """Saves the found clean components as a BBS/DP3 text sky model"""
 
 
-class WSCleanCommand(NamedTuple):
+class WSCleanCommand(BaseOptions):
     """Simple container for a wsclean command."""
 
     cmd: str
@@ -174,14 +175,10 @@ class WSCleanCommand(NamedTuple):
     cleanup: bool = True
     """Will clean up the dirty images/psfs/residuals/models when the imaging has completed"""
 
-    def with_options(self, **kwargs) -> WSCleanCommand:
-        _dict = self._asdict()
-        _dict.update(**kwargs)
 
-        return WSCleanCommand(**_dict)
-
-
-def get_wsclean_output_source_list_path(name_path: Path, pol: str = "i") -> Path:
+def get_wsclean_output_source_list_path(
+    name_path: Union[str, Path], pol: str = "i"
+) -> Path:
     """WSClean can produce a text file that describes the components
     that it cleaned, their type, scale and brightness. These are
     placed in a file that is:
@@ -194,7 +191,7 @@ def get_wsclean_output_source_list_path(name_path: Path, pol: str = "i") -> Path
     that the source is expected.
 
     Args:
-        name_path (Path): Value of the ``-name`` option. If `str` converted to a ``Path``
+        name_path (Union[str,Path]): Value of the ``-name`` option. If `str` converted to a ``Path``
         pol (str, optional): The polarisation to add to the name. Defaults to "i".
 
     Returns:
@@ -521,7 +518,10 @@ def _resolve_wsclean_key_value_to_cli_str(key: str, value: Any) -> ResolvedCLIRe
 
 
 def create_wsclean_cmd(
-    ms: MS, wsclean_options: WSCleanOptions, container: Optional[Path] = None
+    ms: MS,
+    wsclean_options: WSCleanOptions,
+    container: Optional[Path] = None,
+    calibrate_container: Optional[Path] = None,
 ) -> WSCleanCommand:
     """Create a wsclean command from a WSCleanOptions container
 
@@ -538,6 +538,7 @@ def create_wsclean_cmd(
         ms (MS): The measurement set to be imaged
         wsclean_options (WSCleanOptions): WSClean options to image with
         container (Optional[Path], optional): If a path to a container is provided the command is executed immediately. Defaults to None.
+        calibrate_container (Optional[Path], optional): Patht to the aocalibrate container with ``addmodel``. If not None and ``wsclean -save-source-list` is used the model will be predicted at full channel resolution
 
     Raises:
         ValueError: Raised when a option has not been successfully processed
@@ -599,6 +600,7 @@ def create_wsclean_cmd(
             bind_dirs=tuple(bind_dir_paths),
             move_hold_directories=(move_directory, hold_directory),
             image_prefix_str=str(name_argument_path),
+            calibrate_container=calibrate_container,
         )
 
     return wsclean_cmd
@@ -728,6 +730,7 @@ def run_wsclean_imager(
     move_hold_directories: Optional[Tuple[Path, Optional[Path]]] = None,
     make_cube_from_subbands: bool = True,
     image_prefix_str: Optional[str] = None,
+    calibrate_container: Optional[Path] = None,
 ) -> WSCleanCommand:
     """Run a provided wsclean command. Optionally will clean up files,
     including the dirty beams, psfs and other assorted things.
@@ -744,6 +747,7 @@ def run_wsclean_imager(
         move_hold_directories (Optional[Tuple[Path,Optional[Path]]], optional): The `move_directory` and `hold_directory` passed to the temporary context manager. If None no `hold_then_move_into` manager is used. Defaults to None.
         make_cube_from_subbands (bool, optional): Form a single FITS cube from the set of sub-band images wsclean produces. Defaults to False.
         image_prefix_str (Optional[str], optional): The name used to search for wsclean outputs. If None, it is guessed from the name and location of the MS. Defaults to None.
+        calibrate_container (Optional[Path], optional): Path to the ``aocalibrate`` container with the ``addmodel`` program. Should this be provided and the ``wsclean -save-source-list`` be used, then the model will be predicted at full channel resolution
 
     Returns:
         WSCleanCommand: The executed wsclean command with a populated imageset properter.
@@ -797,6 +801,20 @@ def run_wsclean_imager(
         #         prefix=prefix, output_type=output_type, ignore_mfs=False
         #     )
 
+    if calibrate_container and wsclean_cmd.options.save_source_list:
+        logger.info("Predicting the wsclean clean components SEDs")
+        source_list_path = get_wsclean_output_source_list_path(
+            name_path=prefix, pol="i"
+        )
+        assert source_list_path.exists(), f"{source_list_path=} does not exist"
+        add_model_options = AddModelOptions(
+            model_path=source_list_path,
+            ms_path=wsclean_cmd.ms.path,
+            mode="c",
+            datacolumn="MODEL_DATA",
+        )
+        add_model(add_model_options=add_model_options, container=calibrate_container)
+
     imageset = get_wsclean_output_names(
         prefix=prefix,
         subbands=wsclean_cmd.options.channels_out,
@@ -821,6 +839,7 @@ def wsclean_imager(
     ms: Union[Path, MS],
     wsclean_container: Path,
     update_wsclean_options: Optional[Dict[str, Any]] = None,
+    calibrate_container: Optional[Path] = None,
 ) -> WSCleanCommand:
     """Create and run a wsclean imager command against a measurement set.
 
@@ -828,6 +847,7 @@ def wsclean_imager(
         ms (Union[Path,MS]): Path to the measurement set that will be imaged
         wsclean_container (Path): Path to the container with wsclean installed
         update_wsclean_options (Optional[Dict[str, Any]], optional): Additional options to update the generated WscleanOptions with. Keys should be attributes of WscleanOptions. Defaults to None.
+        calibrate_container (Optional[Path], optional): Patht to the aocalibrate container with ``addmodel``. If not None and ``wsclean -save-source-list` is used the model will be predicted at full channel resolution
 
     Returns:
         WSCleanCommand: _description_
@@ -844,7 +864,10 @@ def wsclean_imager(
     assert ms.column is not None, "A MS column needs to be elected for imaging. "
     wsclean_options = wsclean_options.with_options(data_column=ms.column)
     wsclean_cmd = create_wsclean_cmd(
-        ms=ms, wsclean_options=wsclean_options, container=wsclean_container
+        ms=ms,
+        wsclean_options=wsclean_options,
+        container=wsclean_container,
+        calibrate_container=calibrate_container,
     )
 
     return wsclean_cmd

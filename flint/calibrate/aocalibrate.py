@@ -11,6 +11,7 @@ from typing import (
     Dict,
     Iterable,
     List,
+    Literal,
     NamedTuple,
     Optional,
     Tuple,
@@ -34,13 +35,28 @@ from flint.bptools.smoother import (
 )
 from flint.exceptions import PhaseOutlierFitError
 from flint.logging import logger
-from flint.ms import MS, consistent_ms, get_beam_from_ms
+from flint.ms import MS, consistent_ms, get_beam_from_ms, remove_columns_from_ms
 from flint.naming import get_aocalibrate_output_path
+from flint.options import BaseOptions
 from flint.sclient import run_singularity_command
 from flint.utils import create_directory
 
 
-class CalibrateOptions(NamedTuple):
+class AddModelOptions(BaseOptions):
+    """Container for options into the ``addmodel`` program packaged
+    with ``aocalibrate``"""
+
+    model_path: Path
+    """Path to the sky-model that will be inserted"""
+    ms_path: Path
+    """Path to the measurement set that will be interacted with"""
+    mode: Literal["a", "s", "c", "v"]
+    """The mode ``addmodel`` will be operating under, where where a=add model to visibilities (default), s=subtract model from visibilities, c=copy model to visibilities, z=zero visibilities"""
+    datacolumn: str
+    """The column that will be operated against"""
+
+
+class CalibrateOptions(BaseOptions):
     """Structure used to represent options into the `calibrate` program
 
     These attributes have the same names as options into the `calibrate`
@@ -60,14 +76,8 @@ class CalibrateOptions(NamedTuple):
     p: Optional[Tuple[Path, Path]] = None
     """Plot output names for the amplitude gain and phases"""
 
-    def with_options(self, **kwargs) -> CalibrateOptions:
-        options = self._asdict()
-        options.update(**kwargs)
 
-        return CalibrateOptions(**options)
-
-
-class CalibrateCommand(NamedTuple):
+class CalibrateCommand(BaseOptions):
     """The AO Calibrate command and output path of the corresponding solutions file"""
 
     cmd: str
@@ -83,14 +93,8 @@ class CalibrateCommand(NamedTuple):
     preflagged: bool = False
     """Indicates whether the solution file has gone through preflagging routines. """
 
-    def with_options(self, **kwargs) -> CalibrateCommand:
-        _dict = self._asdict()
-        _dict.update(**kwargs)
 
-        return CalibrateCommand(**_dict)
-
-
-class ApplySolutions(NamedTuple):
+class ApplySolutions(BaseOptions):
     """The applysolutions command to execute"""
 
     cmd: str
@@ -855,6 +859,10 @@ class FlaggedAOSolution(NamedTuple):
     """The bandpass solutions after flagging, as saved in the solutions file"""
 
 
+# TODO: These options are too much and should be placed
+# into a BaseOptions
+
+
 def flag_aosolutions(
     solutions_path: Path,
     ref_ant: int = -1,
@@ -1079,6 +1087,42 @@ def flag_aosolutions(
     )
 
     return flagged_aosolutions
+
+
+def add_model_options_to_command(add_model_options: AddModelOptions) -> str:
+    """Generate the command to execute ``addmodel``
+
+    Args:
+        add_model_options (AddModelOptions): The collection of supported options used to generate the command
+
+    Returns:
+        str: The generated addmodel command
+    """
+    logger.info("Generating addmodel command")
+    command = f"addmodel -datacolumn {add_model_options.datacolumn} -m {add_model_options.mode} "
+    command += f"{str(add_model_options.model_path)} {str(add_model_options.ms_path)}"
+
+    return command
+
+
+def add_model(
+    add_model_options: AddModelOptions, container: Path, remove_datacolumn: bool = False
+) -> AddModelOptions:
+    if remove_datacolumn:
+        remove_columns_from_ms(
+            ms=add_model_options.ms_path, columns_to_remove=add_model_options.datacolumn
+        )
+    add_model_command = add_model_options_to_command(
+        add_model_options=add_model_options
+    )
+
+    run_singularity_command(
+        image=container,
+        command=add_model_command,
+        bind_dirs=[add_model_options.ms_path, add_model_options.model_path],
+    )
+
+    return add_model_options
 
 
 def get_parser() -> ArgumentParser:

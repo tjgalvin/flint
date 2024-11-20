@@ -13,15 +13,35 @@ from flint.bptools.smoother import (
     smooth_data,
 )
 from flint.calibrate.aocalibrate import (
+    AddModelOptions,
     AOSolutions,
     CalibrateOptions,
     FlaggedAOSolution,
     calibrate_options_to_command,
     flag_aosolutions,
+    add_model_options_to_command,
     plot_solutions,
     select_refant,
 )
 from flint.utils import get_packaged_resource_path
+
+
+def test_generate_add_model_command():
+    """Ensure we can actually generate the expected addmodel cli command"""
+
+    add_model_options = AddModelOptions(
+        model_path=Path("/jack/sparrow/be/here/SB-sources.txt"),
+        ms_path=Path("/jack/sparrow/be/here/SB.ms"),
+        mode="c",
+        datacolumn="MODEL_DATA",
+    )
+
+    add_model_command = add_model_options_to_command(
+        add_model_options=add_model_options
+    )
+
+    expected_command = "addmodel -datacolumn MODEL_DATA -m c /jack/sparrow/be/here/SB-sources.txt /jack/sparrow/be/here/SB.ms"
+    assert add_model_command == expected_command
 
 
 def test_calibrate_options_to_command():
@@ -83,7 +103,7 @@ def test_calibrate_options_to_command3():
 
     assert (
         cmd
-        == "calibrate -datacolumn DATA -m /example/1934.model -minuv 300 -maxuv 5000 -i 40 -p amps.plot phase.plot /example/data.ms /example/sols.calibrate"
+        == "calibrate -datacolumn DATA -m /example/1934.model -minuv 300.0 -maxuv 5000.0 -i 40 -p amps.plot phase.plot /example/data.ms /example/sols.calibrate"
     )
 
 
