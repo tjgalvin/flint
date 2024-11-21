@@ -12,6 +12,8 @@
 - Removed `suppress_artefact` and `minimum_absolute_clip` functions from
   `flint.masking`
 - Added an adaptive box selection mode to the minimum absolute algorithm
+- Update a MSs `MODEL_DATA` column using `addmodel` and a source list (see
+  `wsclean -save-source-list`)
 
 # 0.2.7
 

@@ -54,6 +54,7 @@ from flint.prefect.common.imaging import (
     task_wsclean_imager,
     task_zip_ms,
 )
+from flint.prefect.common.ms import task_add_model_source_list_to_ms
 from flint.prefect.common.utils import (
     task_archive_sbid,
     task_create_beam_summary,
@@ -301,8 +302,16 @@ def process_science_fields(
         strategy=unmapped(strategy),
         mode="wsclean",
         round_info="initial",
-        calibrate_container=field_options.calibrate_container,
     )  # type: ignore
+
+    wsclean_cmds = (
+        task_add_model_source_list_to_ms.map(
+            wsclean_command=wsclean_cmds,
+            calibrate_container=field_options.calibrate_container,
+        )
+        if field_options.update_model_data_with_source_list
+        else wsclean_cmds
+    )
 
     # TODO: This should be waited!
     beam_summaries = task_create_beam_summary.map(
@@ -420,8 +429,15 @@ def process_science_fields(
                 strategy=unmapped(strategy),
                 mode="wsclean",
                 round_info=current_round,
-                calibrate_container=field_options.calibrate_container,
             )  # type: ignore
+            wsclean_cmds = (
+                task_add_model_source_list_to_ms.map(
+                    wsclean_command=wsclean_cmds,
+                    calibrate_container=field_options.calibrate_container,
+                )
+                if field_options.update_model_data_with_source_list
+                else wsclean_cmds
+            )
             archive_wait_for.extend(wsclean_cmds)
 
             # Do source finding on the last round of self-cal'ed images
