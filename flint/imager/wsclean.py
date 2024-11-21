@@ -525,7 +525,6 @@ def create_wsclean_cmd(
     ms: MS,
     wsclean_options: WSCleanOptions,
     container: Optional[Path] = None,
-    calibrate_container: Optional[Path] = None,
 ) -> WSCleanCommand:
     """Create a wsclean command from a WSCleanOptions container
 
@@ -542,7 +541,6 @@ def create_wsclean_cmd(
         ms (MS): The measurement set to be imaged
         wsclean_options (WSCleanOptions): WSClean options to image with
         container (Optional[Path], optional): If a path to a container is provided the command is executed immediately. Defaults to None.
-        calibrate_container (Optional[Path], optional): Patht to the aocalibrate container with ``addmodel``. If not None and ``wsclean -save-source-list` is used the model will be predicted at full channel resolution
 
     Raises:
         ValueError: Raised when a option has not been successfully processed
@@ -604,7 +602,6 @@ def create_wsclean_cmd(
             bind_dirs=tuple(bind_dir_paths),
             move_hold_directories=(move_directory, hold_directory),
             image_prefix_str=str(name_argument_path),
-            calibrate_container=calibrate_container,
         )
 
     return wsclean_cmd
