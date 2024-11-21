@@ -815,7 +815,11 @@ def run_wsclean_imager(
             mode="c",
             datacolumn="MODEL_DATA",
         )
-        add_model(add_model_options=add_model_options, container=calibrate_container)
+        add_model(
+            add_model_options=add_model_options,
+            container=calibrate_container,
+            remove_datacolumn="MODEL_DATA",
+        )
 
     imageset = get_wsclean_output_names(
         prefix=prefix,
