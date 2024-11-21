@@ -44,7 +44,7 @@ from flint.utils import (
 )
 
 
-class ImageSet(NamedTuple):
+class ImageSet(BaseOptions):
     """A structure to represent the images and auxiliary products produced by
     wsclean"""
 
