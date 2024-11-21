@@ -806,7 +806,7 @@ def run_wsclean_imager(
     if calibrate_container and wsclean_cmd.options.save_source_list:
         logger.info("Predicting the wsclean clean components SEDs")
         source_list_path = get_wsclean_output_source_list_path(
-            name_path=prefix, pol="i"
+            name_path=prefix, pol=None
         )
         assert source_list_path.exists(), f"{source_list_path=} does not exist"
         add_model_options = AddModelOptions(
