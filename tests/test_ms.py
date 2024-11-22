@@ -19,6 +19,7 @@ from flint.ms import (
     get_phase_dir_from_ms,
     remove_columns_from_ms,
     rename_ms_and_columns_for_selfcal,
+    subtract_model_from_data_column,
 )
 from flint.utils import get_packaged_resource_path
 
@@ -269,3 +270,100 @@ def test_remove_columns_from_ms(ms_remove_example):
         ms=ms_remove_example, columns_to_remove="DATA"
     )
     assert len(removed_columns) == 0
+
+
+@pytest.fixture
+def casda_taql_example(tmpdir):
+    ms_zip = Path(
+        get_packaged_resource_path(
+            package="flint.data.tests",
+            filename="scienceData.EMU_0529-60.SB50538.EMU_0529-60.beam08_averaged_cal.leakage.ms.zip",
+        )
+    )
+    outpath = Path(tmpdir) / "taqlsubtract"
+
+    shutil.unpack_archive(ms_zip, outpath)
+
+    ms_path = (
+        Path(outpath)
+        / "scienceData.EMU_0529-60.SB50538.EMU_0529-60.beam08_averaged_cal.leakage.ms"
+    )
+
+    return ms_path
+
+
+def test_subtract_model_from_data_column(casda_taql_example):
+    """Ensure we can subtact the model from the data via taql"""
+    ms = Path(casda_taql_example)
+    assert ms.exists()
+    ms = MS(path=ms)
+
+    from casacore.tables import maketabdesc, makearrcoldesc
+
+    with table(str(ms.path), readonly=False) as tab:
+        data = tab.getcol("DATA")
+        ones = np.ones_like(data, dtype=data.dtype)
+
+        tab.putcol(columnname="DATA", value=ones)
+
+        if "MODEL_DATA" not in tab.colnames():
+            coldesc = tab.getdminfo("DATA")
+            coldesc["NAME"] = "MODEL_DATA"
+            tab.addcols(
+                maketabdesc(makearrcoldesc("MODEL_DATA", 0.0 + 0j, ndim=2)), coldesc
+            )
+            tab.flush()
+        tab.putcol(columnname="MODEL_DATA", value=ones)
+        tab.flush()
+
+    ms = subtract_model_from_data_column(
+        ms=ms, model_column="MODEL_DATA", data_column="DATA"
+    )
+    with table(str(ms.path)) as tab:
+        data = tab.getcol("DATA")
+        assert np.all(data == 0 + 0j)
+
+
+def test_subtract_model_from_data_column_ms_column(tmpdir):
+    """Ensure we can subtact the model from the data via taql"""
+    ms_zip = Path(
+        get_packaged_resource_path(
+            package="flint.data.tests",
+            filename="scienceData.EMU_0529-60.SB50538.EMU_0529-60.beam08_averaged_cal.leakage.ms.zip",
+        )
+    )
+    outpath = Path(tmpdir) / "taqlsubtract2"
+
+    shutil.unpack_archive(ms_zip, outpath)
+
+    ms_path = (
+        Path(outpath)
+        / "scienceData.EMU_0529-60.SB50538.EMU_0529-60.beam08_averaged_cal.leakage.ms"
+    )
+
+    ms = Path(ms_path)
+    assert ms.exists()
+    ms = MS(path=ms, column="DATA")
+
+    from casacore.tables import maketabdesc, makearrcoldesc
+
+    with table(str(ms.path), readonly=False) as tab:
+        data = tab.getcol("DATA")
+        ones = np.ones_like(data, dtype=data.dtype)
+
+        tab.putcol(columnname="DATA", value=ones)
+
+        if "MODEL_DATA" not in tab.colnames():
+            coldesc = tab.getdminfo("DATA")
+            coldesc["NAME"] = "MODEL_DATA"
+            tab.addcols(
+                maketabdesc(makearrcoldesc("MODEL_DATA", 0.0 + 0j, ndim=2)), coldesc
+            )
+            tab.flush()
+        tab.putcol(columnname="MODEL_DATA", value=ones)
+        tab.flush()
+
+    ms = subtract_model_from_data_column(ms=ms, model_column="MODEL_DATA")
+    with table(str(ms.path)) as tab:
+        data = tab.getcol("DATA")
+        assert np.all(data == 0 + 0j)
