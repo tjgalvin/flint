@@ -18,15 +18,19 @@ def add_model_source_list_to_ms(
     logger.info("Updating MODEL_DATA with source list")
     ms = wsclean_command.ms
 
+    assert (
+        wsclean_command.imageset is not None
+    ), f"{wsclean_command.imageset=}, which is not allowed"
+
     source_list_path = wsclean_command.imageset.source_list
     if source_list_path is None:
         logger.info(f"{source_list_path=}, so not updating")
-        return ms
+        return wsclean_command
     assert source_list_path.exists(), f"{source_list_path=} does not exist"
 
     if calibrate_container is None:
         logger.info(f"{calibrate_container=}, so not updating")
-        return ms
+        return wsclean_command
     assert calibrate_container.exists(), f"{calibrate_container=} does not exist"
 
     add_model_options = AddModelOptions(
@@ -38,7 +42,7 @@ def add_model_source_list_to_ms(
     add_model(
         add_model_options=add_model_options,
         container=calibrate_container,
-        remove_datacolumn="MODEL_DATA",
+        remove_datacolumn=True,
     )
     return wsclean_command
 
