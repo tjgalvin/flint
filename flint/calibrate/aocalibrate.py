@@ -1108,6 +1108,17 @@ def add_model_options_to_command(add_model_options: AddModelOptions) -> str:
 def add_model(
     add_model_options: AddModelOptions, container: Path, remove_datacolumn: bool = False
 ) -> AddModelOptions:
+    """Use the ``addmodel`` program to predict the sky-model visibilities
+    from a compatible source list (e.g. ``wsclean -save-source-list``)
+
+    Args:
+        add_model_options (AddModelOptions): The set of supported options to be supplied to ``addmodel``
+        container (Path): The calibrate container that contains the ``addmodel`` program
+        remove_datacolumn (bool, optional): Whether to first removed the ``datacolumn`` specified in ``add_model_options`` before predicting. If False it should be overwritten. Defaults to False.
+
+    Returns:
+        AddModelOptions: The options used to run ``addmodel`` (same as input)
+    """
     if remove_datacolumn:
         remove_columns_from_ms(
             ms=add_model_options.ms_path, columns_to_remove=add_model_options.datacolumn
