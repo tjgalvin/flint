@@ -1,6 +1,6 @@
 # Change log
 
-# dev
+# 0.2.8
 
 - added `wrapper_options_from_strategy` decorator helper function
 - Created `BaseOptions` from a `pydantic.BaseModel` class.

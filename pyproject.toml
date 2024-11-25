@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "flint"
-version = "0.2.7"
+version = "0.2.8"
 description = "Pipeline for RACS processing, and profit along the way"
 authors = ["tgalvin <tim.galvin@csiro.au>"]
 license = "MIT"
