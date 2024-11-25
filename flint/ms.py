@@ -504,6 +504,55 @@ def consistent_ms(ms1: MS, ms2: MS) -> bool:
     return result
 
 
+def consistent_channelwise_frequencies(
+    freqs: Union[List[np.ndarray], np.ndarray],
+) -> np.ndarray:
+    """Given a collection of frequencies in the form of
+    (N, frequencies), inspect the frequencies channelwise
+    to ensure they are all the same.
+
+    This does not operate on MSs, just the collection of frequencies
+
+    Args:
+        freqs (Union[List[np.ndarray], np.ndarray]): The collection of frequencies to be inspected
+
+    Returns:
+        np.ndarray: Same length as the frequencies. True if for a single channel all frequencies are the same. False otherwise.
+    """
+    freqs = np.array(freqs)
+    assert (
+        len(freqs.shape) == 2
+    ), f"{freqs.shape=}, but was expecting something of rank 2"
+
+    freqs_are_same = np.all(freqs - freqs[0, None] == 0, axis=1)
+    assert (
+        len(freqs_are_same.shape) == 1
+    ), f"Channelwise check should be length 1, but have {freqs_are_same.shaope=}"
+    return freqs_are_same
+
+
+def consistent_ms_frequencies(mss: Tuple[MS, ...]) -> bool:
+    """Given a set of measurement sets, inspect the frequencies
+    to ensure they are all the same
+
+    See the ``get_freqs_from_ms`` function, which is used
+    internally.
+
+    Args:
+        mss (Tuple[MS, ...]): Collection of MSs to inspect the frequencies of
+
+    Returns:
+        bool: Whether all the frequencies and their order are the same
+    """
+
+    logger.info(f"Collection frequencies from {len(mss)} measurement sets")
+    freqs = [get_freqs_from_ms(ms=ms) for ms in mss]
+
+    all_the_same = consistent_channelwise_frequencies(freqs=freqs)
+
+    return np.all(all_the_same)
+
+
 def rename_column_in_ms(
     ms: MS,
     original_column_name: str,
@@ -848,7 +897,9 @@ def rename_ms_and_columns_for_selfcal(
 
 
 def find_mss(
-    mss_parent_path: Path, expected_ms_count: Optional[int] = 36
+    mss_parent_path: Path,
+    expected_ms_count: Optional[int] = 36,
+    data_column: Optional[str] = None,
 ) -> Tuple[MS, ...]:
     """Search a directory to find measurement sets via a simple
     `*.ms` glob expression. An expected number of MSs can be enforced
@@ -857,6 +908,7 @@ def find_mss(
     Args:
         mss_parent_path (Path): The parent directory that will be globbed to search for MSs.
         expected_ms_count (Optional[int], optional): The number of MSs that should be there. If None no check is performed. Defaults to 36.
+        data_column (Optional[str], optional): Set the column attribute of each MS to this (no checks to ensure it exists). If None use default of MS. Defaults to None.
 
     Returns:
         Tuple[MS, ...]: Collection of found MSs
@@ -873,6 +925,12 @@ def find_mss(
         assert (
             len(found_mss) == expected_ms_count
         ), f"Expected to find {expected_ms_count} in {str(mss_parent_path)}, found {len(found_mss)}."
+
+    if data_column:
+        logger.info(f"Updating column attribute to {data_column=}")
+        found_mss = tuple(
+            [found_ms.with_options(column=data_column) for found_ms in found_mss]
+        )
 
     return found_mss
 

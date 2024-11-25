@@ -15,6 +15,7 @@ from flint.ms import (
     MS,
     check_column_in_ms,
     copy_and_preprocess_casda_askap_ms,
+    consistent_channelwise_frequencies,
     find_mss,
     get_phase_dir_from_ms,
     remove_columns_from_ms,
@@ -24,7 +25,28 @@ from flint.ms import (
 from flint.utils import get_packaged_resource_path
 
 
+def test_consistent_channelwise_frequencies():
+    """Some steps the channels in a set of MSs all need
+    to be the same, in the same relative order"""
+
+    # Make up some floating point numbners
+    freqs = [np.arange(100) * np.pi * 5 for _ in list(range(46))]
+    result = consistent_channelwise_frequencies(freqs=freqs)
+    assert np.all(result)
+
+    result = consistent_channelwise_frequencies(freqs=np.array(freqs))
+    assert np.all(result)
+
+    freqs[10][4] = 4444444.0
+    result = consistent_channelwise_frequencies(freqs=np.array(freqs))
+    assert not result[10]
+    assert np.all(result[11:])
+    assert np.all(result[:10])
+
+
 def test_find_mss(tmpdir):
+    """Make sure that the glob finding of the MSs can actually find
+    the MSs. The expected count check is also assessed"""
     tmpdir = Path(tmpdir)
     for name in range(45):
         new_ms = tmpdir / f"SB1234.Pirate_1234+456.beam{name}.ms"
@@ -35,6 +57,26 @@ def test_find_mss(tmpdir):
 
     res = find_mss(mss_parent_path=tmpdir, expected_ms_count=45)
     assert len(res) == 45
+
+    with pytest.raises(AssertionError):
+        _ = find_mss(mss_parent_path=tmpdir, expected_ms_count=49005)
+
+
+def test_find_mss_withdatacolumn(tmpdir):
+    """Same as above but with setting a data column"""
+    tmpdir = Path(tmpdir) / "Another_Pirate"
+    for name in range(45):
+        new_ms: Path = tmpdir / f"SB1234.Pirate_1234+456.beam{name}.ms"
+        new_ms.mkdir(parents=True, exist_ok=True)
+
+        new_folder = tmpdir / f"not_and_ms_{name}.folder"
+        new_folder.mkdir()
+
+    res = find_mss(
+        mss_parent_path=tmpdir, expected_ms_count=45, data_column="BlackBeard"
+    )
+    assert len(res) == 45
+    assert all([ms.column == "BlackBeard" for ms in res])
 
     with pytest.raises(AssertionError):
         _ = find_mss(mss_parent_path=tmpdir, expected_ms_count=49005)
