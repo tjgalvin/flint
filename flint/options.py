@@ -290,6 +290,8 @@ class FieldOptions(BaseOptions):
     """Specifies whether Stokes-V imaging will be carried out after the final round of imagine (whether or not self-calibration is enabled). """
     coadd_cubes: bool = False
     """Co-add cubes formed throughout imaging together. Cubes will be smoothed channel-wise to a common resolution. Only performed on final set of images"""
+    update_model_data_with_source_list: bool = False
+    """Attempt to update a MSs MODEL_DATA column with a source list (e.g. source list output from wsclean)"""
 
 
 def dump_field_options_to_yaml(

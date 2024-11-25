@@ -94,7 +94,7 @@ def critical_ms_interaction(
     assert (
         not output_ms.exists()
     ), f"The output measurement set {output_ms} already exists. "
-
+    logger.info(f"Critical section for {input_ms=}")
     if copy:
         rsync_copy_directory(target_path=input_ms, out_path=output_ms)
     else:
@@ -539,6 +539,69 @@ def rename_column_in_ms(
 
     if update_tracked_column:
         ms = ms.with_options(column=new_column_name)
+
+    return ms
+
+
+def remove_columns_from_ms(
+    ms: Union[MS, Path], columns_to_remove: Union[str, List[str]]
+) -> List[str]:
+    """Attempt to remove a collection of columns from a measurement set.
+    If any of the provided columns do not exist they are ignored.
+
+    Args:
+        ms (Union[MS, Path]): The measurement set to inspect and remove columns from
+        columns_to_remove (Union[str, List[str]]): Collection of column names to remove. If a single column internally it is cast to a list of length 1.
+
+    Returns:
+        List[str]: Collection of column names removed
+    """
+
+    if isinstance(columns_to_remove, str):
+        columns_to_remove = [columns_to_remove]
+
+    ms = MS.cast(ms=ms)
+    with table(tablename=str(ms.path), readonly=False, ack=False) as tab:
+        colnames = tab.colnames()
+        columns_to_remove = [c for c in columns_to_remove if c in colnames]
+        if len(columns_to_remove) == 0:
+            logger.info(f"All columns provided do not exist in {ms.path}")
+        else:
+            logger.info(f"Removing {columns_to_remove=} from {ms.path}")
+            tab.removecols(columnnames=columns_to_remove)
+
+    return columns_to_remove
+
+
+def subtract_model_from_data_column(
+    ms: MS, model_column: str = "MODEL_DATA", data_column: Optional[str] = None
+) -> MS:
+    """Execute a ``taql`` query to subtract the MODEL_DATA from a nominated data column.
+    This requires the ``model_column`` to already be inserted into the MS. Internally
+    the ``critical_ms_interaction`` context manager is used to highlight that the MS
+    is being modified should things fail when subtracting.
+
+    Args:
+        ms (MS): The measurement set instance being considered
+        model_column (str, optional): The column with representing the model. Defaults to "MODEL_DATA".
+        data_column (Optional[str], optional): The column where the column will be subtracted. If ``None`` it is taken from the ``column`` nominated by the input ``MS`` instance. Defaults to None.
+
+    Returns:
+        MS: The updated MS
+    """
+    ms = MS.cast(ms)
+    data_column = data_column if data_column else ms.column
+    assert data_column is not None, f"{data_column=}, which is not allowed"
+    with critical_ms_interaction(input_ms=ms.path) as critical_ms:
+        with table(str(critical_ms), readonly=False) as tab:
+            logger.info("Extracting columns")
+            colnames = tab.colnames()
+            assert all(
+                [d in colnames for d in (model_column, data_column)]
+            ), f"{model_column=} or {data_column=} missing from {colnames=}"
+
+            logger.info(f"Subtracting {model_column=} from {data_column=}")
+            taql(f"UPDATE $tab SET {data_column}={data_column}-{model_column}")
 
     return ms
 

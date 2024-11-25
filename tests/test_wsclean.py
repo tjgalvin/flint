@@ -20,11 +20,43 @@ from flint.imager.wsclean import (
     create_wsclean_cmd,
     create_wsclean_name_argument,
     get_wsclean_output_names,
+    get_wsclean_output_source_list_path,
     rename_wsclean_prefix_in_imageset,
 )
 from flint.ms import MS
 from flint.naming import create_imaging_name_prefix
 from flint.utils import get_packaged_resource_path
+
+
+def test_get_wsclean_output_source_list_path():
+    """Wsclean can be configured out output a source list of the
+    components, their brightness and relative size that were placed
+    throughout cleaning. Here we be testing whether we can
+    generate the expected name"""
+
+    example = Path("/flint/pirates/SB58992.RACS_1726-73.beam22.ms")
+    source_path = Path("/flint/pirates/SB58992.RACS_1726-73.beam22.i-sources.txt")
+
+    test_source_path = get_wsclean_output_source_list_path(name_path=example, pol="i")
+    assert source_path == test_source_path
+
+    example = Path("/flint/pirates/SB58992.RACS_1726-73.beam22")
+    source_path = Path("/flint/pirates/SB58992.RACS_1726-73.beam22.i-sources.txt")
+
+    test_source_path = get_wsclean_output_source_list_path(name_path=example, pol="i")
+    assert source_path == test_source_path
+
+    example = "SB58992.RACS_1726-73.beam22"
+    source_path = Path("SB58992.RACS_1726-73.beam22.i-sources.txt")
+
+    test_source_path = get_wsclean_output_source_list_path(name_path=example, pol="i")
+    assert source_path == test_source_path
+
+    example = "SB58992.RACS_1726-73.beam22"
+    source_path = Path("SB58992.RACS_1726-73.beam22-sources.txt")
+
+    test_source_path = get_wsclean_output_source_list_path(name_path=example, pol=None)
+    assert source_path == test_source_path
 
 
 @pytest.fixture

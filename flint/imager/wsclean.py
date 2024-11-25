@@ -44,22 +44,24 @@ from flint.utils import (
 )
 
 
-class ImageSet(NamedTuple):
+class ImageSet(BaseOptions):
     """A structure to represent the images and auxiliary products produced by
     wsclean"""
 
     prefix: str
     """Prefix of the images and other output products. This should correspond to the -name argument from wsclean"""
-    image: Collection[Path]
+    image: List[Path]
     """Images produced. """
-    psf: Optional[Collection[Path]] = None
+    psf: Optional[List[Path]] = None
     """References to the PSFs produced by wsclean. """
-    dirty: Optional[Collection[Path]] = None
+    dirty: Optional[List[Path]] = None
     """Dirty images. """
-    model: Optional[Collection[Path]] = None
+    model: Optional[List[Path]] = None
     """Model images.  """
-    residual: Optional[Collection[Path]] = None
+    residual: Optional[List[Path]] = None
     """Residual images."""
+    source_list: Optional[Path] = None
+    """Path to a source list that accompanies the image data"""
 
 
 class WSCleanOptions(BaseOptions):
@@ -156,9 +158,11 @@ class WSCleanOptions(BaseOptions):
     """The path to a temporary directory where files will be wrritten. """
     pol: str = "i"
     """The polarisation to be imaged"""
+    save_source_list: bool = False
+    """Saves the found clean components as a BBS/DP3 text sky model"""
 
 
-class WSCleanCommand(NamedTuple):
+class WSCleanCommand(BaseOptions):
     """Simple container for a wsclean command."""
 
     cmd: str
@@ -172,11 +176,43 @@ class WSCleanCommand(NamedTuple):
     cleanup: bool = True
     """Will clean up the dirty images/psfs/residuals/models when the imaging has completed"""
 
-    def with_options(self, **kwargs) -> WSCleanCommand:
-        _dict = self._asdict()
-        _dict.update(**kwargs)
 
-        return WSCleanCommand(**_dict)
+def get_wsclean_output_source_list_path(
+    name_path: Union[str, Path], pol: Optional[str] = None
+) -> Path:
+    """WSClean can produce a text file that describes the components
+    that it cleaned, their type, scale and brightness. These are
+    placed in a file that is:
+
+    >> {name}.{pol}-sources.txt
+
+    where ``name`` represented the `-name` component. Given
+    an input measurement set path or this `-name` value return
+    the expected source list text file. ``pol`` is the stokes
+    that the source is expected.
+
+    Args:
+        name_path (Union[str,Path]): Value of the ``-name`` option. If `str` converted to a ``Path``
+        pol (Optional[str], optional): The polarisation to add to the name. If None the -source.txt suffix is simply appended. Defaults to None.
+
+    Returns:
+        Path: Path to the source list text file
+    """
+
+    # ye not be trusted
+    name_path = Path(name_path)
+    base_name = name_path.name
+    if ".ms" == Path(base_name).suffix:
+        base_name = Path(base_name).stem
+
+    logger.info(f"{base_name=} extracted from {name_path=}")
+
+    source_list_name = (
+        f"{base_name}.{pol}-sources.txt" if pol else f"{base_name}-sources.txt"
+    )
+    source_list_path = name_path.parent / source_list_name
+
+    return source_list_path
 
 
 def _rename_wsclean_title(name_str: str) -> str:
@@ -242,6 +278,7 @@ def _wsclean_output_callback(line: str) -> None:
         raise CleanDivergenceError(f"Clean divergence detected: {line}")
 
 
+# TODO: Update this function to also add int the source list
 def get_wsclean_output_names(
     prefix: str,
     subbands: int,
@@ -297,7 +334,7 @@ def get_wsclean_output_names(
     if isinstance(output_types, str):
         output_types = (output_types,)
 
-    images: Dict[str, Collection[Path]] = {}
+    images: Dict[str, List[Path]] = {}
     for image_type in ("image", "dirty", "model", "residual"):
         if image_type not in output_types:
             continue
@@ -485,7 +522,9 @@ def _resolve_wsclean_key_value_to_cli_str(key: str, value: Any) -> ResolvedCLIRe
 
 
 def create_wsclean_cmd(
-    ms: MS, wsclean_options: WSCleanOptions, container: Optional[Path] = None
+    ms: MS,
+    wsclean_options: WSCleanOptions,
+    container: Optional[Path] = None,
 ) -> WSCleanCommand:
     """Create a wsclean command from a WSCleanOptions container
 
@@ -769,6 +808,14 @@ def run_wsclean_imager(
         check_exists_when_adding=True,
     )
 
+    if wsclean_cmd.options.save_source_list:
+        logger.info("Attaching the wsclean clean components SEDs")
+        source_list_path = get_wsclean_output_source_list_path(
+            name_path=prefix, pol=None
+        )
+        assert source_list_path.exists(), f"{source_list_path=} does not exist"
+        imageset = imageset.with_options(source_list=source_list_path)
+
     if make_cube_from_subbands:
         imageset = combine_subbands_to_cube(
             imageset=imageset, remove_original_images=True
@@ -808,7 +855,9 @@ def wsclean_imager(
     assert ms.column is not None, "A MS column needs to be elected for imaging. "
     wsclean_options = wsclean_options.with_options(data_column=ms.column)
     wsclean_cmd = create_wsclean_cmd(
-        ms=ms, wsclean_options=wsclean_options, container=wsclean_container
+        ms=ms,
+        wsclean_options=wsclean_options,
+        container=wsclean_container,
     )
 
     return wsclean_cmd
