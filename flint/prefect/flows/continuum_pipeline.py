@@ -15,10 +15,9 @@ from flint.calibrate.aocalibrate import find_existing_solutions
 from flint.catalogue import verify_reference_catalogues
 from flint.coadd.linmos import LinmosCommand
 from flint.configuration import (
+    _load_and_copy_strategy,
     Strategy,
-    copy_and_timestamp_strategy_file,
     get_options_from_strategy,
-    load_strategy_yaml,
 )
 from flint.logging import logger
 from flint.masking import consider_beam_mask_round
@@ -140,32 +139,6 @@ def _check_create_output_split_science_path(
     return output_split_science_path
 
 
-def _load_and_copy_strategy(
-    output_split_science_path: Path, imaging_strategy: Optional[Path] = None
-) -> Union[Strategy, None]:
-    """Load a strategy file and copy a timestamped version into the output directory
-    that would contain the science processing.
-
-    Args:
-        output_split_science_path (Path): Where the strategy file should be copied to (where the data would be processed)
-        imaging_strategy (Optional[Path], optional): Location of the strategy file. Defaults to None.
-
-    Returns:
-        Union[Strategy, None]: The loadded strategy file if provided, `None` otherwise
-    """
-    return (
-        load_strategy_yaml(
-            input_yaml=copy_and_timestamp_strategy_file(
-                output_dir=output_split_science_path,
-                input_yaml=imaging_strategy,
-            ),
-            verify=True,
-        )
-        if imaging_strategy
-        else None
-    )
-
-
 @flow(name="Flint Continuum Pipeline")
 def process_science_fields(
     science_path: Path,
@@ -199,7 +172,7 @@ def process_science_fields(
 
     archive_wait_for: List[Any] = []
 
-    strategy = _load_and_copy_strategy(
+    strategy: Strategy = _load_and_copy_strategy(
         output_split_science_path=output_split_science_path,
         imaging_strategy=field_options.imaging_strategy,
     )

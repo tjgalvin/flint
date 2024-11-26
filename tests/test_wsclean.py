@@ -181,6 +181,14 @@ def test_regex_rename_wsclean_title():
     out_ex = "SB39400.RACS_0635-31.beam33.poli.i.MFS.image"
     assert _rename_wsclean_title(name_str=ex) == out_ex
 
+    ex = "SB39400.RACS_0635-31.beam33.ch109-110-i-MFS-image"
+    out_ex = "SB39400.RACS_0635-31.beam33.ch109-110.i.MFS.image"
+    assert _rename_wsclean_title(name_str=ex) == out_ex
+
+    ex = "SB39400.RACS_0635-31.beam33.i.ch109-110-i-MFS-image"
+    out_ex = "SB39400.RACS_0635-31.beam33.i.ch109-110.i.MFS.image"
+    assert _rename_wsclean_title(name_str=ex) == out_ex
+
 
 def test_regex_stokes_wsclean_title():
     """Test whether all stokes values are picked up properly"""

@@ -5,6 +5,7 @@ from pathlib import Path
 
 import pytest
 
+from flint.ms import MS
 from flint.naming import (
     CASDANameComponents,
     FITSMaskNames,
@@ -14,6 +15,7 @@ from flint.naming import (
     casda_ms_format,
     create_fits_mask_names,
     create_image_cube_name,
+    create_imaging_name_prefix,
     create_ms_name,
     extract_beam_from_name,
     extract_components_from_name,
@@ -26,6 +28,25 @@ from flint.naming import (
     processed_ms_format,
     raw_ms_format,
 )
+
+
+def test_create_imaging_name_prefix():
+    """Creates the name that will be used for output image
+    products"""
+    ms = MS.cast(ms=Path("/Jack/Sparrow/SB63789.EMU_1743-51.beam03.round4.ms"))
+
+    name = create_imaging_name_prefix(ms=ms)
+    assert name == "SB63789.EMU_1743-51.beam03.round4"
+
+    for pol in ("I", "i"):
+        name = create_imaging_name_prefix(ms=ms, pol=pol)
+        assert name == "SB63789.EMU_1743-51.beam03.round4.i"
+
+        name = create_imaging_name_prefix(ms=ms, pol=pol, channel_range=(100, 108))
+        assert name == "SB63789.EMU_1743-51.beam03.round4.i.ch100-108"
+
+    name = create_imaging_name_prefix(ms=ms, channel_range=(100, 108))
+    assert name == "SB63789.EMU_1743-51.beam03.round4.ch100-108"
 
 
 def test_get_cube_fits_from_paths():

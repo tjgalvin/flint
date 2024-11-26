@@ -1,5 +1,9 @@
 # Change log
 
+# dev
+
+- Created `subtract_cube_pipeline.py`
+
 # 0.2.8
 
 - added `wrapper_options_from_strategy` decorator helper function

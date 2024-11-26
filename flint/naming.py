@@ -5,7 +5,7 @@ products.
 import re
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, NamedTuple, Optional, Union
+from typing import Any, Dict, List, NamedTuple, Optional, Tuple, Union
 
 from flint.logging import logger
 from flint.options import MS
@@ -53,13 +53,18 @@ def create_image_cube_name(
     return Path(output_cube_name)
 
 
-def create_imaging_name_prefix(ms: Union[MS, Path], pol: Optional[str] = None) -> str:
+def create_imaging_name_prefix(
+    ms: Union[MS, Path],
+    pol: Optional[str] = None,
+    channel_range: Optional[Tuple[int, int]] = None,
+) -> str:
     """Given a measurement set and a polarisation, create the naming prefix to be used
     by some imager
 
     Args:
         ms (Union[MS,Path]): The measurement set being considered
         pol (Optional[str], optional): Whether a polarsation is being considered. Defaults to None.
+        channel_range (Optional[Tuple[int,int]], optional): The channel range that is going to be imaged. Defaults to none.
 
     Returns:
         str: The constructed string name
@@ -70,6 +75,8 @@ def create_imaging_name_prefix(ms: Union[MS, Path], pol: Optional[str] = None) -
     name = ms_path.stem
     if pol:
         name = f"{name}.{pol.lower()}"
+    if channel_range:
+        name = f"{name}.ch{channel_range[0]}-{channel_range[1]}"
 
     return name
 

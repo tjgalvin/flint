@@ -283,6 +283,7 @@ def task_wsclean_imager(
     wsclean_container: Path,
     update_wsclean_options: Optional[Dict[str, Any]] = None,
     fits_mask: Optional[FITSMaskNames] = None,
+    channel_range: Optional[Tuple[int, int]] = None,
 ) -> WSCleanCommand:
     """Run the wsclean imager against an input measurement set
 
@@ -291,6 +292,7 @@ def task_wsclean_imager(
         wsclean_container (Path): Path to a singularity container with wsclean packages
         update_wsclean_options (Optional[Dict[str, Any]], optional): Options to update from the default wsclean options. Defaults to None.
         fits_mask (Optional[FITSMaskNames], optional): A path to a clean guard mask. Defaults to None.
+        channel_range (Optional[Tuple[int,int]], optional): Add to the wsclean options the specific channel range to be imaged. Defaults to None.
 
     Returns:
         WSCleanCommand: A resulting wsclean command and resulting meta-data
@@ -305,6 +307,9 @@ def task_wsclean_imager(
 
     if fits_mask:
         update_wsclean_options["fits_mask"] = fits_mask.mask_fits
+
+    if channel_range:
+        update_wsclean_options["channel_range"] = channel_range
 
     logger.info(f"wsclean inager {ms=}")
     try:
@@ -577,6 +582,7 @@ def task_linmos_images(
     parset_output_path: Optional[str] = None,
     cutoff: float = 0.05,
     field_summary: Optional[FieldSummary] = None,
+    trim_linmos_fits: bool = True,
 ) -> LinmosCommand:
     """Run the yandasoft linmos task against a set of input images
 
@@ -591,6 +597,7 @@ def task_linmos_images(
         parset_output_path (Optional[str], optional): Location to write the linmos parset file to. Defaults to None.
         cutoff (float, optional): The primary beam attenuation cutoff supplied to linmos when coadding. Defaults to 0.05.
         field_summary (Optional[FieldSummary], optional): The summary of the field, including (importantly) to orientation of the third-axis. Defaults to None.
+        trim_linmos_fits (bool, optional): Attempt to trim the output linmos files of as much empty space as possible. Defaults to True.
 
     Returns:
         LinmosCommand: The linmos command and associated meta-data
@@ -649,6 +656,7 @@ def task_linmos_images(
         holofile=holofile,
         cutoff=cutoff,
         pol_axis=pol_axis,
+        trim_linmos_fits=trim_linmos_fits,
     )
 
     return linmos_cmd
@@ -663,6 +671,7 @@ def _convolve_linmos(
     convol_mode: str = "image",
     convol_filter: str = ".MFS.",
     convol_suffix_str: str = "conv",
+    trim_linmos_fits: bool = True,
 ) -> LinmosCommand:
     """An internal function that launches the convolution to a common resolution
     and subsequent linmos of the wsclean residual images.
@@ -676,6 +685,7 @@ def _convolve_linmos(
         convol_mode (str, optional): The mode passed to the convol task to describe the images to extract. Support image or residual.  Defaults to image.
         convol_filter (str, optional): A text file applied when assessing images to co-add. Defaults to '.MFS.'.
         convol_suffix_str (str, optional): The suffix added to the convolved images. Defaults to 'conv'.
+        trim_linmos_fits (bool, optional): Attempt to trim the output linmos files of as much empty space as possible. Defaults to True.
 
     Returns:
         LinmosCommand: Resulting linmos command parset
@@ -697,6 +707,7 @@ def _convolve_linmos(
         holofile=field_options.holofile,
         cutoff=field_options.pb_cutoff,
         field_summary=field_summary,
+        trim_linmos_fits=trim_linmos_fits,
     )  # type: ignore
 
     return parset

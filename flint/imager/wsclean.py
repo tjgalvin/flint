@@ -160,6 +160,8 @@ class WSCleanOptions(BaseOptions):
     """The polarisation to be imaged"""
     save_source_list: bool = False
     """Saves the found clean components as a BBS/DP3 text sky model"""
+    channel_range: Optional[Tuple[int, int]] = None
+    """Image a channel range between a lower (inclusive) and upper (exclusive) bound"""
 
 
 class WSCleanCommand(BaseOptions):
@@ -219,6 +221,9 @@ def _rename_wsclean_title(name_str: str) -> str:
     """Construct an apply a regular expression that aims to identify
     the wsclean appended properties string within a file and replace
     the `-` separator with a `.`.
+
+    A simple replace of all `-` with `.` may not be ideal if the
+    character has been used on purpose.
 
     Args:
         name_str (str): The name that will be extracted and modified
