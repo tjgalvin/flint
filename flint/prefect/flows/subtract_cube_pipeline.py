@@ -144,7 +144,7 @@ def setup_run_subtract_flow(
 
     flow_subtract_cube.with_options(
         task_runner=dask_runner, name=f"Subtract Cube Pipeline -- {science_sbid}"
-    )
+    )(science_path=science_path, subtract_field_options=subtract_field_options)
 
 
 def get_parser() -> ArgumentParser:
