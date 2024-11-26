@@ -433,8 +433,11 @@ def create_wsclean_name_argument(wsclean_options: WSCleanOptions, ms: MS) -> Pat
 
     # Prepare the name for the output wsclean command
     # Construct the name property of the string
-    pol = wsclean_options_dict["pol"]
-    name_prefix_str = create_imaging_name_prefix(ms=ms, pol=pol)
+    pol = wsclean_options.pol
+    channel_range = wsclean_options.channel_range
+    name_prefix_str = create_imaging_name_prefix(
+        ms=ms, pol=pol, channel_range=channel_range
+    )
 
     # Now resolve the directory part
     name_dir: Union[Path, str, None] = ms.path.parent
