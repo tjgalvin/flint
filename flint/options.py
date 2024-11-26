@@ -217,6 +217,34 @@ class BandpassOptions(BaseOptions):
     """Flag Jones matrix if any amplitudes with a Jones are above this value"""
 
 
+class SubtractFieldOptions(BaseOptions):
+    """Container for options related to the
+    continuum-subtracted pipeline"""
+
+    calibrate_container: Path
+    """Path to the container with the calibrate software (including addmodel)"""
+    wsclean_container: Path
+    """Path to the container with wsclean"""
+    yandasoft_container: Path
+    """Path to the container with yandasoft"""
+    subtract_model_data: bool = False
+    """Subtract the MODEL_DATA column from the nominated data column"""
+    data_column: str = "CORRECTED_DATA"
+    """Describe the column that should be imaed and, if requested, have model subtracted from"""
+    expected_ms: int = 36
+    """The number of measurement sets that should exist"""
+    imaging_strategy: Optional[Path] = None
+    """Path to a FLINT imaging yaml file that contains settings to use throughout imaging"""
+    holofile: Optional[Path] = None
+    """Path to the holography FITS cube that will be used when co-adding beams"""
+    linmos_residuals: bool = False
+    """Linmos the cleaning residuals together into a field image"""
+    beam_cutoff: float = 150
+    """Cutoff in arcseconds to use when calculating the common beam to convol to"""
+    pb_cutoff: float = 0.1
+    """Primary beam attenuation cutoff to use during linmos"""
+
+
 class FieldOptions(BaseOptions):
     """Container that represents the flint related options that
     might be used throughout components related to the actual

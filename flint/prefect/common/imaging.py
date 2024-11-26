@@ -52,7 +52,7 @@ from flint.naming import (
     get_fits_cube_from_paths,
     processed_ms_format,
 )
-from flint.options import FieldOptions
+from flint.options import FieldOptions, SubtractFieldOptions
 from flint.peel.potato import potato_peel
 from flint.prefect.common.utils import upload_image_as_artifact
 from flint.selfcal.casa import gaincal_applycal_ms
@@ -665,7 +665,7 @@ def task_linmos_images(
 def _convolve_linmos(
     wsclean_cmds: Collection[WSCleanCommand],
     beam_shape: BeamShape,
-    field_options: FieldOptions,
+    field_options: Union[FieldOptions, SubtractFieldOptions],
     linmos_suffix_str: str,
     field_summary: Optional[FieldSummary] = None,
     convol_mode: str = "image",

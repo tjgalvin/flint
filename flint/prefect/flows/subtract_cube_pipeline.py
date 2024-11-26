@@ -14,13 +14,13 @@ import numpy as np
 from configargparse import ArgumentParser
 from prefect import flow
 
-from flint.configuration import _load_and_copy_strategy, Strategy
+from flint.configuration import _load_and_copy_strategy
 from flint.exceptions import FrequencyMismatchError
 from flint.prefect.clusters import get_dask_runner
 from flint.logging import logger
 from flint.ms import MS, find_mss, consistent_ms_frequencies, get_freqs_from_ms
 from flint.options import (
-    BaseOptions,
+    SubtractFieldOptions,
     add_options_to_parser,
     create_options_from_parser,
 )
@@ -30,32 +30,6 @@ from flint.prefect.common.imaging import (
     _convolve_linmos,
 )
 from flint.naming import get_sbid_from_path
-
-
-class SubtractFieldOptions(BaseOptions):
-    """Container for options related to the
-    continuum-subtracted pipeline"""
-
-    calibrate_container: Path
-    """Path to the container with the calibrate software (including addmodel)"""
-    wsclean_container: Path
-    """Path to the container with wsclean"""
-    yandasoft_container: Path
-    """Path to the container with yandasoft"""
-    subtract_model_data: bool = False
-    """Subtract the MODEL_DATA column from the nominated data column"""
-    data_column: str = "CORRECTED_DATA"
-    """Describe the column that should be imaed and, if requested, have model subtracted from"""
-    expected_ms: int = 36
-    """The number of measurement sets that should exist"""
-    imaging_strategy: Optional[Path] = None
-    """Path to a FLINT imaging yaml file that contains settings to use throughout imaging"""
-    holofile: Optional[Path] = None
-    """Path to the holography FITS cube that will be used when co-adding beams"""
-    linmos_residuals: bool = False
-    """Linmos the cleaning residuals together into a field image"""
-    beam_cutoff: float = 150
-    """Cutoff in arcseconds to use when calculating the common beam to convol to"""
 
 
 def _check_and_verify_options(subtract_field_options: SubtractFieldOptions) -> None:
@@ -92,7 +66,7 @@ def find_mss_to_image(
 def flow_subtract_cube(
     science_path: Path, subtract_field_options: SubtractFieldOptions
 ) -> None:
-    strategy: Strategy = _load_and_copy_strategy(
+    strategy = _load_and_copy_strategy(
         output_split_science_path=science_path,
         imaging_strategy=subtract_field_options.imaging_strategy,
     )
@@ -145,6 +119,7 @@ def flow_subtract_cube(
             wsclean_cmds=channel_wsclean_cmds,
             beam_shape=channel_beam_shape,
             linmos_suffix_str=f"ch{channel_range[0]}-{channel_range[1]}",
+            field_options=subtract_field_options,
             convol_mode="image",
             convol_filter=".image.",
             convol_suffix_str="optimal.image",
@@ -177,7 +152,7 @@ def get_parser() -> ArgumentParser:
     parser.add_argument(
         "--cli-config", is_config_file=True, help="Path to configuration file"
     )
-    parser.add_argument_group(
+    parser.add_argument(
         "science_path",
         type=Path,
         help="Path to the directory containing the beam-wise measurement sets",
@@ -204,7 +179,9 @@ def cli() -> None:
     )
 
     setup_run_subtract_flow(
-        science_path=args.science_path, subtract_field_options=subtract_field_options
+        science_path=args.science_path,
+        subtract_field_options=subtract_field_options,
+        cluster_config=args.cluster_config,
     )
 
 
