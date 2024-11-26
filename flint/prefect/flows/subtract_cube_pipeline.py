@@ -12,7 +12,7 @@ from typing import Tuple, Optional
 
 import numpy as np
 from configargparse import ArgumentParser
-from prefect import flow
+from prefect import flow, unmapped
 
 from flint.configuration import _load_and_copy_strategy
 from flint.exceptions import FrequencyMismatchError
@@ -105,8 +105,8 @@ def flow_subtract_cube(
         channel_wsclean_cmds = task_wsclean_imager.map(
             in_ms=science_mss,
             wsclean_container=subtract_field_options.wsclean_container,
-            channel_range=channel_range,
-            strategy=strategy,
+            channel_range=unmapped(channel_range),
+            strategy=unmapped(strategy),
             mode="wsclean",
             operation="subtractcube",
         )
