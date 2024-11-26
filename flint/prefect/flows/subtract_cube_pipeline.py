@@ -113,7 +113,7 @@ def flow_subtract_cube(
         channel_beam_shape = task_get_common_beam.submit(
             wsclean_cmds=channel_wsclean_cmds,
             cutoff=subtract_field_options.beam_cutoff,
-            filter=".image.",
+            filter="image.",
         )
         channel_parset = _convolve_linmos(
             wsclean_cmds=channel_wsclean_cmds,
@@ -121,7 +121,7 @@ def flow_subtract_cube(
             linmos_suffix_str=f"ch{channel_range[0]}-{channel_range[1]}",
             field_options=subtract_field_options,
             convol_mode="image",
-            convol_filter=".image.",
+            convol_filter="image.",
             convol_suffix_str="optimal.image",
             trim_linmos_fits=False,
         )
