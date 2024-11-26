@@ -286,7 +286,7 @@ def _wsclean_output_callback(line: str) -> None:
 # TODO: Update this function to also add int the source list
 def get_wsclean_output_names(
     prefix: str,
-    subbands: int,
+    subbands: Optional[int] = None,
     pols: Optional[Union[str, Tuple[str]]] = None,
     verify_exists: bool = False,
     include_mfs: bool = True,
@@ -324,9 +324,13 @@ def get_wsclean_output_names(
         ImageSet: The file paths that wsclean should create/has created.
     """
     # TODO: Use a regular expression for this
-    subband_strs = [f"{subband:04}" for subband in range(subbands)]
-    if include_mfs:
-        subband_strs.append("MFS")
+    subband_strs: List[Optional[str]] = [
+        None,
+    ]
+    if subbands and subbands > 1:
+        subband_strs = [f"{subband:04}" for subband in range(subbands)]
+        if include_mfs:
+            subband_strs.append("MFS")
 
     in_pols: Tuple[Union[None, str]]
     if pols is None:
@@ -347,10 +351,13 @@ def get_wsclean_output_names(
         paths: List[Path] = []
         for pol in in_pols:
             for subband_str in subband_strs:
+                components = [prefix]
+                if subband_str:
+                    components.append(subband_str)
                 if pol:
-                    path_str = f"{prefix}-{subband_str}-{pol}-{image_type}.fits"
-                else:
-                    path_str = f"{prefix}-{subband_str}-{image_type}.fits"
+                    components.append(pol)
+                components.append(image_type)
+                path_str = "-".join(components) + ".fits"
 
                 if check_exists_when_adding and not Path(path_str).exists():
                     logger.debug(f"{path_str} does not existing. Not adding. ")
@@ -363,7 +370,12 @@ def get_wsclean_output_names(
     # The PSF is the same for all stokes
     if "psf" in output_types:
         psf_images = [
-            Path(f"{prefix}-{subband_str}-psf.fits") for subband_str in subband_strs
+            (
+                Path(f"{prefix}-{subband_str}-psf.fits")
+                if subband_str
+                else Path(f"{prefix}-psf.fits")
+            )
+            for subband_str in subband_strs
         ]
         # Filter out files if they do not exists
         if check_exists_when_adding:
@@ -384,14 +396,20 @@ def get_wsclean_output_names(
 
 
 def delete_wsclean_outputs(
-    prefix: str, output_type: str = "image", ignore_mfs: bool = True
+    prefix: str,
+    output_type: str = "image",
+    ignore_mfs: bool = True,
+    no_subbands: bool = False,
 ) -> Collection[Path]:
     """Attempt to remove elected wsclean output files
+
+    If ``no_subbands`` is True (as in ``channels_out`` is 1) then nothing is deleted.
 
     Args:
         prefix (str): The prefix of the files to remove. This would correspond to the -name of wsclean.
         output_type (str, optional): What type of wsclean output to try to remove. Defaults to 'image'.
         ignore_mfs (bool, optional): If True, do not remove MFS outputs (attempt to, at least). Defaults to True.
+        no_subbands (bool, Optional): If True, nothing is deleted. Defaults to False.
 
     Returns:
         Collection[Path]: The paths that were removed (or at least attempted to be removed)/
@@ -402,6 +420,8 @@ def delete_wsclean_outputs(
     rm_paths: List[Path] = []
 
     for path in paths:
+        if no_subbands:
+            continue
         if ignore_mfs and "-MFS-" in str(path.name):
             logger.info(f"{path=} appears to be an MFS product, not removing. ")
             continue
@@ -801,8 +821,13 @@ def run_wsclean_imager(
     if wsclean_cmd.cleanup:
         logger.info("Will clean up files created by wsclean. ")
 
+        single_channel = wsclean_cmd.options.channels_out == 1
         for output_type in ("dirty", "psf", "model", "residual"):
-            delete_wsclean_outputs(prefix=prefix, output_type=output_type)
+            delete_wsclean_outputs(
+                prefix=prefix,
+                output_type=output_type,
+                no_subbands=single_channel and output_type == "residual",
+            )
         # for output_type in ("model", "residual"):
         #     delete_wsclean_outputs(
         #         prefix=prefix, output_type=output_type, ignore_mfs=False

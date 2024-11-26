@@ -473,3 +473,22 @@ def test_wsclean_output_named_nomfs():
     assert image_set.psf is not None
     assert len(image_set.psf) == 4
     assert isinstance(image_set.psf[0], Path)
+
+
+def test_wsclean_names_no_subbands():
+    """The spectral line modes image per channel, so there is therefore no subband type
+    in the wsclean named output"""
+    image_set = get_wsclean_output_names(
+        prefix="JackSparrow", subbands=1, include_mfs=False
+    )
+
+    assert isinstance(image_set, ImageSet)
+    assert image_set.prefix == "JackSparrow"
+
+    assert image_set.image
+    assert len(image_set.image) == 1
+    assert image_set.image[0] == Path("JackSparrow-image.fits")
+
+    assert image_set.psf
+    assert len(image_set.psf) == 1
+    assert image_set.psf[0] == Path("JackSparrow-psf.fits")
