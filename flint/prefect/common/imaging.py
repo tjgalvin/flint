@@ -708,6 +708,7 @@ def _convolve_linmos(
         cutoff=field_options.pb_cutoff,
         field_summary=field_summary,
         trim_linmos_fits=trim_linmos_fits,
+        filter=convol_filter,
     )  # type: ignore
 
     return parset
