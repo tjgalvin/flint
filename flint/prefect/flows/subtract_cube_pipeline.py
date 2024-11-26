@@ -134,7 +134,7 @@ def flow_subtract_cube(
             channel_range=channel_range,
             strategy=strategy,
             mode="wsclean",
-            operation="subtract",
+            operation="subtractcube",
         )
         channel_beam_shape = task_get_common_beam.submit(
             wsclean_cmds=channel_wsclean_cmds,

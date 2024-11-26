@@ -30,7 +30,7 @@ from flint.source_finding.aegean import AegeanOptions, BANEOptions
 # into there
 
 KNOWN_HEADERS = ("defaults", "initial", "selfcal", "version")
-KNOWN_OPERATIONS = ("stokesv",)
+KNOWN_OPERATIONS = ("stokesv", "subtractcube")
 FORMAT_VERSION = 0.1
 MODE_OPTIONS_MAPPING = {
     "wsclean": WSCleanOptions,
