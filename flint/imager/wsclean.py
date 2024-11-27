@@ -325,6 +325,7 @@ def get_wsclean_output_names(
     Returns:
         ImageSet: The file paths that wsclean should create/has created.
     """
+    logger.info(f"Finding wsclean outputs, {prefix=}")
     # TODO: Use a regular expression for this
     subband_strs: List[Optional[str]] = [
         None,
