@@ -7,6 +7,7 @@ from __future__ import annotations
 import warnings
 from argparse import ArgumentParser
 from pathlib import Path
+from shutil import copyfile
 from typing import Collection, List, Literal, NamedTuple, Optional
 
 import astropy.units as u
@@ -237,7 +238,6 @@ def convolve_images(
 
     if not np.isfinite(beam_shape.bmaj_arcsec):
         logger.info("Beam shape is not defined. Copying files into place. ")
-        from shutil import copyfile
 
         conv_image_paths = [
             Path(str(image_path).replace(".fits", f".{convol_suffix}.fits"))
@@ -260,18 +260,24 @@ def convolve_images(
     conv_image_paths: List[Path] = []
 
     for image_path in image_paths:
-        logger.info(f"Convolving {str(image_path.name)}")
-        beamcon_2D.beamcon_2d_on_fits(
-            file=image_path,
-            outdir=None,
-            new_beam=radio_beam,
-            conv_mode="robust",
-            suffix=convol_suffix,
-            cutoff=cutoff,
+        convol_output_path = Path(
+            str(image_path).replace(".fits", f".{convol_suffix}.fits")
         )
-        conv_image_paths.append(
-            Path(str(image_path).replace(".fits", f".{convol_suffix}.fits"))
-        )
+        header = fits.getheader(image_path)
+        if header["BMAJ"] == 0.0:
+            logger.info(f"Copying {image_path} to {convol_output_path=} for empty beam")
+            copyfile(original_path, copy_path)
+        else:
+            logger.info(f"Convolving {str(image_path.name)}")
+            beamcon_2D.beamcon_2d_on_fits(
+                file=image_path,
+                outdir=None,
+                new_beam=radio_beam,
+                conv_mode="robust",
+                suffix=convol_suffix,
+                cutoff=cutoff,
+            )
+        conv_image_paths.append(convol_output_path)
 
     return conv_image_paths
 
