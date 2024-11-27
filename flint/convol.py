@@ -243,9 +243,9 @@ def convolve_images(
         )
         if np.isfinite(beam_shape.bmaj_arcsec)
         else Beam(
-            major=0 * u.arcsecond,
-            minor=0 * u.arcsecond,
-            pa=0 * u.deg,
+            major=1 * u.arcsecond,
+            minor=1 * u.arcsecond,
+            pa=1 * u.deg,
         )
     )
 
