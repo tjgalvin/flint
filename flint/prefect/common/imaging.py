@@ -506,6 +506,7 @@ def task_convolve_image(
     mode: str = "image",
     filter: Optional[str] = None,
     convol_suffix_str: str = "conv",
+    remove_original_images: bool = False,
 ) -> Collection[Path]:
     """Convolve images to a specified resolution
 
@@ -515,6 +516,7 @@ def task_convolve_image(
         cutoff (float, optional): Maximum major beam axis an image is allowed to have before it will not be convolved. Defaults to 60.
         filter (Optional[str], optional): This string must be contained in the image path for it to be convolved. Defaults to None.
         convol_suffix_str (str, optional): The suffix added to the convolved images. Defaults to 'conv'.
+        remove_original_images (bool, optional): If True remove the original image after they have been convolved. Defaults to False.
 
     Returns:
         Collection[Path]: Path to the output images that have been convolved.
@@ -568,12 +570,18 @@ def task_convolve_image(
             f"{str(image_path.name)}: {image_beam.major.to(u.arcsecond)} {image_beam.minor.to(u.arcsecond)}  {image_beam.pa}"
         )
 
-    return convolve_images(
+    convolved_images = convolve_images(
         image_paths=image_paths,
         beam_shape=beam_shape,
         cutoff=cutoff,
         convol_suffix=convol_suffix_str,
     )
+
+    if remove_original_images:
+        logger.info(f"Removing {len(image_paths)} input images")
+        _ = [image_path.unlink() for image_path in image_paths]
+
+    return convolved_images
 
 
 @task
@@ -678,6 +686,7 @@ def _convolve_linmos(
     convol_filter: str = ".MFS.",
     convol_suffix_str: str = "conv",
     trim_linmos_fits: bool = True,
+    remove_original_image: bool = False,
 ) -> LinmosCommand:
     """An internal function that launches the convolution to a common resolution
     and subsequent linmos of the wsclean residual images.
@@ -692,6 +701,7 @@ def _convolve_linmos(
         convol_filter (str, optional): A text file applied when assessing images to co-add. Defaults to '.MFS.'.
         convol_suffix_str (str, optional): The suffix added to the convolved images. Defaults to 'conv'.
         trim_linmos_fits (bool, optional): Attempt to trim the output linmos files of as much empty space as possible. Defaults to True.
+        remove_original_images (bool, optional): If True remove the original image after they have been convolved. Defaults to False.
 
     Returns:
         LinmosCommand: Resulting linmos command parset
@@ -704,6 +714,7 @@ def _convolve_linmos(
         mode=convol_mode,
         filter=convol_filter,
         convol_suffix_str=convol_suffix_str,
+        remove_original_image=remove_original_image,
     )
     assert field_options.yandasoft_container is not None
     parset = task_linmos_images.submit(

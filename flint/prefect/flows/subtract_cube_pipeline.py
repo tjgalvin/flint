@@ -124,6 +124,7 @@ def flow_subtract_cube(
             convol_filter="image.",
             convol_suffix_str="optimal.image",
             trim_linmos_fits=False,
+            remove_original_image=True,
         )
         channel_parset_list.append(channel_parset)
 
