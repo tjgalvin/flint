@@ -235,18 +235,26 @@ def convolve_images(
     if cutoff:
         logger.info(f"Supplied cutoff of {cutoff} arcsecond")
 
-    radio_beam = (
-        Beam(
-            major=beam_shape.bmaj_arcsec * u.arcsecond,
-            minor=beam_shape.bmin_arcsec * u.arcsecond,
-            pa=beam_shape.bpa_deg * u.deg,
-        )
-        if np.isfinite(beam_shape.bmaj_arcsec)
-        else Beam(
-            major=1 * u.arcsecond,
-            minor=1 * u.arcsecond,
-            pa=1 * u.deg,
-        )
+    if not np.isfinite(beam_shape.bmaj_arcsec):
+        logger.info("Beam shape is not defined. Copying files into place. ")
+        from shutil import copyfile
+
+        conv_image_paths = [
+            Path(str(image_path).replace(".fits", f".{convol_suffix}.fits"))
+            for image_path in image_paths
+        ]
+        # If the beam is not defined, simply copy the file into place. Although
+        # this takes up more space, it is not more than otherwise
+        for original_path, copy_path in zip(image_paths, conv_image_paths):
+            logger.info(f"Copying {original_path=} {copy_path=}")
+            copyfile(original_path, copy_path)
+
+        return conv_image_paths
+
+    radio_beam = Beam(
+        major=beam_shape.bmaj_arcsec * u.arcsecond,
+        minor=beam_shape.bmin_arcsec * u.arcsecond,
+        pa=beam_shape.bpa_deg * u.deg,
     )
 
     conv_image_paths: List[Path] = []
