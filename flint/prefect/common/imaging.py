@@ -398,7 +398,13 @@ def task_get_common_beam(
         f"Considering {len(images_to_consider)} images across {len(wsclean_cmds)} outputs. "
     )
 
-    beam_shape = get_common_beam(image_paths=images_to_consider, cutoff=cutoff)
+    try:
+        beam_shape = get_common_beam(image_paths=images_to_consider, cutoff=cutoff)
+    except ValueError:
+        logger.critical("Failed to get beam resolution for:")
+        logger.critical(f"{images_to_consider=}")
+        logger.critical(f"{cutoff=}")
+        logger.critical(f"{filter=}")
 
     return beam_shape
 
