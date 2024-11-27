@@ -2,7 +2,11 @@
 
 # dev
 
-- Created `subtract_cube_pipeline.py`
+- Created `subtract_cube_pipeline.py`. Associated changes include:
+  - wsclean imaging will delete files while still in temporary storage (for
+    instance is a ramdisk is used)
+  - added option to prefect convol task to delete files once they have be
+    convoled
 
 # 0.2.8
 
