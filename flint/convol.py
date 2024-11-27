@@ -235,10 +235,18 @@ def convolve_images(
     if cutoff:
         logger.info(f"Supplied cutoff of {cutoff} arcsecond")
 
-    radio_beam = Beam(
-        major=beam_shape.bmaj_arcsec * u.arcsecond,
-        minor=beam_shape.bmin_arcsec * u.arcsecond,
-        pa=beam_shape.bpa_deg * u.deg,
+    radio_beam = (
+        Beam(
+            major=beam_shape.bmaj_arcsec * u.arcsecond,
+            minor=beam_shape.bmin_arcsec * u.arcsecond,
+            pa=beam_shape.bpa_deg * u.deg,
+        )
+        if np.isfinite(beam_shape.bmaj_arcsec)
+        else Beam(
+            major=0 * u.arcsecond,
+            minor=0 * u.arcsecond,
+            pa=0 * u.deg,
+        )
     )
 
     conv_image_paths: List[Path] = []

@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any, Collection, Dict, List, Literal, Optional, TypeVar, Union, Tuple
 
 import pandas as pd
+import numpy as np
 from prefect import task, unmapped
 from prefect.artifacts import create_table_artifact
 
@@ -398,9 +399,8 @@ def task_get_common_beam(
         f"Considering {len(images_to_consider)} images across {len(wsclean_cmds)} outputs. "
     )
 
-    try:
-        beam_shape = get_common_beam(image_paths=images_to_consider, cutoff=cutoff)
-    except ValueError:
+    beam_shape = get_common_beam(image_paths=images_to_consider, cutoff=cutoff)
+    if np.isnan(beam_shape.bmaj_arcsec):
         logger.critical("Failed to get beam resolution for:")
         logger.critical(f"{images_to_consider=}")
         logger.critical(f"{cutoff=}")
