@@ -848,7 +848,7 @@ def run_wsclean_imager(
 
                 wsclean_cleanup = False
             # Update the prefix based on where the files will be moved to
-            image_prefix_str = (
+            prefix = (
                 f"{str(move_hold_directories[0] / Path(prefix).name)}"
                 if image_prefix_str
                 else None
