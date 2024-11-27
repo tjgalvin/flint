@@ -198,10 +198,14 @@ def get_common_beam(
     if cutoff:
         logger.info(f"Setting beam cutoff to {cutoff} arcseconds. ")
 
-    beam, beams = beamcon_2D.get_common_beam(files=list(image_paths), cutoff=cutoff)
+    try:
+        beam, beams = beamcon_2D.get_common_beam(files=list(image_paths), cutoff=cutoff)
 
-    beam_shape = BeamShape.from_radio_beam(beam)
-    logger.info(f"Constructed {beam_shape=}")
+        beam_shape = BeamShape.from_radio_beam(beam)
+        logger.info(f"Constructed {beam_shape=}")
+    except ValueError:
+        logger.info("The beam was not constrained. Setting to NaNs")
+        beam_shape = BeamShape(bmaj_arcsec=np.nan, bmin_arcsec=np.nan, bpa_deg=np.nan)
 
     return beam_shape
 
