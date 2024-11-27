@@ -266,7 +266,7 @@ def convolve_images(
         header = fits.getheader(image_path)
         if header["BMAJ"] == 0.0:
             logger.info(f"Copying {image_path} to {convol_output_path=} for empty beam")
-            copyfile(original_path, copy_path)
+            copyfile(image_path, convol_output_path)
         else:
             logger.info(f"Convolving {str(image_path.name)}")
             beamcon_2D.beamcon_2d_on_fits(
