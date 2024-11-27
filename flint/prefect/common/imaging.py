@@ -686,7 +686,7 @@ def _convolve_linmos(
     convol_filter: str = ".MFS.",
     convol_suffix_str: str = "conv",
     trim_linmos_fits: bool = True,
-    remove_original_image: bool = False,
+    remove_original_images: bool = False,
 ) -> LinmosCommand:
     """An internal function that launches the convolution to a common resolution
     and subsequent linmos of the wsclean residual images.
@@ -714,7 +714,7 @@ def _convolve_linmos(
         mode=convol_mode,
         filter=convol_filter,
         convol_suffix_str=convol_suffix_str,
-        remove_original_image=remove_original_image,
+        remove_original_images=remove_original_images,
     )
     assert field_options.yandasoft_container is not None
     parset = task_linmos_images.submit(
