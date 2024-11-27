@@ -162,6 +162,8 @@ class WSCleanOptions(BaseOptions):
     """Saves the found clean components as a BBS/DP3 text sky model"""
     channel_range: Optional[Tuple[int, int]] = None
     """Image a channel range between a lower (inclusive) and upper (exclusive) bound"""
+    no_reorder: bool = False
+    """If True turn off the reordering of the MS at the beginning of wsclean"""
 
 
 class WSCleanCommand(BaseOptions):
