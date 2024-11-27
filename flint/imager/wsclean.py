@@ -220,7 +220,7 @@ def get_wsclean_output_source_list_path(
 
 
 def _rename_wsclean_title(name_str: str) -> str:
-    """Construct an apply a regular expression that aims to identify
+    """Construct and apply a regular expression that aims to identify
     the wsclean appended properties string within a file and replace
     the `-` separator with a `.`.
 
@@ -236,7 +236,7 @@ def _rename_wsclean_title(name_str: str) -> str:
     search_re = r"(-(i|q|u|v|xx|xy|yx|yy))?-((MFS|[0-9]{4}))(-t[0-9]{5})?-(image|dirty|model|residual|psf)"
     match_re = re.compile(search_re)
 
-    logger.info(f"{name_str=} {type(name_str)=}")
+    logger.info(f"Searching {name_str=} for wsclean added components")
     result = match_re.search(str(name_str))
 
     if result is None:
@@ -458,7 +458,7 @@ def wsclean_cleanup_files(
         Tuple[Path]: Set of files that were deleted
     """
     rm_files = []
-    logger.info(f"Removing wsclean files with {prefix=} {output_types}")
+    logger.info(f"Removing wsclean files with {prefix=} {output_types=}")
 
     for output_type in output_types:
         rm_files += delete_wsclean_outputs(
