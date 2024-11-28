@@ -623,7 +623,10 @@ def remove_columns_from_ms(
 
 
 def subtract_model_from_data_column(
-    ms: MS, model_column: str = "MODEL_DATA", data_column: Optional[str] = None
+    ms: MS,
+    model_column: str = "MODEL_DATA",
+    data_column: Optional[str] = None,
+    output_column: Optional[str] = None,
 ) -> MS:
     """Execute a ``taql`` query to subtract the MODEL_DATA from a nominated data column.
     This requires the ``model_column`` to already be inserted into the MS. Internally
@@ -634,6 +637,7 @@ def subtract_model_from_data_column(
         ms (MS): The measurement set instance being considered
         model_column (str, optional): The column with representing the model. Defaults to "MODEL_DATA".
         data_column (Optional[str], optional): The column where the column will be subtracted. If ``None`` it is taken from the ``column`` nominated by the input ``MS`` instance. Defaults to None.
+        output_column (Optional[str], optional): The output column that will be created. If ``None`` it defaults to ``data_column``. Defaults to None.
 
     Returns:
         MS: The updated MS
@@ -641,6 +645,9 @@ def subtract_model_from_data_column(
     ms = MS.cast(ms)
     data_column = data_column if data_column else ms.column
     assert data_column is not None, f"{data_column=}, which is not allowed"
+
+    output_column = output_column if output_column else data_column
+    assert output_column is not None, f"{output_column=}, which is not allowed"
     with critical_ms_interaction(input_ms=ms.path) as critical_ms:
         with table(str(critical_ms), readonly=False) as tab:
             logger.info("Extracting columns")
@@ -650,11 +657,14 @@ def subtract_model_from_data_column(
             ), f"{model_column=} or {data_column=} missing from {colnames=}"
 
             logger.info(f"Subtracting {model_column=} from {data_column=}")
-            taql(f"UPDATE $tab SET {data_column}={data_column}-{model_column}")
+            taql(f"UPDATE $tab SET {output_column}={data_column}-{model_column}")
 
     return ms
 
 
+# TODO: Clean up the usage and description of the argument `instrument_column`
+# as it is currently being used in unclear ways. Specifically there is a renaming
+# of the data_column to instrument_column before the rotation of things
 def preprocess_askap_ms(
     ms: Union[MS, Path],
     data_column: str = "DATA",

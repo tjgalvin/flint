@@ -137,6 +137,10 @@ def flow_subtract_cube(
                 [parset.result() for parset in batched_channel_parset_list]
             )
             batched_channel_parset_list = []
+    else:
+        channel_parset_list.extend(
+            [parset.result() for parset in batched_channel_parset_list]
+        )
 
     # 4 - cube concatenated each linmos field together to single file
 
