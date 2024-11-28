@@ -145,17 +145,8 @@ def flow_subtract_cube(
                     break
             else:
                 # Otherwise we will wait for the first to be
-                _ = batched_channel_parset_list.result()
+                _ = batched_channel_parset_list[0].result()
                 channel_parset_list.append(batched_channel_parset_list.pop(0))
-
-        # if len(batched_channel_parset_list) >= subtract_field_options.batch_limit:
-        #     logger.info(
-        #         f"Resolving result for batch {subtract_field_options.batch_limit}..."
-        #     )
-        #     channel_parset_list.extend(
-        #         [parset.result() for parset in batched_channel_parset_list]
-        #     )
-        #     batched_channel_parset_list = []
     else:
         channel_parset_list.extend(
             [parset.result() for parset in batched_channel_parset_list]
