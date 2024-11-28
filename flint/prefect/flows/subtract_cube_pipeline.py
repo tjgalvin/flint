@@ -8,11 +8,11 @@ already been preprocessed and fixed.
 """
 
 from pathlib import Path
-from typing import Tuple, Optional
+from typing import Tuple, Optional, Any
 
 import numpy as np
 from configargparse import ArgumentParser
-from prefect import flow, unmapped
+from prefect import flow, unmapped, task
 
 from flint.configuration import _load_and_copy_strategy
 from flint.exceptions import FrequencyMismatchError
@@ -30,6 +30,11 @@ from flint.prefect.common.imaging import (
     _convolve_linmos,
 )
 from flint.naming import get_sbid_from_path
+
+
+@task
+def task_gather_results(*args_of_futures: Any) -> Any:
+    return args_of_futures
 
 
 def _check_and_verify_options(subtract_field_options: SubtractFieldOptions) -> None:
@@ -130,13 +135,18 @@ def flow_subtract_cube(
         batched_channel_parset_list.append(channel_parset)
 
         if len(batched_channel_parset_list) >= subtract_field_options.batch_limit:
-            logger.info(
-                f"Resolving result for batch {subtract_field_options.batch_limit}..."
-            )
-            channel_parset_list.extend(
-                [parset.result() for parset in batched_channel_parset_list]
-            )
-            batched_channel_parset_list = []
+            logger.info("Popping a result")
+            channel_parset_list.extend(batched_channel_parset_list[0].result())
+            batched_channel_parset_list.pop(0)
+
+        # if len(batched_channel_parset_list) >= subtract_field_options.batch_limit:
+        #     logger.info(
+        #         f"Resolving result for batch {subtract_field_options.batch_limit}..."
+        #     )
+        #     channel_parset_list.extend(
+        #         [parset.result() for parset in batched_channel_parset_list]
+        #     )
+        #     batched_channel_parset_list = []
     else:
         channel_parset_list.extend(
             [parset.result() for parset in batched_channel_parset_list]
