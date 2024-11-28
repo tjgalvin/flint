@@ -99,6 +99,7 @@ def flow_subtract_cube(
     #   c - linmos the smoothed images together
 
     channel_parset_list = []
+    total_channel_parset_list = []
     for channel, freq_mhz in enumerate(freqs_mhz):
         logger.info(f"Imaging {channel=} {freq_mhz=}")
         channel_range = (channel, channel + 1)
@@ -127,6 +128,12 @@ def flow_subtract_cube(
             remove_original_images=True,
         )
         channel_parset_list.append(channel_parset)
+        if len(channel_parset_list) >= 50:
+            logger.info("Resolving results...")
+            total_channel_parset_list.extend(
+                [parset.result() for parset in channel_parset_list]
+            )
+            channel_parset_list = []
 
     # 4 - cube concatenated each linmos field together to single file
 
