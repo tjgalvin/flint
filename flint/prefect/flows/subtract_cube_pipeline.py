@@ -147,7 +147,7 @@ def flow_subtract_cube(
             batched_channel_parset_list = [
                 b
                 for b, s in zip(batched_channel_parset_list, future_states)
-                if s == states.Completed
+                if s != states.Completed
             ]
             sleep(5)
 
