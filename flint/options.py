@@ -245,6 +245,8 @@ class SubtractFieldOptions(BaseOptions):
     """Primary beam attenuation cutoff to use during linmos"""
     batch_limit: int = 100
     """Effectively batch the number of channels that can be processed concurrently to avoid overloading the system"""
+    stagger_delay_seconds: Optional[float] = None
+    """The delay, in seconds, that should be used when submitting items in batches (e.g. looping over channels)"""
 
 
 class FieldOptions(BaseOptions):

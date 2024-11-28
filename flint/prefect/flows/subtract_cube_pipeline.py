@@ -8,6 +8,7 @@ already been preprocessed and fixed.
 """
 
 from pathlib import Path
+from time import sleep
 from typing import Tuple, Optional, Any
 
 import numpy as np
@@ -97,6 +98,10 @@ def flow_subtract_cube(
     logger.info(
         f"Considering {len(freqs_mhz)} from {len(science_mss)}, minimum {np.min(freqs_mhz)}-{np.max(freqs_mhz)}"
     )
+    if len(freqs_mhz) > 20 and subtract_field_options.stagger_delay_seconds is None:
+        logger.critical(
+            f"{len(freqs_mhz)} channels and no stagger delay set! Consider setting a stagger delay"
+        )
 
     # 3 - out loop over channels to image
     #   a - wsclean map over the ms and channels
@@ -104,7 +109,6 @@ def flow_subtract_cube(
     #   c - linmos the smoothed images together
 
     channel_parset_list = []
-    batched_channel_parset_list = []
     for channel, freq_mhz in enumerate(freqs_mhz):
         logger.info(f"Imaging {channel=} {freq_mhz=}")
         channel_range = (channel, channel + 1)
@@ -133,10 +137,9 @@ def flow_subtract_cube(
             remove_original_images=True,
         )
         channel_parset_list.append(channel_parset)
-        batched_channel_parset_list.append(channel_parset)
-        from time import sleep
 
-        sleep(5)
+        if subtract_field_options.stagger_delay_seconds:
+            sleep(subtract_field_options.stagger_delay_seconds)
 
         # while len(batched_channel_parset_list) >= subtract_field_options.batch_limit:
         #     future_states = [
