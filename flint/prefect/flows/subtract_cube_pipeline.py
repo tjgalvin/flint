@@ -136,7 +136,7 @@ def flow_subtract_cube(
         batched_channel_parset_list.append(channel_parset)
         from time import sleep
 
-        sleep(10)
+        sleep(5)
 
         # while len(batched_channel_parset_list) >= subtract_field_options.batch_limit:
         #     future_states = [
