@@ -132,24 +132,18 @@ def flow_subtract_cube(
             trim_linmos_fits=False,
             remove_original_images=True,
         )
+        channel_parset_list.append(channel_parset)
         batched_channel_parset_list.append(channel_parset)
+        from prefect.states import Completed
+        from time import sleep
 
-        if len(batched_channel_parset_list) >= subtract_field_options.batch_limit:
-            logger.info("Popping a result")
-            from prefect.states import Completed
-
-            found_a_result = False
-            while not found_a_result:
-                # Attempt to find a result already completed
-                for idx, future in enumerate(batched_channel_parset_list):
-                    if future.get_state() == Completed:
-                        channel_parset_list.append(batched_channel_parset_list.pop(idx))
-                        found_a_result = True
-                        break
-    else:
-        channel_parset_list.extend(
-            [parset.result() for parset in batched_channel_parset_list]
-        )
+        while len(batched_channel_parset_list) >= subtract_field_options.batch_limit:
+            batched_channel_parset_list = [
+                future_result
+                for future_result in batched_channel_parset_list
+                if future_result.get_state != Completed
+            ]
+            sleep(5)
 
     # 4 - cube concatenated each linmos field together to single file
 
