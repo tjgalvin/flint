@@ -134,20 +134,22 @@ def flow_subtract_cube(
         )
         channel_parset_list.append(channel_parset)
         batched_channel_parset_list.append(channel_parset)
-        from prefect import states
+        from time import sleep
 
-        while len(batched_channel_parset_list) >= subtract_field_options.batch_limit:
-            future_states = [
-                future.get_state() for future in batched_channel_parset_list
-            ]
-            if any([f in (states.Failed,) for f in future_states]):
-                raise ValueError("Something failed")
+        sleep(10)
 
-            batched_channel_parset_list = [
-                b
-                for b, s in zip(batched_channel_parset_list, future_states)
-                if s != states.Completed
-            ]
+        # while len(batched_channel_parset_list) >= subtract_field_options.batch_limit:
+        #     future_states = [
+        #         future.get_state() for future in batched_channel_parset_list
+        #     ]
+        #     if any([f in (states.Failed,) for f in future_states]):
+        #         raise ValueError("Something failed")
+
+        #     batched_channel_parset_list = [
+        #         b
+        #         for b, s in zip(batched_channel_parset_list, future_states)
+        #         if s != states.Completed
+        #     ]
 
     # 4 - cube concatenated each linmos field together to single file
 
