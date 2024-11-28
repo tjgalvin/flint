@@ -136,8 +136,17 @@ def flow_subtract_cube(
 
         if len(batched_channel_parset_list) >= subtract_field_options.batch_limit:
             logger.info("Popping a result")
-            channel_parset_list.extend(batched_channel_parset_list[0].result())
-            batched_channel_parset_list.pop(0)
+            from prefect.states import Completed
+
+            # Attempt to find a result already completed
+            for idx, future in enumerate(batched_channel_parset_list):
+                if future.get_state() == Completed:
+                    channel_parset_list.append(batched_channel_parset_list.pop(idx))
+                    break
+            else:
+                # Otherwise we will wait for the first to be
+                _ = batched_channel_parset_list.result()
+                channel_parset_list.append(batched_channel_parset_list.pop(0))
 
         # if len(batched_channel_parset_list) >= subtract_field_options.batch_limit:
         #     logger.info(
