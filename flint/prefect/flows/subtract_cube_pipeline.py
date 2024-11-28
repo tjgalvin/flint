@@ -129,7 +129,7 @@ def flow_subtract_cube(
         )
         batched_channel_parset_list.append(channel_parset)
 
-        if len(channel_parset_list) >= subtract_field_options.batch_limit:
+        if len(batched_channel_parset_list) >= subtract_field_options.batch_limit:
             logger.info(
                 f"Resolving result for batch {subtract_field_options.batch_limit}..."
             )
