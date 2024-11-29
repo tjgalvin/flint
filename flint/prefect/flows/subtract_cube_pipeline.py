@@ -126,7 +126,10 @@ def flow_subtract_cube(
     #   c - linmos the smoothed images together
 
     science_mss = task_subtract_model_from_ms.map(
-        ms=science_mss, model_column=unmapped("MODEL_DATA"), update_tracked_column=True
+        ms=science_mss,
+        subtract_data_column=subtract_field_options.subtract_data_column,
+        model_column=unmapped("MODEL_DATA"),
+        update_tracked_column=True,
     )
 
     channel_parset_list = []
