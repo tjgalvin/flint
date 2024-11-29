@@ -257,7 +257,7 @@ def convolve_images(
         pa=beam_shape.bpa_deg * u.deg,
     )
 
-    conv_image_paths: List[Path] = []
+    return_conv_image_paths: List[Path] = []
 
     for image_path in image_paths:
         convol_output_path = Path(
@@ -277,9 +277,9 @@ def convolve_images(
                 suffix=convol_suffix,
                 cutoff=cutoff,
             )
-        conv_image_paths.append(convol_output_path)
+        return_conv_image_paths.append(convol_output_path)
 
-    return conv_image_paths
+    return return_conv_image_paths
 
 
 def get_parser() -> ArgumentParser:

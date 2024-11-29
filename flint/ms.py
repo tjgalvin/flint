@@ -656,6 +656,15 @@ def subtract_model_from_data_column(
                 [d in colnames for d in (model_column, data_column)]
             ), f"{model_column=} or {data_column=} missing from {colnames=}"
 
+            if output_column not in colnames:
+                from casacore.tables import makecoldesc
+
+                logger.info(f"Adding {output_column=}")
+                desc = makecoldesc(data_column, tab.getcoldesc(data_column))
+                desc["name"] = output_column
+                tab.addcols(desc)
+                tab.flush()
+
             logger.info(f"Subtracting {model_column=} from {data_column=}")
             taql(f"UPDATE $tab SET {output_column}={data_column}-{model_column}")
 

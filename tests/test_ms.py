@@ -409,3 +409,61 @@ def test_subtract_model_from_data_column_ms_column(tmpdir):
     with table(str(ms.path)) as tab:
         data = tab.getcol("DATA")
         assert np.all(data == 0 + 0j)
+
+
+def test_subtract_model_from_data_column_ms_column_new_column(tmpdir):
+    """Ensure we can subtact the model from the data via taql. This test will
+    add a new column via taql and will ensure the result is as expected.
+
+    >>> NEW_COLUMN=DATA-MODEL_DATA
+    """
+    ms_zip = Path(
+        get_packaged_resource_path(
+            package="flint.data.tests",
+            filename="scienceData.EMU_0529-60.SB50538.EMU_0529-60.beam08_averaged_cal.leakage.ms.zip",
+        )
+    )
+    outpath = Path(tmpdir) / "taqlsubtract3"
+
+    shutil.unpack_archive(ms_zip, outpath)
+
+    ms_path = (
+        Path(outpath)
+        / "scienceData.EMU_0529-60.SB50538.EMU_0529-60.beam08_averaged_cal.leakage.ms"
+    )
+
+    ms = Path(ms_path)
+    assert ms.exists()
+    ms = MS(path=ms, column="DATA")
+
+    from casacore.tables import maketabdesc, makearrcoldesc
+
+    with table(str(ms.path), readonly=False) as tab:
+        data = tab.getcol("DATA")
+        ones = np.ones_like(data, dtype=data.dtype)
+
+        tab.putcol(columnname="DATA", value=ones)
+
+        if "MODEL_DATA" not in tab.colnames():
+            coldesc = tab.getdminfo("DATA")
+            coldesc["NAME"] = "MODEL_DATA"
+            tab.addcols(
+                maketabdesc(makearrcoldesc("MODEL_DATA", 0.0 + 0j, ndim=2)), coldesc
+            )
+            tab.flush()
+        tab.putcol(columnname="MODEL_DATA", value=ones)
+        tab.flush()
+
+        colnames = tab.colnames()
+
+    assert "NEW_COLUMN" not in colnames, "Column already exists"
+
+    ms = subtract_model_from_data_column(
+        ms=ms, model_column="MODEL_DATA", data_column="DATA", output_column="NEW_COLUMN"
+    )
+    with table(str(ms.path)) as tab:
+        data = tab.getcol("NEW_COLUMN")
+        assert np.all(data == 0 + 0j)
+
+        data = tab.getcol("DATA")
+        assert np.all(data == ones)
