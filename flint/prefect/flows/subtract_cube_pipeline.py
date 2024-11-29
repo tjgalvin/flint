@@ -78,7 +78,7 @@ def task_subtract_model_from_ms(
 
     ms = subtract_model_from_data_column(
         ms=ms,
-        model_column="MODEL_COLUMN",
+        model_column="MODEL_DATA",
         output_column=subtract_data_column,
         update_tracked_column=update_tracked_column,
     )
@@ -128,7 +128,6 @@ def flow_subtract_cube(
     science_mss = task_subtract_model_from_ms.map(
         ms=science_mss,
         subtract_data_column=subtract_field_options.subtract_data_column,
-        model_column=unmapped("MODEL_DATA"),
         update_tracked_column=True,
     )
 
