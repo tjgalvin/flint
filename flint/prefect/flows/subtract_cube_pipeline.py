@@ -9,7 +9,7 @@ already been preprocessed and fixed.
 
 from pathlib import Path
 from time import sleep
-from typing import Tuple, Optional, Any
+from typing import Tuple, Optional
 
 import numpy as np
 from configargparse import ArgumentParser
@@ -19,7 +19,13 @@ from flint.configuration import _load_and_copy_strategy
 from flint.exceptions import FrequencyMismatchError
 from flint.prefect.clusters import get_dask_runner
 from flint.logging import logger
-from flint.ms import MS, find_mss, consistent_ms_frequencies, get_freqs_from_ms
+from flint.ms import (
+    MS,
+    find_mss,
+    consistent_ms_frequencies,
+    get_freqs_from_ms,
+    subtract_model_from_data_column,
+)
 from flint.options import (
     SubtractFieldOptions,
     add_options_to_parser,
@@ -31,11 +37,6 @@ from flint.prefect.common.imaging import (
     _convolve_linmos,
 )
 from flint.naming import get_sbid_from_path
-
-
-@task
-def task_gather_results(*args_of_futures: Any) -> Any:
-    return args_of_futures
 
 
 def _check_and_verify_options(subtract_field_options: SubtractFieldOptions) -> None:
@@ -58,6 +59,7 @@ def find_mss_to_image(
     mss_parent_path: Path,
     expected_ms_count: Optional[int] = None,
     data_column: str = "CORRECTED_DATA",
+    model_column: str = "MODEL_DATA",
 ) -> Tuple[MS, ...]:
     science_mss = find_mss(
         mss_parent_path=mss_parent_path,
@@ -66,6 +68,21 @@ def find_mss_to_image(
     )
     logger.info(f"Found {science_mss=}")
     return science_mss
+
+
+@task
+def task_subtract_model_from_ms(
+    ms: MS, subtract_data_column: str, update_tracked_column: bool = True
+) -> MS:
+    logger.info(f"Subtracting model from {ms=}")
+
+    ms = subtract_model_from_data_column(
+        ms=ms,
+        model_column="MODEL_COLUMN",
+        output_column=subtract_data_column,
+        update_tracked_column=update_tracked_column,
+    )
+    return ms
 
 
 @flow
@@ -107,6 +124,10 @@ def flow_subtract_cube(
     #   a - wsclean map over the ms and channels
     #   b - convol to a common resolution for channels
     #   c - linmos the smoothed images together
+
+    science_mss = task_subtract_model_from_ms.map(
+        ms=science_mss, model_column=unmapped("MODEL_DATA"), update_tracked_column=True
+    )
 
     channel_parset_list = []
     for channel, freq_mhz in enumerate(freqs_mhz):

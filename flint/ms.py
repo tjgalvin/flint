@@ -627,6 +627,7 @@ def subtract_model_from_data_column(
     model_column: str = "MODEL_DATA",
     data_column: Optional[str] = None,
     output_column: Optional[str] = None,
+    update_tracked_column: bool = False,
 ) -> MS:
     """Execute a ``taql`` query to subtract the MODEL_DATA from a nominated data column.
     This requires the ``model_column`` to already be inserted into the MS. Internally
@@ -638,6 +639,7 @@ def subtract_model_from_data_column(
         model_column (str, optional): The column with representing the model. Defaults to "MODEL_DATA".
         data_column (Optional[str], optional): The column where the column will be subtracted. If ``None`` it is taken from the ``column`` nominated by the input ``MS`` instance. Defaults to None.
         output_column (Optional[str], optional): The output column that will be created. If ``None`` it defaults to ``data_column``. Defaults to None.
+        update_tracked_column (bool, optional): If True, update ``ms.column`` to the column with subtracted data. Defaults to False.
 
     Returns:
         MS: The updated MS
@@ -668,6 +670,9 @@ def subtract_model_from_data_column(
             logger.info(f"Subtracting {model_column=} from {data_column=}")
             taql(f"UPDATE $tab SET {output_column}={data_column}-{model_column}")
 
+    if update_tracked_column:
+        logger.info(f"Updating ms.column to {output_column=}")
+        ms = ms.with_options(column=output_column)
     return ms
 
 
@@ -919,6 +924,7 @@ def find_mss(
     mss_parent_path: Path,
     expected_ms_count: Optional[int] = 36,
     data_column: Optional[str] = None,
+    model_column: Optional[str] = None,
 ) -> Tuple[MS, ...]:
     """Search a directory to find measurement sets via a simple
     `*.ms` glob expression. An expected number of MSs can be enforced
@@ -928,6 +934,7 @@ def find_mss(
         mss_parent_path (Path): The parent directory that will be globbed to search for MSs.
         expected_ms_count (Optional[int], optional): The number of MSs that should be there. If None no check is performed. Defaults to 36.
         data_column (Optional[str], optional): Set the column attribute of each MS to this (no checks to ensure it exists). If None use default of MS. Defaults to None.
+        model_column (Optional[str], optional): Set the model column attribute of each MS to this (no checks to ensure it exists). If None use default of MS. Defaults to None.
 
     Returns:
         Tuple[MS, ...]: Collection of found MSs
@@ -945,10 +952,13 @@ def find_mss(
             len(found_mss) == expected_ms_count
         ), f"Expected to find {expected_ms_count} in {str(mss_parent_path)}, found {len(found_mss)}."
 
-    if data_column:
+    if data_column or model_column:
         logger.info(f"Updating column attribute to {data_column=}")
         found_mss = tuple(
-            [found_ms.with_options(column=data_column) for found_ms in found_mss]
+            [
+                found_ms.with_options(column=data_column, model_column=model_column)
+                for found_ms in found_mss
+            ]
         )
 
     return found_mss
