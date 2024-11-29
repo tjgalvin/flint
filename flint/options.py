@@ -243,10 +243,12 @@ class SubtractFieldOptions(BaseOptions):
     """Cutoff in arcseconds to use when calculating the common beam to convol to"""
     pb_cutoff: float = 0.1
     """Primary beam attenuation cutoff to use during linmos"""
-    batch_limit: int = 100
-    """Effectively batch the number of channels that can be processed concurrently to avoid overloading the system"""
     stagger_delay_seconds: Optional[float] = None
     """The delay, in seconds, that should be used when submitting items in batches (e.g. looping over channels)"""
+    subtract_data_column: str = "DATA"
+    """Should the continuum model be subtracted, where to store the output"""
+    predict_wsclean_model: bool = False
+    """Search for the continuum model produced by wsclean and subtract"""
 
 
 class FieldOptions(BaseOptions):
