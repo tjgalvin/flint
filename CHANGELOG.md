@@ -7,6 +7,9 @@
     instance is a ramdisk is used)
   - added option to prefect convol task to delete files once they have be
     convoled
+  - predicting model produced by `wsclean -save-source-list` into measurement
+    set
+  - using `taql` to subtract model from nominated data column
 
 # 0.2.8
 
