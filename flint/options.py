@@ -217,12 +217,24 @@ class BandpassOptions(BaseOptions):
     """Flag Jones matrix if any amplitudes with a Jones are above this value"""
 
 
+class AddModelSubtractFiealOptions(BaseOptions):
+    """Options related to predicting a continuum model during the SubtractFieldOptions workflow.
+    Specifically these options deal with identifying the wsclean produced source list model, which
+    may be used by ``admodel`` to predict model visibilities. See utilities aroun the ``aocalibrate``
+    functions and routines."""
+
+    attempt_addmodel: bool = False
+    """Invoke the ``addmodel`` visibility prediction, including the search for the ``wsclean`` source list"""
+    wsclean_pol_mode: List[str] = ["i"]
+    """The polarisation of the wsclean model that was generated"""
+    calibrate_container: Optional[Path] = None
+    """Path to the container with the calibrate software (including addmodel)"""
+
+
 class SubtractFieldOptions(BaseOptions):
     """Container for options related to the
     continuum-subtracted pipeline"""
 
-    calibrate_container: Path
-    """Path to the container with the calibrate software (including addmodel)"""
     wsclean_container: Path
     """Path to the container with wsclean"""
     yandasoft_container: Path

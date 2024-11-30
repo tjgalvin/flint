@@ -9,7 +9,7 @@ already been preprocessed and fixed.
 
 from pathlib import Path
 from time import sleep
-from typing import Tuple, Optional
+from typing import Tuple, Optional, Union
 
 import numpy as np
 from configargparse import ArgumentParser
@@ -27,6 +27,7 @@ from flint.ms import (
     subtract_model_from_data_column,
 )
 from flint.options import (
+    AddModelSubtractFiealOptions,
     SubtractFieldOptions,
     add_options_to_parser,
     create_options_from_parser,
@@ -39,20 +40,27 @@ from flint.prefect.common.imaging import (
 from flint.naming import get_sbid_from_path
 
 
-def _check_and_verify_options(subtract_field_options: SubtractFieldOptions) -> None:
+def _check_and_verify_options(
+    options: Union[AddModelSubtractFiealOptions, SubtractFieldOptions],
+) -> None:
     """Verrify that the options supplied to run the subtract field options make sense"""
-    assert (
-        subtract_field_options.calibrate_container.exists()
-        and subtract_field_options.calibrate_container.is_file()
-    ), f"{subtract_field_options.calibrate_container=} does not exist or is not a file"
-    assert (
-        subtract_field_options.wsclean_container.exists()
-        and subtract_field_options.wsclean_container.is_file()
-    ), f"{subtract_field_options.wsclean_container=} does not exist or is not a file"
-    assert (
-        subtract_field_options.yandasoft_container.exists()
-        and subtract_field_options.yandasoft_container.is_file()
-    ), f"{subtract_field_options.yandasoft_container=} does not exist or is not a file"
+    if isinstance(options, SubtractFieldOptions):
+        assert (
+            options.wsclean_container.exists() and options.wsclean_container.is_file()
+        ), f"{options.wsclean_container=} does not exist or is not a file"
+        assert (
+            options.yandasoft_container.exists()
+            and options.yandasoft_container.is_file()
+        ), f"{options.yandasoft_container=} does not exist or is not a file"
+    if isinstance(options, AddModelSubtractFiealOptions):
+        if options.attempt_addmodel:
+            assert (
+                options.calibrate_container is not None
+            ), "Calibrate container path is needede for addmodel"
+            assert (
+                options.calibrate_container.exists()
+                and options.calibrate_container.is_file
+            ), f"Calibrate container {options.calibrate_container} is not a file"
 
 
 def find_mss_to_image(
@@ -85,9 +93,44 @@ def task_subtract_model_from_ms(
     return ms
 
 
+@task
+def task_addmodel_to_ms(
+    ms: MS, addmodel_subtract_options: AddModelSubtractFiealOptions
+) -> MS:
+    from flint.imager.wsclean import get_wsclean_output_source_list_path
+    from flint.calibrate.aocalibrate import AddModelOptions, add_model
+
+    logger.info(f"Searching for wsclean source list for {ms.path}")
+    for idx, pol in enumerate(addmodel_subtract_options.wsclean_pol_mode):
+        wsclean_source_list_path = get_wsclean_output_source_list_path(
+            name_path=ms.path, pol=pol
+        )
+        assert (
+            wsclean_source_list_path.exists
+        ), f"{wsclean_source_list_path=} was requested, but does not exist"
+
+        # This should attempt to add model of different polarisations together.
+        # But to this point it is a future proof and is not tested.
+        addmodel_options = AddModelOptions(
+            model_path=wsclean_source_list_path,
+            ms_path=ms.path,
+            modde="c" if idx == 0 else "a",
+            datacolumn="MODEL_DATA",
+        )
+        add_model(
+            add_model_options=addmodel_options,
+            container=addmodel_subtract_options.calibrate_container,
+            remove_datacolumn=idx == 0,
+        )
+
+    return ms.with_options(model_column="MODEL_DATA")
+
+
 @flow
 def flow_subtract_cube(
-    science_path: Path, subtract_field_options: SubtractFieldOptions
+    science_path: Path,
+    subtract_field_options: SubtractFieldOptions,
+    addmodel_subtract_field_options: AddModelSubtractFiealOptions,
 ) -> None:
     strategy = _load_and_copy_strategy(
         output_split_science_path=science_path,
@@ -124,6 +167,11 @@ def flow_subtract_cube(
     #   a - wsclean map over the ms and channels
     #   b - convol to a common resolution for channels
     #   c - linmos the smoothed images together
+
+    if addmodel_subtract_field_options.attempt_addmodel:
+        science_mss = task_addmodel_to_ms.map(
+            ms=science_mss, addmodel_subtract_options=addmodel_subtract_field_options
+        )
 
     science_mss = task_subtract_model_from_ms.map(
         ms=science_mss,
@@ -172,6 +220,7 @@ def flow_subtract_cube(
 def setup_run_subtract_flow(
     science_path: Path,
     subtract_field_options: SubtractFieldOptions,
+    addmodel_subtract_field_options: AddModelSubtractFiealOptions,
     cluster_config: Path,
 ) -> None:
     logger.info(f"Processing {science_path=}")
@@ -181,7 +230,11 @@ def setup_run_subtract_flow(
 
     flow_subtract_cube.with_options(
         task_runner=dask_runner, name=f"Subtract Cube Pipeline -- {science_sbid}"
-    )(science_path=science_path, subtract_field_options=subtract_field_options)
+    )(
+        science_path=science_path,
+        subtract_field_options=subtract_field_options,
+        addmodel_subtract_field_options=addmodel_subtract_field_options,
+    )
 
 
 def get_parser() -> ArgumentParser:
@@ -202,6 +255,9 @@ def get_parser() -> ArgumentParser:
     )
 
     parser = add_options_to_parser(parser=parser, options_class=SubtractFieldOptions)
+    parser = add_options_to_parser(
+        parser=parser, options_class=AddModelSubtractFiealOptions
+    )
 
     return parser
 
@@ -214,10 +270,14 @@ def cli() -> None:
     subtract_field_options = create_options_from_parser(
         parser_namespace=args, options_class=SubtractFieldOptions
     )
+    addmodel_subtract_field_options = create_options_from_parser(
+        parser_namespace=args, options_class=AddModelSubtractFiealOptions
+    )
 
     setup_run_subtract_flow(
         science_path=args.science_path,
         subtract_field_options=subtract_field_options,
+        addmodel_subtract_field_options=addmodel_subtract_field_options,
         cluster_config=args.cluster_config,
     )
 
