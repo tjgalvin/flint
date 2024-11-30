@@ -171,7 +171,8 @@ def flow_subtract_cube(
 
     if addmodel_subtract_field_options.attempt_addmodel:
         science_mss = task_addmodel_to_ms.map(
-            ms=science_mss, addmodel_subtract_options=addmodel_subtract_field_options
+            ms=science_mss,
+            addmodel_subtract_options=unmapped(addmodel_subtract_field_options),
         )
 
     science_mss = task_subtract_model_from_ms.map(
