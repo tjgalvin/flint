@@ -114,7 +114,7 @@ def task_addmodel_to_ms(
         addmodel_options = AddModelOptions(
             model_path=wsclean_source_list_path,
             ms_path=ms.path,
-            modde="c" if idx == 0 else "a",
+            mode="c" if idx == 0 else "a",
             datacolumn="MODEL_DATA",
         )
         add_model(
