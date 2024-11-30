@@ -136,7 +136,8 @@ def flow_subtract_cube(
         output_split_science_path=science_path,
         imaging_strategy=subtract_field_options.imaging_strategy,
     )
-    _check_and_verify_options(subtract_field_options=subtract_field_options)
+    _check_and_verify_options(options=subtract_field_options)
+    _check_and_verify_options(options=addmodel_subtract_field_options)
 
     # Find the MSs
     # - optionally untar?
