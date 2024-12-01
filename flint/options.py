@@ -257,6 +257,8 @@ class SubtractFieldOptions(BaseOptions):
     """Primary beam attenuation cutoff to use during linmos"""
     stagger_delay_seconds: Optional[float] = None
     """The delay, in seconds, that should be used when submitting items in batches (e.g. looping over channels)"""
+    attempt_aubract: bool = False
+    """Attempt to subtract the model column from the nominated data column"""
     subtract_data_column: str = "DATA"
     """Should the continuum model be subtracted, where to store the output"""
     predict_wsclean_model: bool = False

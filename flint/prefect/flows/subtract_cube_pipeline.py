@@ -175,11 +175,12 @@ def flow_subtract_cube(
             addmodel_subtract_options=unmapped(addmodel_subtract_field_options),
         )
 
-    science_mss = task_subtract_model_from_ms.map(
-        ms=science_mss,
-        subtract_data_column=subtract_field_options.subtract_data_column,
-        update_tracked_column=True,
-    )
+    if subtract_field_options.attempt_aubract:
+        science_mss = task_subtract_model_from_ms.map(
+            ms=science_mss,
+            subtract_data_column=subtract_field_options.subtract_data_column,
+            update_tracked_column=True,
+        )
 
     channel_parset_list = []
     for channel, freq_mhz in enumerate(freqs_mhz):
