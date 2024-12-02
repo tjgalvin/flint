@@ -10,6 +10,8 @@
   - predicting model produced by `wsclean -save-source-list` into measurement
     set
   - using `taql` to subtract model from nominated data column
+  - added a 'flow_addmodel_to_mss` to allow different task runner to be
+    specified
 
 # 0.2.8
 

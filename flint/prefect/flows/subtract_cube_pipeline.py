@@ -9,7 +9,7 @@ already been preprocessed and fixed.
 
 from pathlib import Path
 from time import sleep
-from typing import Tuple, Optional, Union
+from typing import Tuple, Optional, Union, List
 
 import numpy as np
 from configargparse import ArgumentParser
@@ -27,7 +27,7 @@ from flint.ms import (
     subtract_model_from_data_column,
 )
 from flint.options import (
-    AddModelSubtractFiealOptions,
+    AddModelSubtractFieldOptions,
     SubtractFieldOptions,
     add_options_to_parser,
     create_options_from_parser,
@@ -41,7 +41,7 @@ from flint.naming import get_sbid_from_path
 
 
 def _check_and_verify_options(
-    options: Union[AddModelSubtractFiealOptions, SubtractFieldOptions],
+    options: Union[AddModelSubtractFieldOptions, SubtractFieldOptions],
 ) -> None:
     """Verrify that the options supplied to run the subtract field options make sense"""
     if isinstance(options, SubtractFieldOptions):
@@ -52,7 +52,7 @@ def _check_and_verify_options(
             options.yandasoft_container.exists()
             and options.yandasoft_container.is_file()
         ), f"{options.yandasoft_container=} does not exist or is not a file"
-    if isinstance(options, AddModelSubtractFiealOptions):
+    if isinstance(options, AddModelSubtractFieldOptions):
         if options.attempt_addmodel:
             assert (
                 options.calibrate_container is not None
@@ -69,33 +69,75 @@ def find_mss_to_image(
     data_column: str = "CORRECTED_DATA",
     model_column: str = "MODEL_DATA",
 ) -> Tuple[MS, ...]:
+    """Search for MSs to image. See ``flint.ms.find_mss`` for further details.
+
+    Args:
+        mss_parent_path (Path): Path to search for MSs in
+        expected_ms_count (Optional[int], optional): Expected number of measurement sets to find. Defaults to None.
+        data_column (str, optional): The nominated data column that should eb set. Defaults to "CORRECTED_DATA".
+        model_column (str, optional): The nominated model data column that should be set. Defaults to "MODEL_DATA".
+
+    Returns:
+        Tuple[MS, ...]: Collect of MSs
+    """
     science_mss = find_mss(
         mss_parent_path=mss_parent_path,
         expected_ms_count=expected_ms_count,
         data_column=data_column,
+        model_column=model_column,
     )
     logger.info(f"Found {science_mss=}")
     return science_mss
 
 
-@task
-def task_subtract_model_from_ms(
-    ms: MS, subtract_data_column: str, update_tracked_column: bool = True
-) -> MS:
-    logger.info(f"Subtracting model from {ms=}")
+def find_and_setup_mss(
+    science_path_or_mss: Union[Path, Tuple[MS]],
+    expected_ms_count: int,
+    data_column: str,
+) -> Tuple[MS]:
+    """Search for MSs in a directory and, if necessary, perform checks around
+    their consistency. If the input data appear to be collection of MSs already
+    assume they have already been set and checked for consistency.
 
-    ms = subtract_model_from_data_column(
-        ms=ms,
-        model_column="MODEL_DATA",
-        output_column=subtract_data_column,
-        update_tracked_column=update_tracked_column,
+    Args:
+        science_path_or_mss (Union[Path, List[MS]]): Path to search or existing MSs
+        expected_ms_count (int): Expected number of MSs to find
+        data_column (str): The data column to nominate if creating MSs after searching
+
+    Raises:
+        FrequencyMismatchError: Raised when frequency information is not consistent
+
+    Returns:
+        Tuple[MS]: Collection of MSs
+    """
+
+    if isinstance(science_path_or_mss, (list, tuple)):
+        logger.info("Already loaded MSs")
+        return (sms for sms in science_path_or_mss)
+
+    # Find the MSs
+    # - optionally untar?
+    science_mss = find_mss_to_image(
+        mss_parent_path=science_path_or_mss,
+        expected_ms_count=expected_ms_count,
+        data_column=data_column,
     )
-    return ms
+
+    # 2 - ensure matchfing frequencies over channels
+    consistent_frequencies_across_mss = consistent_ms_frequencies(mss=science_mss)
+    if not consistent_frequencies_across_mss:
+        logger.critical("Mismatch in frequencies among provided MSs")
+        raise FrequencyMismatchError("There is a mismatch in frequencies")
+
+    return science_mss
+
+
+task_subtract_model_from_ms = task(subtract_model_from_data_column)
 
 
 @task
 def task_addmodel_to_ms(
-    ms: MS, addmodel_subtract_options: AddModelSubtractFiealOptions
+    ms: MS, addmodel_subtract_options: AddModelSubtractFieldOptions
 ) -> MS:
     from flint.imager.wsclean import get_wsclean_output_source_list_path
     from flint.calibrate.aocalibrate import AddModelOptions, add_model
@@ -127,10 +169,35 @@ def task_addmodel_to_ms(
 
 
 @flow
+def flow_addmodel_to_mss(
+    science_path_or_mss: Union[Path, Tuple[MS]],
+    addmodel_subtract_field_options: AddModelSubtractFieldOptions,
+    expected_ms: int,
+    data_column: str,
+) -> List[MS]:
+    """Separate flow to perform the potentially expensive model prediction
+    into MSs"""
+    _check_and_verify_options(options=addmodel_subtract_field_options)
+
+    # Get the MSs that will have their model added to
+    science_mss = find_and_setup_mss(
+        science_path_or_mss=science_path_or_mss,
+        expected_ms_count=expected_ms,
+        data_column=data_column,
+    )
+    science_mss = task_addmodel_to_ms.map(
+        ms=science_mss,
+        addmodel_subtract_options=unmapped(addmodel_subtract_field_options),
+    )
+
+    return science_mss
+
+
+@flow
 def flow_subtract_cube(
     science_path: Path,
     subtract_field_options: SubtractFieldOptions,
-    addmodel_subtract_field_options: AddModelSubtractFiealOptions,
+    addmodel_subtract_field_options: AddModelSubtractFieldOptions,
 ) -> None:
     strategy = _load_and_copy_strategy(
         output_split_science_path=science_path,
@@ -141,17 +208,11 @@ def flow_subtract_cube(
 
     # Find the MSs
     # - optionally untar?
-    science_mss = find_mss_to_image(
-        mss_parent_path=science_path,
+    science_mss = find_and_setup_mss(
+        science_path_or_mss=science_path,
         expected_ms_count=subtract_field_options.expected_ms,
         data_column=subtract_field_options.data_column,
     )
-
-    # 2 - ensure matchfing frequencies over channels
-    consistent_frequencies_across_mss = consistent_ms_frequencies(mss=science_mss)
-    if not consistent_frequencies_across_mss:
-        logger.critical("Mismatch in frequencies among provided MSs")
-        raise FrequencyMismatchError("There is a mismatch in frequencies")
 
     # 2.5 - Continuum subtract if requested
 
@@ -164,15 +225,21 @@ def flow_subtract_cube(
             f"{len(freqs_mhz)} channels and no stagger delay set! Consider setting a stagger delay"
         )
 
-    # 3 - out loop over channels to image
-    #   a - wsclean map over the ms and channels
-    #   b - convol to a common resolution for channels
-    #   c - linmos the smoothed images together
-
     if addmodel_subtract_field_options.attempt_addmodel:
-        science_mss = task_addmodel_to_ms.map(
-            ms=science_mss,
-            addmodel_subtract_options=unmapped(addmodel_subtract_field_options),
+        # science_mss = task_addmodel_to_ms.map(
+        #     ms=science_mss,
+        #     addmodel_subtract_options=unmapped(addmodel_subtract_field_options),
+        # )
+        addmodel_dask_runner = get_dask_runner(
+            cluster=addmodel_subtract_field_options.addmodel_cluster_config
+        )
+        science_mss = flow_addmodel_to_mss.with_options(
+            task_runner=addmodel_dask_runner, name="Predict -- Addmodel"
+        )(
+            science_path_or_mss=science_mss,
+            addmodel_subtract_field_options=addmodel_subtract_field_options,
+            expected_ms_count=subtract_field_options.expected_ms,
+            data_column=subtract_field_options.data_column,
         )
 
     if subtract_field_options.attempt_subtract:
@@ -223,7 +290,7 @@ def flow_subtract_cube(
 def setup_run_subtract_flow(
     science_path: Path,
     subtract_field_options: SubtractFieldOptions,
-    addmodel_subtract_field_options: AddModelSubtractFiealOptions,
+    addmodel_subtract_field_options: AddModelSubtractFieldOptions,
     cluster_config: Path,
 ) -> None:
     logger.info(f"Processing {science_path=}")
@@ -259,7 +326,7 @@ def get_parser() -> ArgumentParser:
 
     parser = add_options_to_parser(parser=parser, options_class=SubtractFieldOptions)
     parser = add_options_to_parser(
-        parser=parser, options_class=AddModelSubtractFiealOptions
+        parser=parser, options_class=AddModelSubtractFieldOptions
     )
 
     return parser
@@ -274,8 +341,12 @@ def cli() -> None:
         parser_namespace=args, options_class=SubtractFieldOptions
     )
     addmodel_subtract_field_options = create_options_from_parser(
-        parser_namespace=args, options_class=AddModelSubtractFiealOptions
+        parser_namespace=args, options_class=AddModelSubtractFieldOptions
     )
+    if addmodel_subtract_field_options.addmodel_cluster_config is None:
+        addmodel_subtract_field_options.with_options(
+            addmodel_cluster_config=args.cluster_config
+        )
 
     setup_run_subtract_flow(
         science_path=args.science_path,

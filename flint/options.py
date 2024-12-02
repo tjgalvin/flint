@@ -217,7 +217,7 @@ class BandpassOptions(BaseOptions):
     """Flag Jones matrix if any amplitudes with a Jones are above this value"""
 
 
-class AddModelSubtractFiealOptions(BaseOptions):
+class AddModelSubtractFieldOptions(BaseOptions):
     """Options related to predicting a continuum model during the SubtractFieldOptions workflow.
     Specifically these options deal with identifying the wsclean produced source list model, which
     may be used by ``admodel`` to predict model visibilities. See utilities aroun the ``aocalibrate``
@@ -229,6 +229,8 @@ class AddModelSubtractFiealOptions(BaseOptions):
     """The polarisation of the wsclean model that was generated"""
     calibrate_container: Optional[Path] = None
     """Path to the container with the calibrate software (including addmodel)"""
+    addmodel_cluster_config: Optional[Path] = None
+    """Specify a new cluster configuration file different to the preferred on. If None, drawn from preferred cluster config"""
 
 
 class SubtractFieldOptions(BaseOptions):
