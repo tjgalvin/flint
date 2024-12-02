@@ -218,7 +218,7 @@ def flow_subtract_cube(
 
     freqs_mhz = get_freqs_from_ms(ms=science_mss[0]) / 1e6
     logger.info(
-        f"Considering {len(freqs_mhz)} from {len(science_mss)}, minimum {np.min(freqs_mhz)}-{np.max(freqs_mhz)}"
+        f"Considering {len(freqs_mhz)} frequencies from {len(science_mss)} channels, minimum {np.min(freqs_mhz)}-{np.max(freqs_mhz)}"
     )
     if len(freqs_mhz) > 20 and subtract_field_options.stagger_delay_seconds is None:
         logger.critical(
