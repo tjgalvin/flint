@@ -238,7 +238,7 @@ def flow_subtract_cube(
         )(
             science_path_or_mss=science_mss,
             addmodel_subtract_field_options=addmodel_subtract_field_options,
-            expected_ms_count=subtract_field_options.expected_ms,
+            expected_ms=subtract_field_options.expected_ms,
             data_column=subtract_field_options.data_column,
         )
 
