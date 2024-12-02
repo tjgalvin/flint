@@ -182,7 +182,7 @@ def flow_addmodel_to_mss(
     # Get the MSs that will have their model added to
     science_mss = find_and_setup_mss(
         science_path_or_mss=science_path_or_mss,
-        expected_ms_count=expected_ms,
+        expected_ms=expected_ms,
         data_column=data_column,
     )
     science_mss = task_addmodel_to_ms.map(
