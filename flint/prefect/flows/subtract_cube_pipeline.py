@@ -210,7 +210,7 @@ def flow_subtract_cube(
     # - optionally untar?
     science_mss = find_and_setup_mss(
         science_path_or_mss=science_path,
-        expected_ms_count=subtract_field_options.expected_ms,
+        expected_ms=subtract_field_options.expected_ms,
         data_column=subtract_field_options.data_column,
     )
 
