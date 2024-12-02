@@ -91,7 +91,7 @@ def find_mss_to_image(
 
 
 def find_and_setup_mss(
-    science_path_or_mss: Union[Path, Tuple[MS]],
+    science_path_or_mss: Union[Path, Tuple[MS, ...]],
     expected_ms_count: int,
     data_column: str,
 ) -> Tuple[MS]:
@@ -100,7 +100,7 @@ def find_and_setup_mss(
     assume they have already been set and checked for consistency.
 
     Args:
-        science_path_or_mss (Union[Path, List[MS]]): Path to search or existing MSs
+        science_path_or_mss (Union[Path, List[MS, ...]]): Path to search or existing MSs
         expected_ms_count (int): Expected number of MSs to find
         data_column (str): The data column to nominate if creating MSs after searching
 
@@ -170,7 +170,7 @@ def task_addmodel_to_ms(
 
 @flow
 def flow_addmodel_to_mss(
-    science_path_or_mss: Union[Path, Tuple[MS]],
+    science_path_or_mss: Union[Path, Tuple[MS, ...]],
     addmodel_subtract_field_options: AddModelSubtractFieldOptions,
     expected_ms: int,
     data_column: str,
