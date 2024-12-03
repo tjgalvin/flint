@@ -9,7 +9,7 @@ already been preprocessed and fixed.
 
 from pathlib import Path
 from time import sleep
-from typing import Tuple, Optional, Union, List
+from typing import Tuple, Optional, Union
 
 import numpy as np
 from configargparse import ArgumentParser
@@ -59,7 +59,7 @@ def _check_and_verify_options(
             ), "Calibrate container path is needede for addmodel"
             assert (
                 options.calibrate_container.exists()
-                and options.calibrate_container.is_file
+                and options.calibrate_container.is_file()
             ), f"Calibrate container {options.calibrate_container} is not a file"
 
 
@@ -94,7 +94,7 @@ def find_and_setup_mss(
     science_path_or_mss: Union[Path, Tuple[MS, ...]],
     expected_ms_count: int,
     data_column: str,
-) -> Tuple[MS]:
+) -> Tuple[MS, ...]:
     """Search for MSs in a directory and, if necessary, perform checks around
     their consistency. If the input data appear to be collection of MSs already
     assume they have already been set and checked for consistency.
@@ -108,12 +108,12 @@ def find_and_setup_mss(
         FrequencyMismatchError: Raised when frequency information is not consistent
 
     Returns:
-        Tuple[MS]: Collection of MSs
+        Tuple[MS, ...]: Collection of MSs
     """
 
     if isinstance(science_path_or_mss, (list, tuple)):
         logger.info("Already loaded MSs")
-        return (sms for sms in science_path_or_mss)
+        return tuple(sms for sms in science_path_or_mss)
 
     # Find the MSs
     # - optionally untar?
@@ -148,7 +148,7 @@ def task_addmodel_to_ms(
             name_path=ms.path, pol=pol
         )
         assert (
-            wsclean_source_list_path.exists
+            wsclean_source_list_path.exists()
         ), f"{wsclean_source_list_path=} was requested, but does not exist"
 
         # This should attempt to add model of different polarisations together.
@@ -159,6 +159,9 @@ def task_addmodel_to_ms(
             mode="c" if idx == 0 else "a",
             datacolumn="MODEL_DATA",
         )
+        assert (
+            addmodel_subtract_options.calibrate_container is not None
+        ), f"{addmodel_subtract_options.calibrate_container=}, which should not happen"
         add_model(
             add_model_options=addmodel_options,
             container=addmodel_subtract_options.calibrate_container,
@@ -174,7 +177,7 @@ def flow_addmodel_to_mss(
     addmodel_subtract_field_options: AddModelSubtractFieldOptions,
     expected_ms: int,
     data_column: str,
-) -> List[MS]:
+) -> Tuple[MS, ...]:
     """Separate flow to perform the potentially expensive model prediction
     into MSs"""
     _check_and_verify_options(options=addmodel_subtract_field_options)
@@ -230,6 +233,9 @@ def flow_subtract_cube(
         #     ms=science_mss,
         #     addmodel_subtract_options=unmapped(addmodel_subtract_field_options),
         # )
+        assert (
+            addmodel_subtract_field_options.addmodel_cluster_config is not None
+        ), f"{addmodel_subtract_field_options.addmodel_cluster_config=}, which should not happen"
         addmodel_dask_runner = get_dask_runner(
             cluster=addmodel_subtract_field_options.addmodel_cluster_config
         )

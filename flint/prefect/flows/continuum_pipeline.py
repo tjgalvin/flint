@@ -172,7 +172,7 @@ def process_science_fields(
 
     archive_wait_for: List[Any] = []
 
-    strategy: Strategy = _load_and_copy_strategy(
+    strategy: Optional[Strategy] = _load_and_copy_strategy(
         output_split_science_path=output_split_science_path,
         imaging_strategy=field_options.imaging_strategy,
     )

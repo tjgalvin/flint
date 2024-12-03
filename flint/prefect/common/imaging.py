@@ -579,7 +579,7 @@ def task_convolve_image(
 
     if remove_original_images:
         logger.info(f"Removing {len(image_paths)} input images")
-        _ = [image_path.unlink() for image_path in image_paths]
+        _ = [image_path.unlink() for image_path in image_paths]  # type: ignore
 
     return convolved_images
 
