@@ -12,6 +12,10 @@
   - using `taql` to subtract model from nominated data column
   - added a 'flow_addmodel_to_mss` to allow different task runner to be
     specified
+  - added `flint_no_log_wsclean_output` to `WSCleanOptions` to disable wsclean
+    logging
+  - added flag to disable logging singularity command output to the
+    `flint.logging.logger`
 
 # 0.2.8
 
