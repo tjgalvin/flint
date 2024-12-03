@@ -292,6 +292,13 @@ def test_resolve_key_value_to_cli():
     assert res.bindpath is None
     assert res.unknown == ("temp_dir", unknown)
 
+    ignore = WSCleanOptions
+    res = _resolve_wsclean_key_value_to_cli_str("flint_this_should_be_ignored", ignore)
+    assert res.cmd is None
+    assert res.bindpath is None
+    assert res.unknown is None
+    assert res.ignore
+
 
 def test_create_wsclean_name(ms_example):
     """Test the creation of a wsclean name argument"""

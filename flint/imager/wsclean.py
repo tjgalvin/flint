@@ -164,6 +164,8 @@ class WSCleanOptions(BaseOptions):
     """Image a channel range between a lower (inclusive) and upper (exclusive) bound"""
     no_reorder: bool = False
     """If True turn off the reordering of the MS at the beginning of wsclean"""
+    flint_no_log_wsclean_output: bool = False
+    """If True do not log the wsclean output"""
 
 
 class WSCleanCommand(BaseOptions):
@@ -444,9 +446,9 @@ def delete_wsclean_outputs(
 # which is only created when -join-channels is used
 def wsclean_cleanup_files(
     prefix: Union[str, Path],
-    output_types: Optional[Tuple[str]] = ("dirty", "psf", "model", "residual"),
+    output_types: Optional[Tuple[str, ...]] = ("dirty", "psf", "model", "residual"),
     single_channel: bool = False,
-) -> Tuple[Path]:
+) -> Tuple[Path, ...]:
     """Clean up (i.e. delete) files from wsclean.
 
     Args:
@@ -455,17 +457,18 @@ def wsclean_cleanup_files(
         single_channel (bool, optional): Whether there is the subband part of the wsclean file names to consider. Defaults to False.
 
     Returns:
-        Tuple[Path]: Set of files that were deleted
+        Tuple[Path, ...]: Set of files that were deleted
     """
     rm_files = []
     logger.info(f"Removing wsclean files with {prefix=} {output_types=}")
 
-    for output_type in output_types:
-        rm_files += delete_wsclean_outputs(
-            prefix=prefix,
-            output_type=output_type,
-            no_subbands=single_channel and output_type == "image",
-        )
+    if output_types is not None:
+        for output_type in output_types:
+            rm_files += delete_wsclean_outputs(
+                prefix=str(prefix),
+                output_type=output_type,
+                no_subbands=single_channel and output_type == "image",
+            )
 
     return tuple(rm_files)
 
@@ -516,11 +519,13 @@ class ResolvedCLIResult(NamedTuple):
     """Mapping results to provide to wsclean"""
 
     cmd: Optional[str] = None
-    """The argument value pair to place on the CLI"""
+    """The argument value pair to place on the CLI. """
     unknown: Optional[Any] = None
     """Unknown options that could not be converted"""
     bindpath: Optional[Path] = None
     """A path to bind to when called within a container"""
+    ignore: bool = False
+    """Ignore this CLIResult if True"""
 
 
 def _resolve_wsclean_key_value_to_cli_str(key: str, value: Any) -> ResolvedCLIResult:
@@ -556,7 +561,10 @@ def _resolve_wsclean_key_value_to_cli_str(key: str, value: Any) -> ResolvedCLIRe
     original_key = key
     key = key.replace("_", "-")
 
-    if key == "size":
+    if original_key.startswith("flint_"):
+        # No need to do anything more
+        return ResolvedCLIResult(ignore=True)
+    elif key == "size":
         cmd = f"-size {value} {value}"
     elif isinstance(value, bool):
         if value:
@@ -629,11 +637,17 @@ def create_wsclean_cmd(
     unknowns: List[Tuple[Any, Any]] = []
     logger.info("Creating wsclean command.")
 
-    cli_results = map(
-        _resolve_wsclean_key_value_to_cli_str,
-        wsclean_options_dict.keys(),
-        wsclean_options_dict.values(),
+    cli_results = list(
+        map(
+            _resolve_wsclean_key_value_to_cli_str,
+            wsclean_options_dict.keys(),
+            wsclean_options_dict.values(),
+        )
     )
+
+    # Ignore any CLIResult if it has been explicitly instructed to
+    cli_results = [cli_result for cli_result in cli_results if not cli_result.ignore]
+
     cmds = [cli_result.cmd for cli_result in cli_results if cli_result.cmd]
     unknowns = [cli_result.unknown for cli_result in cli_results if cli_result.unknown]
     bind_dir_paths += [
@@ -838,6 +852,7 @@ def run_wsclean_imager(
                 command=wsclean_cmd.cmd,
                 bind_dirs=sclient_bind_dirs,
                 stream_callback_func=_wsclean_output_callback,
+                ignore_logging_output=wsclean_cmd.options.flint_no_log_wsclean_output,
             )
             if wsclean_cleanup:
                 rm_files = wsclean_cleanup_files(
@@ -859,7 +874,11 @@ def run_wsclean_imager(
             command=wsclean_cmd.cmd,
             bind_dirs=sclient_bind_dirs,
             stream_callback_func=_wsclean_output_callback,
+            ignore_logging_output=wsclean_cmd.options.flint_no_log_wsclean_output,
         )
+
+    # prefix should be set at this point
+    assert prefix is not None, f"{prefix=}, which should not happen"
 
     if wsclean_cleanup:
         logger.info("Will clean up files created by wsclean. ")
