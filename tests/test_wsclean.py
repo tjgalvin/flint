@@ -202,6 +202,10 @@ def test_regex_stokes_wsclean_title():
         out_ex = f"{prefix}.{stokes}{transformed}"
         assert _rename_wsclean_title(name_str=ex) == out_ex
 
+    name = "SB59058.RACS_1626-84.beam34.round4.i.ch287-288-image.fits"
+    out_name = "SB59058.RACS_1626-84.beam34.round4.i.ch287-288.image.fits"
+    assert _rename_wsclean_title(name_str=name) == out_name
+
 
 def test_combine_subbands_to_cube(tmpdir):
     """Load in example fits images to combine into a cube"""

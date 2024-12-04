@@ -235,7 +235,7 @@ def _rename_wsclean_title(name_str: str) -> str:
     Returns:
         str: The modified string if a wsclean string was matched, otherwise the input `name-str`
     """
-    search_re = r"(-(i|q|u|v|xx|xy|yx|yy))?-((MFS|[0-9]{4}))(-t[0-9]{5})?-(image|dirty|model|residual|psf)"
+    search_re = r"(-(i|q|u|v|xx|xy|yx|yy))?(-(MFS|[0-9]{4}))?(-t[0-9]{5})?-(image|dirty|model|residual|psf)"
     match_re = re.compile(search_re)
 
     logger.info(f"Searching {name_str=} for wsclean added components")
