@@ -173,18 +173,22 @@ def task_addmodel_to_ms(
 
 
 @task
-def task_coadd_all_linmos_images(linmos_commands: List[LinmosCommand]) -> Path:
+def task_combine_all_linmos_images(linmos_commands: List[LinmosCommand]) -> Path:
     from fitscube import combine_fits
 
-    output_cube_name = "test.fits"
+    output_cube_path = Path("test.fits")
 
     images_to_combine = [
         linmos_command.image_fits for linmos_command in linmos_commands
     ]
+    logger.info(f"Combining {len(images_to_combine)} FITS files together")
 
-    _ = combine_fits(file_list=images_to_combine, out_cube=output_cube_name)
+    assert len(images_to_combine) > 0, "No images to combine"
+    output_cube_path = images_to_combine[0].parent / output_cube_path.name
 
-    return Path(output_cube_name)
+    _ = combine_fits(file_list=images_to_combine, out_cube=output_cube_path)
+
+    return Path(output_cube_path)
 
 
 @flow
@@ -305,7 +309,7 @@ def flow_subtract_cube(
             sleep(subtract_field_options.stagger_delay_seconds)
 
     # 4 - cube concatenated each linmos field together to single file
-    task_coadd_all_linmos_images.submit(linmos_commands=channel_parset_list)
+    task_combine_all_linmos_images.submit(linmos_commands=channel_parset_list)
 
     return
 
