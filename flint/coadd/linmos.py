@@ -500,6 +500,7 @@ def generate_linmos_parameter_set(
         f"linmos.weightstate      = Inherent\n"
         f"linmos.cutoff           = {cutoff}\n"
         f"linmos.finalcutoff           = 0.01\n"
+        "linmos.imageaccess.axis  = 1\n"  # WSClean outputs frequency as second dimension (so 1 in zero indexing)
     )
     # Construct the holography section of the linmos parset
     parset += _get_holography_linmos_options(holofile=holofile, pol_axis=pol_axis)

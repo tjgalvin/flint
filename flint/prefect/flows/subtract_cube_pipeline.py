@@ -9,12 +9,13 @@ already been preprocessed and fixed.
 
 from pathlib import Path
 from time import sleep
-from typing import Tuple, Optional, Union
+from typing import Tuple, Optional, Union, List
 
 import numpy as np
 from configargparse import ArgumentParser
 from prefect import flow, unmapped, task
 
+from flint.coadd.linmos import LinmosCommand
 from flint.configuration import _load_and_copy_strategy
 from flint.exceptions import FrequencyMismatchError
 from flint.prefect.clusters import get_dask_runner
@@ -171,6 +172,21 @@ def task_addmodel_to_ms(
     return ms.with_options(model_column="MODEL_DATA")
 
 
+@task
+def task_coadd_all_linmos_images(linmos_commands: List[LinmosCommand]) -> Path:
+    from fitscube import combine_fits
+
+    output_cube_name = "test.fits"
+
+    images_to_combine = [
+        linmos_command.image_fits for linmos_command in linmos_commands
+    ]
+
+    _ = combine_fits(file_list=images_to_combine, out_cube=output_cube_name)
+
+    return Path(output_cube_name)
+
+
 @flow
 def flow_addmodel_to_mss(
     science_path_or_mss: Union[Path, Tuple[MS, ...]],
@@ -289,6 +305,7 @@ def flow_subtract_cube(
             sleep(subtract_field_options.stagger_delay_seconds)
 
     # 4 - cube concatenated each linmos field together to single file
+    task_coadd_all_linmos_images.submit(linmos_commands=channel_parset_list)
 
     return
 

@@ -35,7 +35,7 @@ reproject = "*"
 scikit-image = "*"
 pandas = "*"
 ConfigArgParse = "^1.7"
-fitscube = "^0.4.3"
+fitscube = "^0.5.0"
 astroquery = "^0.4.7"
 
 [tool.poetry.group.dev.dependencies]
