@@ -16,6 +16,7 @@ def run_singularity_command(
     command: str,
     bind_dirs: Optional[Union[Path, Collection[Path]]] = None,
     stream_callback_func: Optional[Callable] = None,
+    ignore_logging_output: bool = False,
 ) -> None:
     """Executes a command within the context of a nominated singularity
     container
@@ -25,6 +26,7 @@ def run_singularity_command(
         command (str): The command to execute
         bind_dirs (Optional[Union[Path,Collection[Path]]], optional): Specifies a Path, or list of Paths, to bind to in the container. Defaults to None.
         stream_callback_func (Optional[Callable], optional): Provide a function that is applied to each line of output text when singularity is running and `stream=True`. IF provide it should accept a single (string) parameter. If None, nothing happens. Defaultds to None.
+        ignore_logging_output (bool, optional): If `True` output from the executed singularity command is not logged. Defaults to False.
 
     Raises:
         FileNotFoundError: Thrown when container image not found
@@ -65,7 +67,8 @@ def run_singularity_command(
         )
 
         for line in output:
-            logger.info(line.rstrip())
+            if not ignore_logging_output:
+                logger.info(line.rstrip())
             if stream_callback_func:
                 stream_callback_func(line)
 
@@ -103,6 +106,7 @@ def singularity_wrapper(
         container: Path,
         bind_dirs: Optional[Union[Path, Collection[Path]]] = None,
         stream_callback_func: Optional[Callable] = None,
+        ignore_logging_output: bool = False,
         **kwargs,
     ) -> str:
         """Function that can be used as a decorator on an input function. This function
@@ -113,6 +117,7 @@ def singularity_wrapper(
             container (Path): Path to the container that will be usede to execute the generated command
             bind_dirs (Optional[Union[Path,Collection[Path]]], optional): Specifies a Path, or list of Paths, to bind to in the container. Defaults to None.
             stream_callback_func (Optional[Callable], optional): Provide a function that is applied to each line of output text when singularity is running and `stream=True`. IF provide it should accept a single (string) parameter. If None, nothing happens. Defaultds to None.
+            ignore_logging_output (bool, optional): If `True` output from the executed singularity command is not logged. Defaults to False.
 
         Returns:
             str: The command that was executed
@@ -129,6 +134,7 @@ def singularity_wrapper(
             image=container,
             command=f"{task_str}",
             bind_dirs=bind_dirs,
+            ignore_logging_output=ignore_logging_output,
             stream_callback_func=stream_callback_func,
         )
 

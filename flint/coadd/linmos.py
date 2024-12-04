@@ -526,6 +526,7 @@ def linmos_images(
     container: Path = Path("yandasoft.sif"),
     cutoff: float = 0.001,
     pol_axis: Optional[float] = None,
+    trim_linmos_fits: bool = True,
 ) -> LinmosCommand:
     """Create a linmos parset file and execute it.
 
@@ -538,6 +539,7 @@ def linmos_images(
         container (Path, optional): Path to the singularity container that has the yandasoft tools. Defaults to Path('yandasoft.sif').
         cutoff (float, optional): Pixels whose primary beam attenuation is below this cutoff value are blanked. Defaults to 0.001.
         pol_axis (Optional[float], optional): The physical oritentation of the ASKAP third-axis in radians. Defaults to None.
+        trim_linmos_fits (bool, optional): Attempt to trim the output linmos files of as much empty space as possible. Defaults to True.
 
     Returns:
         LinmosCommand: The linmos command executed and the associated parset file
@@ -577,11 +579,12 @@ def linmos_images(
     )
 
     # Trim the fits image to remove empty pixels
-    image_trim_results = trim_fits_image(image_path=linmos_names.image_fits)
-    trim_fits_image(
-        image_path=linmos_names.weight_fits,
-        bounding_box=image_trim_results.bounding_box,
-    )
+    if trim_linmos_fits:
+        image_trim_results = trim_fits_image(image_path=linmos_names.image_fits)
+        trim_fits_image(
+            image_path=linmos_names.weight_fits,
+            bounding_box=image_trim_results.bounding_box,
+        )
 
     return linmos_cmd
 

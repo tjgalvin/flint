@@ -15,6 +15,7 @@ from flint.ms import (
     MS,
     check_column_in_ms,
     copy_and_preprocess_casda_askap_ms,
+    consistent_channelwise_frequencies,
     find_mss,
     get_phase_dir_from_ms,
     remove_columns_from_ms,
@@ -24,7 +25,28 @@ from flint.ms import (
 from flint.utils import get_packaged_resource_path
 
 
+def test_consistent_channelwise_frequencies():
+    """Some steps the channels in a set of MSs all need
+    to be the same, in the same relative order"""
+
+    # Make up some floating point numbners
+    freqs = [np.arange(100) * np.pi * 5 for _ in list(range(46))]
+    result = consistent_channelwise_frequencies(freqs=freqs)
+    assert np.all(result)
+
+    result = consistent_channelwise_frequencies(freqs=np.array(freqs))
+    assert np.all(result)
+
+    freqs[10][4] = 4444444.0
+    result = consistent_channelwise_frequencies(freqs=np.array(freqs))
+    assert not result[10]
+    assert np.all(result[11:])
+    assert np.all(result[:10])
+
+
 def test_find_mss(tmpdir):
+    """Make sure that the glob finding of the MSs can actually find
+    the MSs. The expected count check is also assessed"""
     tmpdir = Path(tmpdir)
     for name in range(45):
         new_ms = tmpdir / f"SB1234.Pirate_1234+456.beam{name}.ms"
@@ -35,6 +57,26 @@ def test_find_mss(tmpdir):
 
     res = find_mss(mss_parent_path=tmpdir, expected_ms_count=45)
     assert len(res) == 45
+
+    with pytest.raises(AssertionError):
+        _ = find_mss(mss_parent_path=tmpdir, expected_ms_count=49005)
+
+
+def test_find_mss_withdatacolumn(tmpdir):
+    """Same as above but with setting a data column"""
+    tmpdir = Path(tmpdir) / "Another_Pirate"
+    for name in range(45):
+        new_ms: Path = tmpdir / f"SB1234.Pirate_1234+456.beam{name}.ms"
+        new_ms.mkdir(parents=True, exist_ok=True)
+
+        new_folder = tmpdir / f"not_and_ms_{name}.folder"
+        new_folder.mkdir()
+
+    res = find_mss(
+        mss_parent_path=tmpdir, expected_ms_count=45, data_column="BlackBeard"
+    )
+    assert len(res) == 45
+    assert all([ms.column == "BlackBeard" for ms in res])
 
     with pytest.raises(AssertionError):
         _ = find_mss(mss_parent_path=tmpdir, expected_ms_count=49005)
@@ -367,3 +409,61 @@ def test_subtract_model_from_data_column_ms_column(tmpdir):
     with table(str(ms.path)) as tab:
         data = tab.getcol("DATA")
         assert np.all(data == 0 + 0j)
+
+
+def test_subtract_model_from_data_column_ms_column_new_column(tmpdir):
+    """Ensure we can subtact the model from the data via taql. This test will
+    add a new column via taql and will ensure the result is as expected.
+
+    >>> NEW_COLUMN=DATA-MODEL_DATA
+    """
+    ms_zip = Path(
+        get_packaged_resource_path(
+            package="flint.data.tests",
+            filename="scienceData.EMU_0529-60.SB50538.EMU_0529-60.beam08_averaged_cal.leakage.ms.zip",
+        )
+    )
+    outpath = Path(tmpdir) / "taqlsubtract3"
+
+    shutil.unpack_archive(ms_zip, outpath)
+
+    ms_path = (
+        Path(outpath)
+        / "scienceData.EMU_0529-60.SB50538.EMU_0529-60.beam08_averaged_cal.leakage.ms"
+    )
+
+    ms = Path(ms_path)
+    assert ms.exists()
+    ms = MS(path=ms, column="DATA")
+
+    from casacore.tables import maketabdesc, makearrcoldesc
+
+    with table(str(ms.path), readonly=False) as tab:
+        data = tab.getcol("DATA")
+        ones = np.ones_like(data, dtype=data.dtype)
+
+        tab.putcol(columnname="DATA", value=ones)
+
+        if "MODEL_DATA" not in tab.colnames():
+            coldesc = tab.getdminfo("DATA")
+            coldesc["NAME"] = "MODEL_DATA"
+            tab.addcols(
+                maketabdesc(makearrcoldesc("MODEL_DATA", 0.0 + 0j, ndim=2)), coldesc
+            )
+            tab.flush()
+        tab.putcol(columnname="MODEL_DATA", value=ones)
+        tab.flush()
+
+        colnames = tab.colnames()
+
+    assert "NEW_COLUMN" not in colnames, "Column already exists"
+
+    ms = subtract_model_from_data_column(
+        ms=ms, model_column="MODEL_DATA", data_column="DATA", output_column="NEW_COLUMN"
+    )
+    with table(str(ms.path)) as tab:
+        data = tab.getcol("NEW_COLUMN")
+        assert np.all(data == 0 + 0j)
+
+        data = tab.getcol("DATA")
+        assert np.all(data == ones)

@@ -181,6 +181,14 @@ def test_regex_rename_wsclean_title():
     out_ex = "SB39400.RACS_0635-31.beam33.poli.i.MFS.image"
     assert _rename_wsclean_title(name_str=ex) == out_ex
 
+    ex = "SB39400.RACS_0635-31.beam33.ch109-110-i-MFS-image"
+    out_ex = "SB39400.RACS_0635-31.beam33.ch109-110.i.MFS.image"
+    assert _rename_wsclean_title(name_str=ex) == out_ex
+
+    ex = "SB39400.RACS_0635-31.beam33.i.ch109-110-i-MFS-image"
+    out_ex = "SB39400.RACS_0635-31.beam33.i.ch109-110.i.MFS.image"
+    assert _rename_wsclean_title(name_str=ex) == out_ex
+
 
 def test_regex_stokes_wsclean_title():
     """Test whether all stokes values are picked up properly"""
@@ -283,6 +291,13 @@ def test_resolve_key_value_to_cli():
     assert res.cmd is None
     assert res.bindpath is None
     assert res.unknown == ("temp_dir", unknown)
+
+    ignore = WSCleanOptions
+    res = _resolve_wsclean_key_value_to_cli_str("flint_this_should_be_ignored", ignore)
+    assert res.cmd is None
+    assert res.bindpath is None
+    assert res.unknown is None
+    assert res.ignore
 
 
 def test_create_wsclean_name(ms_example):
@@ -465,3 +480,22 @@ def test_wsclean_output_named_nomfs():
     assert image_set.psf is not None
     assert len(image_set.psf) == 4
     assert isinstance(image_set.psf[0], Path)
+
+
+def test_wsclean_names_no_subbands():
+    """The spectral line modes image per channel, so there is therefore no subband type
+    in the wsclean named output"""
+    image_set = get_wsclean_output_names(
+        prefix="JackSparrow", subbands=1, include_mfs=False
+    )
+
+    assert isinstance(image_set, ImageSet)
+    assert image_set.prefix == "JackSparrow"
+
+    assert image_set.image
+    assert len(image_set.image) == 1
+    assert image_set.image[0] == Path("JackSparrow-image.fits")
+
+    assert image_set.psf
+    assert len(image_set.psf) == 1
+    assert image_set.psf[0] == Path("JackSparrow-psf.fits")

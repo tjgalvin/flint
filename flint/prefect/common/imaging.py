@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any, Collection, Dict, List, Literal, Optional, TypeVar, Union, Tuple
 
 import pandas as pd
+import numpy as np
 from prefect import task, unmapped
 from prefect.artifacts import create_table_artifact
 
@@ -52,7 +53,7 @@ from flint.naming import (
     get_fits_cube_from_paths,
     processed_ms_format,
 )
-from flint.options import FieldOptions
+from flint.options import FieldOptions, SubtractFieldOptions
 from flint.peel.potato import potato_peel
 from flint.prefect.common.utils import upload_image_as_artifact
 from flint.selfcal.casa import gaincal_applycal_ms
@@ -283,6 +284,7 @@ def task_wsclean_imager(
     wsclean_container: Path,
     update_wsclean_options: Optional[Dict[str, Any]] = None,
     fits_mask: Optional[FITSMaskNames] = None,
+    channel_range: Optional[Tuple[int, int]] = None,
 ) -> WSCleanCommand:
     """Run the wsclean imager against an input measurement set
 
@@ -291,6 +293,7 @@ def task_wsclean_imager(
         wsclean_container (Path): Path to a singularity container with wsclean packages
         update_wsclean_options (Optional[Dict[str, Any]], optional): Options to update from the default wsclean options. Defaults to None.
         fits_mask (Optional[FITSMaskNames], optional): A path to a clean guard mask. Defaults to None.
+        channel_range (Optional[Tuple[int,int]], optional): Add to the wsclean options the specific channel range to be imaged. Defaults to None.
 
     Returns:
         WSCleanCommand: A resulting wsclean command and resulting meta-data
@@ -305,6 +308,9 @@ def task_wsclean_imager(
 
     if fits_mask:
         update_wsclean_options["fits_mask"] = fits_mask.mask_fits
+
+    if channel_range:
+        update_wsclean_options["channel_range"] = channel_range
 
     logger.info(f"wsclean inager {ms=}")
     try:
@@ -394,6 +400,11 @@ def task_get_common_beam(
     )
 
     beam_shape = get_common_beam(image_paths=images_to_consider, cutoff=cutoff)
+    if np.isnan(beam_shape.bmaj_arcsec):
+        logger.critical("Failed to get beam resolution for:")
+        logger.critical(f"{images_to_consider=}")
+        logger.critical(f"{cutoff=}")
+        logger.critical(f"{filter=}")
 
     return beam_shape
 
@@ -495,6 +506,7 @@ def task_convolve_image(
     mode: str = "image",
     filter: Optional[str] = None,
     convol_suffix_str: str = "conv",
+    remove_original_images: bool = False,
 ) -> Collection[Path]:
     """Convolve images to a specified resolution
 
@@ -504,6 +516,7 @@ def task_convolve_image(
         cutoff (float, optional): Maximum major beam axis an image is allowed to have before it will not be convolved. Defaults to 60.
         filter (Optional[str], optional): This string must be contained in the image path for it to be convolved. Defaults to None.
         convol_suffix_str (str, optional): The suffix added to the convolved images. Defaults to 'conv'.
+        remove_original_images (bool, optional): If True remove the original image after they have been convolved. Defaults to False.
 
     Returns:
         Collection[Path]: Path to the output images that have been convolved.
@@ -557,12 +570,18 @@ def task_convolve_image(
             f"{str(image_path.name)}: {image_beam.major.to(u.arcsecond)} {image_beam.minor.to(u.arcsecond)}  {image_beam.pa}"
         )
 
-    return convolve_images(
+    convolved_images = convolve_images(
         image_paths=image_paths,
         beam_shape=beam_shape,
         cutoff=cutoff,
         convol_suffix=convol_suffix_str,
     )
+
+    if remove_original_images:
+        logger.info(f"Removing {len(image_paths)} input images")
+        _ = [image_path.unlink() for image_path in image_paths]  # type: ignore
+
+    return convolved_images
 
 
 @task
@@ -577,6 +596,7 @@ def task_linmos_images(
     parset_output_path: Optional[str] = None,
     cutoff: float = 0.05,
     field_summary: Optional[FieldSummary] = None,
+    trim_linmos_fits: bool = True,
 ) -> LinmosCommand:
     """Run the yandasoft linmos task against a set of input images
 
@@ -591,6 +611,7 @@ def task_linmos_images(
         parset_output_path (Optional[str], optional): Location to write the linmos parset file to. Defaults to None.
         cutoff (float, optional): The primary beam attenuation cutoff supplied to linmos when coadding. Defaults to 0.05.
         field_summary (Optional[FieldSummary], optional): The summary of the field, including (importantly) to orientation of the third-axis. Defaults to None.
+        trim_linmos_fits (bool, optional): Attempt to trim the output linmos files of as much empty space as possible. Defaults to True.
 
     Returns:
         LinmosCommand: The linmos command and associated meta-data
@@ -649,6 +670,7 @@ def task_linmos_images(
         holofile=holofile,
         cutoff=cutoff,
         pol_axis=pol_axis,
+        trim_linmos_fits=trim_linmos_fits,
     )
 
     return linmos_cmd
@@ -657,12 +679,14 @@ def task_linmos_images(
 def _convolve_linmos(
     wsclean_cmds: Collection[WSCleanCommand],
     beam_shape: BeamShape,
-    field_options: FieldOptions,
+    field_options: Union[FieldOptions, SubtractFieldOptions],
     linmos_suffix_str: str,
     field_summary: Optional[FieldSummary] = None,
     convol_mode: str = "image",
     convol_filter: str = ".MFS.",
     convol_suffix_str: str = "conv",
+    trim_linmos_fits: bool = True,
+    remove_original_images: bool = False,
 ) -> LinmosCommand:
     """An internal function that launches the convolution to a common resolution
     and subsequent linmos of the wsclean residual images.
@@ -676,6 +700,8 @@ def _convolve_linmos(
         convol_mode (str, optional): The mode passed to the convol task to describe the images to extract. Support image or residual.  Defaults to image.
         convol_filter (str, optional): A text file applied when assessing images to co-add. Defaults to '.MFS.'.
         convol_suffix_str (str, optional): The suffix added to the convolved images. Defaults to 'conv'.
+        trim_linmos_fits (bool, optional): Attempt to trim the output linmos files of as much empty space as possible. Defaults to True.
+        remove_original_images (bool, optional): If True remove the original image after they have been convolved. Defaults to False.
 
     Returns:
         LinmosCommand: Resulting linmos command parset
@@ -688,6 +714,7 @@ def _convolve_linmos(
         mode=convol_mode,
         filter=convol_filter,
         convol_suffix_str=convol_suffix_str,
+        remove_original_images=remove_original_images,
     )
     assert field_options.yandasoft_container is not None
     parset = task_linmos_images.submit(
@@ -697,6 +724,8 @@ def _convolve_linmos(
         holofile=field_options.holofile,
         cutoff=field_options.pb_cutoff,
         field_summary=field_summary,
+        trim_linmos_fits=trim_linmos_fits,
+        filter=convol_filter,
     )  # type: ignore
 
     return parset

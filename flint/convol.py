@@ -7,6 +7,7 @@ from __future__ import annotations
 import warnings
 from argparse import ArgumentParser
 from pathlib import Path
+from shutil import copyfile
 from typing import Collection, List, Literal, NamedTuple, Optional
 
 import astropy.units as u
@@ -198,10 +199,14 @@ def get_common_beam(
     if cutoff:
         logger.info(f"Setting beam cutoff to {cutoff} arcseconds. ")
 
-    beam, beams = beamcon_2D.get_common_beam(files=list(image_paths), cutoff=cutoff)
+    try:
+        beam, beams = beamcon_2D.get_common_beam(files=list(image_paths), cutoff=cutoff)
 
-    beam_shape = BeamShape.from_radio_beam(beam)
-    logger.info(f"Constructed {beam_shape=}")
+        beam_shape = BeamShape.from_radio_beam(beam)
+        logger.info(f"Constructed {beam_shape=}")
+    except ValueError:
+        logger.info("The beam was not constrained. Setting to NaNs")
+        beam_shape = BeamShape(bmaj_arcsec=np.nan, bmin_arcsec=np.nan, bpa_deg=np.nan)
 
     return beam_shape
 
@@ -231,29 +236,50 @@ def convolve_images(
     if cutoff:
         logger.info(f"Supplied cutoff of {cutoff} arcsecond")
 
+    if not np.isfinite(beam_shape.bmaj_arcsec):
+        logger.info("Beam shape is not defined. Copying files into place. ")
+
+        conv_image_paths = [
+            Path(str(image_path).replace(".fits", f".{convol_suffix}.fits"))
+            for image_path in image_paths
+        ]
+        # If the beam is not defined, simply copy the file into place. Although
+        # this takes up more space, it is not more than otherwise
+        for original_path, copy_path in zip(image_paths, conv_image_paths):
+            logger.info(f"Copying {original_path=} {copy_path=}")
+            copyfile(original_path, copy_path)
+
+        return conv_image_paths
+
     radio_beam = Beam(
         major=beam_shape.bmaj_arcsec * u.arcsecond,
         minor=beam_shape.bmin_arcsec * u.arcsecond,
         pa=beam_shape.bpa_deg * u.deg,
     )
 
-    conv_image_paths: List[Path] = []
+    return_conv_image_paths: List[Path] = []
 
     for image_path in image_paths:
-        logger.info(f"Convolving {str(image_path.name)}")
-        beamcon_2D.beamcon_2d_on_fits(
-            file=image_path,
-            outdir=None,
-            new_beam=radio_beam,
-            conv_mode="robust",
-            suffix=convol_suffix,
-            cutoff=cutoff,
+        convol_output_path = Path(
+            str(image_path).replace(".fits", f".{convol_suffix}.fits")
         )
-        conv_image_paths.append(
-            Path(str(image_path).replace(".fits", f".{convol_suffix}.fits"))
-        )
+        header = fits.getheader(image_path)
+        if header["BMAJ"] == 0.0:
+            logger.info(f"Copying {image_path} to {convol_output_path=} for empty beam")
+            copyfile(image_path, convol_output_path)
+        else:
+            logger.info(f"Convolving {str(image_path.name)}")
+            beamcon_2D.beamcon_2d_on_fits(
+                file=image_path,
+                outdir=None,
+                new_beam=radio_beam,
+                conv_mode="robust",
+                suffix=convol_suffix,
+                cutoff=cutoff,
+            )
+        return_conv_image_paths.append(convol_output_path)
 
-    return conv_image_paths
+    return return_conv_image_paths
 
 
 def get_parser() -> ArgumentParser:

@@ -4,6 +4,10 @@ class MSError(Exception):
     pass
 
 
+class FrequencyMismatchError(Exception):
+    """Raised when there are differences in frequencies"""
+
+
 class PhaseOutlierFitError(Exception):
     """Raised when the phase outlier fit routine fails."""
 

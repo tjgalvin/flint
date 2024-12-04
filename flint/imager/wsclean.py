@@ -160,6 +160,12 @@ class WSCleanOptions(BaseOptions):
     """The polarisation to be imaged"""
     save_source_list: bool = False
     """Saves the found clean components as a BBS/DP3 text sky model"""
+    channel_range: Optional[Tuple[int, int]] = None
+    """Image a channel range between a lower (inclusive) and upper (exclusive) bound"""
+    no_reorder: bool = False
+    """If True turn off the reordering of the MS at the beginning of wsclean"""
+    flint_no_log_wsclean_output: bool = False
+    """If True do not log the wsclean output"""
 
 
 class WSCleanCommand(BaseOptions):
@@ -216,9 +222,12 @@ def get_wsclean_output_source_list_path(
 
 
 def _rename_wsclean_title(name_str: str) -> str:
-    """Construct an apply a regular expression that aims to identify
+    """Construct and apply a regular expression that aims to identify
     the wsclean appended properties string within a file and replace
     the `-` separator with a `.`.
+
+    A simple replace of all `-` with `.` may not be ideal if the
+    character has been used on purpose.
 
     Args:
         name_str (str): The name that will be extracted and modified
@@ -229,7 +238,7 @@ def _rename_wsclean_title(name_str: str) -> str:
     search_re = r"(-(i|q|u|v|xx|xy|yx|yy))?-((MFS|[0-9]{4}))(-t[0-9]{5})?-(image|dirty|model|residual|psf)"
     match_re = re.compile(search_re)
 
-    logger.info(f"{name_str=} {type(name_str)=}")
+    logger.info(f"Searching {name_str=} for wsclean added components")
     result = match_re.search(str(name_str))
 
     if result is None:
@@ -281,7 +290,7 @@ def _wsclean_output_callback(line: str) -> None:
 # TODO: Update this function to also add int the source list
 def get_wsclean_output_names(
     prefix: str,
-    subbands: int,
+    subbands: Optional[int] = None,
     pols: Optional[Union[str, Tuple[str]]] = None,
     verify_exists: bool = False,
     include_mfs: bool = True,
@@ -318,10 +327,15 @@ def get_wsclean_output_names(
     Returns:
         ImageSet: The file paths that wsclean should create/has created.
     """
+    logger.info(f"Finding wsclean outputs, {prefix=}")
     # TODO: Use a regular expression for this
-    subband_strs = [f"{subband:04}" for subband in range(subbands)]
-    if include_mfs:
-        subband_strs.append("MFS")
+    subband_strs: List[Optional[str]] = [
+        None,
+    ]
+    if subbands and subbands > 1:
+        subband_strs = [f"{subband:04}" for subband in range(subbands)]
+        if include_mfs:
+            subband_strs.append("MFS")
 
     in_pols: Tuple[Union[None, str]]
     if pols is None:
@@ -342,10 +356,13 @@ def get_wsclean_output_names(
         paths: List[Path] = []
         for pol in in_pols:
             for subband_str in subband_strs:
+                components = [prefix]
+                if subband_str:
+                    components.append(subband_str)
                 if pol:
-                    path_str = f"{prefix}-{subband_str}-{pol}-{image_type}.fits"
-                else:
-                    path_str = f"{prefix}-{subband_str}-{image_type}.fits"
+                    components.append(pol)
+                components.append(image_type)
+                path_str = "-".join(components) + ".fits"
 
                 if check_exists_when_adding and not Path(path_str).exists():
                     logger.debug(f"{path_str} does not existing. Not adding. ")
@@ -358,7 +375,12 @@ def get_wsclean_output_names(
     # The PSF is the same for all stokes
     if "psf" in output_types:
         psf_images = [
-            Path(f"{prefix}-{subband_str}-psf.fits") for subband_str in subband_strs
+            (
+                Path(f"{prefix}-{subband_str}-psf.fits")
+                if subband_str
+                else Path(f"{prefix}-psf.fits")
+            )
+            for subband_str in subband_strs
         ]
         # Filter out files if they do not exists
         if check_exists_when_adding:
@@ -379,17 +401,23 @@ def get_wsclean_output_names(
 
 
 def delete_wsclean_outputs(
-    prefix: str, output_type: str = "image", ignore_mfs: bool = True
-) -> Collection[Path]:
+    prefix: str,
+    output_type: str = "image",
+    ignore_mfs: bool = True,
+    no_subbands: bool = False,
+) -> List[Path]:
     """Attempt to remove elected wsclean output files
+
+    If ``no_subbands`` is True (as in ``channels_out`` is 1) then nothing is deleted.
 
     Args:
         prefix (str): The prefix of the files to remove. This would correspond to the -name of wsclean.
         output_type (str, optional): What type of wsclean output to try to remove. Defaults to 'image'.
         ignore_mfs (bool, optional): If True, do not remove MFS outputs (attempt to, at least). Defaults to True.
+        no_subbands (bool, Optional): If True, nothing is deleted. Defaults to False.
 
     Returns:
-        Collection[Path]: The paths that were removed (or at least attempted to be removed)/
+        List[Path]: The paths that were removed (or at least attempted to be removed)/
     """
     # TODO: This glob needs to be replaced with something more explicit
     paths = [Path(p) for p in glob(f"{prefix}-*{output_type}.fits")]
@@ -397,6 +425,8 @@ def delete_wsclean_outputs(
     rm_paths: List[Path] = []
 
     for path in paths:
+        if no_subbands:
+            continue
         if ignore_mfs and "-MFS-" in str(path.name):
             logger.info(f"{path=} appears to be an MFS product, not removing. ")
             continue
@@ -409,6 +439,38 @@ def delete_wsclean_outputs(
                 logger.critical(f"Removing {path} failed: {e}")
 
     return rm_paths
+
+
+# TODO: This should be expanded to denote levels of things to delete
+# TODO: Need to create a regex based mode, and better handlijng of -MFS-,
+# which is only created when -join-channels is used
+def wsclean_cleanup_files(
+    prefix: Union[str, Path],
+    output_types: Optional[Tuple[str, ...]] = ("dirty", "psf", "model", "residual"),
+    single_channel: bool = False,
+) -> Tuple[Path, ...]:
+    """Clean up (i.e. delete) files from wsclean.
+
+    Args:
+        prefix (Union[str, Path]): The prefix used to search for files. This is generally the -name
+        output_types (Optional[Tuple[str]], optional): Which type of output wsclean products to delete. Defaults to ("dirty", "psf", "model", "residual").
+        single_channel (bool, optional): Whether there is the subband part of the wsclean file names to consider. Defaults to False.
+
+    Returns:
+        Tuple[Path, ...]: Set of files that were deleted
+    """
+    rm_files = []
+    logger.info(f"Removing wsclean files with {prefix=} {output_types=}")
+
+    if output_types is not None:
+        for output_type in output_types:
+            rm_files += delete_wsclean_outputs(
+                prefix=str(prefix),
+                output_type=output_type,
+                no_subbands=single_channel and output_type == "image",
+            )
+
+    return tuple(rm_files)
 
 
 def create_wsclean_name_argument(wsclean_options: WSCleanOptions, ms: MS) -> Path:
@@ -428,8 +490,11 @@ def create_wsclean_name_argument(wsclean_options: WSCleanOptions, ms: MS) -> Pat
 
     # Prepare the name for the output wsclean command
     # Construct the name property of the string
-    pol = wsclean_options_dict["pol"]
-    name_prefix_str = create_imaging_name_prefix(ms=ms, pol=pol)
+    pol = wsclean_options.pol
+    channel_range = wsclean_options.channel_range
+    name_prefix_str = create_imaging_name_prefix(
+        ms=ms, pol=pol, channel_range=channel_range
+    )
 
     # Now resolve the directory part
     name_dir: Union[Path, str, None] = ms.path.parent
@@ -454,11 +519,13 @@ class ResolvedCLIResult(NamedTuple):
     """Mapping results to provide to wsclean"""
 
     cmd: Optional[str] = None
-    """The argument value pair to place on the CLI"""
+    """The argument value pair to place on the CLI. """
     unknown: Optional[Any] = None
     """Unknown options that could not be converted"""
     bindpath: Optional[Path] = None
     """A path to bind to when called within a container"""
+    ignore: bool = False
+    """Ignore this CLIResult if True"""
 
 
 def _resolve_wsclean_key_value_to_cli_str(key: str, value: Any) -> ResolvedCLIResult:
@@ -494,7 +561,10 @@ def _resolve_wsclean_key_value_to_cli_str(key: str, value: Any) -> ResolvedCLIRe
     original_key = key
     key = key.replace("_", "-")
 
-    if key == "size":
+    if original_key.startswith("flint_"):
+        # No need to do anything more
+        return ResolvedCLIResult(ignore=True)
+    elif key == "size":
         cmd = f"-size {value} {value}"
     elif isinstance(value, bool):
         if value:
@@ -567,11 +637,17 @@ def create_wsclean_cmd(
     unknowns: List[Tuple[Any, Any]] = []
     logger.info("Creating wsclean command.")
 
-    cli_results = map(
-        _resolve_wsclean_key_value_to_cli_str,
-        wsclean_options_dict.keys(),
-        wsclean_options_dict.values(),
+    cli_results = list(
+        map(
+            _resolve_wsclean_key_value_to_cli_str,
+            wsclean_options_dict.keys(),
+            wsclean_options_dict.values(),
+        )
     )
+
+    # Ignore any CLIResult if it has been explicitly instructed to
+    cli_results = [cli_result for cli_result in cli_results if not cli_result.ignore]
+
     cmds = [cli_result.cmd for cli_result in cli_results if cli_result.cmd]
     unknowns = [cli_result.unknown for cli_result in cli_results if cli_result.unknown]
     bind_dir_paths += [
@@ -753,10 +829,17 @@ def run_wsclean_imager(
     """
 
     ms = wsclean_cmd.ms
+    single_channel = wsclean_cmd.options.channels_out == 1
+    wsclean_cleanup = wsclean_cmd.cleanup
 
     sclient_bind_dirs = [Path(ms.path).parent.absolute()]
     if bind_dirs:
         sclient_bind_dirs = sclient_bind_dirs + list(bind_dirs)
+
+    prefix = image_prefix_str if image_prefix_str else None
+    if prefix is None:
+        prefix = str(ms.path.parent / ms.path.name)
+        logger.warning(f"Setting prefix to {prefix}. Likely this is not correct. ")
 
     if move_hold_directories:
         with hold_then_move_into(
@@ -769,11 +852,19 @@ def run_wsclean_imager(
                 command=wsclean_cmd.cmd,
                 bind_dirs=sclient_bind_dirs,
                 stream_callback_func=_wsclean_output_callback,
+                ignore_logging_output=wsclean_cmd.options.flint_no_log_wsclean_output,
             )
+            if wsclean_cleanup:
+                rm_files = wsclean_cleanup_files(
+                    prefix=prefix, single_channel=single_channel
+                )
+                logger.info(f"Removed {len(rm_files)} files")
+                # No need to attempt to clean up again once files have been moved
 
+                wsclean_cleanup = False
             # Update the prefix based on where the files will be moved to
-            image_prefix_str = (
-                f"{str(move_hold_directories[0] / Path(image_prefix_str).name)}"
+            prefix = (
+                f"{str(move_hold_directories[0] / Path(prefix).name)}"
                 if image_prefix_str
                 else None
             )
@@ -783,22 +874,15 @@ def run_wsclean_imager(
             command=wsclean_cmd.cmd,
             bind_dirs=sclient_bind_dirs,
             stream_callback_func=_wsclean_output_callback,
+            ignore_logging_output=wsclean_cmd.options.flint_no_log_wsclean_output,
         )
 
-    prefix = image_prefix_str if image_prefix_str else None
-    if prefix is None:
-        prefix = str(ms.path.parent / ms.path.name)
-        logger.warning(f"Setting prefix to {prefix}. Likely this is not correct. ")
+    # prefix should be set at this point
+    assert prefix is not None, f"{prefix=}, which should not happen"
 
-    if wsclean_cmd.cleanup:
+    if wsclean_cleanup:
         logger.info("Will clean up files created by wsclean. ")
-
-        for output_type in ("dirty", "psf", "model", "residual"):
-            delete_wsclean_outputs(prefix=prefix, output_type=output_type)
-        # for output_type in ("model", "residual"):
-        #     delete_wsclean_outputs(
-        #         prefix=prefix, output_type=output_type, ignore_mfs=False
-        #     )
+        rm_files = wsclean_cleanup_files(prefix=prefix, single_channel=single_channel)
 
     imageset = get_wsclean_output_names(
         prefix=prefix,

@@ -217,6 +217,56 @@ class BandpassOptions(BaseOptions):
     """Flag Jones matrix if any amplitudes with a Jones are above this value"""
 
 
+class AddModelSubtractFieldOptions(BaseOptions):
+    """Options related to predicting a continuum model during the SubtractFieldOptions workflow.
+    Specifically these options deal with identifying the wsclean produced source list model, which
+    may be used by ``admodel`` to predict model visibilities. See utilities aroun the ``aocalibrate``
+    functions and routines."""
+
+    attempt_addmodel: bool = False
+    """Invoke the ``addmodel`` visibility prediction, including the search for the ``wsclean`` source list"""
+    wsclean_pol_mode: List[str] = ["i"]
+    """The polarisation of the wsclean model that was generated"""
+    calibrate_container: Optional[Path] = None
+    """Path to the container with the calibrate software (including addmodel)"""
+    addmodel_cluster_config: Optional[Path] = None
+    """Specify a new cluster configuration file different to the preferred on. If None, drawn from preferred cluster config"""
+
+
+class SubtractFieldOptions(BaseOptions):
+    """Container for options related to the
+    continuum-subtracted pipeline"""
+
+    wsclean_container: Path
+    """Path to the container with wsclean"""
+    yandasoft_container: Path
+    """Path to the container with yandasoft"""
+    subtract_model_data: bool = False
+    """Subtract the MODEL_DATA column from the nominated data column"""
+    data_column: str = "CORRECTED_DATA"
+    """Describe the column that should be imaed and, if requested, have model subtracted from"""
+    expected_ms: int = 36
+    """The number of measurement sets that should exist"""
+    imaging_strategy: Optional[Path] = None
+    """Path to a FLINT imaging yaml file that contains settings to use throughout imaging"""
+    holofile: Optional[Path] = None
+    """Path to the holography FITS cube that will be used when co-adding beams"""
+    linmos_residuals: bool = False
+    """Linmos the cleaning residuals together into a field image"""
+    beam_cutoff: float = 150
+    """Cutoff in arcseconds to use when calculating the common beam to convol to"""
+    pb_cutoff: float = 0.1
+    """Primary beam attenuation cutoff to use during linmos"""
+    stagger_delay_seconds: Optional[float] = None
+    """The delay, in seconds, that should be used when submitting items in batches (e.g. looping over channels)"""
+    attempt_subtract: bool = False
+    """Attempt to subtract the model column from the nominated data column"""
+    subtract_data_column: str = "DATA"
+    """Should the continuum model be subtracted, where to store the output"""
+    predict_wsclean_model: bool = False
+    """Search for the continuum model produced by wsclean and subtract"""
+
+
 class FieldOptions(BaseOptions):
     """Container that represents the flint related options that
     might be used throughout components related to the actual

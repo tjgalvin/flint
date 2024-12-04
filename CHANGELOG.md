@@ -1,5 +1,22 @@
 # Change log
 
+# dev
+
+- Created `subtract_cube_pipeline.py`. Associated changes include:
+  - wsclean imaging will delete files while still in temporary storage (for
+    instance is a ramdisk is used)
+  - added option to prefect convol task to delete files once they have be
+    convoled
+  - predicting model produced by `wsclean -save-source-list` into measurement
+    set
+  - using `taql` to subtract model from nominated data column
+  - added a 'flow_addmodel_to_mss` to allow different task runner to be
+    specified
+  - added `flint_no_log_wsclean_output` to `WSCleanOptions` to disable wsclean
+    logging
+  - added flag to disable logging singularity command output to the
+    `flint.logging.logger`
+
 # 0.2.8
 
 - added `wrapper_options_from_strategy` decorator helper function

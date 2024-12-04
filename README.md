@@ -112,12 +112,8 @@ tasks together (outlined above) into a single data-processing pipeline.
   observation sequence.
 - `flint_flow_continuum_pipeline`: Performs bandpass calibration, solution
   copying, imaging, self-calibration and mosaicing.
-- `flint_flow_cointinuum_mask_pipeline`: Performs bandpass calibration, solution
-  copying, imaging, self-calibration and mosaicing. In this flow a process to
-  construct a robust clean mask is performed by exploiting an initial imaging
-  round. The field image is constructed across all beams, S/N clipping is
-  performed, then guard masks on a per-beam basis are extracted. This pipeline
-  has fallen out of use and could be removed.
+- `flint_flow_subtract_cube_pipeline`: Subtract a continuum model and image the
+  residual data.
 
 ## Sky-model catalogues
 

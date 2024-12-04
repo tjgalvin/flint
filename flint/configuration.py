@@ -30,7 +30,7 @@ from flint.source_finding.aegean import AegeanOptions, BANEOptions
 # into there
 
 KNOWN_HEADERS = ("defaults", "initial", "selfcal", "version")
-KNOWN_OPERATIONS = ("stokesv",)
+KNOWN_OPERATIONS = ("stokesv", "subtractcube")
 FORMAT_VERSION = 0.1
 MODE_OPTIONS_MAPPING = {
     "wsclean": WSCleanOptions,
@@ -79,6 +79,32 @@ def copy_and_timestamp_strategy_file(output_dir: Path, input_yaml: Path) -> Path
     shutil.copyfile(input_yaml.absolute(), stamped_imaging_strategy)
 
     return Path(stamped_imaging_strategy)
+
+
+def _load_and_copy_strategy(
+    output_split_science_path: Path, imaging_strategy: Optional[Path] = None
+) -> Union[Strategy, None]:
+    """Load a strategy file and copy a timestamped version into the output directory
+    that would contain the science processing.
+
+    Args:
+        output_split_science_path (Path): Where the strategy file should be copied to (where the data would be processed)
+        imaging_strategy (Optional[Path], optional): Location of the strategy file. Defaults to None.
+
+    Returns:
+        Union[Strategy, None]: The loadded strategy file if provided, `None` otherwise
+    """
+    return (
+        load_strategy_yaml(
+            input_yaml=copy_and_timestamp_strategy_file(
+                output_dir=output_split_science_path,
+                input_yaml=imaging_strategy,
+            ),
+            verify=True,
+        )
+        if imaging_strategy
+        else None
+    )
 
 
 def get_selfcal_options_from_yaml(input_yaml: Optional[Path] = None) -> Dict:
