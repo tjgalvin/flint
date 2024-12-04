@@ -500,7 +500,7 @@ def task_convolve_cube(
 
 @task
 def task_convolve_image(
-    wsclean_cmd: WSCleanCommand,
+    wsclean_cmds: Union[WSCleanCommand, List[WSCleanCommand]],
     beam_shape: BeamShape,
     cutoff: float = 60,
     mode: str = "image",
@@ -521,67 +521,73 @@ def task_convolve_image(
     Returns:
         Collection[Path]: Path to the output images that have been convolved.
     """
-    assert (
-        wsclean_cmd.imageset is not None
-    ), f"{wsclean_cmd.ms} has no attached imageset."
-
-    supported_modes = ("image", "residual")
-    logger.info(f"Extracting {mode}")
-    if mode == "image":
-        image_paths = list(wsclean_cmd.imageset.image)
-    elif mode == "residual":
+    all_convolved_images = []
+    for wsclean_cmd in wsclean_cmds:
         assert (
-            wsclean_cmd.imageset.residual is not None
-        ), f"{wsclean_cmd.imageset.residual=}, which should not happen"
-        image_paths = list(wsclean_cmd.imageset.residual)
-    else:
-        raise ValueError(f"{mode=} is not supported. Known modes are {supported_modes}")
+            wsclean_cmd.imageset is not None
+        ), f"{wsclean_cmd.ms} has no attached imageset."
 
-    if filter:
-        logger.info(f"Filtering images paths with {filter=}")
-        image_paths = [
-            image_path for image_path in image_paths if filter in str(image_path)
-        ]
+        supported_modes = ("image", "residual")
+        logger.info(f"Extracting {mode}")
+        if mode == "image":
+            image_paths = list(wsclean_cmd.imageset.image)
+        elif mode == "residual":
+            assert (
+                wsclean_cmd.imageset.residual is not None
+            ), f"{wsclean_cmd.imageset.residual=}, which should not happen"
+            image_paths = list(wsclean_cmd.imageset.residual)
+        else:
+            raise ValueError(
+                f"{mode=} is not supported. Known modes are {supported_modes}"
+            )
 
-    # It is possible depending on how aggressively cleaning image products are deleted that these
-    # some cleaning products (e.g. residuals) do not exist. There are a number of ways one could consider
-    # handling this. The pirate in me feels like less is more, so an error will be enough. Keeping
-    # things simple and avoiding the problem is probably the better way of dealing with this
-    # situation. In time this would mean that we inspect and handle conflicting pipeline options.
-    assert (
-        image_paths is not None
-    ), f"{image_paths=} for {mode=} and {wsclean_cmd.imageset=}"
+        if filter:
+            logger.info(f"Filtering images paths with {filter=}")
+            image_paths = [
+                image_path for image_path in image_paths if filter in str(image_path)
+            ]
 
-    logger.info(f"Will convolve {image_paths}")
+        # It is possible depending on how aggressively cleaning image products are deleted that these
+        # some cleaning products (e.g. residuals) do not exist. There are a number of ways one could consider
+        # handling this. The pirate in me feels like less is more, so an error will be enough. Keeping
+        # things simple and avoiding the problem is probably the better way of dealing with this
+        # situation. In time this would mean that we inspect and handle conflicting pipeline options.
+        assert (
+            image_paths is not None
+        ), f"{image_paths=} for {mode=} and {wsclean_cmd.imageset=}"
 
-    # experience has shown that astropy units do not always work correctly
-    # in a multiprocessing / dask environment. The unit registry does not
-    # seem to serialise correctly, and we can get weird arcsecond is not
-    # compatible with arcsecond type errors. Import here in an attempt
-    # to minimise
-    import astropy.units as u
-    from astropy.io import fits
-    from radio_beam import Beam
+        logger.info(f"Will convolve {image_paths}")
 
-    # Print the beams out here for logging
-    for image_path in image_paths:
-        image_beam = Beam.from_fits_header(fits.getheader(str(image_path)))
-        logger.info(
-            f"{str(image_path.name)}: {image_beam.major.to(u.arcsecond)} {image_beam.minor.to(u.arcsecond)}  {image_beam.pa}"
+        # experience has shown that astropy units do not always work correctly
+        # in a multiprocessing / dask environment. The unit registry does not
+        # seem to serialise correctly, and we can get weird arcsecond is not
+        # compatible with arcsecond type errors. Import here in an attempt
+        # to minimise
+        import astropy.units as u
+        from astropy.io import fits
+        from radio_beam import Beam
+
+        # Print the beams out here for logging
+        for image_path in image_paths:
+            image_beam = Beam.from_fits_header(fits.getheader(str(image_path)))
+            logger.info(
+                f"{str(image_path.name)}: {image_beam.major.to(u.arcsecond)} {image_beam.minor.to(u.arcsecond)}  {image_beam.pa}"
+            )
+
+        convolved_images = convolve_images(
+            image_paths=image_paths,
+            beam_shape=beam_shape,
+            cutoff=cutoff,
+            convol_suffix=convol_suffix_str,
         )
 
-    convolved_images = convolve_images(
-        image_paths=image_paths,
-        beam_shape=beam_shape,
-        cutoff=cutoff,
-        convol_suffix=convol_suffix_str,
-    )
+        if remove_original_images:
+            logger.info(f"Removing {len(image_paths)} input images")
+            _ = [image_path.unlink() for image_path in image_paths]  # type: ignore
 
-    if remove_original_images:
-        logger.info(f"Removing {len(image_paths)} input images")
-        _ = [image_path.unlink() for image_path in image_paths]  # type: ignore
+        all_convolved_images.extend(convolved_images)
 
-    return convolved_images
+    return all_convolved_images
 
 
 @task
@@ -622,7 +628,11 @@ def task_linmos_images(
     # TODO: Need a better filter approach. Would probably be better to
     # have literals for the type of product (MFS, cube, model) to be
     # sure of appropriate extraction
-    all_images = [img for beam_images in images for img in beam_images]
+    all_images = (
+        [img for beam_images in images for img in beam_images]
+        if not isinstance(images[0], Path)
+        else images
+    )
     logger.info(f"Number of images to examine {len(all_images)}")
 
     filter_images = (
@@ -707,9 +717,9 @@ def _convolve_linmos(
         LinmosCommand: Resulting linmos command parset
     """
 
-    conv_images = task_convolve_image.map(
-        wsclean_cmd=wsclean_cmds,
-        beam_shape=unmapped(beam_shape),  # type: ignore
+    conv_images = task_convolve_image.submit(
+        wsclean_cmds=wsclean_cmds,
+        beam_shape=beam_shape,  # type: ignore
         cutoff=field_options.beam_cutoff,
         mode=convol_mode,
         filter=convol_filter,
