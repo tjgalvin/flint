@@ -308,6 +308,8 @@ def processed_ms_format(
     in_name = in_name.name if isinstance(in_name, Path) else in_name
 
     logger.debug(f"Matching {in_name}")
+    # TODO: Should the Beam and field items be relaxed and allowed to be optional?
+    # TODOL At very least I think the beam should become options
     # A raw string is used to avoid bad unicode escaping
     regex = re.compile(
         (
