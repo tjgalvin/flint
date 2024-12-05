@@ -175,7 +175,7 @@ def task_addmodel_to_ms(
 @task
 def task_combine_all_linmos_images(linmos_commands: List[LinmosCommand]) -> Path:
     from fitscube import combine_fits
-    from prefect.utilities.asyncutils import run_async_from_worker_thread
+    from prefect.utilities.asyncutils import run_sync_from_worker_thread
 
     output_cube_path = Path("test.fits")
 
@@ -188,7 +188,7 @@ def task_combine_all_linmos_images(linmos_commands: List[LinmosCommand]) -> Path
     output_cube_path = images_to_combine[0].parent / output_cube_path.name
 
     # combine_fits uses asyncio to accelerate the cube creation
-    _ = run_async_from_worker_thread(
+    _ = run_sync_from_worker_thread(
         combine_fits,
         file_list=images_to_combine,
         out_cube=output_cube_path,
