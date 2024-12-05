@@ -288,6 +288,8 @@ class ProcessedNameComponents(NamedTuple):
     """The self-calibration round detected. This might be represented as 'noselfcal' in some image products, e.g. linmos. """
     pol: Optional[str] = None
     """The polarisation component, if it exists, in a filename. Examples are 'i','q','u','v'. Could be combinations in some cases depending on how it was created (e.g. based on wsclean pol option). """
+    channel_range: Optional[Tuple[int, int]] = None
+    """The channel range encoded in an file name. Generally are zero-padded, and are two fields of the form ch1234-1235, where the upper bound is exclusive. Defaults to none."""
 
 
 def processed_ms_format(
@@ -308,7 +310,15 @@ def processed_ms_format(
     logger.debug(f"Matching {in_name}")
     # A raw string is used to avoid bad unicode escaping
     regex = re.compile(
-        r"^SB(?P<sbid>[0-9]+)\.(?P<field>.+)\.beam(?P<beam>[0-9]+)((\.spw(?P<spw>[0-9]+))?)((\.round(?P<round>[0-9]+))?)((\.(?P<pol>(i|q|u|v|xx|yy|xy|yx)+))?)*"
+        (
+            r"^SB(?P<sbid>[0-9]+)"
+            r"\.(?P<field>.+)"
+            r"\.beam(?P<beam>[0-9]+)"
+            r"((\.spw(?P<spw>[0-9]+))?)"
+            r"((\.round(?P<round>[0-9]+))?)"
+            r"((\.(?P<pol>(i|q|u|v|xx|yy|xy|yx)+))?)"
+            r"((\.ch(?P<chl>([0-9]+))-(?P<chh>([0-9]+)))?)*"
+        )
     )
     results = regex.match(in_name)
 
@@ -320,6 +330,8 @@ def processed_ms_format(
 
     logger.debug(f"Matched groups are: {groups}")
 
+    channel_range = (int(groups["chl"]), int(groups["chh"])) if groups["chl"] else None
+
     return ProcessedNameComponents(
         sbid=groups["sbid"],
         field=groups["field"],
@@ -327,6 +339,7 @@ def processed_ms_format(
         spw=groups["spw"],
         round=groups["round"],
         pol=groups["pol"],
+        channel_range=channel_range,
     )
 
 

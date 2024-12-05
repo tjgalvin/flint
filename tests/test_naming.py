@@ -511,6 +511,32 @@ def test_formatted_name_components():
     assert components.round is None
 
 
+def test_formatted_name_components_wchannelrange():
+    ex = "SB39400.RACS_0635-31.beam33.round1.i.ch0100-1009.MFS-image.conv.fits"
+
+    components = processed_ms_format(in_name=ex)
+    assert isinstance(components, ProcessedNameComponents)
+    assert components.sbid == "39400"
+    assert components.field == "RACS_0635-31"
+    assert components.beam == "33"
+    assert components.spw is None
+    assert components.round == "1"
+    assert components.pol == "i"
+    assert components.channel_range == (100, 1009)
+
+    ex = "SB39400.RACS_0635-31.beam33.round1.ch0100-1009.MFS-image.conv.fits"
+
+    components = processed_ms_format(in_name=ex)
+    assert isinstance(components, ProcessedNameComponents)
+    assert components.sbid == "39400"
+    assert components.field == "RACS_0635-31"
+    assert components.beam == "33"
+    assert components.spw is None
+    assert components.round == "1"
+    assert components.pol is None
+    assert components.channel_range == (100, 1009)
+
+
 def test_formatted_name_components_wround():
     ex = "SB39400.RACS_0635-31.beam33.round1-MFS-image.conv.fits"
 
