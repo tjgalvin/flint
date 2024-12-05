@@ -76,7 +76,7 @@ def create_imaging_name_prefix(
     if pol:
         name = f"{name}.{pol.lower()}"
     if channel_range:
-        name = f"{name}.ch{channel_range[0]}-{channel_range[1]}"
+        name = f"{name}.ch{channel_range[0]:04}-{channel_range[1]:04}"
 
     return name
 

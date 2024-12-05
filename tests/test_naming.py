@@ -43,10 +43,10 @@ def test_create_imaging_name_prefix():
         assert name == "SB63789.EMU_1743-51.beam03.round4.i"
 
         name = create_imaging_name_prefix(ms=ms, pol=pol, channel_range=(100, 108))
-        assert name == "SB63789.EMU_1743-51.beam03.round4.i.ch100-108"
+        assert name == "SB63789.EMU_1743-51.beam03.round4.i.ch0100-0108"
 
     name = create_imaging_name_prefix(ms=ms, channel_range=(100, 108))
-    assert name == "SB63789.EMU_1743-51.beam03.round4.ch100-108"
+    assert name == "SB63789.EMU_1743-51.beam03.round4.ch0100-0108"
 
 
 def test_get_cube_fits_from_paths():
