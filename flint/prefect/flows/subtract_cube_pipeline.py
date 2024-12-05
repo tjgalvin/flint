@@ -14,6 +14,8 @@ from typing import Tuple, Optional, Union, List
 import numpy as np
 from configargparse import ArgumentParser
 from prefect import flow, unmapped, task
+from fitscube import combine_fits
+from prefect.utilities.asyncutils import run_sync_in_worker_thread
 
 from flint.coadd.linmos import LinmosCommand
 from flint.configuration import _load_and_copy_strategy
@@ -174,9 +176,6 @@ def task_addmodel_to_ms(
 
 @task
 def task_combine_all_linmos_images(linmos_commands: List[LinmosCommand]) -> Path:
-    from fitscube import combine_fits
-    from prefect.utilities.asyncutils import run_sync_from_worker_thread
-
     output_cube_path = Path("test.fits")
 
     images_to_combine = [
@@ -188,7 +187,7 @@ def task_combine_all_linmos_images(linmos_commands: List[LinmosCommand]) -> Path
     output_cube_path = images_to_combine[0].parent / output_cube_path.name
 
     # combine_fits uses asyncio to accelerate the cube creation
-    _ = run_sync_from_worker_thread(
+    _ = run_sync_in_worker_thread(
         combine_fits,
         file_list=images_to_combine,
         out_cube=output_cube_path,
