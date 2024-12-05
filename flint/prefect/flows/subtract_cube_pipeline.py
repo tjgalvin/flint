@@ -189,9 +189,10 @@ def task_combine_all_linmos_images(linmos_commands: List[LinmosCommand]) -> Path
 
     # combine_fits uses asyncio to accelerate the cube creation
     _ = sync(
-        combine_fits(
-            file_list=images_to_combine, out_cube=output_cube_path, max_workers=4
-        )
+        combine_fits,
+        file_list=images_to_combine,
+        out_cube=output_cube_path,
+        max_workers=4,
     )
 
     return Path(output_cube_path)
