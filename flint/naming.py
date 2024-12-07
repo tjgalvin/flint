@@ -72,13 +72,13 @@ def create_imaging_name_prefix(
 
     ms_path = MS.cast(ms=ms).path
 
-    name = ms_path.stem
+    names = [ms_path.stem]
     if pol:
-        name = f"{name}.{pol.lower()}"
+        names.append(f"{pol.lower()}")
     if channel_range:
-        name = f"{name}.ch{channel_range[0]:04}-{channel_range[1]:04}"
+        names.append(f"ch{channel_range[0]:04}-{channel_range[1]:04}")
 
-    return name
+    return ".".join(names)
 
 
 def get_beam_resolution_str(mode: str, marker: Optional[str] = None) -> str:
