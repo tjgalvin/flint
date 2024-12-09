@@ -596,6 +596,7 @@ def task_linmos_images(
     cutoff: float = 0.05,
     field_summary: Optional[FieldSummary] = None,
     trim_linmos_fits: bool = True,
+    remove_original_images: bool = False,
 ) -> LinmosCommand:
     """Run the yandasoft linmos task against a set of input images
 
@@ -609,6 +610,7 @@ def task_linmos_images(
         cutoff (float, optional): The primary beam attenuation cutoff supplied to linmos when coadding. Defaults to 0.05.
         field_summary (Optional[FieldSummary], optional): The summary of the field, including (importantly) to orientation of the third-axis. Defaults to None.
         trim_linmos_fits (bool, optional): Attempt to trim the output linmos files of as much empty space as possible. Defaults to True.
+        remove_original_images (bool, optional): If True remove the original image after they have been convolved. Defaults to False.
 
     Returns:
         LinmosCommand: The linmos command and associated meta-data
@@ -657,6 +659,9 @@ def task_linmos_images(
         pol_axis=pol_axis,
         trim_linmos_fits=trim_linmos_fits,
     )
+    if remove_original_images:
+        logger.info(f"Removing {len(filter_images)} input images")
+        _ = [image_path.unlink() for image_path in filter_images]  # type: ignore
 
     return linmos_cmd
 
@@ -711,6 +716,7 @@ def _convolve_linmos(
         field_summary=field_summary,
         trim_linmos_fits=trim_linmos_fits,
         filter=convol_filter,
+        remove_original_images=remove_original_images,
     )  # type: ignore
 
     return parset
