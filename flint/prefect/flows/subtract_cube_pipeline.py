@@ -139,7 +139,8 @@ task_subtract_model_from_ms = task(subtract_model_from_data_column)
 
 @task
 def task_addmodel_to_ms(
-    ms: MS, addmodel_subtract_options: AddModelSubtractFieldOptions
+    ms: MS,
+    addmodel_subtract_options: AddModelSubtractFieldOptions,
 ) -> MS:
     from flint.imager.wsclean import get_wsclean_output_source_list_path
     from flint.calibrate.aocalibrate import AddModelOptions, add_model
@@ -174,7 +175,9 @@ def task_addmodel_to_ms(
 
 
 @task
-def task_combine_all_linmos_images(linmos_commands: List[LinmosCommand]) -> Path:
+def task_combine_all_linmos_images(
+    linmos_commands: List[LinmosCommand], remove_original_images: bool = False
+) -> Path:
     output_cube_path = Path("test.fits")
 
     images_to_combine = [
@@ -191,19 +194,20 @@ def task_combine_all_linmos_images(linmos_commands: List[LinmosCommand]) -> Path
         image_prefix=base_cube_path, mode="contsub", suffix="linmos.fits"
     )
 
-    # combine_fits uses asyncio to accelerate the cube creation
-    # _ = sync(
-    #     combine_fits_coro,
-    #     file_list=images_to_combine,
-    #     out_cube=output_cube_path,
-    #     max_workers=4,
-    # )
-
     _ = combine_fits(
         file_list=images_to_combine,
         out_cube=output_cube_path,
         max_workers=4,
     )
+
+    if remove_original_images:
+        logger.info(f"Removing original {len(images_to_combine)} images")
+        for image in images_to_combine:
+            logger.info(f"Removing {image=}")
+            assert (
+                isinstance(image, Path) and image.exists()
+            ), f"{image=} does not exist, but it should"
+            image.unlink()
     return Path(output_cube_path)
 
 
@@ -316,7 +320,7 @@ def flow_subtract_cube(
             convol_mode="image",
             convol_filter="image.",
             convol_suffix_str="optimal.image",
-            trim_linmos_fits=False,
+            trim_linmos_fits=False,  # This is necessary to ensure all images have same pixel-coordinates
             remove_original_images=True,
         )
         channel_parset_list.append(channel_parset)
@@ -325,7 +329,9 @@ def flow_subtract_cube(
             sleep(subtract_field_options.stagger_delay_seconds)
 
     # 4 - cube concatenated each linmos field together to single file
-    task_combine_all_linmos_images.submit(linmos_commands=channel_parset_list)
+    task_combine_all_linmos_images.submit(
+        linmos_commands=channel_parset_list, remove_original_images=True
+    )
 
     return
 
