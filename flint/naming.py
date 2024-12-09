@@ -29,7 +29,7 @@ def get_fits_cube_from_paths(paths: List[Path]) -> List[Path]:
     return cube_files
 
 
-LONG_FIELD_TO_SHORTHAND = {"sbid": "SB", "beam": "beam", "ch": "ch"}
+LONG_FIELD_TO_SHORTHAND = {"sbid": "SB", "beam": "beam", "ch": "ch", "round": "round"}
 """Name mapping between the longform of ProcessedFieldComponents and shorthands used"""
 
 
