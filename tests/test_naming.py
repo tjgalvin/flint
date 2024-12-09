@@ -629,6 +629,7 @@ def get_lots_of_names() -> List[Path]:
 
 
 def test_create_name_from_common_fields():
+    """See if we can identify the common bits of names as recognised in the process name format"""
     examples = get_lots_of_names()
 
     common_names = create_name_from_common_fields(in_paths=examples)
@@ -641,6 +642,47 @@ def test_create_name_from_common_fields():
             in_paths=examples, additional_suffixes=additional_suffix
         )
         expected_common_name = Path("59058/SB59058.RACS_1626-84.linmos.fits")
+
+        assert common_names == expected_common_name
+
+    examples.append("This/will/raise/a/valuerror")
+
+    with pytest.raises(ValueError):
+        create_name_from_common_fields(in_paths=examples)
+
+
+def get_lots_of_names_2() -> List[Path]:
+    examples = [
+        "59058/SB59058.RACS_1626-84.round4.i.ch0285-0286.linmos.fits",
+        "59058/SB59058.RACS_1626-84.round4.i.ch0285-0286.linmos.fits",
+        "59058/SB59058.RACS_1626-84.round4.i.ch0070-0071.linmos.fits",
+        "59058/SB59058.RACS_1626-84.round4.i.ch0142-0143.linmos.fits",
+        "59058/SB59058.RACS_1626-84.round4.i.ch0214-0215.linmos.fits",
+        "59058/SB59058.RACS_1626-84.round4.i.ch0286-0287.linmos.fits",
+        "59058/SB59058.RACS_1626-84.round4.i.ch0071-0072.linmos.fits",
+        "59058/SB59058.RACS_1626-84.round4.i.ch0143-0144.linmos.fits",
+        "59058/SB59058.RACS_1626-84.round4.i.ch0215-0216.linmos.fits",
+        "59058/SB59058.RACS_1626-84.round4.i.ch0287-0288.linmos.fits",
+    ]
+
+    return list(map(Path, examples))
+
+
+def test_create_name_from_common_fields_2():
+    """See if we can identify the common bits of names as recognised in the process name format.
+    This picks up some missing formats that this sea dog initially overlookede"""
+    examples = get_lots_of_names_2()
+
+    common_names = create_name_from_common_fields(in_paths=examples)
+    expected_common_name = Path("59058/SB59058.RACS_1626-84.round4.i")
+
+    assert common_names == expected_common_name
+
+    for additional_suffix in (".linmos.fits", "linmos.fits"):
+        common_names = create_name_from_common_fields(
+            in_paths=examples, additional_suffixes=additional_suffix
+        )
+        expected_common_name = Path("59058/SB59058.RACS_1626-84.round4.i.linmos.fits")
 
         assert common_names == expected_common_name
 
