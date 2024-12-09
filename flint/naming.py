@@ -29,6 +29,82 @@ def get_fits_cube_from_paths(paths: List[Path]) -> List[Path]:
     return cube_files
 
 
+LONG_FIELD_TO_SHORTHAND = {"sbid": "SB", "beam": "beam", "ch": "ch"}
+"""Name mapping between the longform of ProcessedFieldComponents and shorthands used"""
+
+
+def _long_field_name_to_shorthand(long_name: str) -> str:
+    """Name mapping between the longform of ProcessedFieldComponents and shorthands used"""
+    if long_name in LONG_FIELD_TO_SHORTHAND:
+        return LONG_FIELD_TO_SHORTHAND[long_name]
+
+    return ""
+
+
+def create_name_from_common_fields(
+    in_paths: Tuple[Path, ...], additional_suffixes: Optional[str] = None
+) -> Path:
+    """Attempt to craft a base name using the field elements that are in common.
+    The expectation that these are paths that can be processed by the ``processed_name_format``
+    handler. Resulting fields that are common across all ``in_paths`` are preserved.
+
+    Only fields that are recognised as a known property are retained. Suffixes that do not
+    form a component are ignored. For example:
+
+    >>> "59058/SB59058.RACS_1626-84.ch0287-0288.linmos.fits"
+
+    the `linmos.fits` would be ignored.
+
+    All ``in_paths`` should be detected, otherwise an ValueError is raised
+
+    Args:
+        in_paths (Tuple[Path, ...]): Collection of input paths to consider
+        additional_suffixes (Optional[str], optional): Add an additional set of suffixes before returning. Defaults to None.
+
+    Raises:
+        ValueError: Raised if any of the ``in_paths`` fail to conform to ``flint`` processed name format
+
+    Returns:
+        Path: Common fields with the same base parent path
+    """
+    from flint.options import options_to_dict
+
+    in_paths = tuple(Path(p) for p in in_paths)
+    parent = in_paths[0].parent
+    processed_components = list(map(processed_ms_format, in_paths))
+
+    if None in processed_components:
+        raise ValueError("Processed name format failed")
+    processed_components_dict = [options_to_dict(pc) for pc in processed_components]
+
+    keys_to_test = processed_components_dict[0].keys()
+    logger.info(f"{keys_to_test=}")
+    # One of the worst crimes on the seven seas I have ever done
+    # If a field is None, it was not detected. If a field is not constanst
+    # across all input paths, it is ignored. Should a field be considered
+    # common across all input paths, look up its short hand that
+    # would otherwise be usede and use it.
+    constant_fields = [
+        f"{_long_field_name_to_shorthand(long_name=key)}{processed_components_dict[0][key]}"
+        for key in keys_to_test
+        if len(set([pcd[key] for pcd in processed_components_dict])) == 1
+        and processed_components_dict[0][key] is not None
+    ]
+    logger.info(f"{constant_fields=}")
+    for pcd in processed_components_dict:
+        logger.info(pcd)
+
+    name = ".".join(constant_fields)
+    if additional_suffixes:
+        additional_suffixes = (
+            f".{additional_suffixes}"
+            if not additional_suffixes.startswith(".")
+            else additional_suffixes
+        )
+        name += additional_suffixes
+    return Path(parent) / Path(name)
+
+
 def create_image_cube_name(
     image_prefix: Path, mode: str, suffix: str = "cube.fits"
 ) -> Path:
@@ -280,7 +356,7 @@ class ProcessedNameComponents(NamedTuple):
     """The sbid of the observation"""
     field: str
     """The name of the field extracted"""
-    beam: str
+    beam: Optional[str] = None
     """The beam of the observation processed"""
     spw: Optional[str] = None
     """The SPW of the observation. If there is only one spw this is None."""
@@ -314,12 +390,12 @@ def processed_ms_format(
     regex = re.compile(
         (
             r"^SB(?P<sbid>[0-9]+)"
-            r"\.(?P<field>.+)"
-            r"\.beam(?P<beam>[0-9]+)"
+            r"\.(?P<field>[^.]+)"
+            r"((\.beam(?P<beam>[0-9]+))?)"
             r"((\.spw(?P<spw>[0-9]+))?)"
             r"((\.round(?P<round>[0-9]+))?)"
             r"((\.(?P<pol>(i|q|u|v|xx|yy|xy|yx)+))?)"
-            r"((\.ch(?P<chl>([0-9]+))-(?P<chh>([0-9]+)))?)*"
+            r"((\.ch(?P<chl>([0-9]+))-(?P<chh>([0-9]+)))?)"
         )
     )
     results = regex.match(in_name)
@@ -407,6 +483,10 @@ def extract_beam_from_name(name: Union[str, Path]) -> int:
     """
 
     results = extract_components_from_name(name=name)
+    if results is None or results.beam is None:
+        raise ValueError(
+            f"Failed to convert to processed name format and find beam: {name=} {results=}"
+        )
 
     return int(results.beam)
 
@@ -463,7 +543,8 @@ def create_ms_name(
         ms_name_list.append(field)
 
     if format_components:
-        ms_name_list.append(f"beam{int(format_components.beam):02d}")
+        if format_components.beam is not None:
+            ms_name_list.append(f"beam{int(format_components.beam):02d}")
         if format_components.spw:
             ms_name_list.append(f"spw{format_components.spw}")
 

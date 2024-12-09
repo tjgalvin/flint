@@ -2,6 +2,7 @@
 
 from datetime import datetime
 from pathlib import Path
+from typing import List
 
 import pytest
 
@@ -17,6 +18,7 @@ from flint.naming import (
     create_image_cube_name,
     create_imaging_name_prefix,
     create_ms_name,
+    create_name_from_common_fields,
     extract_beam_from_name,
     extract_components_from_name,
     get_aocalibrate_output_path,
@@ -607,3 +609,42 @@ def test_get_beam_from_name():
         extract_beam_from_name(name="SB39400.RACS_0635-31.beam33-MFS-image.conv.fits")
         == 33
     )
+
+
+def get_lots_of_names() -> List[Path]:
+    examples = [
+        "59058/SB59058.RACS_1626-84.ch0285-0286.linmos.fits",
+        "59058/SB59058.RACS_1626-84.ch0285-0286.linmos.fits",
+        "59058/SB59058.RACS_1626-84.ch0070-0071.linmos.fits",
+        "59058/SB59058.RACS_1626-84.ch0142-0143.linmos.fits",
+        "59058/SB59058.RACS_1626-84.ch0214-0215.linmos.fits",
+        "59058/SB59058.RACS_1626-84.ch0286-0287.linmos.fits",
+        "59058/SB59058.RACS_1626-84.ch0071-0072.linmos.fits",
+        "59058/SB59058.RACS_1626-84.ch0143-0144.linmos.fits",
+        "59058/SB59058.RACS_1626-84.ch0215-0216.linmos.fits",
+        "59058/SB59058.RACS_1626-84.ch0287-0288.linmos.fits",
+    ]
+
+    return list(map(Path, examples))
+
+
+def test_create_name_from_common_fields():
+    examples = get_lots_of_names()
+
+    common_names = create_name_from_common_fields(in_paths=examples)
+    expected_common_name = Path("59058/SB59058.RACS_1626-84")
+
+    assert common_names == expected_common_name
+
+    for additional_suffix in (".linmos.fits", "linmos.fits"):
+        common_names = create_name_from_common_fields(
+            in_paths=examples, additional_suffixes=additional_suffix
+        )
+        expected_common_name = Path("59058/SB59058.RACS_1626-84.linmos.fits")
+
+        assert common_names == expected_common_name
+
+    examples.append("This/will/raise/a/valuerror")
+
+    with pytest.raises(ValueError):
+        create_name_from_common_fields(in_paths=examples)

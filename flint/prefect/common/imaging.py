@@ -51,7 +51,6 @@ from flint.naming import (
     FITSMaskNames,
     get_beam_resolution_str,
     get_fits_cube_from_paths,
-    processed_ms_format,
 )
 from flint.options import FieldOptions, SubtractFieldOptions
 from flint.peel.potato import potato_peel
@@ -604,10 +603,8 @@ def task_linmos_images(
         images (Collection[Collection[Path]]): Images that will be co-added together
         container (Path): Path to singularity container that contains yandasoft
         filter (Optional[str], optional): Filter to extract the images that will be extracted from the set of input images. These will be co-added. If None all images are co-aded. Defaults to ".MFS.".
-        field_name (Optional[str], optional): Name of the field, which is included in the output images created. Defaults to None.
         suffix_str (str, optional): Additional string added to the prefix of the output linmos image products. Defaults to "noselfcal".
         holofile (Optional[Path], optional): The FITS cube with the beam corrections derived from ASKAP holography. Defaults to None.
-        sbid (Optional[Union[int,str]], optional): SBID of the data being imaged. Defaults to None.
         parset_output_path (Optional[str], optional): Location to write the linmos parset file to. Defaults to None.
         cutoff (float, optional): The primary beam attenuation cutoff supplied to linmos when coadding. Defaults to 0.05.
         field_summary (Optional[FieldSummary], optional): The summary of the field, including (importantly) to orientation of the third-axis. Defaults to None.
@@ -630,24 +627,12 @@ def task_linmos_images(
     )
     logger.info(f"Number of filtered images to linmos: {len(filter_images)}")
 
-    candidate_image = filter_images[0]
-    candidate_image_fields = processed_ms_format(in_name=candidate_image)
-    assert (
-        candidate_image_fields is not None
-    ), f"{candidate_image=}, which should not happen"
+    from flint.naming import create_name_from_common_fields
 
-    if field_name is None:
-        field_name = candidate_image_fields.field
-        logger.info(f"Extracted {field_name=} from {candidate_image=}")
-
-    if sbid is None:
-        sbid = candidate_image_fields.sbid
-        logger.info(f"Extracted {sbid=} from {candidate_image=}")
-
-    base_name = f"SB{sbid}.{field_name}.{suffix_str}"
-
-    out_dir = Path(filter_images[0].parent)
-    out_name = out_dir / base_name
+    out_name = create_name_from_common_fields(
+        in_paths=filter_images, additional_suffixes=suffix_str
+    )
+    out_dir = out_name.parent
     logger.info(f"Base output image name will be: {out_name}")
 
     out_file_name = (
