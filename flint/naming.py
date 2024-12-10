@@ -103,6 +103,7 @@ def create_name_from_common_fields(
     return Path(parent) / Path(name)
 
 
+# TODO: Need to assess the mode argument, and define literals that are accepted
 def create_image_cube_name(
     image_prefix: Path, mode: str, suffix: str = "cube.fits"
 ) -> Path:
