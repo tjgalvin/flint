@@ -23,6 +23,8 @@ class LinmosCommand(NamedTuple):
     """The output location that the generated linmos parset has been written to"""
     image_fits: Path
     """Path to the output linmos image created (or will be). """
+    weight_fits: Path
+    """Path to the output weight image formed through the linmos process"""
 
 
 class BoundingBox(NamedTuple):
@@ -577,6 +579,7 @@ def linmos_images(
         cmd=linmos_cmd_str,
         parset=linmos_parset,
         image_fits=linmos_names.image_fits.absolute(),
+        weight_fits=linmos_names.weight_fits.absolute(),
     )
 
     # Trim the fits image to remove empty pixels

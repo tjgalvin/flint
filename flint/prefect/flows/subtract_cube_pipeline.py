@@ -176,13 +176,23 @@ def task_addmodel_to_ms(
 
 @task
 def task_combine_all_linmos_images(
-    linmos_commands: List[LinmosCommand], remove_original_images: bool = False
+    linmos_commands: List[LinmosCommand],
+    remove_original_images: bool = False,
+    combine_weights: bool = False,
 ) -> Path:
     output_cube_path = Path("test.fits")
 
-    images_to_combine = [
-        linmos_command.image_fits for linmos_command in linmos_commands
-    ]
+    if combine_weights:
+        logger.info("Combining weight fits files")
+        images_to_combine = [
+            linmos_command.weight_fits for linmos_command in linmos_commands
+        ]
+    else:
+        logger.info("Combining image fits files")
+        images_to_combine = [
+            linmos_command.image_fits for linmos_command in linmos_commands
+        ]
+
     logger.info(f"Combining {len(images_to_combine)} FITS files together")
 
     from flint.naming import create_name_from_common_fields, create_image_cube_name
@@ -331,6 +341,11 @@ def flow_subtract_cube(
     # 4 - cube concatenated each linmos field together to single file
     task_combine_all_linmos_images.submit(
         linmos_commands=channel_parset_list, remove_original_images=True
+    )
+    task_combine_all_linmos_images.submit(
+        linmos_commands=channel_parset_list,
+        remove_original_images=True,
+        combine_weights=True,
     )
 
     return
