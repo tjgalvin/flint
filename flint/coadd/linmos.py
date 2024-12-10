@@ -42,6 +42,17 @@ class BoundingBox(NamedTuple):
     """The original shape of the image. If constructed against a cube this is the shape of a single plane."""
 
 
+class LinmosParsetSummary(NamedTuple):
+    """Container for key components around a linmos parset file"""
+
+    parset_path: Path
+    """Path to the parset text file created"""
+    weight_text_paths: Tuple[Path]
+    """The set of Paths to the text files with per channel weights used by linmos"""
+    image_paths: Tuple[Path]
+    """The set of paths to the fits images that were coadded together"""
+
+
 def _create_bound_box_plane(
     image_data: np.ndarray, is_masked: bool = False
 ) -> Optional[BoundingBox]:
@@ -441,7 +452,7 @@ def generate_linmos_parameter_set(
     cutoff: float = 0.001,
     pol_axis: Optional[float] = None,
     overwrite: bool = True,
-) -> Path:
+) -> LinmosParsetSummary:
     """Generate a parset file that will be used with the
     yandasoft linmos task.
 
@@ -456,7 +467,7 @@ def generate_linmos_parameter_set(
         overwrite (bool, optional): If True and the parset file already exists, overwrite it. Otherwise a FileExistsError is raised should the parset exist. Defaults to True.
 
     Returns:
-        Path: Path to the output parset file.
+        LinmosParsetSummary: Important components around the generated parset file.
     """
     img_str: List[str] = list(
         [str(p).replace(".fits", "") for p in images if p.exists()]
@@ -517,7 +528,13 @@ def generate_linmos_parameter_set(
     with open(parset_output_path, "w") as parset_file:
         parset_file.write(parset)
 
-    return parset_output_path
+    linmos_parset_summary = LinmosParsetSummary(
+        parset_path=parset_output_path,
+        weight_text_paths=tuple(weight_list),
+        image_paths=tuple(img_list),
+    )
+
+    return linmos_parset_summary
 
 
 def linmos_images(
@@ -530,6 +547,7 @@ def linmos_images(
     cutoff: float = 0.001,
     pol_axis: Optional[float] = None,
     trim_linmos_fits: bool = True,
+    cleanup: bool = False,
 ) -> LinmosCommand:
     """Create a linmos parset file and execute it.
 
@@ -543,6 +561,7 @@ def linmos_images(
         cutoff (float, optional): Pixels whose primary beam attenuation is below this cutoff value are blanked. Defaults to 0.001.
         pol_axis (Optional[float], optional): The physical oritentation of the ASKAP third-axis in radians. Defaults to None.
         trim_linmos_fits (bool, optional): Attempt to trim the output linmos files of as much empty space as possible. Defaults to True.
+        cleanup (bool, optional): Remove files generated throughout linmos, including the text files with the channel weights. Defaults to False.
 
     Returns:
         LinmosCommand: The linmos command executed and the associated parset file
@@ -554,7 +573,7 @@ def linmos_images(
 
     linmos_names: LinmosNames = create_linmos_names(name_prefix=image_output_name)
 
-    linmos_parset = generate_linmos_parameter_set(
+    linmos_parset_summary = generate_linmos_parameter_set(
         images=images,
         parset_output_path=parset_output_path,
         linmos_names=linmos_names,
@@ -564,9 +583,9 @@ def linmos_images(
         pol_axis=pol_axis,
     )
 
-    linmos_cmd_str = f"linmos -c {str(linmos_parset)}"
+    linmos_cmd_str = f"linmos -c {str(linmos_parset_summary.parset_path)}"
     bind_dirs = [image.absolute().parent for image in images] + [
-        linmos_parset.absolute().parent
+        linmos_parset_summary.parset_path.absolute().parent
     ]
     if holofile:
         bind_dirs.append(holofile.absolute().parent)
@@ -577,7 +596,7 @@ def linmos_images(
 
     linmos_cmd = LinmosCommand(
         cmd=linmos_cmd_str,
-        parset=linmos_parset,
+        parset=linmos_parset_summary.parset_path,
         image_fits=linmos_names.image_fits.absolute(),
         weight_fits=linmos_names.weight_fits.absolute(),
     )
@@ -589,6 +608,15 @@ def linmos_images(
             image_path=linmos_names.weight_fits,
             bounding_box=image_trim_results.bounding_box,
         )
+
+    if cleanup:
+        logger.info(
+            f"Remoing {len(linmos_parset_summary.weight_text_paths)} weight files generated"
+        )
+        [
+            weight_file.unlink()
+            for weight_file in linmos_parset_summary.weight_text_paths
+        ]
 
     return linmos_cmd
 
