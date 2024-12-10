@@ -134,12 +134,16 @@ def create_image_cube_name(
 
     output_components = [str(Path(image_prefix))]
     if mode:
+        # TODO: Assess what modes are actually allowed. Suggestion is to
+        # make a class of some sort with specified and known markers that
+        # are opted into. Hate this "everything and anything"
         (
             output_components.append(mode)
             if isinstance(mode, str)
             else output_components.extend(mode)
         )
     if suffix:
+        # TODO: See above. Need a class of acceptable suffixes to use
         (
             output_components.append(suffix)
             if isinstance(suffix, str)
