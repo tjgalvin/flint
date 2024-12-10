@@ -334,6 +334,7 @@ def flow_subtract_cube(
             convol_suffix_str="optimal.image",
             trim_linmos_fits=False,  # This is necessary to ensure all images have same pixel-coordinates
             remove_original_images=True,
+            cleanup_linmos=True,
         )
         channel_parset_list.append(channel_parset)
 
