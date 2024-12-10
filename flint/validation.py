@@ -1268,7 +1268,7 @@ def _make_beam_psf_row(beam_summary: BeamSummary) -> PSFTableRow:
 
     assert name_components is not None, f"{name_components=}, which should not happen"
     return PSFTableRow(
-        beam=int(name_components.beam),
+        beam=int(name_components.beam) if name_components.beam else -999,
         vis_flagged=vis_flagged,
         vis_total=vis_total,
         image_name=image_file.name,

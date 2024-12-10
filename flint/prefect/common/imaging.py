@@ -632,7 +632,7 @@ def task_linmos_images(
     from flint.naming import create_name_from_common_fields
 
     out_name = create_name_from_common_fields(
-        in_paths=filter_images, additional_suffixes=suffix_str
+        in_paths=tuple(filter_images), additional_suffixes=suffix_str
     )
     out_dir = out_name.parent
     logger.info(f"Base output image name will be: {out_name}")

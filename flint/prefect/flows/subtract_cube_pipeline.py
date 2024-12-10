@@ -201,7 +201,7 @@ def task_combine_all_linmos_images(
 
     assert len(images_to_combine) > 0, "No images to combine"
 
-    base_cube_path = create_name_from_common_fields(in_paths=images_to_combine)
+    base_cube_path = create_name_from_common_fields(in_paths=tuple(images_to_combine))
     output_cube_path = create_image_cube_name(
         image_prefix=base_cube_path, mode="contsub", suffix=output_suffix
     )
