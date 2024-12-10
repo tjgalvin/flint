@@ -187,13 +187,13 @@ def task_combine_all_linmos_images(
         images_to_combine = [
             linmos_command.weight_fits for linmos_command in linmos_commands
         ]
-        output_suffix = "cube.weight.fits"
+        output_suffix = "cube.weight.cube.fits"
     else:
         logger.info("Combining image fits files")
         images_to_combine = [
             linmos_command.image_fits for linmos_command in linmos_commands
         ]
-        output_suffix = "cube.linmos.fits"
+        output_suffix = "linmos.cube.fits"
 
     logger.info(f"Combining {len(images_to_combine)} FITS files together")
 
