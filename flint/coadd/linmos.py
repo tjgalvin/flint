@@ -530,8 +530,8 @@ def generate_linmos_parameter_set(
 
     linmos_parset_summary = LinmosParsetSummary(
         parset_path=parset_output_path,
-        weight_text_paths=tuple(weight_list),
-        image_paths=tuple(img_list),
+        weight_text_paths=tuple([Path(wi) for wi in weight_list]),
+        image_paths=tuple([Path(i) for i in img_list]),
     )
 
     return linmos_parset_summary
@@ -614,7 +614,7 @@ def linmos_images(
             f"Remoing {len(linmos_parset_summary.weight_text_paths)} weight files generated"
         )
         [
-            weight_file.unlink()
+            Path(weight_file).unlink()
             for weight_file in linmos_parset_summary.weight_text_paths
         ]
 
