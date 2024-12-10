@@ -29,19 +29,101 @@ def get_fits_cube_from_paths(paths: List[Path]) -> List[Path]:
     return cube_files
 
 
+LONG_FIELD_TO_SHORTHAND = {"sbid": "SB", "beam": "beam", "ch": "ch", "round": "round"}
+"""Name mapping between the longform of ProcessedFieldComponents and shorthands used"""
+
+
+def _long_field_name_to_shorthand(long_name: str) -> str:
+    """Name mapping between the longform of ProcessedFieldComponents and shorthands used"""
+    if long_name in LONG_FIELD_TO_SHORTHAND:
+        return LONG_FIELD_TO_SHORTHAND[long_name]
+
+    return ""
+
+
+def create_name_from_common_fields(
+    in_paths: Tuple[Path, ...], additional_suffixes: Optional[str] = None
+) -> Path:
+    """Attempt to craft a base name using the field elements that are in common.
+    The expectation that these are paths that can be processed by the ``processed_name_format``
+    handler. Resulting fields that are common across all ``in_paths`` are preserved.
+
+    Only fields that are recognised as a known property are retained. Suffixes that do not
+    form a component are ignored. For example:
+
+    >>> "59058/SB59058.RACS_1626-84.ch0287-0288.linmos.fits"
+
+    the `linmos.fits` would be ignored.
+
+    All ``in_paths`` should be detected, otherwise an ValueError is raised
+
+    Args:
+        in_paths (Tuple[Path, ...]): Collection of input paths to consider
+        additional_suffixes (Optional[str], optional): Add an additional set of suffixes before returning. Defaults to None.
+
+    Raises:
+        ValueError: Raised if any of the ``in_paths`` fail to conform to ``flint`` processed name format
+
+    Returns:
+        Path: Common fields with the same base parent path
+    """
+    from flint.options import options_to_dict
+
+    in_paths = tuple(Path(p) for p in in_paths)
+    parent = in_paths[0].parent
+    processed_components = list(map(processed_ms_format, in_paths))
+
+    if None in processed_components:
+        raise ValueError("Processed name format failed")
+    processed_components_dict = [options_to_dict(pc) for pc in processed_components]
+
+    keys_to_test = processed_components_dict[0].keys()
+    logger.info(f"{keys_to_test=}")
+    # One of the worst crimes on the seven seas I have ever done
+    # If a field is None, it was not detected. If a field is not constanst
+    # across all input paths, it is ignored. Should a field be considered
+    # common across all input paths, look up its short hand that
+    # would otherwise be usede and use it.
+    constant_fields = [
+        f"{_long_field_name_to_shorthand(long_name=key)}{processed_components_dict[0][key]}"
+        for key in keys_to_test
+        if len(set([pcd[key] for pcd in processed_components_dict])) == 1
+        and processed_components_dict[0][key] is not None
+    ]
+    logger.info(f"Identified {constant_fields=}")
+
+    name = ".".join(constant_fields)
+    if additional_suffixes:
+        additional_suffixes = (
+            f".{additional_suffixes}"
+            if not additional_suffixes.startswith(".")
+            else additional_suffixes
+        )
+        name += additional_suffixes
+    return Path(parent) / Path(name)
+
+
+# TODO: Need to assess the mode argument, and define literals that are accepted
 def create_image_cube_name(
-    image_prefix: Path, mode: str, suffix: str = "cube.fits"
+    image_prefix: Path,
+    mode: Optional[Union[str, List[str]]] = None,
+    suffix: Optional[Union[str, List[str]]] = None,
 ) -> Path:
     """Create a consistent naming scheme when combining images into cube images. Intended to
     be used when combining many subband images together into a single cube.
 
     The name returned will be:
-    >> {image_prefix}.{mode}.{suffix}
+    >>> {image_prefix}.{mode}.{suffix}.cube.fits
+
+    Should ``mode`` or ``suffix`` be a list, they will be joined with '.' separators. Hence, no
+    '.' should be added.
+
+    This function will always output 'cube.fits' at the end of the returned file name.
 
     Args:
         image_prefix (Path): The unique path of the name. Generally this is the common part among the input planes
-        mode (str): Additional mode to add to the file name
-        suffix (str, optional): The final suffix to appended. Defaults to ".cube.fits".
+        mode (Optional[Union[str, List[str]]], optional): Additional mode/s to add to the file name. Defaults to None.
+        suffix (Optional[Union[str, List[str]]], optional): Additional suffix/s to add before the final 'cube.fits'. Defaults to None.
 
     Returns:
         Path: The final path and file name
@@ -50,6 +132,27 @@ def create_image_cube_name(
     # it here for future proofing
     output_cube_name = f"{str(Path(image_prefix))}.{mode}.{suffix}"
 
+    output_components = [str(Path(image_prefix))]
+    if mode:
+        # TODO: Assess what modes are actually allowed. Suggestion is to
+        # make a class of some sort with specified and known markers that
+        # are opted into. Hate this "everything and anything"
+        (
+            output_components.append(mode)
+            if isinstance(mode, str)
+            else output_components.extend(mode)
+        )
+    if suffix:
+        # TODO: See above. Need a class of acceptable suffixes to use
+        (
+            output_components.append(suffix)
+            if isinstance(suffix, str)
+            else output_components.extend(suffix)
+        )
+
+    output_components.append("cube.fits")
+
+    output_cube_name = ".".join(output_components)
     return Path(output_cube_name)
 
 
@@ -72,13 +175,13 @@ def create_imaging_name_prefix(
 
     ms_path = MS.cast(ms=ms).path
 
-    name = ms_path.stem
+    names = [ms_path.stem]
     if pol:
-        name = f"{name}.{pol.lower()}"
+        names.append(f"{pol.lower()}")
     if channel_range:
-        name = f"{name}.ch{channel_range[0]}-{channel_range[1]}"
+        names.append(f"ch{channel_range[0]:04}-{channel_range[1]:04}")
 
-    return name
+    return ".".join(names)
 
 
 def get_beam_resolution_str(mode: str, marker: Optional[str] = None) -> str:
@@ -280,7 +383,7 @@ class ProcessedNameComponents(NamedTuple):
     """The sbid of the observation"""
     field: str
     """The name of the field extracted"""
-    beam: str
+    beam: Optional[str] = None
     """The beam of the observation processed"""
     spw: Optional[str] = None
     """The SPW of the observation. If there is only one spw this is None."""
@@ -288,6 +391,8 @@ class ProcessedNameComponents(NamedTuple):
     """The self-calibration round detected. This might be represented as 'noselfcal' in some image products, e.g. linmos. """
     pol: Optional[str] = None
     """The polarisation component, if it exists, in a filename. Examples are 'i','q','u','v'. Could be combinations in some cases depending on how it was created (e.g. based on wsclean pol option). """
+    channel_range: Optional[Tuple[int, int]] = None
+    """The channel range encoded in an file name. Generally are zero-padded, and are two fields of the form ch1234-1235, where the upper bound is exclusive. Defaults to none."""
 
 
 def processed_ms_format(
@@ -306,9 +411,19 @@ def processed_ms_format(
     in_name = in_name.name if isinstance(in_name, Path) else in_name
 
     logger.debug(f"Matching {in_name}")
+    # TODO: Should the Beam and field items be relaxed and allowed to be optional?
+    # TODOL At very least I think the beam should become options
     # A raw string is used to avoid bad unicode escaping
     regex = re.compile(
-        r"^SB(?P<sbid>[0-9]+)\.(?P<field>.+)\.beam(?P<beam>[0-9]+)((\.spw(?P<spw>[0-9]+))?)((\.round(?P<round>[0-9]+))?)((\.(?P<pol>(i|q|u|v|xx|yy|xy|yx)+))?)*"
+        (
+            r"^SB(?P<sbid>[0-9]+)"
+            r"\.(?P<field>[^.]+)"
+            r"((\.beam(?P<beam>[0-9]+))?)"
+            r"((\.spw(?P<spw>[0-9]+))?)"
+            r"((\.round(?P<round>[0-9]+))?)"
+            r"((\.(?P<pol>(i|q|u|v|xx|yy|xy|yx)+))?)"
+            r"((\.ch(?P<chl>([0-9]+))-(?P<chh>([0-9]+)))?)"
+        )
     )
     results = regex.match(in_name)
 
@@ -320,6 +435,8 @@ def processed_ms_format(
 
     logger.debug(f"Matched groups are: {groups}")
 
+    channel_range = (int(groups["chl"]), int(groups["chh"])) if groups["chl"] else None
+
     return ProcessedNameComponents(
         sbid=groups["sbid"],
         field=groups["field"],
@@ -327,6 +444,7 @@ def processed_ms_format(
         spw=groups["spw"],
         round=groups["round"],
         pol=groups["pol"],
+        channel_range=channel_range,
     )
 
 
@@ -392,6 +510,10 @@ def extract_beam_from_name(name: Union[str, Path]) -> int:
     """
 
     results = extract_components_from_name(name=name)
+    if results is None or results.beam is None:
+        raise ValueError(
+            f"Failed to convert to processed name format and find beam: {name=} {results=}"
+        )
 
     return int(results.beam)
 
@@ -448,7 +570,8 @@ def create_ms_name(
         ms_name_list.append(field)
 
     if format_components:
-        ms_name_list.append(f"beam{int(format_components.beam):02d}")
+        if format_components.beam is not None:
+            ms_name_list.append(f"beam{int(format_components.beam):02d}")
         if format_components.spw:
             ms_name_list.append(f"spw{format_components.spw}")
 

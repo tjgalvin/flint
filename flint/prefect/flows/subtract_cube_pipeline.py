@@ -9,12 +9,14 @@ already been preprocessed and fixed.
 
 from pathlib import Path
 from time import sleep
-from typing import Tuple, Optional, Union
+from typing import Tuple, Optional, Union, List
 
 import numpy as np
 from configargparse import ArgumentParser
+from fitscube.combine_fits import combine_fits
 from prefect import flow, unmapped, task
 
+from flint.coadd.linmos import LinmosCommand
 from flint.configuration import _load_and_copy_strategy
 from flint.exceptions import FrequencyMismatchError
 from flint.prefect.clusters import get_dask_runner
@@ -137,7 +139,8 @@ task_subtract_model_from_ms = task(subtract_model_from_data_column)
 
 @task
 def task_addmodel_to_ms(
-    ms: MS, addmodel_subtract_options: AddModelSubtractFieldOptions
+    ms: MS,
+    addmodel_subtract_options: AddModelSubtractFieldOptions,
 ) -> MS:
     from flint.imager.wsclean import get_wsclean_output_source_list_path
     from flint.calibrate.aocalibrate import AddModelOptions, add_model
@@ -169,6 +172,55 @@ def task_addmodel_to_ms(
         )
 
     return ms.with_options(model_column="MODEL_DATA")
+
+
+@task
+def task_combine_all_linmos_images(
+    linmos_commands: List[LinmosCommand],
+    remove_original_images: bool = False,
+    combine_weights: bool = False,
+) -> Path:
+    output_cube_path = Path("test.fits")
+
+    if combine_weights:
+        logger.info("Combining weight fits files")
+        images_to_combine = [
+            linmos_command.weight_fits for linmos_command in linmos_commands
+        ]
+        output_suffix = "weight"
+    else:
+        logger.info("Combining image fits files")
+        images_to_combine = [
+            linmos_command.image_fits for linmos_command in linmos_commands
+        ]
+        output_suffix = "linmos"
+
+    logger.info(f"Combining {len(images_to_combine)} FITS files together")
+
+    from flint.naming import create_name_from_common_fields, create_image_cube_name
+
+    assert len(images_to_combine) > 0, "No images to combine"
+
+    base_cube_path = create_name_from_common_fields(in_paths=tuple(images_to_combine))
+    output_cube_path = create_image_cube_name(
+        image_prefix=base_cube_path, mode="contsub", suffix=output_suffix
+    )
+
+    _ = combine_fits(
+        file_list=images_to_combine,
+        out_cube=output_cube_path,
+        max_workers=4,
+    )
+
+    if remove_original_images:
+        logger.info(f"Removing original {len(images_to_combine)} images")
+        for image in images_to_combine:
+            logger.info(f"Removing {image=}")
+            assert (
+                isinstance(image, Path) and image.exists()
+            ), f"{image=} does not exist, but it should"
+            image.unlink()
+    return Path(output_cube_path)
 
 
 @flow
@@ -275,12 +327,12 @@ def flow_subtract_cube(
         channel_parset = _convolve_linmos(
             wsclean_cmds=channel_wsclean_cmds,
             beam_shape=channel_beam_shape,
-            linmos_suffix_str=f"ch{channel_range[0]}-{channel_range[1]}",
+            linmos_suffix_str=f"ch{channel_range[0]:04d}-{channel_range[1]:04d}",
             field_options=subtract_field_options,
             convol_mode="image",
             convol_filter="image.",
             convol_suffix_str="optimal.image",
-            trim_linmos_fits=False,
+            trim_linmos_fits=False,  # This is necessary to ensure all images have same pixel-coordinates
             remove_original_images=True,
         )
         channel_parset_list.append(channel_parset)
@@ -289,6 +341,14 @@ def flow_subtract_cube(
             sleep(subtract_field_options.stagger_delay_seconds)
 
     # 4 - cube concatenated each linmos field together to single file
+    task_combine_all_linmos_images.submit(
+        linmos_commands=channel_parset_list, remove_original_images=True
+    )
+    task_combine_all_linmos_images.submit(
+        linmos_commands=channel_parset_list,
+        remove_original_images=True,
+        combine_weights=True,
+    )
 
     return
 

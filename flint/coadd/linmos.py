@@ -23,6 +23,8 @@ class LinmosCommand(NamedTuple):
     """The output location that the generated linmos parset has been written to"""
     image_fits: Path
     """Path to the output linmos image created (or will be). """
+    weight_fits: Path
+    """Path to the output weight image formed through the linmos process"""
 
 
 class BoundingBox(NamedTuple):
@@ -500,6 +502,7 @@ def generate_linmos_parameter_set(
         f"linmos.weightstate      = Inherent\n"
         f"linmos.cutoff           = {cutoff}\n"
         f"linmos.finalcutoff           = 0.01\n"
+        "linmos.imageaccess.axis  = 1\n"  # WSClean outputs frequency as second dimension (so 1 in zero indexing)
     )
     # Construct the holography section of the linmos parset
     parset += _get_holography_linmos_options(holofile=holofile, pol_axis=pol_axis)
@@ -576,6 +579,7 @@ def linmos_images(
         cmd=linmos_cmd_str,
         parset=linmos_parset,
         image_fits=linmos_names.image_fits.absolute(),
+        weight_fits=linmos_names.weight_fits.absolute(),
     )
 
     # Trim the fits image to remove empty pixels

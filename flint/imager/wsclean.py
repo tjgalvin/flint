@@ -235,7 +235,7 @@ def _rename_wsclean_title(name_str: str) -> str:
     Returns:
         str: The modified string if a wsclean string was matched, otherwise the input `name-str`
     """
-    search_re = r"(-(i|q|u|v|xx|xy|yx|yy))?-((MFS|[0-9]{4}))(-t[0-9]{5})?-(image|dirty|model|residual|psf)"
+    search_re = r"(-(i|q|u|v|xx|xy|yx|yy))?(-(MFS|[0-9]{4}))?(-t[0-9]{5})?-(image|dirty|model|residual|psf)"
     match_re = re.compile(search_re)
 
     logger.info(f"Searching {name_str=} for wsclean added components")
@@ -722,35 +722,15 @@ def combine_subbands_to_cube(
             logger.info(f"Not enough subband images for {mode=}, not creating a cube")
             continue
 
-        logger.info(f"Combining {len(subband_images)} images. {subband_images=}")
-        hdu1, freqs = combine_fits(file_list=subband_images)
-
-        # This changes the output cube to a shape of (chan, pol, dec, ra)
-        # which is what yandasoft linmos tasks like
-        new_header = hdu1[0].header  # type: ignore
-        data_cube = hdu1[0].data  # type: ignore
-
-        tmp_header = new_header.copy()
-        # Need to swap NAXIS 3 and 4 to make LINMOS happy - booo
-        for a, b in ((3, 4), (4, 3)):
-            new_header[f"CTYPE{a}"] = tmp_header[f"CTYPE{b}"]
-            new_header[f"CRPIX{a}"] = tmp_header[f"CRPIX{b}"]
-            new_header[f"CRVAL{a}"] = tmp_header[f"CRVAL{b}"]
-            new_header[f"CDELT{a}"] = tmp_header[f"CDELT{b}"]
-            new_header[f"CUNIT{a}"] = tmp_header[f"CUNIT{b}"]
-
-        # Cube is currently STOKES, FREQ, RA, DEC - needs to be FREQ, STOKES, RA, DEC
-        data_cube = np.moveaxis(data_cube, 1, 0)
-        hdu1[0].data = data_cube  # type: ignore
-        hdu1[0].header = new_header  # type: ignore
-
         output_cube_name = create_image_cube_name(
             image_prefix=Path(imageset.prefix), mode=mode
         )
 
+        logger.info(f"Combining {len(subband_images)} images. {subband_images=}")
+        freqs = combine_fits(file_list=subband_images, out_cube=output_cube_name)
+
         # Write out the hdu to preserve the beam table constructed in fitscube
         logger.info(f"Writing {output_cube_name=}")
-        hdu1.writeto(output_cube_name)
 
         output_freqs_name = Path(output_cube_name).with_suffix(".freqs_Hz.txt")
         np.savetxt(output_freqs_name, freqs.to("Hz").value)

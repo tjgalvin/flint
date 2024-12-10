@@ -2,6 +2,7 @@
 
 from datetime import datetime
 from pathlib import Path
+from typing import List
 
 import pytest
 
@@ -11,12 +12,14 @@ from flint.naming import (
     FITSMaskNames,
     ProcessedNameComponents,
     RawNameComponents,
+    _long_field_name_to_shorthand,
     add_timestamp_to_path,
     casda_ms_format,
     create_fits_mask_names,
     create_image_cube_name,
     create_imaging_name_prefix,
     create_ms_name,
+    create_name_from_common_fields,
     extract_beam_from_name,
     extract_components_from_name,
     get_aocalibrate_output_path,
@@ -28,6 +31,16 @@ from flint.naming import (
     processed_ms_format,
     raw_ms_format,
 )
+
+
+def test_longform_to_short_form_field_name():
+    """At times we need to convert the long form field name of the
+    PrcessedNameComponents to a short form that is used in filenames"""
+    assert "SB" == _long_field_name_to_shorthand(long_name="sbid")
+    assert "beam" == _long_field_name_to_shorthand(long_name="beam")
+    assert "round" == _long_field_name_to_shorthand(long_name="round")
+    assert "" == _long_field_name_to_shorthand(long_name="stokes")
+    assert "" == _long_field_name_to_shorthand(long_name="field")
 
 
 def test_create_imaging_name_prefix():
@@ -43,10 +56,10 @@ def test_create_imaging_name_prefix():
         assert name == "SB63789.EMU_1743-51.beam03.round4.i"
 
         name = create_imaging_name_prefix(ms=ms, pol=pol, channel_range=(100, 108))
-        assert name == "SB63789.EMU_1743-51.beam03.round4.i.ch100-108"
+        assert name == "SB63789.EMU_1743-51.beam03.round4.i.ch0100-0108"
 
     name = create_imaging_name_prefix(ms=ms, channel_range=(100, 108))
-    assert name == "SB63789.EMU_1743-51.beam03.round4.ch100-108"
+    assert name == "SB63789.EMU_1743-51.beam03.round4.ch0100-0108"
 
 
 def test_get_cube_fits_from_paths():
@@ -90,6 +103,33 @@ def test_create_image_cube_name():
     assert isinstance(name, Path)
     assert name == Path(
         "./57222/SB57222.RACS_1141-55.beam10.round3.i.residual.cube.fits"
+    )
+
+    name = create_image_cube_name(
+        image_prefix=Path("./57222/SB57222.RACS_1141-55.beam10.round3.i"),
+        mode=["residual", "pirate", "imaging"],
+    )
+    assert isinstance(name, Path)
+    assert name == Path(
+        "./57222/SB57222.RACS_1141-55.beam10.round3.i.residual.pirate.imaging.cube.fits"
+    )
+    name = create_image_cube_name(
+        image_prefix=Path("./57222/SB57222.RACS_1141-55.beam10.round3.i"),
+        mode=["residual", "pirate", "imaging"],
+        suffix="jackie",
+    )
+    assert isinstance(name, Path)
+    assert name == Path(
+        "./57222/SB57222.RACS_1141-55.beam10.round3.i.residual.pirate.imaging.jackie.cube.fits"
+    )
+    name = create_image_cube_name(
+        image_prefix=Path("./57222/SB57222.RACS_1141-55.beam10.round3.i"),
+        mode=["residual", "pirate", "imaging"],
+        suffix=["jackie", "boi"],
+    )
+    assert isinstance(name, Path)
+    assert name == Path(
+        "./57222/SB57222.RACS_1141-55.beam10.round3.i.residual.pirate.imaging.jackie.boi.cube.fits"
     )
 
 
@@ -511,6 +551,32 @@ def test_formatted_name_components():
     assert components.round is None
 
 
+def test_formatted_name_components_wchannelrange():
+    ex = "SB39400.RACS_0635-31.beam33.round1.i.ch0100-1009.MFS-image.conv.fits"
+
+    components = processed_ms_format(in_name=ex)
+    assert isinstance(components, ProcessedNameComponents)
+    assert components.sbid == "39400"
+    assert components.field == "RACS_0635-31"
+    assert components.beam == "33"
+    assert components.spw is None
+    assert components.round == "1"
+    assert components.pol == "i"
+    assert components.channel_range == (100, 1009)
+
+    ex = "SB39400.RACS_0635-31.beam33.round1.ch0100-1009.MFS-image.conv.fits"
+
+    components = processed_ms_format(in_name=ex)
+    assert isinstance(components, ProcessedNameComponents)
+    assert components.sbid == "39400"
+    assert components.field == "RACS_0635-31"
+    assert components.beam == "33"
+    assert components.spw is None
+    assert components.round == "1"
+    assert components.pol is None
+    assert components.channel_range == (100, 1009)
+
+
 def test_formatted_name_components_wround():
     ex = "SB39400.RACS_0635-31.beam33.round1-MFS-image.conv.fits"
 
@@ -581,3 +647,84 @@ def test_get_beam_from_name():
         extract_beam_from_name(name="SB39400.RACS_0635-31.beam33-MFS-image.conv.fits")
         == 33
     )
+
+
+def get_lots_of_names() -> List[Path]:
+    examples = [
+        "59058/SB59058.RACS_1626-84.ch0285-0286.linmos.fits",
+        "59058/SB59058.RACS_1626-84.ch0285-0286.linmos.fits",
+        "59058/SB59058.RACS_1626-84.ch0070-0071.linmos.fits",
+        "59058/SB59058.RACS_1626-84.ch0142-0143.linmos.fits",
+        "59058/SB59058.RACS_1626-84.ch0214-0215.linmos.fits",
+        "59058/SB59058.RACS_1626-84.ch0286-0287.linmos.fits",
+        "59058/SB59058.RACS_1626-84.ch0071-0072.linmos.fits",
+        "59058/SB59058.RACS_1626-84.ch0143-0144.linmos.fits",
+        "59058/SB59058.RACS_1626-84.ch0215-0216.linmos.fits",
+        "59058/SB59058.RACS_1626-84.ch0287-0288.linmos.fits",
+    ]
+
+    return list(map(Path, examples))
+
+
+def test_create_name_from_common_fields():
+    """See if we can identify the common bits of names as recognised in the process name format"""
+    examples = get_lots_of_names()
+
+    common_names = create_name_from_common_fields(in_paths=examples)
+    expected_common_name = Path("59058/SB59058.RACS_1626-84")
+
+    assert common_names == expected_common_name
+
+    for additional_suffix in (".linmos.fits", "linmos.fits"):
+        common_names = create_name_from_common_fields(
+            in_paths=examples, additional_suffixes=additional_suffix
+        )
+        expected_common_name = Path("59058/SB59058.RACS_1626-84.linmos.fits")
+
+        assert common_names == expected_common_name
+
+    examples.append("This/will/raise/a/valuerror")
+
+    with pytest.raises(ValueError):
+        create_name_from_common_fields(in_paths=examples)
+
+
+def get_lots_of_names_2() -> List[Path]:
+    examples = [
+        "59058/SB59058.RACS_1626-84.round4.i.ch0285-0286.linmos.fits",
+        "59058/SB59058.RACS_1626-84.round4.i.ch0285-0286.linmos.fits",
+        "59058/SB59058.RACS_1626-84.round4.i.ch0070-0071.linmos.fits",
+        "59058/SB59058.RACS_1626-84.round4.i.ch0142-0143.linmos.fits",
+        "59058/SB59058.RACS_1626-84.round4.i.ch0214-0215.linmos.fits",
+        "59058/SB59058.RACS_1626-84.round4.i.ch0286-0287.linmos.fits",
+        "59058/SB59058.RACS_1626-84.round4.i.ch0071-0072.linmos.fits",
+        "59058/SB59058.RACS_1626-84.round4.i.ch0143-0144.linmos.fits",
+        "59058/SB59058.RACS_1626-84.round4.i.ch0215-0216.linmos.fits",
+        "59058/SB59058.RACS_1626-84.round4.i.ch0287-0288.linmos.fits",
+    ]
+
+    return list(map(Path, examples))
+
+
+def test_create_name_from_common_fields_2():
+    """See if we can identify the common bits of names as recognised in the process name format.
+    This picks up some missing formats that this sea dog initially overlookede"""
+    examples = get_lots_of_names_2()
+
+    common_names = create_name_from_common_fields(in_paths=examples)
+    expected_common_name = Path("59058/SB59058.RACS_1626-84.round4.i")
+
+    assert common_names == expected_common_name
+
+    for additional_suffix in (".linmos.fits", "linmos.fits"):
+        common_names = create_name_from_common_fields(
+            in_paths=examples, additional_suffixes=additional_suffix
+        )
+        expected_common_name = Path("59058/SB59058.RACS_1626-84.round4.i.linmos.fits")
+
+        assert common_names == expected_common_name
+
+    examples.append("This/will/raise/a/valuerror")
+
+    with pytest.raises(ValueError):
+        create_name_from_common_fields(in_paths=examples)

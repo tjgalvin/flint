@@ -16,6 +16,9 @@
     logging
   - added flag to disable logging singularity command output to the
     `flint.logging.logger`
+  - subtract flow will remove files whenever possible (remove original files
+    after convolving, removing convolved files after linmos, remove linmos after
+    combining)
 
 # 0.2.8
 
