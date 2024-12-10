@@ -90,9 +90,7 @@ def create_name_from_common_fields(
         if len(set([pcd[key] for pcd in processed_components_dict])) == 1
         and processed_components_dict[0][key] is not None
     ]
-    logger.info(f"{constant_fields=}")
-    for pcd in processed_components_dict:
-        logger.info(pcd)
+    logger.info(f"Identified {constant_fields=}")
 
     name = ".".join(constant_fields)
     if additional_suffixes:
