@@ -12,6 +12,7 @@ from flint.naming import (
     FITSMaskNames,
     ProcessedNameComponents,
     RawNameComponents,
+    _long_field_name_to_shorthand,
     add_timestamp_to_path,
     casda_ms_format,
     create_fits_mask_names,
@@ -30,6 +31,16 @@ from flint.naming import (
     processed_ms_format,
     raw_ms_format,
 )
+
+
+def test_longform_to_short_form_field_name():
+    """At times we need to convert the long form field name of the
+    PrcessedNameComponents to a short form that is used in filenames"""
+    assert "SB" == _long_field_name_to_shorthand(long_name="sbid")
+    assert "beam" == _long_field_name_to_shorthand(long_name="beam")
+    assert "round" == _long_field_name_to_shorthand(long_name="round")
+    assert "" == _long_field_name_to_shorthand(long_name="stokes")
+    assert "" == _long_field_name_to_shorthand(long_name="field")
 
 
 def test_create_imaging_name_prefix():
