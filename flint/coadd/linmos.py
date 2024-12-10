@@ -312,7 +312,7 @@ def get_image_weight(
 
 def generate_weights_list_and_files(
     image_paths: Collection[Path], mode: str = "mad", stride: int = 1
-) -> str:
+) -> Tuple[Path, ...]:
     """Generate the expected linmos weight files, and construct an appropriate
     string that can be embedded into a linmos partset. These weights files will
     appear as:
@@ -337,7 +337,7 @@ def generate_weights_list_and_files(
         mode (str, optional): The mode to use when calling get_image_weight
 
     Returns:
-        str: The string to embedded into the yandasoft linmos parset file
+        Tuple[Path, ...]: A list of paths pointing to the weights for each input image
     """
     logger.info(
         f"No weights provided. Calculating weights for {len(image_paths)} images."
@@ -364,12 +364,7 @@ def generate_weights_list_and_files(
             out_file.write(weights)
             out_file.write("\n")  # Required for linmos to properly process weights
 
-    weight_str = [
-        str(weight_file) for weight_file in weight_file_list if weight_file.exists()
-    ]
-    weight_list = "[" + ",".join(weight_str) + "]"
-
-    return weight_list
+    return tuple(weight_file_list)
 
 
 def _get_alpha_linmos_option(pol_axis: Optional[float] = None) -> str:
@@ -488,6 +483,11 @@ def generate_linmos_parameter_set(
             image_paths=images, mode="mad", stride=8
         )
 
+    weight_str = [
+        str(weight_file) for weight_file in weight_list if weight_file.exists()
+    ]
+    weight_str = "[" + ",".join(weight_str) + "]"
+
     beam_order_strs = [str(extract_beam_from_name(str(p.name))) for p in images]
     beam_order_list = "[" + ",".join(beam_order_strs) + "]"
 
@@ -501,7 +501,7 @@ def generate_linmos_parameter_set(
     # Parameters are taken from arrakis
     parset = (
         f"linmos.names            = {img_list}\n"
-        f"linmos.weights          = {weight_list}\n"
+        f"linmos.weights          = {weight_str}\n"
         f"linmos.beams            = {beam_order_list}\n"
         # f"linmos.beamangle        = {beam_angle_list}\n"
         f"linmos.imagetype        = fits\n"
@@ -531,7 +531,7 @@ def generate_linmos_parameter_set(
     linmos_parset_summary = LinmosParsetSummary(
         parset_path=parset_output_path,
         weight_text_paths=tuple([Path(wi) for wi in weight_list]),
-        image_paths=tuple([Path(i) for i in img_list]),
+        image_paths=tuple([Path(i) for i in images]),
     )
 
     return linmos_parset_summary
