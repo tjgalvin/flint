@@ -187,11 +187,13 @@ def task_combine_all_linmos_images(
         images_to_combine = [
             linmos_command.weight_fits for linmos_command in linmos_commands
         ]
+        output_suffix = "weights.fits"
     else:
         logger.info("Combining image fits files")
         images_to_combine = [
             linmos_command.image_fits for linmos_command in linmos_commands
         ]
+        output_suffix = "linmos.fits"
 
     logger.info(f"Combining {len(images_to_combine)} FITS files together")
 
@@ -201,7 +203,7 @@ def task_combine_all_linmos_images(
 
     base_cube_path = create_name_from_common_fields(in_paths=images_to_combine)
     output_cube_path = create_image_cube_name(
-        image_prefix=base_cube_path, mode="contsub", suffix="linmos.fits"
+        image_prefix=base_cube_path, mode="contsub", suffix=output_suffix
     )
 
     _ = combine_fits(
