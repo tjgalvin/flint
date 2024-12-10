@@ -105,18 +105,25 @@ def create_name_from_common_fields(
 
 # TODO: Need to assess the mode argument, and define literals that are accepted
 def create_image_cube_name(
-    image_prefix: Path, mode: str, suffix: str = "cube.fits"
+    image_prefix: Path,
+    mode: Optional[Union[str, List[str]]] = None,
+    suffix: Optional[Union[str, List[str]]] = None,
 ) -> Path:
     """Create a consistent naming scheme when combining images into cube images. Intended to
     be used when combining many subband images together into a single cube.
 
     The name returned will be:
-    >> {image_prefix}.{mode}.{suffix}
+    >>> {image_prefix}.{mode}.{suffix}.cube.fits
+
+    Should ``mode`` or ``suffix`` be a list, they will be joined with '.' separators. Hence, no
+    '.' should be added.
+
+    This function will always output 'cube.fits' at the end of the returned file name.
 
     Args:
         image_prefix (Path): The unique path of the name. Generally this is the common part among the input planes
-        mode (str): Additional mode to add to the file name
-        suffix (str, optional): The final suffix to appended. Defaults to ".cube.fits".
+        mode (Optional[Union[str, List[str]]], optional): Additional mode/s to add to the file name. Defaults to None.
+        suffix (Optional[Union[str, List[str]]], optional): Additional suffix/s to add before the final 'cube.fits'. Defaults to None.
 
     Returns:
         Path: The final path and file name
@@ -125,6 +132,23 @@ def create_image_cube_name(
     # it here for future proofing
     output_cube_name = f"{str(Path(image_prefix))}.{mode}.{suffix}"
 
+    output_components = [str(Path(image_prefix))]
+    if mode:
+        (
+            output_components.append(mode)
+            if isinstance(mode, str)
+            else output_components.extend(mode)
+        )
+    if suffix:
+        (
+            output_components.append(suffix)
+            if isinstance(suffix, str)
+            else output_components.extend(suffix)
+        )
+
+    output_components.append("cube.fits")
+
+    output_cube_name = ".".join(output_components)
     return Path(output_cube_name)
 
 

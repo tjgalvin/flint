@@ -105,6 +105,33 @@ def test_create_image_cube_name():
         "./57222/SB57222.RACS_1141-55.beam10.round3.i.residual.cube.fits"
     )
 
+    name = create_image_cube_name(
+        image_prefix=Path("./57222/SB57222.RACS_1141-55.beam10.round3.i"),
+        mode=["residual", "pirate", "imaging"],
+    )
+    assert isinstance(name, Path)
+    assert name == Path(
+        "./57222/SB57222.RACS_1141-55.beam10.round3.i.residual.pirate.imaging.cube.fits"
+    )
+    name = create_image_cube_name(
+        image_prefix=Path("./57222/SB57222.RACS_1141-55.beam10.round3.i"),
+        mode=["residual", "pirate", "imaging"],
+        suffix="jackie",
+    )
+    assert isinstance(name, Path)
+    assert name == Path(
+        "./57222/SB57222.RACS_1141-55.beam10.round3.i.residual.pirate.imaging.jackie.cube.fits"
+    )
+    name = create_image_cube_name(
+        image_prefix=Path("./57222/SB57222.RACS_1141-55.beam10.round3.i"),
+        mode=["residual", "pirate", "imaging"],
+        suffix=["jackie", "boi"],
+    )
+    assert isinstance(name, Path)
+    assert name == Path(
+        "./57222/SB57222.RACS_1141-55.beam10.round3.i.residual.pirate.imaging.jackie.boi.cube.fits"
+    )
+
 
 def test_get_beam_resolution_str():
     """Map the known / support modes of beam resolution in file names"""
