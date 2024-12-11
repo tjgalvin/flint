@@ -545,6 +545,26 @@ def generate_linmos_parameter_set(
     return linmos_parset_summary
 
 
+def _linmos_cleanup(linmos_parset_summary: LinmosParsetSummary) -> Tuple[Path, ...]:
+    """Clean up linmos files if requested.
+
+    Args:
+        linmos_parset_summary (LinmosParsetSummary): Parset summary from which the text file weights are gathered for deletion from
+
+    Returns:
+        Tuple[Path, ...]: Set of files removed
+    """
+
+    from flint.utils import remove_files_folders
+
+    removed_files = []
+    if linmos_parset_summary.weight_text_paths is not None:
+        removed_files.extend(
+            remove_files_folders(*linmos_parset_summary.weight_text_paths)
+        )
+    return tuple(removed_files)
+
+
 # TODO: These options are starting to get a little large. Perhaps we should use BaseOptions.
 def linmos_images(
     images: Collection[Path],
@@ -619,12 +639,7 @@ def linmos_images(
         )
 
     if cleanup:
-        if linmos_parset_summary.weight_text_paths is not None:
-            logger.info(
-                f"Remoing {len(linmos_parset_summary.weight_text_paths)} weight files generated"
-            )
-            for weight_file in linmos_parset_summary.weight_text_paths:
-                Path(weight_file).unlink()
+        _linmos_cleanup(linmos_parset_summary=linmos_parset_summary)
 
     return linmos_cmd
 

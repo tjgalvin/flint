@@ -11,6 +11,8 @@ from astropy.io import fits
 
 from flint.coadd.linmos import (
     BoundingBox,
+    LinmosParsetSummary,
+    _linmos_cleanup,
     _create_bound_box_plane,
     _get_alpha_linmos_option,
     _get_holography_linmos_options,
@@ -72,6 +74,30 @@ def test_linmos_alpha_option():
 
     with pytest.raises(AssertionError):
         _get_alpha_linmos_option(pol_axis=1234)
+
+
+def test_cleanup_image_weights_(tmpdir):
+    """Remove the weight files that have been created"""
+    cube_weight = Path(tmpdir) / "cubeweight"
+    cube_weight.mkdir(parents=True, exist_ok=True)
+    cube_fits = cube_weight / "cube.fits"
+
+    create_image_cube(out_path=cube_fits)
+    weight_file = cube_fits.with_suffix(".weights.txt")
+    assert not weight_file.exists()
+
+    weight_paths = generate_weights_list_and_files(image_paths=[cube_fits], mode="mad")
+    linmos_parset_summary = LinmosParsetSummary(
+        parset_path=Path("JackSparrow.txt"),
+        image_paths=tuple([cube_fits]),
+        weight_text_paths=weight_paths,
+    )
+    assert weight_file.exists()
+    assert isinstance(linmos_parset_summary, LinmosParsetSummary)
+    files_removed = _linmos_cleanup(linmos_parset_summary=linmos_parset_summary)
+    assert not weight_file.exists()
+    assert len(files_removed) == 1
+    assert files_removed[0] == weight_file
 
 
 def test_get_image_weights(tmpdir):
