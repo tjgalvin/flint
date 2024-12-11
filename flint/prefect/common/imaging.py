@@ -651,6 +651,8 @@ def task_linmos_images(
 
     pol_axis = field_summary.pol_axis if field_summary else None
 
+    # TODO: Perhaps the 'remove_original_files' should also be dealt with
+    # internally by linmos_images
     linmos_cmd = linmos_images(
         images=filter_images,
         parset_output_path=Path(output_path),

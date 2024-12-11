@@ -47,9 +47,9 @@ class LinmosParsetSummary(NamedTuple):
 
     parset_path: Path
     """Path to the parset text file created"""
-    weight_text_paths: Tuple[Path]
+    weight_text_paths: Optional[Tuple[Path, ...]] = None
     """The set of Paths to the text files with per channel weights used by linmos"""
-    image_paths: Tuple[Path]
+    image_paths: Tuple[Path, ...]
     """The set of paths to the fits images that were coadded together"""
 
 
@@ -478,15 +478,21 @@ def generate_linmos_parameter_set(
     # beam-wise weighting) assume that all beams are of about the same
     # quality. In reality, this should be updated to provide a RMS noise
     # estimate per-pixel of each image.
-    if weight_list is None:
-        weight_list = generate_weights_list_and_files(
+    weight_str = weight_list
+    weight_files: Optional[Tuple[Path, ...]] = None
+    if weight_str is None:
+        weight_files = generate_weights_list_and_files(
             image_paths=images, mode="mad", stride=8
         )
-
-    weight_str = [
-        str(weight_file) for weight_file in weight_list if weight_file.exists()
-    ]
-    weight_str = "[" + ",".join(weight_str) + "]"
+        assert (
+            weight_files is not None
+        ), f"{weight_files=}, which should not happen after creating weight files"
+        weight_str = [
+            str(weight_file)
+            for weight_file in weight_files
+            if Path(weight_file).exists()
+        ]
+        weight_str = "[" + ",".join(weight_str) + "]"
 
     beam_order_strs = [str(extract_beam_from_name(str(p.name))) for p in images]
     beam_order_list = "[" + ",".join(beam_order_strs) + "]"
@@ -530,8 +536,10 @@ def generate_linmos_parameter_set(
 
     linmos_parset_summary = LinmosParsetSummary(
         parset_path=parset_output_path,
-        weight_text_paths=tuple([Path(wi) for wi in weight_list]),
-        image_paths=tuple([Path(i) for i in images]),
+        weight_text_paths=tuple(map(Path, weight_files))
+        if weight_files
+        else weight_files,
+        image_paths=tuple(map(Path, images)),
     )
 
     return linmos_parset_summary
@@ -610,13 +618,14 @@ def linmos_images(
         )
 
     if cleanup:
-        logger.info(
-            f"Remoing {len(linmos_parset_summary.weight_text_paths)} weight files generated"
-        )
-        [
-            Path(weight_file).unlink()
-            for weight_file in linmos_parset_summary.weight_text_paths
-        ]
+        if linmos_parset_summary.weight_text_paths is not None:
+            logger.info(
+                f"Remoing {len(linmos_parset_summary.weight_text_paths)} weight files generated"
+            )
+            [
+                Path(weight_file).unlink()
+                for weight_file in linmos_parset_summary.weight_text_paths
+            ]
 
     return linmos_cmd
 
