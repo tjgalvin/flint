@@ -597,6 +597,7 @@ def task_linmos_images(
     field_summary: Optional[FieldSummary] = None,
     trim_linmos_fits: bool = True,
     remove_original_images: bool = False,
+    cleanup: bool = False,
 ) -> LinmosCommand:
     """Run the yandasoft linmos task against a set of input images
 
@@ -611,6 +612,7 @@ def task_linmos_images(
         field_summary (Optional[FieldSummary], optional): The summary of the field, including (importantly) to orientation of the third-axis. Defaults to None.
         trim_linmos_fits (bool, optional): Attempt to trim the output linmos files of as much empty space as possible. Defaults to True.
         remove_original_images (bool, optional): If True remove the original image after they have been convolved. Defaults to False.
+        cleanup (bool, optional): Clean up items created throughout linmos, including the per-channl weight text files for each input image. Defaults to False.
 
     Returns:
         LinmosCommand: The linmos command and associated meta-data
@@ -649,6 +651,8 @@ def task_linmos_images(
 
     pol_axis = field_summary.pol_axis if field_summary else None
 
+    # TODO: Perhaps the 'remove_original_files' should also be dealt with
+    # internally by linmos_images
     linmos_cmd = linmos_images(
         images=filter_images,
         parset_output_path=Path(output_path),
@@ -658,6 +662,7 @@ def task_linmos_images(
         cutoff=cutoff,
         pol_axis=pol_axis,
         trim_linmos_fits=trim_linmos_fits,
+        cleanup=cleanup,
     )
     if remove_original_images:
         logger.info(f"Removing {len(filter_images)} input images")
@@ -677,6 +682,7 @@ def _convolve_linmos(
     convol_suffix_str: str = "conv",
     trim_linmos_fits: bool = True,
     remove_original_images: bool = False,
+    cleanup_linmos: bool = False,
 ) -> LinmosCommand:
     """An internal function that launches the convolution to a common resolution
     and subsequent linmos of the wsclean residual images.
@@ -692,6 +698,7 @@ def _convolve_linmos(
         convol_suffix_str (str, optional): The suffix added to the convolved images. Defaults to 'conv'.
         trim_linmos_fits (bool, optional): Attempt to trim the output linmos files of as much empty space as possible. Defaults to True.
         remove_original_images (bool, optional): If True remove the original image after they have been convolved. Defaults to False.
+        cleanup_linmos (bool, optional): Clean up items created throughout linmos, including the per-channl weight text files for each input image. Defaults to False.
 
     Returns:
         LinmosCommand: Resulting linmos command parset
@@ -717,6 +724,7 @@ def _convolve_linmos(
         trim_linmos_fits=trim_linmos_fits,
         filter=convol_filter,
         remove_original_images=remove_original_images,
+        cleanup=cleanup_linmos,
     )  # type: ignore
 
     return parset

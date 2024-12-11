@@ -42,6 +42,17 @@ class BoundingBox(NamedTuple):
     """The original shape of the image. If constructed against a cube this is the shape of a single plane."""
 
 
+class LinmosParsetSummary(NamedTuple):
+    """Container for key components around a linmos parset file"""
+
+    parset_path: Path
+    """Path to the parset text file created"""
+    image_paths: Tuple[Path, ...]
+    """The set of paths to the fits images that were coadded together"""
+    weight_text_paths: Optional[Tuple[Path, ...]] = None
+    """The set of Paths to the text files with per channel weights used by linmos"""
+
+
 def _create_bound_box_plane(
     image_data: np.ndarray, is_masked: bool = False
 ) -> Optional[BoundingBox]:
@@ -301,7 +312,7 @@ def get_image_weight(
 
 def generate_weights_list_and_files(
     image_paths: Collection[Path], mode: str = "mad", stride: int = 1
-) -> str:
+) -> Tuple[Path, ...]:
     """Generate the expected linmos weight files, and construct an appropriate
     string that can be embedded into a linmos partset. These weights files will
     appear as:
@@ -326,7 +337,7 @@ def generate_weights_list_and_files(
         mode (str, optional): The mode to use when calling get_image_weight
 
     Returns:
-        str: The string to embedded into the yandasoft linmos parset file
+        Tuple[Path, ...]: A list of paths pointing to the weights for each input image
     """
     logger.info(
         f"No weights provided. Calculating weights for {len(image_paths)} images."
@@ -353,12 +364,7 @@ def generate_weights_list_and_files(
             out_file.write(weights)
             out_file.write("\n")  # Required for linmos to properly process weights
 
-    weight_str = [
-        str(weight_file) for weight_file in weight_file_list if weight_file.exists()
-    ]
-    weight_list = "[" + ",".join(weight_str) + "]"
-
-    return weight_list
+    return tuple(weight_file_list)
 
 
 def _get_alpha_linmos_option(pol_axis: Optional[float] = None) -> str:
@@ -441,7 +447,7 @@ def generate_linmos_parameter_set(
     cutoff: float = 0.001,
     pol_axis: Optional[float] = None,
     overwrite: bool = True,
-) -> Path:
+) -> LinmosParsetSummary:
     """Generate a parset file that will be used with the
     yandasoft linmos task.
 
@@ -456,7 +462,7 @@ def generate_linmos_parameter_set(
         overwrite (bool, optional): If True and the parset file already exists, overwrite it. Otherwise a FileExistsError is raised should the parset exist. Defaults to True.
 
     Returns:
-        Path: Path to the output parset file.
+        LinmosParsetSummary: Important components around the generated parset file.
     """
     img_str: List[str] = list(
         [str(p).replace(".fits", "") for p in images if p.exists()]
@@ -472,10 +478,21 @@ def generate_linmos_parameter_set(
     # beam-wise weighting) assume that all beams are of about the same
     # quality. In reality, this should be updated to provide a RMS noise
     # estimate per-pixel of each image.
-    if weight_list is None:
-        weight_list = generate_weights_list_and_files(
+    weight_str = weight_list
+    weight_files: Optional[Tuple[Path, ...]] = None
+    if weight_str is None:
+        weight_files = generate_weights_list_and_files(
             image_paths=images, mode="mad", stride=8
         )
+        assert (
+            weight_files is not None
+        ), f"{weight_files=}, which should not happen after creating weight files"
+        _weight_str = [
+            str(weight_file)
+            for weight_file in weight_files
+            if Path(weight_file).exists()
+        ]
+        weight_str = "[" + ",".join(_weight_str) + "]"
 
     beam_order_strs = [str(extract_beam_from_name(str(p.name))) for p in images]
     beam_order_list = "[" + ",".join(beam_order_strs) + "]"
@@ -490,7 +507,7 @@ def generate_linmos_parameter_set(
     # Parameters are taken from arrakis
     parset = (
         f"linmos.names            = {img_list}\n"
-        f"linmos.weights          = {weight_list}\n"
+        f"linmos.weights          = {weight_str}\n"
         f"linmos.beams            = {beam_order_list}\n"
         # f"linmos.beamangle        = {beam_angle_list}\n"
         f"linmos.imagetype        = fits\n"
@@ -517,9 +534,38 @@ def generate_linmos_parameter_set(
     with open(parset_output_path, "w") as parset_file:
         parset_file.write(parset)
 
-    return parset_output_path
+    linmos_parset_summary = LinmosParsetSummary(
+        parset_path=parset_output_path,
+        weight_text_paths=tuple(map(Path, weight_files))
+        if weight_files
+        else weight_files,
+        image_paths=tuple(map(Path, images)),
+    )
+
+    return linmos_parset_summary
 
 
+def _linmos_cleanup(linmos_parset_summary: LinmosParsetSummary) -> Tuple[Path, ...]:
+    """Clean up linmos files if requested.
+
+    Args:
+        linmos_parset_summary (LinmosParsetSummary): Parset summary from which the text file weights are gathered for deletion from
+
+    Returns:
+        Tuple[Path, ...]: Set of files removed
+    """
+
+    from flint.utils import remove_files_folders
+
+    removed_files = []
+    if linmos_parset_summary.weight_text_paths is not None:
+        removed_files.extend(
+            remove_files_folders(*linmos_parset_summary.weight_text_paths)
+        )
+    return tuple(removed_files)
+
+
+# TODO: These options are starting to get a little large. Perhaps we should use BaseOptions.
 def linmos_images(
     images: Collection[Path],
     parset_output_path: Path,
@@ -530,6 +576,7 @@ def linmos_images(
     cutoff: float = 0.001,
     pol_axis: Optional[float] = None,
     trim_linmos_fits: bool = True,
+    cleanup: bool = False,
 ) -> LinmosCommand:
     """Create a linmos parset file and execute it.
 
@@ -543,6 +590,7 @@ def linmos_images(
         cutoff (float, optional): Pixels whose primary beam attenuation is below this cutoff value are blanked. Defaults to 0.001.
         pol_axis (Optional[float], optional): The physical oritentation of the ASKAP third-axis in radians. Defaults to None.
         trim_linmos_fits (bool, optional): Attempt to trim the output linmos files of as much empty space as possible. Defaults to True.
+        cleanup (bool, optional): Remove files generated throughout linmos, including the text files with the channel weights. Defaults to False.
 
     Returns:
         LinmosCommand: The linmos command executed and the associated parset file
@@ -554,7 +602,7 @@ def linmos_images(
 
     linmos_names: LinmosNames = create_linmos_names(name_prefix=image_output_name)
 
-    linmos_parset = generate_linmos_parameter_set(
+    linmos_parset_summary = generate_linmos_parameter_set(
         images=images,
         parset_output_path=parset_output_path,
         linmos_names=linmos_names,
@@ -564,9 +612,9 @@ def linmos_images(
         pol_axis=pol_axis,
     )
 
-    linmos_cmd_str = f"linmos -c {str(linmos_parset)}"
+    linmos_cmd_str = f"linmos -c {str(linmos_parset_summary.parset_path)}"
     bind_dirs = [image.absolute().parent for image in images] + [
-        linmos_parset.absolute().parent
+        linmos_parset_summary.parset_path.absolute().parent
     ]
     if holofile:
         bind_dirs.append(holofile.absolute().parent)
@@ -577,7 +625,7 @@ def linmos_images(
 
     linmos_cmd = LinmosCommand(
         cmd=linmos_cmd_str,
-        parset=linmos_parset,
+        parset=linmos_parset_summary.parset_path,
         image_fits=linmos_names.image_fits.absolute(),
         weight_fits=linmos_names.weight_fits.absolute(),
     )
@@ -589,6 +637,9 @@ def linmos_images(
             image_path=linmos_names.weight_fits,
             bounding_box=image_trim_results.bounding_box,
         )
+
+    if cleanup:
+        _linmos_cleanup(linmos_parset_summary=linmos_parset_summary)
 
     return linmos_cmd
 
