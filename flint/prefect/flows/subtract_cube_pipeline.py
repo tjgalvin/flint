@@ -307,7 +307,7 @@ def flow_subtract_cube(
             update_tracked_column=True,
         )
 
-    channel_parset_list = []
+    beam_image_task_list = []
     for channel, freq_mhz in enumerate(freqs_mhz):
         logger.info(f"Imaging {channel=} {freq_mhz=}")
         channel_range = (channel, channel + 1)
@@ -324,6 +324,10 @@ def flow_subtract_cube(
             cutoff=subtract_field_options.beam_cutoff,
             filter="image.",
         )
+        beam_image_task_list.append((channel_wsclean_cmds, channel_beam_shape))
+
+    channel_parset_list = []
+    for channel_wsclean_cmds, channel_beam_shape in beam_image_task_list:
         channel_parset = _convolve_linmos(
             wsclean_cmds=channel_wsclean_cmds,
             beam_shape=channel_beam_shape,
