@@ -325,6 +325,11 @@ def flow_subtract_cube(
             filter="image.",
         )
         beam_image_task_list.append((channel_wsclean_cmds, channel_beam_shape))
+        if (
+            subtract_field_options.stagger_delay_seconds
+            and subtract_field_options.stagger_delay_seconds > 0
+        ):
+            sleep(subtract_field_options.stagger_delay_seconds)
 
     channel_parset_list = []
     for channel_wsclean_cmds, channel_beam_shape in beam_image_task_list:
@@ -342,7 +347,10 @@ def flow_subtract_cube(
         )
         channel_parset_list.append(channel_parset)
 
-        if subtract_field_options.stagger_delay_seconds:
+        if (
+            subtract_field_options.stagger_delay_seconds
+            and subtract_field_options.stagger_delay_seconds > 0
+        ):
             sleep(subtract_field_options.stagger_delay_seconds)
 
     # 4 - cube concatenated each linmos field together to single file
