@@ -545,6 +545,7 @@ def generate_linmos_parameter_set(
     return linmos_parset_summary
 
 
+# TODO: These options are starting to get a little large. Perhaps we should use BaseOptions.
 def linmos_images(
     images: Collection[Path],
     parset_output_path: Path,
