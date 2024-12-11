@@ -47,10 +47,10 @@ class LinmosParsetSummary(NamedTuple):
 
     parset_path: Path
     """Path to the parset text file created"""
-    weight_text_paths: Optional[Tuple[Path, ...]] = None
-    """The set of Paths to the text files with per channel weights used by linmos"""
     image_paths: Tuple[Path, ...]
     """The set of paths to the fits images that were coadded together"""
+    weight_text_paths: Optional[Tuple[Path, ...]] = None
+    """The set of Paths to the text files with per channel weights used by linmos"""
 
 
 def _create_bound_box_plane(
@@ -487,12 +487,12 @@ def generate_linmos_parameter_set(
         assert (
             weight_files is not None
         ), f"{weight_files=}, which should not happen after creating weight files"
-        weight_str = [
+        _weight_str = [
             str(weight_file)
             for weight_file in weight_files
             if Path(weight_file).exists()
         ]
-        weight_str = "[" + ",".join(weight_str) + "]"
+        weight_str = "[" + ",".join(_weight_str) + "]"
 
     beam_order_strs = [str(extract_beam_from_name(str(p.name))) for p in images]
     beam_order_list = "[" + ",".join(beam_order_strs) + "]"
@@ -622,10 +622,8 @@ def linmos_images(
             logger.info(
                 f"Remoing {len(linmos_parset_summary.weight_text_paths)} weight files generated"
             )
-            [
+            for weight_file in linmos_parset_summary.weight_text_paths:
                 Path(weight_file).unlink()
-                for weight_file in linmos_parset_summary.weight_text_paths
-            ]
 
     return linmos_cmd
 
