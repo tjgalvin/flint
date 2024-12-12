@@ -583,7 +583,7 @@ def task_convolve_image(
     return convolved_images
 
 
-@task
+@task(retries=3)
 def task_linmos_images(
     images: Collection[Collection[Path]],
     container: Path,
