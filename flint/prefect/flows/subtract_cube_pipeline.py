@@ -324,7 +324,9 @@ def flow_subtract_cube(
             cutoff=subtract_field_options.beam_cutoff,
             filter="image.",
         )
-        beam_image_task_list.append((channel_wsclean_cmds, channel_beam_shape))
+        beam_image_task_list.append(
+            (channel_range, channel_wsclean_cmds, channel_beam_shape)
+        )
         if (
             subtract_field_options.stagger_delay_seconds
             and subtract_field_options.stagger_delay_seconds > 0
@@ -332,7 +334,7 @@ def flow_subtract_cube(
             sleep(subtract_field_options.stagger_delay_seconds)
 
     channel_parset_list = []
-    for channel_wsclean_cmds, channel_beam_shape in beam_image_task_list:
+    for channel_range, channel_wsclean_cmds, channel_beam_shape in beam_image_task_list:
         channel_parset = _convolve_linmos(
             wsclean_cmds=channel_wsclean_cmds,
             beam_shape=channel_beam_shape,
