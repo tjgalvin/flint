@@ -37,6 +37,8 @@ pandas = "*"
 ConfigArgParse = "^1.7"
 fitscube = "^0.5.0"
 astroquery = "^0.4.7"
+crystalball = { git = "https://github.com/AlecThomson/crystalball.git@5e8017bc511a657d908bdebd780e8f20d5b7c970" } # Testing of the dask distributed client
+
 
 [tool.poetry.group.dev.dependencies]
 black = "^23.3.0"
