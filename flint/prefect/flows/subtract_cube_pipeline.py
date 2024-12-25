@@ -30,6 +30,7 @@ from flint.ms import (
 )
 from flint.options import (
     AddModelSubtractFieldOptions,
+    BaseOptions,
     SubtractFieldOptions,
     add_options_to_parser,
     create_options_from_parser,
@@ -40,6 +41,15 @@ from flint.prefect.common.imaging import (
     _convolve_linmos,
 )
 from flint.naming import get_sbid_from_path
+
+
+class CrystalBallOptions(BaseOptions):
+    """Options related to running crystal ball"""
+
+    attempt_crystalball: bool = False
+    """Attempt to predict the model visibilities using ``crystalball``"""
+    wsclean_pol_mode: List[str] = ["i"]
+    """The polarisation of the wsclean model that was generated"""
 
 
 def _check_and_verify_options(
@@ -172,6 +182,25 @@ def task_addmodel_to_ms(
         )
 
     return ms.with_options(model_column="MODEL_DATA")
+
+
+def task_crystalball_to_ms(ms: MS, crystalball_options: CrystalBallOptions) -> MS:
+    from prefect_dask import get_dask_client
+    from flint.imager.wsclean import get_wsclean_output_source_list_path
+
+    logger.info(f"Searching for wsclean source list for {ms.path}")
+    for idx, pol in enumerate(crystalball_options.wsclean_pol_mode):
+        wsclean_source_list_path = get_wsclean_output_source_list_path(
+            name_path=ms.path, pol=pol
+        )
+        assert (
+            wsclean_source_list_path.exists()
+        ), f"{wsclean_source_list_path=} was requested, but does not exist"
+
+    with get_dask_client():
+        logger.info("Running crystalball in prefect dask client")
+
+    return ms
 
 
 @task

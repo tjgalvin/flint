@@ -404,7 +404,9 @@ def _get_alpha_linmos_option(pol_axis: Optional[float] = None) -> str:
 
 
 def _get_holography_linmos_options(
-    holofile: Optional[Path] = None, pol_axis: Optional[float] = None
+    holofile: Optional[Path] = None,
+    pol_axis: Optional[float] = None,
+    remove_leakage: bool = False,
 ) -> str:
     """Construct the appropriate set of linmos options that
     describe the use of the holography cube file to primary
@@ -414,6 +416,7 @@ def _get_holography_linmos_options(
     Args:
         holofile (Optional[Path], optional): Path to the holography cube file to primary beam correct with. Defaults to None.
         pol_axis (Optional[float], optional): The rotation of the third axis as described in an ASAKP MS. Defaults to None.
+        remove_leakage (bool, optional): Add the directive to remove leakage. Defaults to False.
 
     Returns:
         str: Set of linmos options to add to a parset file
@@ -431,7 +434,7 @@ def _get_holography_linmos_options(
     parset = (
         f"linmos.primarybeam      = ASKAP_PB\n"
         f"linmos.primarybeam.ASKAP_PB.image = {str(holofile.absolute())}\n"
-        f"linmos.removeleakage    = true\n"
+        f"linmos.removeleakage    = {'true' if remove_leakage else 'false'}\n"
     )
     parset += _get_alpha_linmos_option(pol_axis=pol_axis)
 
@@ -522,7 +525,9 @@ def generate_linmos_parameter_set(
         "linmos.imageaccess.axis  = 1\n"  # WSClean outputs frequency as second dimension (so 1 in zero indexing)
     )
     # Construct the holography section of the linmos parset
-    parset += _get_holography_linmos_options(holofile=holofile, pol_axis=pol_axis)
+    parset += _get_holography_linmos_options(
+        holofile=holofile, pol_axis=pol_axis, remove_leakage=".i." not in str(images[0])
+    )
 
     # Now write the file, me hearty
     logger.info(f"Writing parset to {str(parset_output_path)}.")
