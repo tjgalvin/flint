@@ -163,15 +163,24 @@ def task_extract_solution_path(calibrate_cmd: CalibrateCommand) -> Path:
 
 
 # BANE sometimes gets cauht in some stalled staTE
-@task(timeout_seconds=60 * 45, retries=3)
+@task(retries=3)
 def task_run_bane_and_aegean(
-    image: Union[WSCleanCommand, LinmosCommand], aegean_container: Path
+    image: Union[WSCleanCommand, LinmosCommand],
+    aegean_container: Path,
+    timelimit_seconds: Union[int, float] = 60 * 45,
 ) -> AegeanOutputs:
-    """Run BANE and Aegean against a FITS image
+    """Run BANE and Aegean against a FITS image.
+
+    Notes:
+         It has been noted that BANE can sometimes get caught in a interpolation error which haults execution.
+         The ``timelimit_seconds`` will attempt to detect long runnings BANE processes and raise an error. The
+         retry functionality of prefect should then restart the task. Since this task is pure (e.g. no last
+         dataproducts, modification to data etc) simply restarting should be fine.
 
     Args:
         image (Union[WSCleanCommand, LinmosCommand]): The image that will be searched
         aegean_container (Path): Path to a singularity container containing BANE and aegean
+        timelimit_seconds (Union[int,float], optional): The maximum amount of time, in seconds, before an exception is raised. Defaults to 45*60.
 
     Raises:
         ValueError: Raised when ``image`` is not a supported type
@@ -200,9 +209,12 @@ def task_run_bane_and_aegean(
     else:
         raise ValueError(f"Unexpected type, have received {type(image)} for {image=}. ")
 
-    aegean_outputs = run_bane_and_aegean(
-        image=image_path, aegean_container=aegean_container
-    )
+    from flint.utils import timelimit_on_context
+
+    with timelimit_on_context(timelimit_seconds=timelimit_seconds):
+        aegean_outputs = run_bane_and_aegean(
+            image=image_path, aegean_container=aegean_container
+        )
 
     return aegean_outputs
 

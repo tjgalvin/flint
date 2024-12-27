@@ -3,6 +3,7 @@
 import math
 import os
 import shutil
+import time
 from pathlib import Path
 from typing import Any
 
@@ -14,6 +15,7 @@ from astropy.io import fits
 from astropy.wcs import WCS
 
 from flint.convol import BeamShape
+from flint.exceptions import TimeLimitException
 from flint.logging import logger
 from flint.utils import (
     SlurmInfo,
@@ -29,7 +31,30 @@ from flint.utils import (
     hold_then_move_into,
     log_job_environment,
     temporarily_move_into,
+    timelimit_on_context,
 )
+
+
+def some_long_function(minimum_time=5):
+    t1 = time.time()
+    while time.time() - t1 < minimum_time:
+        sum = 0
+        for i in range(1000):
+            sum = sum + 1
+    print(f"Time taken: {time.time() - t1} seconds")
+
+
+def test_timelimit_on_context():
+    """Raise an error should a function take longer than expected to run"""
+    with pytest.raises(TimeLimitException):
+        with timelimit_on_context(timelimit_seconds=1):
+            some_long_function(minimum_time=20)
+
+    with timelimit_on_context(timelimit_seconds=5):
+        some_long_function(minimum_time=1)
+
+    # This should make sure that the signal is not raised after the context left
+    some_long_function(minimum_time=5)
 
 
 @pytest.fixture(scope="session", autouse=True)

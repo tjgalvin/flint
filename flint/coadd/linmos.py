@@ -526,7 +526,9 @@ def generate_linmos_parameter_set(
     )
     # Construct the holography section of the linmos parset
     parset += _get_holography_linmos_options(
-        holofile=holofile, pol_axis=pol_axis, remove_leakage=".i." not in str(images[0])
+        holofile=holofile,
+        pol_axis=pol_axis,
+        remove_leakage=".i." not in str(list(images)[0]),
     )
 
     # Now write the file, me hearty
