@@ -39,7 +39,7 @@ def some_long_function(minimum_time=5):
     t1 = time.time()
     while time.time() - t1 < minimum_time:
         sum = 0
-        for i in range(100000000):
+        for i in range(1000):
             sum = sum + 1
     print(f"Time taken: {time.time() - t1} seconds")
 
@@ -50,8 +50,11 @@ def test_timelimit_on_context():
         with timelimit_on_context(timelimit_seconds=1):
             some_long_function(minimum_time=20)
 
-    with timelimit_on_context(timelimit_seconds=2000):
+    with timelimit_on_context(timelimit_seconds=5):
         some_long_function(minimum_time=1)
+
+    # This should make sure that the signal is not raised after the context left
+    some_long_function(minimum_time=5)
 
 
 @pytest.fixture(scope="session", autouse=True)
