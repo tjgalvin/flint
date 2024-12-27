@@ -5,6 +5,7 @@ for general usage.
 import datetime
 import os
 import shutil
+import signal
 import subprocess
 from contextlib import contextmanager
 from pathlib import Path
@@ -18,6 +19,7 @@ from astropy.io import fits
 from astropy.wcs import WCS
 
 from flint.convol import BeamShape
+from flint.exceptions import TimeLimitException
 from flint.logging import logger
 
 # TODO: This Captain is aware that there is a common fits getheader between
@@ -25,6 +27,39 @@ from flint.logging import logger
 # struct should be considered. The the astropy.io.fits.Header might be
 # appropriate to pass around between dask / prefect delayed functions. Something
 # that only opens the FITS file once and places things into common field names.
+
+
+def _signal_timelimit_handler(*args):
+    raise TimeLimitException
+
+
+@contextmanager
+def timelimit_on_context(
+    timelimit_seconds: Union[int, float],
+) -> Generator[None, None, None]:
+    """Creates a context manager that will raise ``flint.exceptions.TimelimitException``
+    should the control not leave the ``with`` context within an specified amount of time.
+
+    Args:
+        timelimit_seconds (Union[int,float]): The maximum time allowed for the with context to be escaped
+
+    Raises:
+        TimeLimitException: Raised should the maximum timelimit be violated.
+
+    Yields:
+        Generator[None, None, None]: A generating function that returns nothing
+    """
+    signal.signal(signal.SIGALRM, _signal_timelimit_handler)
+    signal.alarm(int(timelimit_seconds))
+    logger.info(f"Setting a timelimit of {timelimit_seconds=}")
+
+    try:
+        yield
+    except TimeLimitException:
+        logger.info(f"Timeout limit of {timelimit_seconds=} reached")
+        raise TimeLimitException
+
+    signal.alarm(0)
 
 
 @contextmanager
