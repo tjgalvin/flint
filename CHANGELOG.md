@@ -19,6 +19,8 @@
   - subtract flow will remove files whenever possible (remove original files
     after convolving, removing convolved files after linmos, remove channel
     linmos images after combining into a cube, removing the weight text files)
+- Added a `timelimit_on_context` helper to raise an error after some specified
+  length of time. Looking at you, BANE and issue #186. Arrrr.
 
 # 0.2.8
 
