@@ -209,12 +209,9 @@ def task_run_bane_and_aegean(
     else:
         raise ValueError(f"Unexpected type, have received {type(image)} for {image=}. ")
 
-    from flint.utils import timelimit_on_context
-
-    with timelimit_on_context(timelimit_seconds=timelimit_seconds):
-        aegean_outputs = run_bane_and_aegean(
-            image=image_path, aegean_container=aegean_container
-        )
+    aegean_outputs = run_bane_and_aegean(
+        image=image_path, aegean_container=aegean_container
+    )
 
     return aegean_outputs
 
