@@ -148,11 +148,19 @@ def test_linmos_holo_options(tmpdir):
 
     parset = _get_holography_linmos_options(holofile=holofile, pol_axis=None)
     assert "linmos.primarybeam      = ASKAP_PB\n" in parset
-    assert "linmos.removeleakage    = true\n" in parset
+    assert "linmos.removeleakage    = false\n" in parset
     assert f"linmos.primarybeam.ASKAP_PB.image = {str(holofile.absolute())}\n" in parset
     assert "linmos.primarybeam.ASKAP_PB.alpha" not in parset
 
     parset = _get_holography_linmos_options(holofile=holofile, pol_axis=np.deg2rad(-45))
+    assert "linmos.primarybeam      = ASKAP_PB\n" in parset
+    assert "linmos.removeleakage    = false\n" in parset
+    assert f"linmos.primarybeam.ASKAP_PB.image = {str(holofile.absolute())}\n" in parset
+    assert "linmos.primarybeam.ASKAP_PB.alpha" in parset
+
+    parset = _get_holography_linmos_options(
+        holofile=holofile, remove_leakage=True, pol_axis=np.deg2rad(-45)
+    )
     assert "linmos.primarybeam      = ASKAP_PB\n" in parset
     assert "linmos.removeleakage    = true\n" in parset
     assert f"linmos.primarybeam.ASKAP_PB.image = {str(holofile.absolute())}\n" in parset
