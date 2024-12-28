@@ -40,6 +40,11 @@ def timelimit_on_context(
     """Creates a context manager that will raise ``flint.exceptions.TimelimitException``
     should the control not leave the ``with`` context within an specified amount of time.
 
+    Notes:
+         This function **can not** be used if the function calling it is not executing
+         in the main thread, such as the case with ``dask``. The underlying ``signal``
+         module relies on being in the main thead, otherwise an ``Exception`` is raised.
+
     Args:
         timelimit_seconds (Union[int,float]): The maximum time allowed for the with context to be escaped
 
