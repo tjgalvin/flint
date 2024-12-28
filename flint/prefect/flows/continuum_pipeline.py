@@ -429,7 +429,6 @@ def process_science_fields(
                     field_options=field_options,
                     field_summary=field_summary,
                     current_round=current_round,
-                    additional_linmos_suffix_str="i",
                 )
                 archive_wait_for.extend(parsets_self)
 
@@ -482,7 +481,6 @@ def process_science_fields(
                     current_round=(
                         field_options.rounds if field_options.rounds else None
                     ),
-                    additional_linmos_suffix_str="v",
                 )
                 archive_wait_for.extend(parsets)
 
