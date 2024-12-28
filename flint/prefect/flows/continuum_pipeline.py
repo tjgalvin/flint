@@ -312,7 +312,6 @@ def process_science_fields(
             field_options=field_options,
             field_summary=field_summary,
             current_round=None,
-            additional_linmos_suffix_str="i",
         )
         archive_wait_for.extend(parsets)
         parset = parsets[-1]
