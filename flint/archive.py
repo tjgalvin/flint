@@ -329,7 +329,7 @@ def cli() -> None:
                     strategy_yaml_path=args.strategy_yaml_path
                 )
             )
-            if args.strategy_from_path
+            if args.strategy_yaml_path
             else create_options_from_parser(
                 parser_namespace=args, options_class=ArchiveOptions
             )
@@ -354,7 +354,7 @@ def cli() -> None:
                     strategy_yaml_path=args.strategy_yaml_path
                 )
             )
-            if args.strategy_from_path
+            if args.strategy_yaml_path
             else create_options_from_parser(
                 parser_namespace=args, options_class=ArchiveOptions
             )
@@ -379,7 +379,7 @@ def cli() -> None:
                     strategy_yaml_path=args.strategy_yaml_path
                 )
             )
-            if args.strategy_from_path
+            if args.strategy_yaml_path
             else create_options_from_parser(
                 parser_namespace=args, options_class=ArchiveOptions
             )
