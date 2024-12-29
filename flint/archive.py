@@ -15,6 +15,7 @@ from flint.logging import logger
 from flint.options import (
     ArchiveOptions,
     add_options_to_parser,
+    create_options_from_parser,
 )
 
 
@@ -322,12 +323,17 @@ def cli() -> None:
     args = parser.parse_args()
 
     if args.mode == "list":
-        update_options: Dict[str, Any] = (
-            get_archive_options_from_yaml(strategy_yaml_path=args.strategy_yaml_path)
-            if args.strategy_yaml_path
-            else dict(tar_file_re_patterns=args.file_patterns)
+        archive_options = (
+            ArchiveOptions(
+                **get_archive_options_from_yaml(
+                    strategy_yaml_path=args.strategy_yaml_path
+                )
+            )
+            if args.strategy_from_path
+            else create_options_from_parser(
+                parser_namespace=args, options_class=ArchiveOptions
+            )
         )
-        archive_options = ArchiveOptions(**update_options)
 
         files = resolve_glob_expressions(
             base_path=args.base_path,
@@ -342,6 +348,18 @@ def cli() -> None:
         logger.info(f"{len(files)} for mode={args.list_mode}")
 
     elif args.mode == "create":
+        archive_options = (
+            ArchiveOptions(
+                **get_archive_options_from_yaml(
+                    strategy_yaml_path=args.strategy_yaml_path
+                )
+            )
+            if args.strategy_from_path
+            else create_options_from_parser(
+                parser_namespace=args, options_class=ArchiveOptions
+            )
+        )
+
         update_options_create: Dict[str, Any] = (
             get_archive_options_from_yaml(strategy_yaml_path=args.strategy_yaml_path)
             if args.strategy_yaml_path
@@ -355,13 +373,17 @@ def cli() -> None:
             archive_options=archive_options,
         )
     elif args.mode == "copy":
-        update_options_copy: Dict[str, Any] = (
-            get_archive_options_from_yaml(strategy_yaml_path=args.strategy_yaml_path)
-            if args.strategy_yaml_path
-            else dict(copy_file_re_patterhs=args.copy_file_patterns)
+        archive_options = (
+            ArchiveOptions(
+                **get_archive_options_from_yaml(
+                    strategy_yaml_path=args.strategy_yaml_path
+                )
+            )
+            if args.strategy_from_path
+            else create_options_from_parser(
+                parser_namespace=args, options_class=ArchiveOptions
+            )
         )
-        archive_options = ArchiveOptions(**update_options_copy)
-
         copy_sbid_files_archive(
             copy_out_path=args.copy_out_path,
             base_path=args.base_path,
