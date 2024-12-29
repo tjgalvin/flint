@@ -259,7 +259,7 @@ def get_parser() -> ArgumentParser:
         help="Path to a strategy file with a archive section. Overrides any --file-patterns. ",
     )
     list_parser.add_argument(
-        "--mode",
+        "--list-mode",
         choices=("create", "copy"),
         default="copy",
         help="Which set of RE patterns to present, those for the tarball (create) or those for copy",
@@ -333,13 +333,13 @@ def cli() -> None:
             base_path=args.base_path,
             file_re_patterns=(
                 archive_options.tar_file_re_patterns
-                if args.mode == "create"
+                if args.list_mode == "create"
                 else archive_options.copy_file_re_patterns
             ),
         )
         for count, file in enumerate(sorted(files)):
             logger.info(f"{count} of {len(files)}, {file}")
-        logger.info(f"{len(files)} for mode={args.mode}")
+        logger.info(f"{len(files)} for mode={args.list_mode}")
 
     elif args.mode == "create":
         update_options_create: Dict[str, Any] = (
