@@ -157,6 +157,15 @@ def test_rename_wsclean_path():
     assert _rename_wsclean_file(input_path=ex) == out_ex
 
 
+def test_rename_stokes_v_model():
+    """Some model files are not being renamed correctly. Arr"""
+
+    ex = "SB57988.RACS_1415-46.beam34.round4.v-MFS-model.fits"
+    out_ex = "SB57988.RACS_1415-46.beam34.round4.v.MFS.model.fits"
+
+    assert _rename_wsclean_title(name_str=ex) == out_ex
+
+
 def test_regex_rename_wsclean_title():
     """Rename the wsclean supplied using regex"""
 
