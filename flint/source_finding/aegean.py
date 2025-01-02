@@ -77,6 +77,7 @@ def _bane_output_callback(line: str) -> None:
     assert isinstance(line, str)
 
     if "must be strictly ascending or descending" in line:
+        logger.info("Potential BANE deadlock detectedc. Sleeping and raising error.")
         from time import sleep
 
         sleep(2)
