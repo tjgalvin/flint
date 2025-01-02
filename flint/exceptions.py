@@ -4,6 +4,12 @@ class FlintException(Exception):
     pass
 
 
+class AttemptRerunException(FlintException):
+    """Intended to be used in stream call back functions to
+    capture strange errors and signify that they should be
+    rerun. For instance, strange BANE deadlocking errors."""
+
+
 class TimeLimitException(FlintException):
     """A function has taken too long to execute"""
 
