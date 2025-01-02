@@ -77,6 +77,9 @@ def _bane_output_callback(line: str) -> None:
     assert isinstance(line, str)
 
     if "must be strictly ascending or descending" in line:
+        from time import sleep
+
+        sleep(2)
         raise AttemptRerunException("BANE deadlock detected. ")
 
 
