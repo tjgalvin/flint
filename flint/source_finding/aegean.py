@@ -6,6 +6,7 @@ from typing import NamedTuple, Optional, Tuple
 
 from astropy.io import fits
 
+from flint.exceptions import AttemptRerunException
 from flint.logging import logger
 from flint.naming import create_aegean_names
 from flint.sclient import run_singularity_command
@@ -67,6 +68,16 @@ def _get_bane_command(image: Path, cores: int, bane_options: BANEOptions) -> str
     logger.info("Constructed bane command.")
 
     return bane_command_str
+
+
+def _bane_output_callback(line: str) -> None:
+    """Callback handler for the BANE program. Will raise an error
+    on the 'deadlock' issue."""
+
+    assert isinstance(line, str)
+
+    if "must be strictly ascending or descending" in line:
+        raise AttemptRerunException("BANE deadlock detected. ")
 
 
 def _get_aegean_command(
@@ -131,7 +142,10 @@ def run_bane_and_aegean(
 
     bind_dir = [image.absolute().parent]
     run_singularity_command(
-        image=aegean_container, command=bane_command_str, bind_dirs=bind_dir
+        image=aegean_container,
+        command=bane_command_str,
+        stream_callback_func=_bane_output_callback,
+        bind_dirs=bind_dir,
     )
 
     aegean_command = _get_aegean_command(
