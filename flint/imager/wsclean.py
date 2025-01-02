@@ -26,7 +26,7 @@ from typing import Any, Collection, Dict, List, NamedTuple, Optional, Tuple, Uni
 import numpy as np
 from fitscube.combine_fits import combine_fits
 
-from flint.exceptions import CleanDivergenceError
+from flint.exceptions import AttemptRerunException, CleanDivergenceError
 from flint.logging import logger
 from flint.ms import MS
 from flint.naming import create_image_cube_name, create_imaging_name_prefix
@@ -285,6 +285,14 @@ def _wsclean_output_callback(line: str) -> None:
 
     if "Iteration" in line and "KJy" in line:
         raise CleanDivergenceError(f"Clean divergence detected: {line}")
+
+    if "Input/output error" in line and "errno=5":
+        logger.info(f"Detected input/output error in {line}")
+        from time import sleep
+
+        sleep(2)
+
+        raise AttemptRerunException
 
 
 # TODO: Update this function to also add int the source list
