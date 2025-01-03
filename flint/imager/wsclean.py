@@ -286,7 +286,13 @@ def _wsclean_output_callback(line: str) -> None:
     if "Iteration" in line and "KJy" in line:
         raise CleanDivergenceError(f"Clean divergence detected: {line}")
 
-    temp_error_lines = ("Error opening temporary data file", "Input/output error")
+    # The second commented out line may be related to rerunning a wsclean task with a
+    # existing set of temporary files in the wsclean context. Look into this.
+    # TODO: Look at behaviour of wsclean should it be executed in a location where tempoary
+    # files from a previous execution exist
+    # temp_error_lines = ("Error opening temporary data file", "Input/output error")
+
+    temp_error_lines = ("Error opening temporary data file",)
     if any([temp_error_line in line for temp_error_line in temp_error_lines]):
         logger.info(f"Detected input/output error in {line}")
         from time import sleep
@@ -297,7 +303,7 @@ def _wsclean_output_callback(line: str) -> None:
 
 
 # TODO: Update this function to also add int the source list
-def get_wsclean_output_names(
+def get_wsclean_output_names(  #
     prefix: str,
     subbands: Optional[int] = None,
     pols: Optional[Union[str, Tuple[str]]] = None,
