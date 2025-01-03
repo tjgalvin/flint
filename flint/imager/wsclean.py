@@ -292,7 +292,7 @@ def _wsclean_output_callback(line: str) -> None:
     # files from a previous execution exist
     # temp_error_lines = ("Error opening temporary data file", "Input/output error")
 
-    temp_error_lines = ("Error opening temporary data file",)
+    temp_error_lines = ("Input/output error",)
     if any([temp_error_line in line for temp_error_line in temp_error_lines]):
         logger.info(f"Detected input/output error in {line}")
         from time import sleep
