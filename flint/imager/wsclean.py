@@ -286,7 +286,8 @@ def _wsclean_output_callback(line: str) -> None:
     if "Iteration" in line and "KJy" in line:
         raise CleanDivergenceError(f"Clean divergence detected: {line}")
 
-    if "Input/output error" in line and "errno=5":
+    temp_error_lines = ("Error opening temporary data file", "Input/output error")
+    if any([temp_error_line in line for temp_error_line in temp_error_lines]):
         logger.info(f"Detected input/output error in {line}")
         from time import sleep
 

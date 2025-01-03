@@ -7,7 +7,7 @@ from typing import Any, Dict
 
 import pytest
 
-from flint.exceptions import CleanDivergenceError
+from flint.exceptions import AttemptRerunException, CleanDivergenceError
 from flint.imager.wsclean import (
     ImageSet,
     WSCleanCommand,
@@ -383,6 +383,32 @@ def test_wsclean_divergence():
 
     with pytest.raises(AssertionError):
         _wsclean_output_callback(line=tuple("A tuple of text".split()))
+
+
+def test_attemptrerun_wsclean_output_callback():
+    """Some known lines output by wsclean can be caused by some transient
+    type of error. In such a situation AttemptRerunException should
+    be raised."""
+
+    good = (
+        "Iteration 59228, scale 0 px : -862.94 µJy at 3729,3746",
+        "Opening reordered part 0 spw 0 for /scratch3/gal16b/flint_peel/40470/SB40470.RACS_1237+00.beam4.round1.ms",
+        "Opening reordered part 0 spw 0 for /scratch3/gal16b/flint_peel/40470/SB40470.RACS_1237+00.beam4.round1.ms",
+        "Although Input/output is here, it is not next to error",
+        "Similar with temporary data file error opening error",
+    )
+    for g in good:
+        _wsclean_output_callback(line=g)
+
+    bad = (
+        "Error opening temporary data file",
+        "Input/output error",
+        "Some other words Error opening temporary data file",
+        "Input/output error and more errors to be here",
+    )
+    for b in bad:
+        with pytest.raises(AttemptRerunException):
+            _wsclean_output_callback(line=b)
 
 
 def test_wsclean_output_named_raises():
