@@ -398,17 +398,11 @@ def test_attemptrerun_wsclean_output_callback():
         "Opening reordered part 0 spw 0 for /scratch3/gal16b/flint_peel/40470/SB40470.RACS_1237+00.beam4.round1.ms",
         "Although Input/output is here, it is not next to error",
         "Similar with temporary data file error opening error",
-        "Input/output error",
     )
     for g in good:
         _wsclean_output_callback(line=g)
 
-    bad = (
-        "Error opening temporary data file",
-        # "Input/output error",
-        "Some other words Error opening temporary data file",
-        # "Input/output error and more errors to be here",
-    )
+    bad = ("Input/output error",)
     for b in bad:
         with pytest.raises(AttemptRerunException):
             _wsclean_output_callback(line=b)
