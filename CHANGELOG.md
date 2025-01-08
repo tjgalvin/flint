@@ -1,6 +1,6 @@
 # Change log
 
-# dev
+# 0.2.9
 
 - Created `subtract_cube_pipeline.py`. Associated changes include:
   - wsclean imaging will delete files while still in temporary storage (for
