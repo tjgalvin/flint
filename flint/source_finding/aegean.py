@@ -1,8 +1,10 @@
 """A basic interface into aegean source finding routines."""
 
+from __future__ import annotations
+
 from argparse import ArgumentParser
 from pathlib import Path
-from typing import NamedTuple, Optional, Tuple
+from typing import NamedTuple
 
 from astropy.io import fits
 
@@ -15,9 +17,9 @@ from flint.sclient import run_singularity_command
 class BANEOptions(NamedTuple):
     """Container for basic BANE related options. Only a subclass of BANE options are supported."""
 
-    grid_size: Optional[Tuple[int, int]] = (16, 16)
+    grid_size: tuple[int, int] | None = (16, 16)
     """The step interval of each box, in pixels"""
-    box_size: Optional[Tuple[int, int]] = (196, 196)
+    box_size: tuple[int, int] | None = (196, 196)
     """The size of the box in pixels"""
 
 
@@ -46,7 +48,7 @@ class AegeanOutputs(NamedTuple):
     """RMS map created by BANE"""
     comp: Path
     """Source component catalogue created by Aegean"""
-    beam_shape: Tuple[float, float, float]
+    beam_shape: tuple[float, float, float]
     """The `BMAJ`, `BMIN` and `BPA` that were stored in the image header that Aegen searched"""
     image: Path
     """The input image that was used to source find against"""
@@ -55,7 +57,7 @@ class AegeanOutputs(NamedTuple):
 def _get_bane_command(image: Path, cores: int, bane_options: BANEOptions) -> str:
     """Create the BANE command to run"""
     # The stripes is purposely set lower than the cores due to an outstanding bane bug that can cause a deadlock.
-    bane_command_str = f"BANE {str(image)} --cores {cores} --stripes {cores-1} "
+    bane_command_str = f"BANE {image!s} --cores {cores} --stripes {cores-1} "
     if bane_options.grid_size:
         bane_command_str += (
             f"--grid {bane_options.grid_size[0]} {bane_options.grid_size[1]} "
@@ -88,7 +90,7 @@ def _get_aegean_command(
     image: Path, base_output: str, aegean_options: AegeanOptions
 ) -> str:
     """Create the aegean command to run"""
-    aegean_command = f"aegean {str(image)} "
+    aegean_command = f"aegean {image!s} "
     if aegean_options.autoload:
         aegean_command += "--autoload "
     if aegean_options.nocov:
@@ -113,8 +115,8 @@ def run_bane_and_aegean(
     image: Path,
     aegean_container: Path,
     cores: int = 8,
-    bane_options: Optional[BANEOptions] = None,
-    aegean_options: Optional[AegeanOptions] = None,
+    bane_options: BANEOptions | None = None,
+    aegean_options: AegeanOptions | None = None,
 ) -> AegeanOutputs:
     """Run BANE, the background and noise estimator, and aegean, the source finder,
     against an input image. This function attempts to hook into the AegeanTools

@@ -2,16 +2,18 @@
 products.
 """
 
+from __future__ import annotations
+
 import re
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, NamedTuple, Optional, Tuple, Union
+from typing import Any, NamedTuple
 
 from flint.logging import logger
 from flint.options import MS
 
 
-def get_fits_cube_from_paths(paths: List[Path]) -> List[Path]:
+def get_fits_cube_from_paths(paths: list[Path]) -> list[Path]:
     """Given a list of files, find the ones that appear to be FITS files
     and contain the ``.cube.`` field indicator. A regular expression searching
     for both the ``.cube.`` and ``.fits`` file type is used.
@@ -42,7 +44,7 @@ def _long_field_name_to_shorthand(long_name: str) -> str:
 
 
 def create_name_from_common_fields(
-    in_paths: Tuple[Path, ...], additional_suffixes: Optional[str] = None
+    in_paths: tuple[Path, ...], additional_suffixes: str | None = None
 ) -> Path:
     """Attempt to craft a base name using the field elements that are in common.
     The expectation that these are paths that can be processed by the ``processed_name_format``
@@ -106,8 +108,8 @@ def create_name_from_common_fields(
 # TODO: Need to assess the mode argument, and define literals that are accepted
 def create_image_cube_name(
     image_prefix: Path,
-    mode: Optional[Union[str, List[str]]] = None,
-    suffix: Optional[Union[str, List[str]]] = None,
+    mode: str | list[str] | None = None,
+    suffix: str | list[str] | None = None,
 ) -> Path:
     """Create a consistent naming scheme when combining images into cube images. Intended to
     be used when combining many subband images together into a single cube.
@@ -130,7 +132,7 @@ def create_image_cube_name(
     """
     # NOTE: This is likely a function to grow in time as more imaging and pipeline modes added. Putting
     # it here for future proofing
-    output_cube_name = f"{str(Path(image_prefix))}.{mode}.{suffix}"
+    output_cube_name = f"{Path(image_prefix)!s}.{mode}.{suffix}"
 
     output_components = [str(Path(image_prefix))]
     if mode:
@@ -157,9 +159,9 @@ def create_image_cube_name(
 
 
 def create_imaging_name_prefix(
-    ms: Union[MS, Path],
-    pol: Optional[str] = None,
-    channel_range: Optional[Tuple[int, int]] = None,
+    ms: MS | Path,
+    pol: str | None = None,
+    channel_range: tuple[int, int] | None = None,
 ) -> str:
     """Given a measurement set and a polarisation, create the naming prefix to be used
     by some imager
@@ -184,7 +186,7 @@ def create_imaging_name_prefix(
     return ".".join(names)
 
 
-def get_beam_resolution_str(mode: str, marker: Optional[str] = None) -> str:
+def get_beam_resolution_str(mode: str, marker: str | None = None) -> str:
     """Map a beam resolution mode to an appropriate suffix. This
     is located her in anticipation of other imaging modes.
 
@@ -203,7 +205,7 @@ def get_beam_resolution_str(mode: str, marker: Optional[str] = None) -> str:
     # NOTE: Arguably this is a trash and needless function. Adding it
     # in case other modes are ever needed or referenced. No idea whether
     # it will ever been needed and could be removed in future.
-    supported_modes: Dict[str, str] = dict(optimal="optimal", fixed="fixed", raw="raw")
+    supported_modes: dict[str, str] = dict(optimal="optimal", fixed="fixed", raw="raw")
     if mode.lower() not in supported_modes.keys():
         raise ValueError(
             f"Received {mode=}, supported modes are {supported_modes.keys()}"
@@ -234,7 +236,7 @@ def get_selfcal_ms_name(in_ms_path: Path, round: int = 1) -> Path:
         name_str = str(in_ms_path.name)
         name = f"{name_str[:span[0]]}.round{round}.ms"
     else:
-        name = f"{str(in_ms_path.stem)}.round{round}.ms"
+        name = f"{in_ms_path.stem!s}.round{round}.ms"
     out_ms_path = in_ms_path.parent / name
 
     assert (
@@ -245,7 +247,7 @@ def get_selfcal_ms_name(in_ms_path: Path, round: int = 1) -> Path:
 
 
 def add_timestamp_to_path(
-    input_path: Union[Path, str], timestamp: Optional[datetime] = None
+    input_path: Path | str, timestamp: datetime | None = None
 ) -> Path:
     """Add a timestamp to a input path, where the timestamp is the
     current data and time. The time will be added to the name component
@@ -278,15 +280,15 @@ class CASDANameComponents(NamedTuple):
     """The name of the field extracted"""
     beam: str
     """Beam number of the data"""
-    spw: Optional[str] = None
+    spw: str | None = None
     """If multiple MS were written as the data were in a high-frequency resolution mode, which segment"""
-    alias: Optional[str] = None
+    alias: str | None = None
     """Older ASKAP MSs could be packed with multiple fields. The ASKAP pipeline holds this field as an alias. They are now the same in almost all cases as the field. """
     format: str = "science"
     """What the format / type of the data the MS is. """
 
 
-def casda_ms_format(in_name: Union[str, Path]) -> Union[CASDANameComponents, None]:
+def casda_ms_format(in_name: str | Path) -> CASDANameComponents | None:
     """Break up a CASDA sty;e MS name (really the askap pipeline format) into its recognised parts.
     if a match fails a `None` is returned.
 
@@ -332,11 +334,11 @@ class RawNameComponents(NamedTuple):
     """Time that the data were written"""
     beam: str
     """Beam number of the data"""
-    spw: Optional[str] = None
+    spw: str | None = None
     """If multiple MS were written as the data were in a high-frequency resolution mode, which segment"""
 
 
-def raw_ms_format(in_name: str) -> Union[None, RawNameComponents]:
+def raw_ms_format(in_name: str) -> None | RawNameComponents:
     """The typical ASKAP measurement written to the ingest disks
     has the form:
 
@@ -383,21 +385,21 @@ class ProcessedNameComponents(NamedTuple):
     """The sbid of the observation"""
     field: str
     """The name of the field extracted"""
-    beam: Optional[str] = None
+    beam: str | None = None
     """The beam of the observation processed"""
-    spw: Optional[str] = None
+    spw: str | None = None
     """The SPW of the observation. If there is only one spw this is None."""
-    round: Optional[str] = None
+    round: str | None = None
     """The self-calibration round detected. This might be represented as 'noselfcal' in some image products, e.g. linmos. """
-    pol: Optional[str] = None
+    pol: str | None = None
     """The polarisation component, if it exists, in a filename. Examples are 'i','q','u','v'. Could be combinations in some cases depending on how it was created (e.g. based on wsclean pol option). """
-    channel_range: Optional[Tuple[int, int]] = None
+    channel_range: tuple[int, int] | None = None
     """The channel range encoded in an file name. Generally are zero-padded, and are two fields of the form ch1234-1235, where the upper bound is exclusive. Defaults to none."""
 
 
 def processed_ms_format(
-    in_name: Union[str, Path],
-) -> Union[ProcessedNameComponents, None]:
+    in_name: str | Path,
+) -> ProcessedNameComponents | None:
     """Will take a formatted name (i.e. one derived from the flint.naming.create_ms_name)
     and attempt to extract its main components. This includes the SBID, field, beam and spw.
 
@@ -415,15 +417,13 @@ def processed_ms_format(
     # TODOL At very least I think the beam should become options
     # A raw string is used to avoid bad unicode escaping
     regex = re.compile(
-        (
-            r"^SB(?P<sbid>[0-9]+)"
-            r"\.(?P<field>[^.]+)"
-            r"((\.beam(?P<beam>[0-9]+))?)"
-            r"((\.spw(?P<spw>[0-9]+))?)"
-            r"((\.round(?P<round>[0-9]+))?)"
-            r"((\.(?P<pol>(i|q|u|v|xx|yy|xy|yx)+))?)"
-            r"((\.ch(?P<chl>([0-9]+))-(?P<chh>([0-9]+)))?)"
-        )
+        r"^SB(?P<sbid>[0-9]+)"
+        r"\.(?P<field>[^.]+)"
+        r"((\.beam(?P<beam>[0-9]+))?)"
+        r"((\.spw(?P<spw>[0-9]+))?)"
+        r"((\.round(?P<round>[0-9]+))?)"
+        r"((\.(?P<pol>(i|q|u|v|xx|yy|xy|yx)+))?)"
+        r"((\.ch(?P<chl>([0-9]+))-(?P<chh>([0-9]+)))?)"
     )
     results = regex.match(in_name)
 
@@ -449,8 +449,8 @@ def processed_ms_format(
 
 
 def extract_components_from_name(
-    name: Union[str, Path],
-) -> Union[RawNameComponents, ProcessedNameComponents, CASDANameComponents]:
+    name: str | Path,
+) -> RawNameComponents | ProcessedNameComponents | CASDANameComponents:
     """Attempts to break down a file name of a recognised format into its principal compobnents.
     Presumably this is a measurement set or something derived from it (i.e. images).
 
@@ -495,7 +495,7 @@ def extract_components_from_name(
     return results
 
 
-def extract_beam_from_name(name: Union[str, Path]) -> int:
+def extract_beam_from_name(name: str | Path) -> int:
     """Attempts to extract the beam number from some input name should it follow a
     known naming convention.
 
@@ -519,7 +519,7 @@ def extract_beam_from_name(name: Union[str, Path]) -> int:
 
 
 def create_ms_name(
-    ms_path: Path, sbid: Optional[int] = None, field: Optional[str] = None
+    ms_path: Path, sbid: int | None = None, field: str | None = None
 ) -> str:
     """Create a consistent naming scheme for measurement sets. At present
     it is intended to be used for splitting fields from raw measurement
@@ -535,7 +535,7 @@ def create_ms_name(
     """
 
     ms_path = Path(ms_path).absolute()
-    ms_name_list: List[Any] = []
+    ms_name_list: list[Any] = []
 
     format_components = extract_components_from_name(name=ms_path)
 
@@ -676,7 +676,7 @@ def get_sbid_from_path(path: Path) -> int:
 
     if not sbid.isdigit():
         raise ValueError(
-            f"Extracted {sbid=} from {str(path)} failed appears to be non-conforming - it is not a number! "
+            f"Extracted {sbid=} from {path!s} failed appears to be non-conforming - it is not a number! "
         )
 
     return int(sbid)
@@ -749,12 +749,12 @@ class FITSMaskNames(NamedTuple):
 
     mask_fits: Path
     """Name of the mask FITS file"""
-    signal_fits: Optional[Path] = None
+    signal_fits: Path | None = None
     """Name of the signal FITS file"""
 
 
 def create_fits_mask_names(
-    fits_image: Union[str, Path], include_signal_path: bool = False
+    fits_image: str | Path, include_signal_path: bool = False
 ) -> FITSMaskNames:
     """Create the names that will be used when generate FITS mask products
 

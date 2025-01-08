@@ -4,9 +4,11 @@ For this work we will be using Dask backed workers to perform the compute
 operations.
 """
 
+from __future__ import annotations
+
 from glob import glob
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Union
+from typing import Any
 
 import yaml
 from prefect_dask import DaskTaskRunner
@@ -14,7 +16,7 @@ from prefect_dask import DaskTaskRunner
 from flint.utils import get_packaged_resource_path
 
 
-def list_packaged_clusters() -> List[str]:
+def list_packaged_clusters() -> list[str]:
     """Return a list of cluster names that are available in the packaged set of
     dask_jobqueue specification YAML files.
 
@@ -33,7 +35,7 @@ def list_packaged_clusters() -> List[str]:
     return clusters
 
 
-def get_cluster_spec(cluster: Union[str, Path]) -> Dict[Any, Any]:
+def get_cluster_spec(cluster: str | Path) -> dict[Any, Any]:
     """
     Given a cluster name, obtain the appropriate SLURM configuration
     file appropriate for use with SLURMCluster.
@@ -67,15 +69,15 @@ def get_cluster_spec(cluster: Union[str, Path]) -> Dict[Any, Any]:
             f"{cluster=} is not known, or its YAML file could not be loaded. Known clusters are {KNOWN_CLUSTERS}"
         )
 
-    with open(yaml_file, "r") as in_file:
+    with open(yaml_file) as in_file:
         spec = yaml.load(in_file, Loader=yaml.Loader)
 
     return spec
 
 
 def get_dask_runner(
-    cluster: Union[str, Path] = "galaxy_small",
-    extra_cluster_kwargs: Optional[Dict[str, Any]] = None,
+    cluster: str | Path = "galaxy_small",
+    extra_cluster_kwargs: dict[str, Any] | None = None,
 ) -> DaskTaskRunner:
     """Creates and returns a DaskTaskRunner configured to established a SLURMCluster instance
     to manage a set of dask-workers. The SLURMCluster is currently configured only for Galaxy.

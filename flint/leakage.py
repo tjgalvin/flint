@@ -1,8 +1,10 @@
 """Construct a leakge map between two polarisations, typically V/I"""
 
+from __future__ import annotations
+
 from argparse import ArgumentParser
 from pathlib import Path
-from typing import Dict, NamedTuple, Union, Optional
+from typing import NamedTuple, Union
 
 import astropy.units as u
 import numpy as np
@@ -14,7 +16,6 @@ from astropy.wcs.utils import skycoord_to_pixel
 
 from flint.catalogue import guess_column_in_table
 from flint.logging import logger
-
 
 TableOrPath = Union[Table, Path]
 
@@ -44,7 +45,7 @@ class FITSImage(NamedTuple):
 
     data: np.ndarray
     """The data of the fits image"""
-    header: Dict
+    header: dict
     """Header of the fits image"""
     wcs: WCS
     """Celestial WCS of the fits image"""
@@ -100,8 +101,8 @@ def filter_components(
     int_col: str,
     int_err_col: str,
     leakage_filters: LeakageFilters,
-    ra_col: Optional[str] = None,
-    dec_col: Optional[str] = None,
+    ra_col: str | None = None,
+    dec_col: str | None = None,
 ) -> Table:
     """Apply the pre-processing operations to catalogue components to select an
     optimal sample of sources for leakage characterisation. Sources will be selected
@@ -170,8 +171,8 @@ def filter_components(
 def get_xy_pixel_coords(
     table: Table,
     wcs: WCS,
-    ra_col: Optional[str] = None,
-    dec_col: Optional[str] = None,
+    ra_col: str | None = None,
+    dec_col: str | None = None,
 ) -> PixelCoords:
     """Convert (RA, Dec) positions in a catalogue into (x, y)-pixels given an WCS
 
@@ -326,7 +327,7 @@ def extract_pol_stats_in_box(
 
 
 def _get_output_catalogue_path(
-    input_path: Path, pol: str, output_path: Optional[Path] = None
+    input_path: Path, pol: str, output_path: Path | None = None
 ) -> Path:
     """Create the output leakage catalogue name"""
     # NOTE: This is a separate function to test against after a silly. Might move with the other named Pirates
@@ -347,9 +348,9 @@ def _get_output_catalogue_path(
 
 def create_leakge_component_table(
     pol_image: Path,
-    catalogue: Union[Table, Path],
+    catalogue: Table | Path,
     pol: str = "v",
-    output_path: Optional[Path] = None,
+    output_path: Path | None = None,
 ) -> Path:
     """Create a component catalogue that includes enough information to describe the
     polarisation fraction of sources across a field. This is intended to be used

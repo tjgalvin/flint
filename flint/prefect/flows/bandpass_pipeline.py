@@ -8,9 +8,11 @@ different field centres. The bandpass calibration process will first have
 to split the correct field out before actually calibration.
 """
 
+from __future__ import annotations
+
 from argparse import ArgumentParser
 from pathlib import Path
-from typing import Collection, List, Optional
+from typing import Collection
 
 from prefect import flow, task, unmapped
 
@@ -56,7 +58,7 @@ def task_bandpass_create_apply_solutions_cmd(
     ms: MS,
     calibrate_cmd: CalibrateCommand,
     container: Path,
-    output_column: Optional[str] = None,
+    output_column: str | None = None,
 ) -> ApplySolutions:
     """Apply an ao-calibrate style solutions file to an input measurement set.
 
@@ -129,7 +131,7 @@ def run_bandpass_stage(
     model_path: Path,
     source_name_prefix: str = "B1934-638",
     skip_rotation: bool = False,
-) -> List[CalibrateCommand]:
+) -> list[CalibrateCommand]:
     """Executes the bandpass calibration (using ``calibrate``) against a set of
     input measurement sets.
 
@@ -149,10 +151,10 @@ def run_bandpass_stage(
     ), f"Currently {bandpass_options.flag_calibrate_rounds=}, needs to be 0 or higher"
 
     if not output_split_bandpass_path.exists():
-        logger.info(f"Creating {str(output_split_bandpass_path)}")
+        logger.info(f"Creating {output_split_bandpass_path!s}")
         output_split_bandpass_path.mkdir(parents=True)
 
-    calibrate_cmds: List[CalibrateCommand] = []
+    calibrate_cmds: list[CalibrateCommand] = []
 
     extract_bandpass_mss = task_extract_correct_bandpass_pointing.map(
         ms=bandpass_mss,
@@ -235,12 +237,12 @@ def calibrate_bandpass_flow(
     """
     assert (
         bandpass_path.exists() and bandpass_path.is_dir()
-    ), f"{str(bandpass_path)} does not exist or is not a folder. "
+    ), f"{bandpass_path!s} does not exist or is not a folder. "
     bandpass_mss = list([MS.cast(ms_path) for ms_path in bandpass_path.glob("*.ms")])
 
     assert (
         len(bandpass_mss) == bandpass_options.expected_ms
-    ), f"Expected to find {bandpass_options.expected_ms} in {str(bandpass_path)}, found {len(bandpass_mss)}."
+    ), f"Expected to find {bandpass_options.expected_ms} in {bandpass_path!s}, found {len(bandpass_mss)}."
 
     logger.info(
         f"Found the following bandpass measurement set: {[bp.path for bp in bandpass_mss]}."
@@ -251,7 +253,7 @@ def calibrate_bandpass_flow(
         Path(split_path / bandpass_folder_name).absolute().resolve()
     )
     logger.info(
-        f"Will write extracted bandpass MSs to: {str(output_split_bandpass_path)}."
+        f"Will write extracted bandpass MSs to: {output_split_bandpass_path!s}."
     )
 
     # This is the model that we will calibrate the bandpass against.

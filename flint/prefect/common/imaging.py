@@ -4,11 +4,13 @@ to avoid putting in too many items that are not going to be directly used by pre
 imaging flows.
 """
 
-from pathlib import Path
-from typing import Any, Collection, Dict, List, Literal, Optional, TypeVar, Union, Tuple
+from __future__ import annotations
 
-import pandas as pd
+from pathlib import Path
+from typing import Any, Collection, Literal, TypeVar
+
 import numpy as np
+import pandas as pd
 from prefect import task, unmapped
 from prefect.artifacts import create_table_artifact
 
@@ -22,10 +24,10 @@ from flint.coadd.linmos import LinmosCommand, linmos_images
 from flint.configuration import wrapper_options_from_strategy
 from flint.convol import (
     BeamShape,
+    convolve_cubes,
     convolve_images,
     get_common_beam,
     get_cube_common_beam,
-    convolve_cubes,
 )
 from flint.flagging import flag_ms_aoflagger
 from flint.imager.wsclean import (
@@ -84,9 +86,9 @@ FlagMS = TypeVar("FlagMS", MS, ApplySolutions)
 def task_potato_peel(
     ms: MS,
     potato_container: Path,
-    update_potato_config_options: Optional[Dict[str, Any]] = None,
-    update_potato_peel_options: Optional[Dict[str, Any]] = None,
-    update_wsclean_options: Optional[Dict[str, Any]] = None,
+    update_potato_config_options: dict[str, Any] | None = None,
+    update_potato_peel_options: dict[str, Any] | None = None,
+    update_wsclean_options: dict[str, Any] | None = None,
 ) -> MS:
     logger.info(f"Attempting to peel {ms.path}")
 
@@ -165,9 +167,9 @@ def task_extract_solution_path(calibrate_cmd: CalibrateCommand) -> Path:
 # BANE sometimes gets cauht in some stalled staTE
 @task(retries=3)
 def task_run_bane_and_aegean(
-    image: Union[WSCleanCommand, LinmosCommand],
+    image: WSCleanCommand | LinmosCommand,
     aegean_container: Path,
-    timelimit_seconds: Union[int, float] = 60 * 45,
+    timelimit_seconds: int | float = 60 * 45,
 ) -> AegeanOutputs:
     """Run BANE and Aegean against a FITS image.
 
@@ -237,10 +239,10 @@ def task_zip_ms(in_item: WSCleanCommand) -> Path:
 @task
 @wrapper_options_from_strategy(update_options_keyword="update_gain_cal_options")
 def task_gaincal_applycal_ms(
-    ms: Union[MS, WSCleanCommand],
+    ms: MS | WSCleanCommand,
     selfcal_round: int,
     casa_container: Path,
-    update_gain_cal_options: Optional[Dict[str, Any]] = None,
+    update_gain_cal_options: dict[str, Any] | None = None,
     archive_input_ms: bool = False,
     skip_selfcal: bool = False,
     rename_ms: bool = False,
@@ -288,11 +290,11 @@ def task_gaincal_applycal_ms(
 @task
 @wrapper_options_from_strategy(update_options_keyword="update_wsclean_options")
 def task_wsclean_imager(
-    in_ms: Union[ApplySolutions, MS],
+    in_ms: ApplySolutions | MS,
     wsclean_container: Path,
-    update_wsclean_options: Optional[Dict[str, Any]] = None,
-    fits_mask: Optional[FITSMaskNames] = None,
-    channel_range: Optional[Tuple[int, int]] = None,
+    update_wsclean_options: dict[str, Any] | None = None,
+    fits_mask: FITSMaskNames | None = None,
+    channel_range: tuple[int, int] | None = None,
 ) -> WSCleanCommand:
     """Run the wsclean imager against an input measurement set
 
@@ -361,8 +363,8 @@ def task_wsclean_imager(
 def task_get_common_beam(
     wsclean_cmds: Collection[WSCleanCommand],
     cutoff: float = 25,
-    filter: Optional[str] = None,
-    fixed_beam_shape: Optional[List[float]] = None,
+    filter: str | None = None,
+    fixed_beam_shape: list[float] | None = None,
 ) -> BeamShape:
     """Compute a common beam size that all input images will be convoled to.
 
@@ -387,7 +389,7 @@ def task_get_common_beam(
         logger.info(f"Using fixed {beam_shape=}")
         return beam_shape
 
-    images_to_consider: List[Path] = []
+    images_to_consider: list[Path] = []
 
     # TODO: This should support other image types
     for wsclean_cmd in wsclean_cmds:
@@ -421,7 +423,7 @@ def task_get_common_beam(
 def task_get_cube_common_beam(
     wsclean_cmds: Collection[WSCleanCommand],
     cutoff: float = 25,
-) -> List[BeamShape]:
+) -> list[BeamShape]:
     """Compute a common beam size  for input cubes.
 
     Args:
@@ -432,7 +434,7 @@ def task_get_cube_common_beam(
         List[BeamShape]: The final convolving beam size to be used per channel in cubes
     """
 
-    images_to_consider: List[Path] = []
+    images_to_consider: list[Path] = []
 
     # TODO: This should support other image types
     for wsclean_cmd in wsclean_cmds:
@@ -457,7 +459,7 @@ def task_get_cube_common_beam(
 @task
 def task_convolve_cube(
     wsclean_cmd: WSCleanCommand,
-    beam_shapes: List[BeamShape],
+    beam_shapes: list[BeamShape],
     cutoff: float = 60,
     mode: Literal["image"] = "image",
     convol_suffix_str: str = "conv",
@@ -512,7 +514,7 @@ def task_convolve_image(
     beam_shape: BeamShape,
     cutoff: float = 60,
     mode: str = "image",
-    filter: Optional[str] = None,
+    filter: str | None = None,
     convol_suffix_str: str = "conv",
     remove_original_images: bool = False,
 ) -> Collection[Path]:
@@ -575,7 +577,7 @@ def task_convolve_image(
     for image_path in image_paths:
         image_beam = Beam.from_fits_header(fits.getheader(str(image_path)))
         logger.info(
-            f"{str(image_path.name)}: {image_beam.major.to(u.arcsecond)} {image_beam.minor.to(u.arcsecond)}  {image_beam.pa}"
+            f"{image_path.name!s}: {image_beam.major.to(u.arcsecond)} {image_beam.minor.to(u.arcsecond)}  {image_beam.pa}"
         )
 
     convolved_images = convolve_images(
@@ -596,14 +598,14 @@ def task_convolve_image(
 def task_linmos_images(
     images: Collection[Collection[Path]],
     container: Path,
-    filter: Optional[str] = ".MFS.",
-    field_name: Optional[str] = None,
+    filter: str | None = ".MFS.",
+    field_name: str | None = None,
     suffix_str: str = "noselfcal",
-    holofile: Optional[Path] = None,
-    sbid: Optional[Union[int, str]] = None,
-    parset_output_path: Optional[str] = None,
+    holofile: Path | None = None,
+    sbid: int | str | None = None,
+    parset_output_path: str | None = None,
     cutoff: float = 0.05,
-    field_summary: Optional[FieldSummary] = None,
+    field_summary: FieldSummary | None = None,
     trim_linmos_fits: bool = True,
     remove_original_images: bool = False,
     cleanup: bool = False,
@@ -683,9 +685,9 @@ def task_linmos_images(
 def _convolve_linmos(
     wsclean_cmds: Collection[WSCleanCommand],
     beam_shape: BeamShape,
-    field_options: Union[FieldOptions, SubtractFieldOptions],
+    field_options: FieldOptions | SubtractFieldOptions,
     linmos_suffix_str: str,
-    field_summary: Optional[FieldSummary] = None,
+    field_summary: FieldSummary | None = None,
     convol_mode: str = "image",
     convol_filter: str = ".MFS.",
     convol_suffix_str: str = "conv",
@@ -742,10 +744,10 @@ def _convolve_linmos(
 def _create_convol_linmos_images(
     wsclean_cmds: Collection[WSCleanCommand],
     field_options: FieldOptions,
-    field_summary: Optional[FieldSummary] = None,
-    current_round: Optional[int] = None,
-    additional_linmos_suffix_str: Optional[str] = None,
-) -> List[LinmosCommand]:
+    field_summary: FieldSummary | None = None,
+    current_round: int | None = None,
+    additional_linmos_suffix_str: str | None = None,
+) -> list[LinmosCommand]:
     """Derive the appropriate set of beam shapes and then produce corresponding
     convolved and co-added images
 
@@ -759,7 +761,7 @@ def _create_convol_linmos_images(
     Returns:
         List[LinmosCommand]: The collection of linmos commands executed.
     """
-    parsets: List[LinmosCommand] = []
+    parsets: list[LinmosCommand] = []
 
     # Come up with the linmos suffix to add to output file
     suffixes = [f"round{current_round}" if current_round else "noselfcal"]
@@ -768,7 +770,7 @@ def _create_convol_linmos_images(
 
     main_linmos_suffix_str = ".".join(suffixes)
 
-    todo: List[Tuple[Any, str]] = [(None, get_beam_resolution_str(mode="optimal"))]
+    todo: list[tuple[Any, str]] = [(None, get_beam_resolution_str(mode="optimal"))]
     if field_options.fixed_beam_shape:
         logger.info(
             f"Creating second round of linmos images with {field_options.fixed_beam_shape}"
@@ -822,8 +824,8 @@ def _create_convol_linmos_images(
 def _create_convolve_linmos_cubes(
     wsclean_cmds: Collection[WSCleanCommand],
     field_options: FieldOptions,
-    current_round: Optional[int] = None,
-    additional_linmos_suffix_str: Optional[str] = "cube",
+    current_round: int | None = None,
+    additional_linmos_suffix_str: str | None = "cube",
 ):
     suffixes = [f"round{current_round}" if current_round else "noselfcal"]
     if additional_linmos_suffix_str:
@@ -855,9 +857,9 @@ def _create_convolve_linmos_cubes(
 @task
 @wrapper_options_from_strategy(update_options_keyword="update_masking_options")
 def task_create_image_mask_model(
-    image: Union[LinmosCommand, ImageSet, WSCleanCommand],
+    image: LinmosCommand | ImageSet | WSCleanCommand,
     image_products: AegeanOutputs,
-    update_masking_options: Optional[Dict[str, Any]] = None,
+    update_masking_options: dict[str, Any] | None = None,
 ) -> FITSMaskNames:
     """Create a mask from a linmos image, with the intention of providing it as a clean mask
     to an appropriate imager. This is derived using a simple signal to noise cut.
@@ -931,7 +933,7 @@ def task_extract_beam_mask_image(
     assert (
         wsclean_cmd.imageset is not None
     ), f"{wsclean_cmd.imageset=}, which should not happen"
-    beam_image = list(wsclean_cmd.imageset.image)[0]
+    beam_image = next(iter(wsclean_cmd.imageset.image))
     beam_mask_names = extract_beam_mask_from_mosaic(
         fits_beam_image_path=beam_image, fits_mosaic_mask_names=linmos_mask_names
     )
@@ -970,7 +972,7 @@ def task_create_validation_plot(
 
     if upload_artifact:
         upload_image_as_artifact(
-            image_path=plot_path, description=f"Validation plot {str(plot_path)}"
+            image_path=plot_path, description=f"Validation plot {plot_path!s}"
         )
 
     return plot_path
@@ -1010,8 +1012,8 @@ def task_create_validation_tables(
     if upload_artifacts:
         for table in validation_tables:
             if isinstance(table, Path):
-                df = pd.read_csv(table)
-                df_dict = df.to_dict("records")
+                validation_df = pd.read_csv(table)
+                df_dict = validation_df.to_dict("records")
                 create_table_artifact(
                     table=df_dict,
                     description=f"{table.stem}",
@@ -1022,8 +1024,8 @@ def task_create_validation_tables(
                         continue
                     if not isinstance(subtable, Path):
                         continue
-                    df = pd.read_csv(subtable)
-                    df_dict = df.to_dict("records")
+                    sub_df = pd.read_csv(subtable)
+                    df_dict = sub_df.to_dict("records")
                     create_table_artifact(
                         table=df_dict,
                         description=f"{subtable.stem}",

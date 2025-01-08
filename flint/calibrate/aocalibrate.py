@@ -8,14 +8,9 @@ from pathlib import Path
 from typing import (
     Any,
     Collection,
-    Dict,
     Iterable,
-    List,
     Literal,
     NamedTuple,
-    Optional,
-    Tuple,
-    Union,
 )
 
 import matplotlib.pyplot as plt
@@ -67,13 +62,13 @@ class CalibrateOptions(BaseOptions):
     """The name of the datacolumn that will be calibrates"""
     m: Path
     """The path to the model file used to calibtate"""
-    minuv: Optional[float] = None
+    minuv: float | None = None
     """The minimum distance in meters that is"""
-    maxuv: Optional[float] = None
+    maxuv: float | None = None
     """The maximum distance in meters that is"""
-    i: Optional[int] = 100
+    i: int | None = 100
     """The number of iterations that may be performed"""
-    p: Optional[Tuple[Path, Path]] = None
+    p: tuple[Path, Path] | None = None
     """Plot output names for the amplitude gain and phases"""
 
 
@@ -142,7 +137,7 @@ class AOSolutions(NamedTuple):
         """
         return save_aosolutions_file(aosolutions=self, output_path=output_path)
 
-    def plot_solutions(self, ref_ant: Optional[int] = 0) -> Iterable[Path]:
+    def plot_solutions(self, ref_ant: int | None = 0) -> Iterable[Path]:
         """Plot the solutions of all antenna for the first time-inteval
         in the aosolutions file. The XX and the YY will be plotted.
 
@@ -159,7 +154,7 @@ class AOSolutions(NamedTuple):
 def fill_between_flags(
     ax: plt.Axes,
     flags: np.ndarray,
-    values: Optional[np.ndarray] = None,
+    values: np.ndarray | None = None,
     direction: str = "x",
 ) -> None:
     """Plot vertical or horizontal lines where data are flagged.
@@ -183,7 +178,7 @@ def fill_between_flags(
 
 
 def plot_solutions(
-    solutions: Union[Path, AOSolutions], ref_ant: Optional[int] = 0
+    solutions: Path | AOSolutions, ref_ant: int | None = 0
 ) -> Collection[Path]:
     """Plot solutions for AO-style solutions
 
@@ -333,15 +328,15 @@ def plot_solutions(
     fig_ratio.tight_layout()
     fig_phase.tight_layout()
 
-    out_amp = f"{str(solutions_path.with_suffix('.amplitude.png'))}"
+    out_amp = f"{solutions_path.with_suffix('.amplitude.png')!s}"
     logger.info(f"Saving {out_amp}.")
     fig_amp.savefig(out_amp)
 
-    out_phase = f"{str(solutions_path.with_suffix('.phase.png'))}"
+    out_phase = f"{solutions_path.with_suffix('.phase.png')!s}"
     logger.info(f"Saving {out_phase}.")
     fig_phase.savefig(out_phase)
 
-    out_ratio = f"{str(solutions_path.with_suffix('.ratio.png'))}"
+    out_ratio = f"{solutions_path.with_suffix('.ratio.png')!s}"
     logger.info(f"Saving {out_ratio}.")
     fig_ratio.savefig(out_ratio)
 
@@ -367,7 +362,7 @@ def save_aosolutions_file(aosolutions: AOSolutions, output_path: Path) -> Path:
         logger.info(f"Creating {output_dir}.")
         output_dir.mkdir(parents=True)
 
-    logger.info(f"Writing aosolutions to {str(output_path)}.")
+    logger.info(f"Writing aosolutions to {output_path!s}.")
     with open(str(output_path), "wb") as out_file:
         out_file.write(
             struct.pack(
@@ -400,10 +395,10 @@ def load_aosolutions_file(solutions_path: Path) -> AOSolutions:
 
     assert (
         solutions_path.exists() and solutions_path.is_file()
-    ), f"{str(solutions_path)} either does not exist or is not a file. "
+    ), f"{solutions_path!s} either does not exist or is not a file. "
     logger.info(f"Loading {solutions_path}")
 
-    with open(solutions_path, "r") as in_file:
+    with open(solutions_path) as in_file:
         _junk = np.fromfile(in_file, dtype="<i4", count=2)
 
         header = np.fromfile(in_file, dtype="<i4", count=10)
@@ -436,7 +431,7 @@ def find_existing_solutions(
     bandpass_directory: Path,
     use_preflagged: bool = True,
     use_smoothed: bool = False,
-) -> List[CalibrateCommand]:
+) -> list[CalibrateCommand]:
     """Given a directory that contains a collection of bandpass measurement
     sets, attempt to identify a corresponding set of calibrate binary solution
     file.
@@ -496,7 +491,7 @@ def find_existing_solutions(
 
 
 def select_aosolution_for_ms(
-    calibrate_cmds: List[CalibrateCommand], ms: Union[MS, Path]
+    calibrate_cmds: list[CalibrateCommand], ms: MS | Path
 ) -> Path:
     """Attempt to select an AO-style solution file for a measurement
     set. This can be expanded to include a number of criteria, but
@@ -516,20 +511,20 @@ def select_aosolution_for_ms(
     ms = MS.cast(ms)
     ms_beam = ms.beam if ms.beam is not None else get_beam_from_ms(ms=ms)
 
-    logger.info(f"Will select a solution for {str(ms.path)}, {ms_beam=}.")
+    logger.info(f"Will select a solution for {ms.path!s}, {ms_beam=}.")
     logger.info(f"{len(calibrate_cmds)} potential solutions to consider. ")
 
     for calibrate_cmd in calibrate_cmds:
-        logger.info(f"Considering {str(calibrate_cmd.solution_path)}.")
+        logger.info(f"Considering {calibrate_cmd.solution_path!s}.")
         if consistent_ms(ms1=ms, ms2=calibrate_cmd.ms):
             sol_file = calibrate_cmd.solution_path
             break
     else:
         raise ValueError(
-            f"No solution file found for {str(ms.path)} from {[c.ms.path for c in calibrate_cmds]} found. "
+            f"No solution file found for {ms.path!s} from {[c.ms.path for c in calibrate_cmds]} found. "
         )
 
-    logger.info(f"Have selected {str(sol_file)} for {str(ms.path)}. ")
+    logger.info(f"Have selected {sol_file!s} for {ms.path!s}. ")
     return sol_file
 
 
@@ -548,13 +543,13 @@ def calibrate_options_to_command(
     """
     cmd = "calibrate "
 
-    unknowns: List[Tuple[Any, Any]] = []
+    unknowns: list[tuple[Any, Any]] = []
 
     for key, value in calibrate_options._asdict().items():
         if value is None:
             continue
         elif isinstance(value, (str, Path, int, float)):
-            cmd += f"-{key} {str(value)} "
+            cmd += f"-{key} {value!s} "
         elif isinstance(value, (tuple, list)):
             values = " ".join([str(v) for v in value])
             cmd += f"-{key} {values} "
@@ -565,18 +560,18 @@ def calibrate_options_to_command(
         len(unknowns) == 0
     ), f"Unknown types when generating calibrate command: {unknowns}"
 
-    cmd += f"{str(ms_path)} {str(solutions_path)}"
+    cmd += f"{ms_path!s} {solutions_path!s}"
 
     return cmd
 
 
 def create_calibrate_cmd(
-    ms: Union[Path, MS],
+    ms: Path | MS,
     calibrate_model: Path,
-    solution_path: Optional[Path] = None,
-    container: Optional[Path] = None,
-    update_calibrate_options: Optional[Dict[str, Any]] = None,
-    calibrate_data_column: Optional[str] = None,
+    solution_path: Path | None = None,
+    container: Path | None = None,
+    update_calibrate_options: dict[str, Any] | None = None,
+    calibrate_data_column: str | None = None,
 ) -> CalibrateCommand:
     """Generate a typical ao calibrate command. Any extra keyword arguments
     are passed through as additional options to the `calibrate` program.
@@ -648,8 +643,8 @@ def create_calibrate_cmd(
 def create_apply_solutions_cmd(
     ms: MS,
     solutions_file: Path,
-    output_column: Optional[str] = None,
-    container: Optional[Path] = None,
+    output_column: str | None = None,
+    container: Path | None = None,
 ) -> ApplySolutions:
     """Construct the command to apply calibration solutions to a MS
     using an AO calibrate style solutions file.
@@ -691,8 +686,8 @@ def create_apply_solutions_cmd(
         f"applysolutions "
         f"-datacolumn {input_column} "
         f"{copy_mode} "
-        f"{str(ms.path)} "
-        f"{str(solutions_file)} "
+        f"{ms.path!s} "
+        f"{solutions_file!s} "
     )
 
     logger.info(f"Constructed {cmd=}")
@@ -800,13 +795,13 @@ def calibrate_apply_ms(
 
 
 def apply_solutions_to_ms(
-    ms: Union[Path, MS],
+    ms: Path | MS,
     solutions_path: Path,
     container: Path,
     data_column: str = "DATA",
 ) -> ApplySolutions:
     ms = ms if isinstance(ms, MS) else MS(path=ms, column=data_column)
-    logger.info(f"Will attempt to apply {str(solutions_path)} to {str(ms.path)}.")
+    logger.info(f"Will attempt to apply {solutions_path!s} to {ms.path!s}.")
 
     apply_solutions_cmd = create_apply_solutions_cmd(
         ms=ms, solutions_file=solutions_path
@@ -867,15 +862,15 @@ def flag_aosolutions(
     solutions_path: Path,
     ref_ant: int = -1,
     flag_cut: float = 3,
-    plot_dir: Optional[Path] = None,
-    out_solutions_path: Optional[Path] = None,
+    plot_dir: Path | None = None,
+    out_solutions_path: Path | None = None,
     smooth_solutions: bool = False,
     plot_solutions_throughout: bool = True,
     smooth_window_size: int = 16,
     smooth_polynomial_order: int = 4,
     mean_ant_tolerance: float = 0.2,
     mesh_ant_flags: bool = False,
-    max_gain_amplitude: Optional[float] = None,
+    max_gain_amplitude: float | None = None,
 ) -> FlaggedAOSolution:
     """Will open a previously solved ao-calibrate solutions file and flag additional channels and antennae.
 
@@ -944,7 +939,7 @@ def flag_aosolutions(
         ref_ant = select_refant(bandpass=solutions.bandpass)
         logger.info(f"Overwriting reference antenna selection, using {ref_ant=}")
 
-    plots: List[Path] = []
+    plots: list[Path] = []
 
     if plot_solutions_throughout:
         output_plots = plot_solutions(solutions=solutions_path, ref_ant=ref_ant)
@@ -1075,7 +1070,7 @@ def flag_aosolutions(
     total_flagged = np.sum(~np.isfinite(bandpass)) / np.prod(bandpass.shape)
     if total_flagged > 0.8:
         msg = (
-            f"{total_flagged*100.:.2f}% of {str((solutions_path))} is flagged after running the preflagger. "
+            f"{total_flagged*100.:.2f}% of {(solutions_path)!s} is flagged after running the preflagger. "
             "That is over 90%. "
             f"This surely can not be correct. Likely something has gone very wrong. "
         )
@@ -1100,7 +1095,7 @@ def add_model_options_to_command(add_model_options: AddModelOptions) -> str:
     """
     logger.info("Generating addmodel command")
     command = f"addmodel -datacolumn {add_model_options.datacolumn} -m {add_model_options.mode} "
-    command += f"{str(add_model_options.model_path)} {str(add_model_options.ms_path)}"
+    command += f"{add_model_options.model_path!s} {add_model_options.ms_path!s}"
 
     return command
 

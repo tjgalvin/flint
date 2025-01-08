@@ -8,7 +8,7 @@ import warnings
 from argparse import ArgumentParser
 from pathlib import Path
 from shutil import copyfile
-from typing import Collection, List, Literal, NamedTuple, Optional
+from typing import Collection, Literal, NamedTuple
 
 import astropy.units as u
 import numpy as np
@@ -80,8 +80,8 @@ def check_if_cube_fits(fits_file: Path) -> bool:
 
 
 def get_cube_common_beam(
-    cube_paths: Collection[Path], cutoff: Optional[float] = None
-) -> List[BeamShape]:
+    cube_paths: Collection[Path], cutoff: float | None = None
+) -> list[BeamShape]:
     """Given a set of input cube FITS files, compute a common beam
     for each channel.
 
@@ -129,8 +129,8 @@ def get_cube_common_beam(
 
 def convolve_cubes(
     cube_paths: Collection[Path],
-    beam_shapes: List[BeamShape],
-    cutoff: Optional[float] = None,
+    beam_shapes: list[BeamShape],
+    cutoff: float | None = None,
     convol_suffix: str = "conv",
     executor_type: Literal["thread", "process", "mpi"] = "thread",
 ) -> Collection[Path]:
@@ -180,7 +180,7 @@ def convolve_cubes(
 
 
 def get_common_beam(
-    image_paths: Collection[Path], cutoff: Optional[float] = None
+    image_paths: Collection[Path], cutoff: float | None = None
 ) -> BeamShape:
     """Return the minimum beam size required to encompass the beams described
     in the FITS header (e.g. BMAJ,BMIN,BPA) of the input images. This is used
@@ -214,7 +214,7 @@ def get_common_beam(
 def convolve_images(
     image_paths: Collection[Path],
     beam_shape: BeamShape,
-    cutoff: Optional[float] = None,
+    cutoff: float | None = None,
     convol_suffix: str = "conv",
 ) -> Collection[Path]:
     """Convolve a set of input images to a common resolution as specified
@@ -257,7 +257,7 @@ def convolve_images(
         pa=beam_shape.bpa_deg * u.deg,
     )
 
-    return_conv_image_paths: List[Path] = []
+    return_conv_image_paths: list[Path] = []
 
     for image_path in image_paths:
         convol_output_path = Path(
@@ -268,7 +268,7 @@ def convolve_images(
             logger.info(f"Copying {image_path} to {convol_output_path=} for empty beam")
             copyfile(image_path, convol_output_path)
         else:
-            logger.info(f"Convolving {str(image_path.name)}")
+            logger.info(f"Convolving {image_path.name!s}")
             beamcon_2D.beamcon_2d_on_fits(
                 file=image_path,
                 outdir=None,

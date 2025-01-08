@@ -5,8 +5,10 @@
 - run aegean source finding
 """
 
+from __future__ import annotations
+
 from pathlib import Path
-from typing import Any, List, Optional, Union
+from typing import Any
 
 from configargparse import ArgumentParser
 from prefect import flow, tags, unmapped
@@ -15,8 +17,8 @@ from flint.calibrate.aocalibrate import find_existing_solutions
 from flint.catalogue import verify_reference_catalogues
 from flint.coadd.linmos import LinmosCommand
 from flint.configuration import (
-    _load_and_copy_strategy,
     Strategy,
+    _load_and_copy_strategy,
     get_options_from_strategy,
 )
 from flint.logging import logger
@@ -30,9 +32,9 @@ from flint.naming import (
 )
 from flint.options import (
     FieldOptions,
-    dump_field_options_to_yaml,
     add_options_to_parser,
     create_options_from_parser,
+    dump_field_options_to_yaml,
 )
 from flint.prefect.clusters import get_dask_runner
 from flint.prefect.common.imaging import (
@@ -133,7 +135,7 @@ def _check_create_output_split_science_path(
         )
         raise ValueError("Output science directory already exists. ")
 
-    logger.info(f"Creating {str(output_split_science_path)}")
+    logger.info(f"Creating {output_split_science_path!s}")
     output_split_science_path.mkdir(parents=True)
 
     return output_split_science_path
@@ -144,7 +146,7 @@ def process_science_fields(
     science_path: Path,
     split_path: Path,
     field_options: FieldOptions,
-    bandpass_path: Optional[Path] = None,
+    bandpass_path: Path | None = None,
 ) -> None:
     # Verify no nasty incompatible options
     _check_field_options(field_options=field_options)
@@ -170,9 +172,9 @@ def process_science_fields(
         field_options=field_options,
     )
 
-    archive_wait_for: List[Any] = []
+    archive_wait_for: list[Any] = []
 
-    strategy: Optional[Strategy] = _load_and_copy_strategy(
+    strategy: Strategy | None = _load_and_copy_strategy(
         output_split_science_path=output_split_science_path,
         imaging_strategy=field_options.imaging_strategy,
     )
@@ -419,9 +421,7 @@ def process_science_fields(
                     aegean_container=unmapped(field_options.aegean_container),
                 )
 
-            parsets_self: Union[None, List[LinmosCommand]] = (
-                None  # Without could be unbound
-            )
+            parsets_self: None | list[LinmosCommand] = None  # Without could be unbound
             if field_options.yandasoft_container:
                 parsets_self = _create_convol_linmos_images(
                     wsclean_cmds=wsclean_cmds,
@@ -504,11 +504,11 @@ def process_science_fields(
 
 
 def setup_run_process_science_field(
-    cluster_config: Union[str, Path],
+    cluster_config: str | Path,
     science_path: Path,
     split_path: Path,
     field_options: FieldOptions,
-    bandpass_path: Optional[Path] = None,
+    bandpass_path: Path | None = None,
     skip_bandpass_check: bool = False,
 ) -> None:
     if not skip_bandpass_check and bandpass_path:

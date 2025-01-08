@@ -13,28 +13,24 @@ from __future__ import (  # Used for mypy/pylance to like the return type of MS.
 
 from argparse import ArgumentParser, Namespace
 from pathlib import Path
-from pydantic import BaseModel, ConfigDict
-from pydantic.fields import FieldInfo
 from typing import (
     Any,
-    Dict,
-    List,
     NamedTuple,
-    Optional,
-    Union,
-    Tuple,
     TypeVar,
+    Union,
     get_args,
     get_origin,
 )
 
 import yaml
+from pydantic import BaseModel, ConfigDict
+from pydantic.fields import FieldInfo
 
 from flint.exceptions import MSError
 from flint.logging import logger
 
 
-def options_to_dict(input_options: Any) -> Dict:
+def options_to_dict(input_options: Any) -> dict:
     """Helper function to convert an `Options` type class to a dictionary.
 
     Most of `flint` `Option` and `Result` classes used `typing.NamedTuples`, which carry with
@@ -89,11 +85,11 @@ class BaseOptions(BaseModel):
 
         return self.__class__(**new_args)
 
-    def _asdict(self) -> Dict[str, Any]:
+    def _asdict(self) -> dict[str, Any]:
         return self.__dict__
 
 
-def _create_argparse_options(name: str, field: FieldInfo) -> Tuple[str, Dict[str, Any]]:
+def _create_argparse_options(name: str, field: FieldInfo) -> tuple[str, dict[str, Any]]:
     """Convert a pydantic Field into ``dict`` to splate into ArgumentParser.add_argument()"""
 
     field_name = name if field.is_required() else "--" + name.replace("_", "-")
@@ -193,9 +189,9 @@ class BandpassOptions(BaseOptions):
     a single bandpass pipeline run
     """
 
-    flagger_container: Optional[Path] = None
+    flagger_container: Path | None = None
     """Path to the singularity aoflagger container"""
-    calibrate_container: Optional[Path] = None
+    calibrate_container: Path | None = None
     """Path to the singularity calibrate container"""
     expected_ms: int = 36
     """The expected number of measurement set files to find"""
@@ -207,13 +203,13 @@ class BandpassOptions(BaseOptions):
     """The polynomial order used by the Savgol filter when smoothing the bandpass solutions"""
     flag_calibrate_rounds: int = 3
     """The number of times the bandpass will be calibrated, flagged, then recalibrated"""
-    minuv: Optional[float] = None
+    minuv: float | None = None
     """The minimum baseline length, in meters, for data to be included in bandpass calibration stage"""
     preflagger_ant_mean_tolerance: float = 0.2
     """Tolerance that the mean x/y antenna gain ratio test before the antenna is flagged"""
     preflagger_mesh_ant_flags: bool = False
     """Share channel flags from bandpass solutions between all antenna"""
-    preflagger_jones_max_amplitude: Optional[float] = None
+    preflagger_jones_max_amplitude: float | None = None
     """Flag Jones matrix if any amplitudes with a Jones are above this value"""
 
 
@@ -225,11 +221,11 @@ class AddModelSubtractFieldOptions(BaseOptions):
 
     attempt_addmodel: bool = False
     """Invoke the ``addmodel`` visibility prediction, including the search for the ``wsclean`` source list"""
-    wsclean_pol_mode: List[str] = ["i"]
+    wsclean_pol_mode: list[str] = ["i"]
     """The polarisation of the wsclean model that was generated"""
-    calibrate_container: Optional[Path] = None
+    calibrate_container: Path | None = None
     """Path to the container with the calibrate software (including addmodel)"""
-    addmodel_cluster_config: Optional[Path] = None
+    addmodel_cluster_config: Path | None = None
     """Specify a new cluster configuration file different to the preferred on. If None, drawn from preferred cluster config"""
 
 
@@ -247,9 +243,9 @@ class SubtractFieldOptions(BaseOptions):
     """Describe the column that should be imaed and, if requested, have model subtracted from"""
     expected_ms: int = 36
     """The number of measurement sets that should exist"""
-    imaging_strategy: Optional[Path] = None
+    imaging_strategy: Path | None = None
     """Path to a FLINT imaging yaml file that contains settings to use throughout imaging"""
-    holofile: Optional[Path] = None
+    holofile: Path | None = None
     """Path to the holography FITS cube that will be used when co-adding beams"""
     linmos_residuals: bool = False
     """Linmos the cleaning residuals together into a field image"""
@@ -257,7 +253,7 @@ class SubtractFieldOptions(BaseOptions):
     """Cutoff in arcseconds to use when calculating the common beam to convol to"""
     pb_cutoff: float = 0.1
     """Primary beam attenuation cutoff to use during linmos"""
-    stagger_delay_seconds: Optional[float] = None
+    stagger_delay_seconds: float | None = None
     """The delay, in seconds, that should be used when submitting items in batches (e.g. looping over channels)"""
     attempt_subtract: bool = False
     """Attempt to subtract the model column from the nominated data column"""
@@ -280,41 +276,41 @@ class FieldOptions(BaseOptions):
     rounds of self-calibration.
     """
 
-    flagger_container: Optional[Path] = None
+    flagger_container: Path | None = None
     """Path to the singularity aoflagger container"""
-    calibrate_container: Optional[Path] = None
+    calibrate_container: Path | None = None
     """Path to the singularity calibrate container"""
-    casa_container: Optional[Path] = None
+    casa_container: Path | None = None
     """Path to the singularity CASA container"""
     expected_ms: int = 36
     """The expected number of measurement set files to find"""
-    wsclean_container: Optional[Path] = None
+    wsclean_container: Path | None = None
     """Path to the singularity wsclean container"""
-    yandasoft_container: Optional[Path] = None
+    yandasoft_container: Path | None = None
     """Path to the singularity yandasoft container"""
-    potato_container: Optional[Path] = None
+    potato_container: Path | None = None
     """Path to the singularity potato peel container"""
-    holofile: Optional[Path] = None
+    holofile: Path | None = None
     """Path to the holography FITS cube that will be used when co-adding beams"""
     rounds: int = 2
     """Number of required rouds of self-calibration and imaging to perform"""
-    skip_selfcal_on_rounds: Optional[List[int]] = None
+    skip_selfcal_on_rounds: list[int] | None = None
     """Do not perform the derive and apply self-calibration solutions on these rounds"""
     zip_ms: bool = False
     """Whether to zip measurement sets once they are no longer required"""
     run_aegean: bool = False
     """Whether to run the aegean source finding tool"""
-    aegean_container: Optional[Path] = None
+    aegean_container: Path | None = None
     """Path to the singularity aegean container"""
     no_imaging: bool = False
     """Whether to skip the imaging process (including self-calibration)"""
-    reference_catalogue_directory: Optional[Path] = None
+    reference_catalogue_directory: Path | None = None
     """Path to the directory container the reference catalogues, used to generate validation plots"""
     linmos_residuals: bool = False
     """Linmos the cleaning residuals together into a field image"""
     beam_cutoff: float = 150
     """Cutoff in arcseconds to use when calculating the common beam to convol to"""
-    fixed_beam_shape: Optional[List[float]] = None
+    fixed_beam_shape: list[float] | None = None
     """Specify the final beamsize of linmos field images in (arcsec, arcsec, deg)"""
     pb_cutoff: float = 0.1
     """Primary beam attenuation cutoff to use during linmos"""
@@ -326,13 +322,13 @@ class FieldOptions(BaseOptions):
     """Construct beam masks from MFS images to use for the next round of imaging. """
     use_beam_masks_from: int = 1
     """If `use_beam_masks` is True, this sets the round where beam masks will be generated from"""
-    use_beam_masks_rounds: Optional[List[int]] = None
+    use_beam_masks_rounds: list[int] | None = None
     """If `use_beam_masks` is True, this sets which rounds should have a mask applied"""
-    imaging_strategy: Optional[Path] = None
+    imaging_strategy: Path | None = None
     """Path to a FLINT imaging yaml file that contains settings to use throughout imaging"""
-    sbid_archive_path: Optional[Path] = None
+    sbid_archive_path: Path | None = None
     """Path that SBID archive tarballs will be created under. If None no archive tarballs are created. See ArchiveOptions. """
-    sbid_copy_path: Optional[Path] = None
+    sbid_copy_path: Path | None = None
     """Path that final processed products will be copied into. If None no copying of file products is performed. See ArchiveOptions. """
     rename_ms: bool = False
     """Rename MSs throughout rounds of imaging and self-cal instead of creating copies. This will delete data-columns throughout. """
@@ -400,9 +396,9 @@ DEFAULT_COPY_RE_PATTERNS = (r".*linmos.*fits", r".*weight\.fits", r".*png", r".*
 class ArchiveOptions(BaseOptions):
     """Container for options related to archiving products from flint workflows"""
 
-    tar_file_re_patterns: Tuple[str, ...] = DEFAULT_TAR_RE_PATTERNS
+    tar_file_re_patterns: tuple[str, ...] = DEFAULT_TAR_RE_PATTERNS
     """Regular-expressions to use to collect files that should be tarballed"""
-    copy_file_re_patterns: Tuple[str, ...] = DEFAULT_COPY_RE_PATTERNS
+    copy_file_re_patterns: tuple[str, ...] = DEFAULT_COPY_RE_PATTERNS
     """Regular-expressions used to identify files to copy into a final location (not tarred)"""
 
 
@@ -415,15 +411,15 @@ class MS(NamedTuple):
 
     path: Path
     """Path to the measurement set that is being represented"""
-    column: Optional[str] = None
+    column: str | None = None
     """Column that should be operated against"""
-    beam: Optional[int] = None
+    beam: int | None = None
     """The beam ID of the MS within an ASKAP field"""
-    spw: Optional[int] = None
+    spw: int | None = None
     """Intended to be used with ASKAP high-frequency resolution modes, where the MS is divided into SPWs"""
-    field: Optional[str] = None
+    field: str | None = None
     """The field name  of the data"""
-    model_column: Optional[str] = None
+    model_column: str | None = None
     """The column name of the most recently MODEL data"""
 
     @property
@@ -431,7 +427,7 @@ class MS(NamedTuple):
         return self
 
     @classmethod
-    def cast(cls, ms: Union[MS, Path]) -> MS:
+    def cast(cls, ms: MS | Path) -> MS:
         """Create/return a MS instance given either a Path or MS.
 
         If the input is neither a MS instance or Path, the object will

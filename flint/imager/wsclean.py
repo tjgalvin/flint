@@ -21,7 +21,7 @@ from argparse import ArgumentParser
 from glob import glob
 from numbers import Number
 from pathlib import Path
-from typing import Any, Collection, Dict, List, NamedTuple, Optional, Tuple, Union
+from typing import Any, Collection, NamedTuple
 
 import numpy as np
 from fitscube.combine_fits import combine_fits
@@ -31,10 +31,10 @@ from flint.logging import logger
 from flint.ms import MS
 from flint.naming import create_image_cube_name, create_imaging_name_prefix
 from flint.options import (
-    options_to_dict,
     BaseOptions,
     add_options_to_parser,
     create_options_from_parser,
+    options_to_dict,
 )
 from flint.sclient import run_singularity_command
 from flint.utils import (
@@ -50,17 +50,17 @@ class ImageSet(BaseOptions):
 
     prefix: str
     """Prefix of the images and other output products. This should correspond to the -name argument from wsclean"""
-    image: List[Path]
+    image: list[Path]
     """Images produced. """
-    psf: Optional[List[Path]] = None
+    psf: list[Path] | None = None
     """References to the PSFs produced by wsclean. """
-    dirty: Optional[List[Path]] = None
+    dirty: list[Path] | None = None
     """Dirty images. """
-    model: Optional[List[Path]] = None
+    model: list[Path] | None = None
     """Model images.  """
-    residual: Optional[List[Path]] = None
+    residual: list[Path] | None = None
     """Residual images."""
-    source_list: Optional[Path] = None
+    source_list: Path | None = None
     """Path to a source list that accompanies the image data"""
 
 
@@ -91,7 +91,7 @@ class WSCleanOptions(BaseOptions):
     """How deep the construct clean mask is during each cycle"""
     auto_threshold: float = 0.5
     """How deep to clean once initial clean threshold reached"""
-    threshold: Optional[float] = None
+    threshold: float | None = None
     """Threshold in Jy to stop cleaning"""
     channels_out: int = 4
     """Number of output channels"""
@@ -105,9 +105,9 @@ class WSCleanOptions(BaseOptions):
     """Enable multiscale deconvolution"""
     multiscale_scale_bias: float = 0.75
     """Multiscale bias term"""
-    multiscale_gain: Optional[float] = None
+    multiscale_gain: float | None = None
     """Size of step made in the subminor loop of multi-scale. Default currently 0.2, but shows sign of instability. A value of 0.1 might be more stable."""
-    multiscale_scales: Tuple[int, ...] = (
+    multiscale_scales: tuple[int, ...] = (
         0,
         15,
         25,
@@ -118,7 +118,7 @@ class WSCleanOptions(BaseOptions):
         400,
     )
     """Scales used for multi-scale deconvolution"""
-    fit_spectral_pol: Optional[int] = None
+    fit_spectral_pol: int | None = None
     """Number of spectral terms to include during sub-band subtraction"""
     weight: str = "briggs -0.5"
     """Robustness of the weighting used"""
@@ -126,41 +126,41 @@ class WSCleanOptions(BaseOptions):
     """Which column in the MS to image"""
     scale: str = "2.5asec"
     """Pixel scale size"""
-    gridder: Optional[str] = "wgridder"
+    gridder: str | None = "wgridder"
     """Use the wgridder kernel in wsclean (instead of the default w-stacking method)"""
-    nwlayers: Optional[int] = None
+    nwlayers: int | None = None
     """Number of w-layers to use if the gridder mode is w-stacking"""
     wgridder_accuracy: float = 1e-4
     """The accuracy requested of the wgridder (should it be used), compared as the RMS error when compred to a DFT"""
     join_channels: bool = True
     """Collapse the sub-band images down to an MFS image when peak-finding"""
-    minuv_l: Optional[float] = None
+    minuv_l: float | None = None
     """The minimum lambda length that the visibility data needs to meet for it to be selected for imaging"""
-    minuvw_m: Optional[float] = None
+    minuvw_m: float | None = None
     """A (u,v) selection command, where any baselines shorter than this will be ignored during imaging"""
-    maxw: Optional[float] = None
+    maxw: float | None = None
     """A percentage specifying the maximum w-term to be gridded, relative to the max w-term being considered"""
     no_update_model_required: bool = False
     """Will instruct wsclean not to create the MODEL_DATA column"""
     no_small_inversion: bool = False
     """Disables an optimisation of wsclean's w-gridder mode. This might improve accuracy of the w-gridder. """
-    beam_fitting_size: Optional[float] = 1.25
+    beam_fitting_size: float | None = 1.25
     """Use a fitting box the size of <factor> times the theoretical beam size for fitting a Gaussian to the PSF."""
-    fits_mask: Optional[Path] = None
+    fits_mask: Path | None = None
     """Path to a FITS file that encodes a cleaning mask"""
-    deconvolution_channels: Optional[int] = None
+    deconvolution_channels: int | None = None
     """The channels out will be averaged down to this many sub-band images during deconvolution"""
-    parallel_deconvolution: Optional[int] = None
+    parallel_deconvolution: int | None = None
     """If not none, then this is the number of sub-regions wsclean will attempt to divide and clean"""
-    parallel_gridding: Optional[int] = None
+    parallel_gridding: int | None = None
     """If not none, then this is the number of channel images that will be gridded in parallel"""
-    temp_dir: Optional[Union[str, Path]] = None
+    temp_dir: str | Path | None = None
     """The path to a temporary directory where files will be wrritten. """
     pol: str = "i"
     """The polarisation to be imaged"""
     save_source_list: bool = False
     """Saves the found clean components as a BBS/DP3 text sky model"""
-    channel_range: Optional[Tuple[int, int]] = None
+    channel_range: tuple[int, int] | None = None
     """Image a channel range between a lower (inclusive) and upper (exclusive) bound"""
     no_reorder: bool = False
     """If True turn off the reordering of the MS at the beginning of wsclean"""
@@ -177,14 +177,14 @@ class WSCleanCommand(BaseOptions):
     """The set of wslean options used for imaging"""
     ms: MS
     """The measurement sets that have been included in the wsclean command. """
-    imageset: Optional[ImageSet] = None
+    imageset: ImageSet | None = None
     """Collection of images produced by wsclean"""
     cleanup: bool = True
     """Will clean up the dirty images/psfs/residuals/models when the imaging has completed"""
 
 
 def get_wsclean_output_source_list_path(
-    name_path: Union[str, Path], pol: Optional[str] = None
+    name_path: str | Path, pol: str | None = None
 ) -> Path:
     """WSClean can produce a text file that describes the components
     that it cleaned, their type, scale and brightness. These are
@@ -305,11 +305,11 @@ def _wsclean_output_callback(line: str) -> None:
 # TODO: Update this function to also add int the source list
 def get_wsclean_output_names(  #
     prefix: str,
-    subbands: Optional[int] = None,
-    pols: Optional[Union[str, Tuple[str]]] = None,
+    subbands: int | None = None,
+    pols: str | tuple[str] | None = None,
     verify_exists: bool = False,
     include_mfs: bool = True,
-    output_types: Union[str, Collection[str]] = (
+    output_types: str | Collection[str] = (
         "image",
         "dirty",
         "residual",
@@ -344,7 +344,7 @@ def get_wsclean_output_names(  #
     """
     logger.info(f"Finding wsclean outputs, {prefix=}")
     # TODO: Use a regular expression for this
-    subband_strs: List[Optional[str]] = [
+    subband_strs: list[str | None] = [
         None,
     ]
     if subbands and subbands > 1:
@@ -352,7 +352,7 @@ def get_wsclean_output_names(  #
         if include_mfs:
             subband_strs.append("MFS")
 
-    in_pols: Tuple[Union[None, str]]
+    in_pols: tuple[None | str]
     if pols is None:
         in_pols = (None,)
     elif isinstance(pols, str):
@@ -363,12 +363,12 @@ def get_wsclean_output_names(  #
     if isinstance(output_types, str):
         output_types = (output_types,)
 
-    images: Dict[str, List[Path]] = {}
+    images: dict[str, list[Path]] = {}
     for image_type in ("image", "dirty", "model", "residual"):
         if image_type not in output_types:
             continue
 
-        paths: List[Path] = []
+        paths: list[Path] = []
         for pol in in_pols:
             for subband_str in subband_strs:
                 components = [prefix]
@@ -404,7 +404,7 @@ def get_wsclean_output_names(  #
         images["psf"] = psf_images
 
     if verify_exists:
-        paths_no_exists: List[Path] = []
+        paths_no_exists: list[Path] = []
         for _, check_paths in images.items():
             paths_no_exists += [path for path in check_paths if not path.exists()]
         if len(paths_no_exists) > 0:
@@ -420,7 +420,7 @@ def delete_wsclean_outputs(
     output_type: str = "image",
     ignore_mfs: bool = True,
     no_subbands: bool = False,
-) -> List[Path]:
+) -> list[Path]:
     """Attempt to remove elected wsclean output files
 
     If ``no_subbands`` is True (as in ``channels_out`` is 1) then nothing is deleted.
@@ -437,7 +437,7 @@ def delete_wsclean_outputs(
     # TODO: This glob needs to be replaced with something more explicit
     paths = [Path(p) for p in glob(f"{prefix}-*{output_type}.fits")]
     logger.info(f"Found {len(paths)} matching {prefix=} and {output_type=}.")
-    rm_paths: List[Path] = []
+    rm_paths: list[Path] = []
 
     for path in paths:
         if no_subbands:
@@ -460,10 +460,10 @@ def delete_wsclean_outputs(
 # TODO: Need to create a regex based mode, and better handlijng of -MFS-,
 # which is only created when -join-channels is used
 def wsclean_cleanup_files(
-    prefix: Union[str, Path],
-    output_types: Optional[Tuple[str, ...]] = ("dirty", "psf", "model", "residual"),
+    prefix: str | Path,
+    output_types: tuple[str, ...] | None = ("dirty", "psf", "model", "residual"),
     single_channel: bool = False,
-) -> Tuple[Path, ...]:
+) -> tuple[Path, ...]:
     """Clean up (i.e. delete) files from wsclean.
 
     Args:
@@ -512,7 +512,7 @@ def create_wsclean_name_argument(wsclean_options: WSCleanOptions, ms: MS) -> Pat
     )
 
     # Now resolve the directory part
-    name_dir: Union[Path, str, None] = ms.path.parent
+    name_dir: Path | str | None = ms.path.parent
     temp_dir = wsclean_options_dict.get("temp_dir", None)
     if temp_dir:
         # Resolve if environment variable
@@ -533,11 +533,11 @@ def create_wsclean_name_argument(wsclean_options: WSCleanOptions, ms: MS) -> Pat
 class ResolvedCLIResult(NamedTuple):
     """Mapping results to provide to wsclean"""
 
-    cmd: Optional[str] = None
+    cmd: str | None = None
     """The argument value pair to place on the CLI. """
-    unknown: Optional[Any] = None
+    unknown: Any | None = None
     """Unknown options that could not be converted"""
-    bindpath: Optional[Path] = None
+    bindpath: Path | None = None
     """A path to bind to when called within a container"""
     ignore: bool = False
     """Ignore this CLIResult if True"""
@@ -609,7 +609,7 @@ def _resolve_wsclean_key_value_to_cli_str(key: str, value: Any) -> ResolvedCLIRe
 def create_wsclean_cmd(
     ms: MS,
     wsclean_options: WSCleanOptions,
-    container: Optional[Path] = None,
+    container: Path | None = None,
 ) -> WSCleanCommand:
     """Create a wsclean command from a WSCleanOptions container
 
@@ -645,11 +645,11 @@ def create_wsclean_cmd(
         wsclean_options=wsclean_options, ms=ms
     )
     move_directory = ms.path.parent
-    hold_directory: Optional[Path] = Path(name_argument_path).parent
+    hold_directory: Path | None = Path(name_argument_path).parent
 
     wsclean_options_dict = wsclean_options._asdict()
 
-    unknowns: List[Tuple[Any, Any]] = []
+    unknowns: list[tuple[Any, Any]] = []
     logger.info("Creating wsclean command.")
 
     cli_results = list(
@@ -673,8 +673,8 @@ def create_wsclean_cmd(
         msg = ", ".join([f"{t[0]} {t[1]}" for t in unknowns])
         raise ValueError(f"Unknown wsclean option types: {msg}")
 
-    cmds += [f"-name {str(name_argument_path)}"]
-    cmds += [f"{str(ms.path)} "]
+    cmds += [f"-name {name_argument_path!s}"]
+    cmds += [f"{ms.path!s} "]
 
     bind_dir_paths.append(ms.path.parent)
 
@@ -777,7 +777,7 @@ def rename_wsclean_prefix_in_imageset(input_imageset: ImageSet) -> ImageSet:
 
     check_keys = ("prefix", "image", "residual", "model", "dirty")
 
-    output_args: Dict[str, Any] = {}
+    output_args: dict[str, Any] = {}
 
     for key, value in input_args.items():
         if key == "prefix":
@@ -798,10 +798,10 @@ def rename_wsclean_prefix_in_imageset(input_imageset: ImageSet) -> ImageSet:
 def run_wsclean_imager(
     wsclean_cmd: WSCleanCommand,
     container: Path,
-    bind_dirs: Optional[Tuple[Path, ...]] = None,
-    move_hold_directories: Optional[Tuple[Path, Optional[Path]]] = None,
+    bind_dirs: tuple[Path, ...] | None = None,
+    move_hold_directories: tuple[Path, Path | None] | None = None,
     make_cube_from_subbands: bool = True,
-    image_prefix_str: Optional[str] = None,
+    image_prefix_str: str | None = None,
 ) -> WSCleanCommand:
     """Run a provided wsclean command. Optionally will clean up files,
     including the dirty beams, psfs and other assorted things.
@@ -859,7 +859,7 @@ def run_wsclean_imager(
                 wsclean_cleanup = False
             # Update the prefix based on where the files will be moved to
             prefix = (
-                f"{str(move_hold_directories[0] / Path(prefix).name)}"
+                f"{move_hold_directories[0] / Path(prefix).name!s}"
                 if image_prefix_str
                 else None
             )
@@ -908,9 +908,9 @@ def run_wsclean_imager(
 
 
 def wsclean_imager(
-    ms: Union[Path, MS],
+    ms: Path | MS,
     wsclean_container: Path,
-    update_wsclean_options: Optional[Dict[str, Any]] = None,
+    update_wsclean_options: dict[str, Any] | None = None,
 ) -> WSCleanCommand:
     """Create and run a wsclean imager command against a measurement set.
 

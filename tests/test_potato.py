@@ -1,5 +1,7 @@
 """Some basic checks around the potato peel functionality"""
 
+from __future__ import annotations
+
 import shutil
 from pathlib import Path
 

@@ -2,20 +2,22 @@
 and the MS class
 """
 
+from __future__ import annotations
+
 import shutil
 from pathlib import Path
 
 import numpy as np
-from pydantic import ValidationError
 import pytest
 from casacore.tables import table
+from pydantic import ValidationError
 
 from flint.calibrate.aocalibrate import ApplySolutions
 from flint.ms import (
     MS,
     check_column_in_ms,
-    copy_and_preprocess_casda_askap_ms,
     consistent_channelwise_frequencies,
+    copy_and_preprocess_casda_askap_ms,
     find_mss,
     get_phase_dir_from_ms,
     remove_columns_from_ms,
@@ -304,7 +306,7 @@ def test_remove_columns_from_ms(ms_remove_example):
     updated_columns = _get_column_names(ms_path=ms_remove_example)
     diff = set(original_columns) - set(updated_columns)
     assert len(diff) == 1
-    assert list(diff)[0] == "DATA"
+    assert next(iter(diff)) == "DATA"
     assert removed_columns[0] == "DATA"
     assert len(removed_columns) == 1
 
@@ -340,7 +342,7 @@ def test_subtract_model_from_data_column(casda_taql_example):
     assert ms.exists()
     ms = MS(path=ms)
 
-    from casacore.tables import maketabdesc, makearrcoldesc
+    from casacore.tables import makearrcoldesc, maketabdesc
 
     with table(str(ms.path), readonly=False) as tab:
         data = tab.getcol("DATA")
@@ -387,7 +389,7 @@ def test_subtract_model_from_data_column_ms_column(tmpdir):
     assert ms.exists()
     ms = MS(path=ms, column="DATA")
 
-    from casacore.tables import maketabdesc, makearrcoldesc
+    from casacore.tables import makearrcoldesc, maketabdesc
 
     with table(str(ms.path), readonly=False) as tab:
         data = tab.getcol("DATA")
@@ -436,7 +438,7 @@ def test_subtract_model_from_data_column_ms_column_new_column(tmpdir):
     assert ms.exists()
     ms = MS(path=ms, column="DATA")
 
-    from casacore.tables import maketabdesc, makearrcoldesc
+    from casacore.tables import makearrcoldesc, maketabdesc
 
     with table(str(ms.path), readonly=False) as tab:
         data = tab.getcol("DATA")

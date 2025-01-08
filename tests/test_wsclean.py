@@ -1,9 +1,11 @@
 """Testing some wsclean functionality."""
 
+from __future__ import annotations
+
 import os
 import shutil
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any
 
 import pytest
 
@@ -12,8 +14,8 @@ from flint.imager.wsclean import (
     ImageSet,
     WSCleanCommand,
     WSCleanOptions,
-    _rename_wsclean_title,
     _rename_wsclean_file,
+    _rename_wsclean_title,
     _resolve_wsclean_key_value_to_cli_str,
     _wsclean_output_callback,
     combine_subbands_to_cube,
@@ -113,8 +115,8 @@ def test_rename_wsclean_imageset(tmpdir: Any):
     test_dir.mkdir(parents=True, exist_ok=True)
 
     # create some test files and ensure they all exist
-    keys: Dict[Any, Any] = {}
-    prefix = f"{str(test_dir)}/SB39400.RACS_0635-31.beam33.i"
+    keys: dict[Any, Any] = {}
+    prefix = f"{test_dir!s}/SB39400.RACS_0635-31.beam33.i"
     keys["prefix"] = prefix
     for mode in ("image", "residual"):
         items = [

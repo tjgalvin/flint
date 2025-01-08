@@ -13,9 +13,11 @@ that the best way to do this would be to use a header from the previous
 imaging round.
 """
 
+from __future__ import annotations
+
 from argparse import ArgumentParser
 from pathlib import Path
-from typing import Any, Union
+from typing import Any
 
 from prefect import flow, unmapped
 
@@ -84,13 +86,13 @@ def process_science_fields(
 
     assert (
         science_path.exists() and science_path.is_dir()
-    ), f"{str(science_path)} does not exist or is not a folder. "
+    ), f"{science_path!s} does not exist or is not a folder. "
     science_mss = list(
         [MS.cast(ms_path) for ms_path in sorted(science_path.glob("*.ms"))]
     )
     assert (
         len(science_mss) == field_options.expected_ms
-    ), f"Expected to find {field_options.expected_ms} in {str(science_path)}, found {len(science_mss)}."
+    ), f"Expected to find {field_options.expected_ms} in {science_path!s}, found {len(science_mss)}."
 
     science_folder_name = science_path.name
 
@@ -99,7 +101,7 @@ def process_science_fields(
     )
 
     if not output_split_science_path.exists():
-        logger.info(f"Creating {str(output_split_science_path)}")
+        logger.info(f"Creating {output_split_science_path!s}")
         output_split_science_path.mkdir(parents=True)
 
     logger.info(f"Found the following raw measurement sets: {science_mss}")
@@ -323,7 +325,7 @@ def process_science_fields(
 
 
 def setup_run_process_science_field(
-    cluster_config: Union[str, Path],
+    cluster_config: str | Path,
     science_path: Path,
     bandpass_path: Path,
     split_path: Path,

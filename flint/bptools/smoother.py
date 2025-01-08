@@ -1,4 +1,4 @@
-from typing import Tuple
+from __future__ import annotations
 
 import numpy as np
 from scipy.ndimage import median_filter
@@ -207,7 +207,7 @@ def smooth_bandpass_complex_gains(
     window_size: int = 16,
     polynomial_order: int = 4,
     apply_median_filter: bool = True,
-    smooth_jones_elements: Tuple[int, ...] = (0, 1, 2, 3),
+    smooth_jones_elements: tuple[int, ...] = (0, 1, 2, 3),
 ) -> np.ndarray:
     """Smooth bandpass solutions by applying a savgol filter to the real and imaginary components
     of each of the antenna based polarisation solutions across channels.

@@ -7,9 +7,11 @@ will fail. These only need to be downloaded once, provided they can be stored
 and retained on disk.
 """
 
+from __future__ import annotations
+
 from argparse import ArgumentParser
 from pathlib import Path
-from typing import NamedTuple, Optional, Tuple, Union
+from typing import NamedTuple
 
 import astropy.units as u
 from astropy.table import Table
@@ -41,11 +43,11 @@ class Catalogue(NamedTuple):
     """Column name containing the min-axis of the source gaussian component"""
     pa_col: str
     """Column name containing the pa of the source gaussian component"""
-    alpha_col: Optional[str] = None  # Used to scale the SED
+    alpha_col: str | None = None  # Used to scale the SED
     """Column name containing the spectral index, used to calculate the source SED. If None a default is used. """
-    q_col: Optional[str] = None  # Used to scale the SED
+    q_col: str | None = None  # Used to scale the SED
     """Column name containing the curvature of the spectral index, used to calculate the source SED. If None a default is used. """
-    vizier_id: Optional[str] = (
+    vizier_id: str | None = (
         None  # Required for known reference catalogues, not for other specified catalogues
     )
     """The ID of the catalogue on Vizier that is used to download the catalogue"""
@@ -124,7 +126,7 @@ PREFERRED_COLUMNS = dict(
 
 
 def guess_column_in_table(
-    table: Table, column: str, guess_column: Optional[str] = None
+    table: Table, column: str, guess_column: str | None = None
 ) -> str:
     """Attempt to deduce the appropriate column name from a set of
     column names in a table. A lookup of known column names for different
@@ -170,7 +172,7 @@ def guess_column_in_table(
 
 
 def _guess_catalogue_type(
-    table: Union[Table, Path],
+    table: Table | Path,
     survey: str = "askap",
     file_name: str = "askap.fit",
     freq: float = -1,
@@ -207,7 +209,7 @@ def _guess_catalogue_type(
 
 def get_reference_catalogue(
     reference_directory: Path, survey: str, verify: bool = True
-) -> Tuple[Table, Catalogue]:
+) -> tuple[Table, Catalogue]:
     """Load in a known reference catalogue
 
     Args:
@@ -301,7 +303,7 @@ def download_vizier_catalogue(
 
 def download_referencce_catalogues(
     reference_directory: Path, dry_run: bool = False
-) -> Tuple[Path, ...]:
+) -> tuple[Path, ...]:
     """Download all of the expected reference catalogue data that flint relies on
 
     Args:

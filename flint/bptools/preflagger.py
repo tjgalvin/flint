@@ -6,8 +6,10 @@ At this point there are no attempts to smooth or interpolate these flagged
 components of the bandpass.
 """
 
+from __future__ import annotations
+
 from pathlib import Path
-from typing import List, NamedTuple, Optional, Tuple
+from typing import NamedTuple
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -32,9 +34,9 @@ class PhaseOutlierResults(NamedTuple):
     """The initial model of the complex_gains"""
     fit_model_gains: np.ndarray
     """The complex gain model fit made against the unwrapped gains (i.e. complex_gains / init_model_gains)"""
-    init_model_params: Tuple[float, float]
+    init_model_params: tuple[float, float]
     """The initial guess (gradient, offset) model parameters to represent the phase component of the complex_gains"""
-    fit_model_params: Tuple[float, float]
+    fit_model_params: tuple[float, float]
     """The fitted model parameters constrained against the unwrapped gains"""
     outlier_mask: np.ndarray
     """Boolean mask of equal length to complex_gain, where True represents outliers that should be flagged"""
@@ -50,7 +52,7 @@ class PhaseOutlierResults(NamedTuple):
 def plot_phase_outlier(
     phase_outlier_results: PhaseOutlierResults,
     output_path: Path,
-    title: Optional[str] = None,
+    title: str | None = None,
 ) -> Path:
     """Create a simple diagnostic plot highlighting how the outlier
     channels and their phases were selected.
@@ -63,7 +65,7 @@ def plot_phase_outlier(
     Returns:
         Path: Path of the output image file
     """
-    logger.debug(f"Creating phase outlier plot, writing {str(output_path)}.")
+    logger.debug(f"Creating phase outlier plot, writing {output_path!s}.")
 
     complex_gains = phase_outlier_results.complex_gains
     init_model_gains = phase_outlier_results.init_model_gains
@@ -165,8 +167,8 @@ def flag_outlier_phase(
     complex_gains: np.ndarray,
     flag_cut: float,
     use_mad: bool = False,
-    plot_title: Optional[str] = None,
-    plot_path: Optional[Path] = None,
+    plot_title: str | None = None,
+    plot_path: Path | None = None,
 ) -> PhaseOutlierResults:
     """This procedure attempts to identify channels in the bandpass solutions to
     flag but searching for gains with outlier phases. Typically, ASKAP solutions
@@ -295,7 +297,7 @@ def flag_outlier_phase(
 
 
 def flags_over_threshold(
-    flags: np.ndarray, thresh: float = 0.8, ant_idx: Optional[int] = None
+    flags: np.ndarray, thresh: float = 0.8, ant_idx: int | None = None
 ) -> bool:
     """Given a set of flags for an antenna across frequency, consider how much is flagged, indicated
     by a value of True, and return whether it was over a threshold. The intent is to return whether
@@ -333,7 +335,7 @@ def plot_mean_amplitudes(
     mean: float,
     std: float,
     output_path: Path,
-    plot_title: Optional[str] = None,
+    plot_title: str | None = None,
 ) -> Path:
     """A simply plot to examine the polynomial fit to the residual amplitude data.
 
@@ -378,8 +380,8 @@ def flag_mean_residual_amplitude(
     complex_gains: np.ndarray,
     use_robust: bool = True,
     polynomial_order: int = 5,
-    plot_path: Optional[Path] = None,
-    plot_title: Optional[str] = None,
+    plot_path: Path | None = None,
+    plot_title: str | None = None,
 ) -> bool:
     """Calculate the median or mean of the residual amplitudes of the complex gains
     after fitting a polynomial of order polynomial_order.
@@ -520,7 +522,7 @@ def construct_mesh_ant_flags(mask: np.ndarray) -> np.ndarray:
     nant = mask.shape[0]
     logger.info(f"Accumulating flagged channels over {nant=} antenna")
 
-    empty_ants: List[int] = []
+    empty_ants: list[int] = []
 
     # TODO: This can be replaced with numpy broadcasting
 

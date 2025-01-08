@@ -2,9 +2,11 @@
 for continuum imaging of RACS data
 """
 
+from __future__ import annotations
+
 from argparse import ArgumentParser
 from pathlib import Path
-from typing import Dict, NamedTuple, Optional, Tuple, Union
+from typing import NamedTuple
 
 import astropy.units as u
 import matplotlib.pyplot as plt
@@ -43,13 +45,13 @@ class ValidationCatalogues(NamedTuple):
     """ICRF catalogue"""
     askap: Catalogue
     """ASKAP catalogue"""
-    racs_high: Optional[Catalogue] = None
+    racs_high: Catalogue | None = None
     """RACS high catalogue"""
-    racs_mid: Optional[Catalogue] = None
+    racs_mid: Catalogue | None = None
     """RACS mid catalogue"""
-    tgss: Optional[Catalogue] = None
+    tgss: Catalogue | None = None
     """TGSS catalogue"""
-    vlass: Optional[Catalogue] = None
+    vlass: Catalogue | None = None
     """VLASS catalogue"""
 
 
@@ -64,13 +66,13 @@ class Tables(NamedTuple):
     """ICRF catalogue"""
     askap: Table
     """ASKAP catalogue"""
-    racs_high: Optional[Table] = None
+    racs_high: Table | None = None
     """RACS high catalogue"""
-    racs_mid: Optional[Table] = None
+    racs_mid: Table | None = None
     """RACS mid catalogue"""
-    tgss: Optional[Table] = None
+    tgss: Table | None = None
     """TGSS catalogue"""
-    vlass: Optional[Table] = None
+    vlass: Table | None = None
     """VLASS catalogue"""
 
 
@@ -83,13 +85,13 @@ class XMatchTables(NamedTuple):
     """SUMSS catalogue"""
     icrf: Path
     """ICRF catalogue"""
-    racs_high: Optional[Path] = None
+    racs_high: Path | None = None
     """RACS high catalogue"""
-    racs_mid: Optional[Path] = None
+    racs_mid: Path | None = None
     """RACS mid catalogue"""
-    tgss: Optional[Path] = None
+    tgss: Path | None = None
     """TGSS catalogue"""
-    vlass: Optional[Path] = None
+    vlass: Path | None = None
     """VLASS catalogue"""
 
 
@@ -136,7 +138,7 @@ class RMSImageInfo(NamedTuple):
     """Path to the RMS fits image"""
     header: fits.Header
     """Header from the FITS image"""
-    shape: Tuple[int, int]
+    shape: tuple[int, int]
     """Dimension of the image"""
     no_valid_pixels: int
     """Number of valid pixels in the image"""
@@ -175,7 +177,7 @@ class SourceCounts(NamedTuple):
     """Rough estimate of error on the euclidean normalised source counts"""
     area: float
     """The area in square degrees that the sources cover, i.e. image footprint sky-area"""
-    area_fraction: Optional[np.ndarray] = None
+    area_fraction: np.ndarray | None = None
     """The fraction of the image that was above a sigma level per flux bin. This may be used as a rough term to scale the Euclidean Normalised source counts. This is not intended to be a robust way of correcting the source counts - just quick"""
 
 
@@ -198,9 +200,9 @@ class MatchResult(NamedTuple):
     """The indices of the matched sources from the original input table 1"""
     idx2: np.ndarray
     """The indices of the matched sources from the original input table 2"""
-    flux1: Optional[np.ndarray] = None
+    flux1: np.ndarray | None = None
     """Brightness in Jy of source in the first survey"""
-    flux2: Optional[np.ndarray] = None
+    flux2: np.ndarray | None = None
     """Brightness in Jy of source in the second survey"""
 
 
@@ -307,7 +309,7 @@ def get_known_catalogue_info(name: str) -> Catalogue:
 
 def load_known_catalogue(
     name: str, reference_catalogue_directory: Path
-) -> Tuple[Table, Catalogue]:
+) -> tuple[Table, Catalogue]:
     """Load in a known catalogue table
 
     Args:
@@ -499,7 +501,7 @@ def plot_flag_summary(
 
 
 def plot_rms_map(
-    fig: Figure, ax: Axes, rms_path: Path, source_positions: Optional[SkyCoord] = None
+    fig: Figure, ax: Axes, rms_path: Path, source_positions: SkyCoord | None = None
 ) -> Axes:
     """Add the RMS image to the figure
 
@@ -630,7 +632,7 @@ def get_source_counts(
     minlogf: float = -4,
     maxlogf: float = 2,
     Nbins: int = 81,
-    rms_image_path: Optional[Path] = None,
+    rms_image_path: Path | None = None,
 ) -> SourceCounts:
     """Derive source counts for a set of fluxes and known area
 
@@ -690,9 +692,9 @@ def plot_source_counts(
     catalogue: Table,
     rms_info: RMSImageInfo,
     ax: Axes,
-    freq: Optional[float] = None,
-    dezotti: Optional[Table] = None,
-    skads: Optional[Table] = None,
+    freq: float | None = None,
+    dezotti: Table | None = None,
+    skads: Table | None = None,
 ) -> Axes:
     """Create a figure of source counts from a astropy Table. If
     `freq` and either `dezotti` / `skads` are supplied then these
@@ -899,12 +901,7 @@ def plot_astrometry_comparison(
     ax.set(
         xlim=(-8, 8), ylim=(-8, 8), xlabel="Offset (arcsec)", ylabel="Offset (arcsec)"
     )
-    le_a1 = r" $\epsilon_{SU} : ({%.1f}\pm{%.1f},{%.1f}\pm{%.1f})$" % (
-        mean_x,
-        std_x,
-        mean_y,
-        std_y,
-    )
+    le_a1 = rf" $\epsilon_{{SU}} : ({{{mean_x:.1f}}}\pm{{{std_x:.1f}}},{{{mean_y:.1f}}}\pm{{{std_y:.1f}}})$"
     ax.text(
         7.6,
         7.6,
@@ -956,11 +953,11 @@ def plot_flux_comparison(fig: Figure, ax: Axes, match_result: MatchResult) -> Ax
 
 
 def scale_flux_alpha(
-    flux: Union[float, np.ndarray],
-    freq: Union[float, np.ndarray],
+    flux: float | np.ndarray,
+    freq: float | np.ndarray,
     ref_freq: float,
     alpha: float = -0.8,
-) -> Union[float, np.ndarray]:
+) -> float | np.ndarray:
     """Scale a flux density to a reference frequency using a spectral index
 
     Args:
@@ -982,7 +979,7 @@ def make_xmatch_table(
     catalogue2: Catalogue,
     match_result: MatchResult,
     output_path: Path,
-) -> Tuple[Table, Path]:
+) -> tuple[Table, Path]:
     """Create a simple cross match table between two catalogues
 
     Args:
@@ -1126,7 +1123,7 @@ def load_catalogues(
     reference_catalogue_directory: Path,
     askap_survey_name: str,
     rms_info: RMSImageInfo,
-) -> Tuple[ValidationCatalogues, Tables]:
+) -> tuple[ValidationCatalogues, Tables]:
     """Load in all the catalogues that are required for the validation.
 
     Args:
@@ -1354,7 +1351,7 @@ def create_validation_tables(
     )
 
     # Loop over all the catalogues and cross match them to the ASKAP catalogue
-    _tables: Dict[str, Table] = {}
+    _tables: dict[str, Table] = {}
     for survey in catalogues._fields:
         if survey == "askap":
             continue
