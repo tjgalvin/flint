@@ -103,7 +103,7 @@ class ValidationTables(NamedTuple):
     stats_table_path: Path
     """Path to the statistics table"""
     xmatch_tables: XMatchTables
-    """Cross-mathed tables"""
+    """Cross-matched tables"""
 
 
 class ValidatorLayout(NamedTuple):

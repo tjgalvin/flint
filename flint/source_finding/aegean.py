@@ -27,7 +27,7 @@ class AegeanOptions(NamedTuple):
     """Container for basic aegean options. Only a subclass of aegean options are supported.
 
     Of note is the lack of a tables option (corresponding to --tables). This is dependent on knowing the base output name
-    and relying on aegean to also append a suffic of sorts to the outputs. For that reason
+    and relying on aegean to also append a suffix of sorts to the outputs. For that reason
     the aegean command generated will always create the table option.
     """
 

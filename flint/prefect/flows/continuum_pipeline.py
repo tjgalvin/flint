@@ -92,7 +92,7 @@ def _check_field_options(field_options: FieldOptions) -> None:
     if field_options.rounds is not None:
         if field_options.rounds >= 1 and field_options.casa_container is None:
             raise ValueError(
-                "CASA Container needs to be set if self-calibraiton is to be performed"
+                "CASA Container needs to be set if self-calibration is to be performed"
             )
     if field_options.coadd_cubes:
         if (

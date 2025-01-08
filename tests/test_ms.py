@@ -140,7 +140,7 @@ def test_copy_preprocess_ms(casda_example, tmpdir):
     )
     _test_the_data(ms=new_ms.path)
 
-    # wjem file format not recgonised
+    # When file format not recognised
     with pytest.raises(ValueError):
         copy_and_preprocess_casda_askap_ms(
             casda_ms=Path(casda_example) / "Thisdoesnotexist",
@@ -191,7 +191,7 @@ def _get_columns(ms_path):
 
 
 def test_rename_ms_and_columns_for_selfcal_correct2data(ms_example, tmpdir):
-    """Sanity around renaming a MS and handlign the columns that should be renamed"""
+    """Sanity around renaming a MS and handling the columns that should be renamed"""
     ms = MS.cast(Path(ms_example))
     with table(str(ms.path), readonly=False, ack=False) as tab:
         tab.renamecol("DATA", "CORRECTED_DATA")
@@ -214,7 +214,7 @@ def test_rename_ms_and_columns_for_selfcal_correct2data(ms_example, tmpdir):
 
 
 def test_rename_ms_and_columns_for_selfcal(ms_example, tmpdir):
-    """Sanity around renaming a MS and handlign the columns that should be renamed"""
+    """Sanity around renaming a MS and handling the columns that should be renamed"""
     ms = MS.cast(Path(ms_example))
     colnames = _get_columns(ms_path=ms.path)
 

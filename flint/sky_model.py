@@ -599,7 +599,7 @@ def make_hyperdrive_model(out_path: Path, sources: list[tuple[Row, CurvedPL]]) -
     Args:
         out_path (Path): The output path that the sky-model would be written to
         sources (List[Tuple[Row,CurvedPL]]): Collection of sources to write, including the
-        normalied row and the results of fitting to the estimated apparent SED
+        normalized row and the results of fitting to the estimated apparent SED
 
     Returns:
         Path: The path of the file created
@@ -777,7 +777,7 @@ def create_sky_model(
         src_pos = SkyCoord(row["RA"], row["DEC"])
         src_sep = src_pos.separation(direction)
 
-        # Get the primary beam reasponse
+        # Get the primary beam response
         gauss_taper = generate_gaussian_pb(
             freqs=freqs, aperture=12.0 * u.m, offset=src_sep
         )

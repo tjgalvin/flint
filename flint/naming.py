@@ -82,7 +82,7 @@ def create_name_from_common_fields(
     keys_to_test = processed_components_dict[0].keys()
     logger.info(f"{keys_to_test=}")
     # One of the worst crimes on the seven seas I have ever done
-    # If a field is None, it was not detected. If a field is not constanst
+    # If a field is None, it was not detected. If a field is not constants
     # across all input paths, it is ignored. Should a field be considered
     # common across all input paths, look up its short hand that
     # would otherwise be usede and use it.
@@ -219,7 +219,7 @@ def get_beam_resolution_str(mode: str, marker: str | None = None) -> str:
 def get_selfcal_ms_name(in_ms_path: Path, round: int = 1) -> Path:
     """Create the new output MS path that will be used for self-calibration. The
     output measurement set path will include a roundN.ms suffix, where N is the
-    round. If such a suffic already exists from an earlier self-calibration round,
+    round. If such a suffix already exists from an earlier self-calibration round,
     it will be removed and replaced.
 
     Args:
@@ -407,7 +407,7 @@ def processed_ms_format(
         in_name (Union[str, Path]): The name that needs to be broken down into components
 
     Returns:
-        Union[FormatedNameComponents,None': A structure container the sbid, field, beam and spw. None is returned if can not be parsed.
+        Union[FormattedNameComponents,None': A structure container the sbid, field, beam and spw. None is returned if can not be parsed.
     """
 
     in_name = in_name.name if isinstance(in_name, Path) else in_name

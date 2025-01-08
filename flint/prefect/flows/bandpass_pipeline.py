@@ -321,7 +321,7 @@ def setup_run_bandpass_flow(
 
 
 def get_parser() -> ArgumentParser:
-    """Create an argument paraser for the bandpass prefect workflow
+    """Create an argument parser for the bandpass prefect workflow
 
     Returns:
         ArgumentParser: CLI argument parser

@@ -115,7 +115,7 @@ class AOSolutions(NamedTuple):
     npol: int
     """Number of polarisations in the file"""
     bandpass: np.ndarray
-    """Complex data representing the antennea Jones. Shape is (nsol, nant, nchan, npol)"""
+    """Complex data representing the antenna Jones. Shape is (nsol, nant, nchan, npol)"""
 
     # TODO: Need tocorporate the start and end times into this header
 
@@ -138,7 +138,7 @@ class AOSolutions(NamedTuple):
         return save_aosolutions_file(aosolutions=self, output_path=output_path)
 
     def plot_solutions(self, ref_ant: int | None = 0) -> Iterable[Path]:
-        """Plot the solutions of all antenna for the first time-inteval
+        """Plot the solutions of all antenna for the first time-interval
         in the aosolutions file. The XX and the YY will be plotted.
 
         Args:
@@ -974,7 +974,7 @@ def flag_aosolutions(
 
                 ant_gains = ref_bandpass[ant, :, pol]
                 plot_title = f"{title} - ant{ant:02d} - {pols[pol]}"
-                ouput_path = (
+                output_path = (
                     plot_dir / f"{title}.ant{ant:02d}.{pols[pol]}.png"
                     if plot_dir is not None
                     else None
@@ -989,7 +989,7 @@ def flag_aosolutions(
                         complex_gains=ant_gains,
                         flag_cut=flag_cut,
                         plot_title=plot_title,
-                        plot_path=ouput_path,
+                        plot_path=output_path,
                     )
                     bandpass[time, ant, phase_outlier_result.outlier_mask, :] = np.nan
                 except PhaseOutlierFitError:
@@ -1197,7 +1197,7 @@ def get_parser() -> ArgumentParser:
         "--flag-cut",
         type=float,
         default=3.0,
-        help="The significance level thaat an outlier phase has to be before being flagged",
+        help="The significance level that an outlier phase has to be before being flagged",
     )
     flag_sols_parser.add_argument(
         "--plot-dir",

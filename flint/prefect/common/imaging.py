@@ -615,7 +615,7 @@ def task_linmos_images(
     Args:
         images (Collection[Collection[Path]]): Images that will be co-added together
         container (Path): Path to singularity container that contains yandasoft
-        filter (Optional[str], optional): Filter to extract the images that will be extracted from the set of input images. These will be co-added. If None all images are co-aded. Defaults to ".MFS.".
+        filter (Optional[str], optional): Filter to extract the images that will be extracted from the set of input images. These will be co-added. If None all images are co-added. Defaults to ".MFS.".
         suffix_str (str, optional): Additional string added to the prefix of the output linmos image products. Defaults to "noselfcal".
         holofile (Optional[Path], optional): The FITS cube with the beam corrections derived from ASKAP holography. Defaults to None.
         parset_output_path (Optional[str], optional): Location to write the linmos parset file to. Defaults to None.
@@ -623,7 +623,7 @@ def task_linmos_images(
         field_summary (Optional[FieldSummary], optional): The summary of the field, including (importantly) to orientation of the third-axis. Defaults to None.
         trim_linmos_fits (bool, optional): Attempt to trim the output linmos files of as much empty space as possible. Defaults to True.
         remove_original_images (bool, optional): If True remove the original image after they have been convolved. Defaults to False.
-        cleanup (bool, optional): Clean up items created throughout linmos, including the per-channl weight text files for each input image. Defaults to False.
+        cleanup (bool, optional): Clean up items created throughout linmos, including the per-channel weight text files for each input image. Defaults to False.
 
     Returns:
         LinmosCommand: The linmos command and associated meta-data
@@ -709,7 +709,7 @@ def _convolve_linmos(
         convol_suffix_str (str, optional): The suffix added to the convolved images. Defaults to 'conv'.
         trim_linmos_fits (bool, optional): Attempt to trim the output linmos files of as much empty space as possible. Defaults to True.
         remove_original_images (bool, optional): If True remove the original image after they have been convolved. Defaults to False.
-        cleanup_linmos (bool, optional): Clean up items created throughout linmos, including the per-channl weight text files for each input image. Defaults to False.
+        cleanup_linmos (bool, optional): Clean up items created throughout linmos, including the per-channel weight text files for each input image. Defaults to False.
 
     Returns:
         LinmosCommand: Resulting linmos command parset

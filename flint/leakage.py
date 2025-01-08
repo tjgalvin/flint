@@ -177,7 +177,7 @@ def get_xy_pixel_coords(
     """Convert (RA, Dec) positions in a catalogue into (x, y)-pixels given an WCS
 
     Args:
-        table (Table): The table containing sources to collect (x, y)-coodinates
+        table (Table): The table containing sources to collect (x, y)-coordinates
         wcs (WCS): The WCS description to use to resolve (RA, Dec) to (x, y)
         ra_col (Optional[str], optional): The RA column name. If None, it will be guessed. Defaults to None.
         dec_col (Optional[str], optional): The Dec column name. If None, it will be guessed. Defaults to None.
@@ -410,7 +410,7 @@ def create_leakge_component_table(
 
 
 def get_parser() -> ArgumentParser:
-    parser = ArgumentParser(description="Create a leakage cataloge and map")
+    parser = ArgumentParser(description="Create a leakage catalogue and map")
     parser.add_argument("pol_image", type=Path, help="Path to the polarisation image")
     parser.add_argument(
         "component_catalogue", type=Path, help="Path to the component catalogue"
