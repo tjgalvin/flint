@@ -374,7 +374,7 @@ def test_wsclean_divergence():
         "Iteration 59228, scale 0 px : -862.94 µJy at 3729,3746",
         "Opening reordered part 0 spw 0 for /scratch3/gal16b/flint_peel/40470/SB40470.RACS_1237+00.beam4.round1.ms",
         "Opening reordered part 0 spw 0 for /scratch3/gal16b/flint_peel/40470/SB40470.RACS_1237+00.beam4.round1.ms",
-        "Although KJy there is no iterat ion, not the lack of a capital-I and the space, clever pirate",
+        "Although KJy there is no iterate ion, not the lack of a capital-I and the space, clever pirate",
     )
     for g in good:
         _wsclean_output_callback(line=g)
