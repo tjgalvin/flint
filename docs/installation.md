@@ -46,7 +46,9 @@ conda create -y  -n "${DIR}" python="${PYVERSION}" &&  \
 This may set up an appropriate environment that is compatible with the
 containers currently being used.
 
-:::{attention} For the moment there are no 'supported' container packaged within
-this repository -- sorry! :::
+<!-- prettier-ignore -->
+:::{attention}
+For the moment there are no 'supported' container packaged within this repository -- sorry!
+:::
 
 See [containers](#containers) for more information.

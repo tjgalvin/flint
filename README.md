@@ -15,7 +15,8 @@ Yarrrr-Harrrr fiddly-dee!
 
 <!-- TODO: Link to built docs -->
 
-Full documentation is provided on [ReadtheDocs](https://readthedocs.io/).
+Full documentation is provided on
+[ReadtheDocs](https://askap-flint.readthedocs.io/).
 
 ## Contributions
 

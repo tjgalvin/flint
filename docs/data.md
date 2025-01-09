@@ -27,8 +27,10 @@ tasks don't currently do this automatically. Be aware, me hearty.
 At the moment this pipeline uses `singularity` containers to use compiled
 software that are outside the `python` ecosystem.
 
-:::{attention} For the moment there are no 'supported' container packaged within
-this repository -- sorry! :::
+<!-- prettier-ignore -->
+:::{attention}
+For the moment there are no 'supported' container packaged within this repository -- sorry!
+:::
 
 In a nutshell, the containers used throughout are passed in as command line
 arguments, whose context should be enough to explain what it is expecting. At
