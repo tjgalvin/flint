@@ -402,7 +402,11 @@ def test_attemptrerun_wsclean_output_callback():
     for g in good:
         _wsclean_output_callback(line=g)
 
-    bad = ("Input/output error",)
+    bad = (
+        "Input/output error",
+        "But why is the rum gone... Input/output error",
+        "Input/output error should cause a remake of Pirates of the Caribbean",
+    )
     for b in bad:
         with pytest.raises(AttemptRerunException):
             _wsclean_output_callback(line=b)
