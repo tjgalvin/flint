@@ -43,7 +43,6 @@ numpy = "^1.26.0"
 pydantic = "2.8.2" # version 2.9.0 caused prefect model validation error
 scipy = "*"
 spython = "^0.3.1"
-fixms = ">=0.2.6"
 matplotlib = "*"
 prefect = "^2.10.0"
 prefect-dask = "^0.2.4"
@@ -57,6 +56,9 @@ pandas = "*"
 ConfigArgParse = "^1.7"
 fitscube = "^0.5.0"
 astroquery = "^0.4.7"
+
+[tool.poetry.group.dev]
+optional = true
 
 [tool.poetry.group.dev.dependencies]
 black = "^23.3.0"
@@ -78,6 +80,7 @@ optional = true
 
 [tool.poetry.group.casa.dependencies]
 python-casacore = "3.5.2" # newer version caused MS errors (maybe related to pre-built wheel)
+fixms = ">=0.2.6"
 
 [tool.poetry.extras]
 dev = [
@@ -95,7 +98,7 @@ dev = [
     "sphinx-autoapi",
     "furo"
 ]
-casa = ["python-casacore"]
+casa = ["python-casacore", "fixms"]
 
 [tool.poetry.scripts]
 flint_skymodel = "flint.sky_model:cli"
