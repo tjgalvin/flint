@@ -53,4 +53,10 @@ set as the `--cli-config` option of some workflows. See the `configargparse`
 python utility to read up on more on how options may be overridden if specified
 in both the text file and CLI call.
 
-<!-- TODO: Add example configuration files and document schema -->
+## Configuration schema
+
+TODO: Document the config file schema
+
+## Configuration examples
+
+TODO: Add configuration examples
