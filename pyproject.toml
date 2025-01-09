@@ -40,7 +40,6 @@ initial-content = """
 python = "^3.11"
 astropy = "6.1.3" # fixing until units change in 6.1.4 addressed in radio-beam
 numpy = "^1.26.0"
-python-casacore = "3.5.2" # newer version caused MS errors (maybe related to pre-built wheel)
 pydantic = "2.8.2" # version 2.9.0 caused prefect model validation error
 scipy = "*"
 spython = "^0.3.1"
@@ -74,6 +73,12 @@ sphinx-copybutton = "*"
 sphinx-autoapi = "*"
 furo = "*"
 
+[tool.poetry.group.casa]
+optional = true
+
+[tool.poetry.group.casa.dependencies]
+python-casacore = "3.5.2" # newer version caused MS errors (maybe related to pre-built wheel)
+
 [tool.poetry.extras]
 dev = [
     "black",
@@ -90,6 +95,7 @@ dev = [
     "sphinx-autoapi",
     "furo"
 ]
+casa = ["python-casacore"]
 
 [tool.poetry.scripts]
 flint_skymodel = "flint.sky_model:cli"
