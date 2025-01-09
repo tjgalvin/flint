@@ -4,10 +4,15 @@
 :start-after: <!-- SPHINX-START -->
 ```
 
+## Table of contents
+
 ```{toctree}
 :maxdepth: 2
-about/about.md
-about/sky-model.md
+installation.md
+about.md
+data.md
+config.md
+validation.md
 ```
 
 ## Indices and tables

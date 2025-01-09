@@ -35,6 +35,10 @@ extensions = [
     "autoapi.extension",
 ]
 
+myst_enable_extensions = [
+    "colon_fence",
+]
+
 autoapi_type = "python"
 autoapi_dirs = ["../flint"]
 autoapi_member_order = "groupwise"
