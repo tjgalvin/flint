@@ -3,11 +3,11 @@
 
 # flint
 
-A pirate themed toy ASKAP-RACS pipeline.
+A pirate themed ASKAP pipeline.
 
 Yarrrr-Harrrr fiddly-dee!
 
-<img src="docs/logo.jpeg" alt="Capn' Flint - Credit: DALLE 3" style="width:400px;"/>
+<img src="docs/_static/logo.jpeg" alt="Capn' Flint - Credit: DALLE 3" style="width:400px;"/>
 
 ## Installation
 
@@ -27,8 +27,7 @@ In practise it might be easier to leverage `conda` to install the appropriate
 
 A helpful script below may be of use.
 
-```
-
+```bash
 BRANCH="main" # replace this with appropriate branch or tag
 DIR="flint_${BRANCH}"
 PYVERSION="3.12"
@@ -50,14 +49,6 @@ conda create -y  -n "${DIR}" python="${PYVERSION}" &&  \
 
 This may set up an appropriate environment that is compatible with the
 containers currently being used.
-
-### The error
-
-The error looked something like this:
-
-```
-An unhandled exception occurred: FiledesIO::read /path/to/data.ms/table.mf - read returned a bad value
-```
 
 ## About
 
@@ -248,7 +239,7 @@ are:
 
 - ICRF
 
-```
+```python
 Catalogue(
     survey="ICRF",
     file_name="ICRF.fits",
@@ -266,7 +257,7 @@ Catalogue(
 
 - NVSS
 
-```
+```python
 Catalogue(
     survey="NVSS",
     file_name="NVSS.fits",
@@ -284,7 +275,7 @@ Catalogue(
 
 - SUMSS
 
-```
+```python
 Catalogue(
     survey="SUMSS",
     file_name="SUMSS.fits",
@@ -302,7 +293,7 @@ Catalogue(
 
 - RACS-LOW
 
-```
+```python
 Catalogue(
     file_name="racs-low.fits",
     survey="RACS-LOW",

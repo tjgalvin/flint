@@ -68,6 +68,10 @@ ruff = "^0.1.12"
 pytest = "^7.4.0"
 pytest-cov = "*"
 sphinx = "*"
+myst-parser = "*"
+sphinx-autodoc-typehints = "*"
+sphinx-copybutton = "*"
+sphinx-autoapi = "*"
 
 [tool.poetry.extras]
 dev = [
@@ -79,6 +83,10 @@ dev = [
     "pytest",
     "pytest-cov",
     "sphinx",
+    "myst-parser",
+    "sphinx-autodoc-typehints",
+    "sphinx-copybutton",
+    "sphinx-autoapi"
 ]
 
 [tool.poetry.scripts]

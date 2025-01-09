@@ -6,13 +6,8 @@
 Welcome to flint's documentation!
 =================================
 
-A pirate themed toy ASKAP-RACS pipeline.
-
-Yarrrr-Harrrr fiddly-dee!
-
-.. image:: logo.jpeg
-   :width: 400
-   :alt: Capn' Flint - Credit: DALLE 3
+.. include:: ../README.md
+    :parser: myst_parser.sphinx_
 
 
 .. toctree::
