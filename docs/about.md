@@ -1,4 +1,4 @@
-## About
+# About
 
 This `flint` package is trying to get a minimum start-to-finish calibration and
 imaging workflow written for `RACS` style ASKAP data. `python` functions are
