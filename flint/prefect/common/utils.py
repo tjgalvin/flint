@@ -1,8 +1,10 @@
 """Common prefect related utilities that can be used between flows."""
 
+from __future__ import annotations
+
 import base64
 from pathlib import Path
-from typing import Any, Dict, List, Optional, TypeVar
+from typing import Any, TypeVar
 from uuid import UUID
 
 from prefect import task
@@ -23,9 +25,7 @@ T = TypeVar("T")
 SUPPORTED_IMAGE_TYPES = ("png",)
 
 
-def upload_image_as_artifact(
-    image_path: Path, description: Optional[str] = None
-) -> UUID:
+def upload_image_as_artifact(image_path: Path, description: str | None = None) -> UUID:
     """Create and submit a markdown artifact tracked by prefect for an
     input image. Currently supporting png formatted images.
 
@@ -67,10 +67,10 @@ task_create_beam_summary = task(create_beam_summary)
 @task
 def task_archive_sbid(
     science_folder_path: Path,
-    archive_path: Optional[Path] = None,
-    copy_path: Optional[Path] = None,
-    max_round: Optional[int] = None,
-    update_archive_options: Optional[Dict[str, Any]] = None,
+    archive_path: Path | None = None,
+    copy_path: Path | None = None,
+    max_round: int | None = None,
+    update_archive_options: dict[str, Any] | None = None,
 ) -> Path:
     """Create a tarball of files, or copy files, from a processing folder.
 
@@ -96,9 +96,10 @@ def task_archive_sbid(
     # TODO: What should this be? Just general new regexs passed through,
     # or is this fine?
     if max_round:
-        updated_file_patterns = tuple(archive_options.tar_file_re_patterns) + (
-            rf".*beam[0-9]+\.round{max_round}-.*-image\.fits",
-            rf".*beam[0-9]+\.round{max_round}\.ms\.(zip|tar)",
+        updated_file_patterns = (
+            *tuple(archive_options.tar_file_re_patterns),
+            f".*beam[0-9]+\\.round{max_round}-.*-image\\.fits",
+            f".*beam[0-9]+\\.round{max_round}\\.ms\\.(zip|tar)",
         )
         archive_options = archive_options.with_options(
             tar_file_re_patterns=updated_file_patterns
@@ -162,7 +163,7 @@ def task_get_attributes(item: Any, attribute: str) -> Any:
 
 
 @task
-def task_flatten(to_flatten: List[List[T]]) -> List[T]:
+def task_flatten(to_flatten: list[list[T]]) -> list[T]:
     """Will flatten a list of lists into a single list. This
     is useful for when a task-descorated function returns a list.
 

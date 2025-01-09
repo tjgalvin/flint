@@ -1,13 +1,15 @@
 """Operations around preserving files and products from an flint run"""
 
+from __future__ import annotations
+
 import re
+import shlex
 import shutil
 import subprocess
-import shlex
 import tarfile
 from argparse import ArgumentParser
 from pathlib import Path
-from typing import Any, Collection, Dict, List, Tuple
+from typing import Any, Collection
 
 from flint.configuration import get_options_from_strategy
 from flint.exceptions import TarArchiveError
@@ -21,7 +23,7 @@ from flint.options import (
 
 def resolve_glob_expressions(
     base_path: Path, file_re_patterns: Collection[str]
-) -> Tuple[Path, ...]:
+) -> tuple[Path, ...]:
     """Collect a set of files given a base directory and a set of glob expressions. Unique
     paths are returned.
 
@@ -34,7 +36,7 @@ def resolve_glob_expressions(
     """
     base_path = Path(base_path)
 
-    resolved_files: List[Path] = []
+    resolved_files: list[Path] = []
 
     logger.info(f"Searching {base_path=}")
 
@@ -70,7 +72,7 @@ def copy_files_into(copy_out_path: Path, files_to_copy: Collection[Path]) -> Pat
 
     copy_out_path.mkdir(parents=True, exist_ok=True)
     total = len(files_to_copy)
-    not_copied: List[Path] = []
+    not_copied: list[Path] = []
 
     logger.info(f"Copying {total} files into {copy_out_path}")
     for count, file in enumerate(files_to_copy):
@@ -111,7 +113,7 @@ def verify_tarball(
     ), f"{tarball} is not a file or does not exist"
     assert tarball.suffix == ".tar", f"{tarball=} appears to not have a .tar extension"
 
-    cmd = f"tar -tvf {str(tarball)}"
+    cmd = f"tar -tvf {tarball!s}"
     logger.info(f"Verifying {tarball=}")
     popen = subprocess.Popen(shlex.split(cmd), stderr=subprocess.PIPE)
     with popen.stderr:  # type: ignore
@@ -153,7 +155,7 @@ def tar_files_into(
     logger.info(f"Opening {tar_out_path}")
     with tarfile.open(tar_out_path, "w") as tar:
         for count, file in enumerate(files_to_tar):
-            logger.info(f"{count+1} of {total}, adding {str(file)}")
+            logger.info(f"{count+1} of {total}, adding {file!s}")
             tar.add(file, arcname=file.name)
 
     logger.info(f"Created {tar_out_path}")
@@ -217,7 +219,7 @@ def copy_sbid_files_archive(
     return copy_out_path
 
 
-def get_archive_options_from_yaml(strategy_yaml_path: Path) -> Dict[str, Any]:
+def get_archive_options_from_yaml(strategy_yaml_path: Path) -> dict[str, Any]:
     """Load the archive options from a specified strategy file
 
     Args:
@@ -360,7 +362,7 @@ def cli() -> None:
             )
         )
 
-        update_options_create: Dict[str, Any] = (
+        update_options_create: dict[str, Any] = (
             get_archive_options_from_yaml(strategy_yaml_path=args.strategy_yaml_path)
             if args.strategy_yaml_path
             else dict(tar_file_re_patterhs=args.file_patterns)

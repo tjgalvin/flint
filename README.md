@@ -5,7 +5,7 @@
 
 A pirate themed toy ASKAP-RACS pipeline.
 
-Yarrrr-Harrrr fiddley-dee!
+Yarrrr-Harrrr fiddly-dee!
 
 <img src="docs/logo.jpeg" alt="Capn' Flint - Credit: DALLE 3" style="width:400px;"/>
 
@@ -148,7 +148,7 @@ the time of writing there are six containers for:
 - calibration: this should contain `calibrate` and `applysolutions`. These are
   tools written by Andre Offringa.
 - flagging: this should contain `aoflagger`, which is installable via a
-  `apt install aoflagger` within ubunutu.
+  `apt install aoflagger` within ubuntu.
 - imaging: this should contain `wsclean`. This should be at least version 3. At
   the moment a modified version is being used (which implements a
   `-force-mask-round` option).

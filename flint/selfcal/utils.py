@@ -2,11 +2,11 @@
 across different packages.
 """
 
-from typing import List, Union
+from __future__ import annotations
 
 
 def consider_skip_selfcal_on_round(
-    current_round: int, skip_selfcal_on_rounds: Union[int, List[int], None]
+    current_round: int, skip_selfcal_on_rounds: int | list[int] | None
 ) -> bool:
     """Consider whether the self-calibration process (derive and applying solutions)
     should be skipped on a particular imaging round.

@@ -8,7 +8,7 @@ from __future__ import annotations
 from argparse import ArgumentParser
 from pathlib import Path
 from shutil import copytree
-from typing import Any, Dict, NamedTuple, Optional
+from typing import Any, NamedTuple
 
 from casacore.tables import table
 
@@ -65,7 +65,7 @@ def args_to_casa_task_string(task: str, **kwargs) -> str:
     command = []
     for k, v in kwargs.items():
         if isinstance(v, (str, Path)):
-            arg = rf"{k}='{str(v)}'"
+            arg = rf"{k}='{v!s}'"
         else:
             arg = rf"{k}={v}"
         command.append(arg)
@@ -161,7 +161,7 @@ def copy_and_clean_ms_casagain(
 
     mode_text = "Renaming" if rename_ms else "Copying"
 
-    logger.info(f"Output MS name will be {str(out_ms_path)}.")
+    logger.info(f"Output MS name will be {out_ms_path!s}.")
     logger.info(f"{mode_text} {ms.path} to {out_ms_path}.")
 
     if out_ms_path.exists():
@@ -207,7 +207,7 @@ def copy_and_clean_ms_casagain(
                 ]
                 for col in to_delete:
                     if col in colnames:
-                        logger.info(f"Removing {col=} from {str(out_ms_path)}.")
+                        logger.info(f"Removing {col=} from {out_ms_path!s}.")
                         try:
                             tab.removecols(col)
                             tab.flush(recursive=True)
@@ -216,7 +216,7 @@ def copy_and_clean_ms_casagain(
                                 f"Failed to remove {col=}! \nCaptured error: {e}"
                             )
                     else:
-                        logger.warning(f"Column {col} not found in {str(out_ms_path)}.")
+                        logger.warning(f"Column {col} not found in {out_ms_path!s}.")
 
                 logger.info("Renaming CORRECTED_DATA to DATA. ")
                 tab.renamecol("CORRECTED_DATA", "DATA")
@@ -247,7 +247,7 @@ def create_spws_in_ms(casa_container: Path, ms_path: Path, nspw: int) -> Path:
         Path: The path to the measurement set that was updated
     """
 
-    logger.info(f"Transforming {str(ms_path)} to have {nspw} SPWs")
+    logger.info(f"Transforming {ms_path!s} to have {nspw} SPWs")
     transform_ms = ms_path.with_suffix(".ms_transform")
 
     mstransform(
@@ -318,8 +318,8 @@ def gaincal_applycal_ms(
     ms: MS,
     casa_container: Path,
     round: int = 1,
-    gain_cal_options: Optional[GainCalOptions] = None,
-    update_gain_cal_options: Optional[Dict[str, Any]] = None,
+    gain_cal_options: GainCalOptions | None = None,
+    update_gain_cal_options: dict[str, Any] | None = None,
     archive_input_ms: bool = False,
     raise_error_on_fail: bool = True,
     skip_selfcal: bool = False,
@@ -374,7 +374,7 @@ def gaincal_applycal_ms(
     logger.info(f"Will create calibration table {cal_table}.")
 
     if cal_table.exists():
-        logger.warning(f"Removing {str(cal_table)}")
+        logger.warning(f"Removing {cal_table!s}")
         remove_files_folders(cal_table)
 
     # This is used for when a frequency dependent self-calibration solution is requested.

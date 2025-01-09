@@ -1,9 +1,11 @@
 """Utilities related to running commands in a singularity container"""
 
+from __future__ import annotations
+
 from pathlib import Path
 from subprocess import CalledProcessError
 from time import sleep
-from typing import Callable, Collection, Optional, Union, List
+from typing import Callable, Collection
 
 from spython.main import Client as sclient
 
@@ -15,8 +17,8 @@ from flint.utils import get_job_info, log_job_environment
 def run_singularity_command(
     image: Path,
     command: str,
-    bind_dirs: Optional[Union[Path, Collection[Path]]] = None,
-    stream_callback_func: Optional[Callable] = None,
+    bind_dirs: Path | Collection[Path] | None = None,
+    stream_callback_func: Callable | None = None,
     ignore_logging_output: bool = False,
     max_retries: int = 2,
 ) -> None:
@@ -44,7 +46,7 @@ def run_singularity_command(
     logger.info(f"Running {command} in {image}")
 
     job_info = log_job_environment()
-    bind: Union[None, List[str]] = None
+    bind: None | list[str] = None
     if bind_dirs:
         logger.info("Preparing bind directories")
         if isinstance(bind_dirs, Path):
@@ -121,8 +123,8 @@ def singularity_wrapper(
 
     def wrapper(
         container: Path,
-        bind_dirs: Optional[Union[Path, Collection[Path]]] = None,
-        stream_callback_func: Optional[Callable] = None,
+        bind_dirs: Path | Collection[Path] | None = None,
+        stream_callback_func: Callable | None = None,
         ignore_logging_output: bool = False,
         **kwargs,
     ) -> str:

@@ -1,5 +1,7 @@
 """Tests around the subtract cube imaging flow"""
 
+from __future__ import annotations
+
 from flint.prefect.flows.subtract_cube_pipeline import get_parser
 
 

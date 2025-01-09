@@ -1,10 +1,12 @@
 """Tests that are specific to the bandpass calibration
 flow"""
 
+from __future__ import annotations
+
 from pathlib import Path
 
-from flint.prefect.flows import bandpass_pipeline
 from flint.options import BandpassOptions, create_options_from_parser
+from flint.prefect.flows import bandpass_pipeline
 
 
 def test_bandpass_cli():

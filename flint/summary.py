@@ -5,7 +5,7 @@ from __future__ import (  # Used for mypy/pylance to like the return type of MS.
 )
 
 from pathlib import Path
-from typing import NamedTuple, Optional, Tuple, Union, List
+from typing import NamedTuple
 
 import astropy.units as u
 from astropy.coordinates import (
@@ -61,33 +61,33 @@ class FieldSummary(NamedTuple):
     """SBID of the bandpass calibrator"""
     field_name: str
     """The name of the field"""
-    ms_summaries: Optional[Tuple[MSSummary, ...]] = None
+    ms_summaries: tuple[MSSummary, ...] | None = None
     """Summaries of measurement sets used in the processing of the filed"""
-    centre: Optional[SkyCoord] = None
+    centre: SkyCoord | None = None
     """Centre of the field, which is calculated as the mean position of all phase directions of the `mss` measurement sets"""
-    integration_time: Optional[int] = None
+    integration_time: int | None = None
     """The integration time of the observation (seconds)"""
-    no_components: Optional[int] = None
+    no_components: int | None = None
     """Number of components found from the source finder"""
-    holography_path: Optional[Path] = None
+    holography_path: Path | None = None
     """Path to the file used for holography"""
-    round: Optional[int] = None
+    round: int | None = None
     """The self-cal round"""
-    location: Optional[EarthLocation] = None
+    location: EarthLocation | None = None
     """The location of the telescope stored as (X,Y,Z) in meters"""
-    ms_times: Optional[Time] = None
+    ms_times: Time | None = None
     """The unique scan times of integrations stored in the measurement set"""
-    hour_angles: Optional[Longitude] = None
+    hour_angles: Longitude | None = None
     """Computed hour-angles of the field"""
-    elevations: Optional[Latitude] = None
+    elevations: Latitude | None = None
     """Computed elevations of the field"""
-    median_rms: Optional[float] = None
+    median_rms: float | None = None
     """The meanian RMS computed from an RMS image"""
-    beam_summaries: Optional[List[BeamSummary]] = None
+    beam_summaries: list[BeamSummary] | None = None
     """Summary information from each beam. Contains MSSummary, ImageSet and other information."""
-    linmos_image: Optional[Path] = None
+    linmos_image: Path | None = None
     """The path to the linmos image of all beams"""
-    pol_axis: Optional[float] = None
+    pol_axis: float | None = None
     """The orientation of the ASKAP third-axis in radians. """
 
     def with_options(self, **kwargs) -> FieldSummary:
@@ -97,7 +97,7 @@ class FieldSummary(NamedTuple):
         return FieldSummary(**prop)
 
 
-def _get_pol_axis_as_rad(ms: Union[MS, Path]) -> float:
+def _get_pol_axis_as_rad(ms: MS | Path) -> float:
     """Helper to get the appropriate pol_axis out of a MS. Prioritises the instrumental third-axis imprinted from fixms"""
     ms = MS.cast(ms=ms)
 
@@ -118,7 +118,7 @@ def _get_pol_axis_as_rad(ms: Union[MS, Path]) -> float:
 
 
 # TODO: Need to establise a MSLike type
-def add_ms_summaries(field_summary: FieldSummary, mss: List[MS]) -> FieldSummary:
+def add_ms_summaries(field_summary: FieldSummary, mss: list[MS]) -> FieldSummary:
     """Obtain a MSSummary instance to add to a FieldSummary
 
     Quantities derived from the field centre (hour angles, elevations) are
@@ -224,9 +224,9 @@ def add_linmos_fits_image(
 
 def update_field_summary(
     field_summary: FieldSummary,
-    aegean_outputs: Optional[AegeanOutputs] = None,
-    mss: Optional[List[MS]] = None,
-    linmos_command: Optional[LinmosCommand] = None,
+    aegean_outputs: AegeanOutputs | None = None,
+    mss: list[MS] | None = None,
+    linmos_command: LinmosCommand | None = None,
     **kwargs,
 ) -> FieldSummary:
     """Update an existing `FieldSummary` instance with additional information.
@@ -264,10 +264,10 @@ def update_field_summary(
 
 
 def create_field_summary(
-    mss: List[Union[MS, Path]],
-    cal_sbid_path: Optional[Path] = None,
-    holography_path: Optional[Path] = None,
-    aegean_outputs: Optional[AegeanOutputs] = None,
+    mss: list[MS | Path],
+    cal_sbid_path: Path | None = None,
+    holography_path: Path | None = None,
+    aegean_outputs: AegeanOutputs | None = None,
     **kwargs,
 ) -> FieldSummary:
     """Create a field summary object using a measurement set.
@@ -345,9 +345,9 @@ class BeamSummary(NamedTuple):
 
     ms_summary: MSSummary
     """A summary object of a measurement set"""
-    imageset: Optional[ImageSet] = None
+    imageset: ImageSet | None = None
     """A set of images that have been created from the measurement set represented by `summary`"""
-    components: Optional[AegeanOutputs] = None
+    components: AegeanOutputs | None = None
     """The source finding components from the aegean source finder"""
 
     def with_options(self, **kwargs) -> BeamSummary:
@@ -358,9 +358,9 @@ class BeamSummary(NamedTuple):
 
 
 def create_beam_summary(
-    ms: Union[MS, Path],
-    imageset: Optional[Union[ImageSet, WSCleanCommand]] = None,
-    components: Optional[AegeanOutputs] = None,
+    ms: MS | Path,
+    imageset: ImageSet | WSCleanCommand | None = None,
+    components: AegeanOutputs | None = None,
 ) -> BeamSummary:
     """Create a summary of a beam
 

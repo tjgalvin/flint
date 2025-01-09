@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from pathlib import Path
 
 import numpy as np
@@ -7,6 +9,7 @@ from astropy.io import fits
 from flint.masking import (
     MaskingOptions,
     _create_signal_from_rmsbkg,
+    _minimum_absolute_clip,
     _need_to_make_signal,
     _verify_set_positive_seed_clip,
     beam_shape_erode,
@@ -15,7 +18,6 @@ from flint.masking import (
     create_options_from_parser,
     create_snr_mask_from_fits,
     get_parser,
-    _minimum_absolute_clip,
     minimum_absolute_clip,
 )
 from flint.naming import FITSMaskNames

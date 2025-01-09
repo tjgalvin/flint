@@ -17,7 +17,7 @@ from contextlib import contextmanager
 from curses.ascii import controlnames
 from os import PathLike
 from pathlib import Path
-from typing import List, NamedTuple, Optional, Tuple, Union
+from typing import NamedTuple
 
 import astropy.units as u
 import numpy as np
@@ -42,9 +42,9 @@ class MSSummary(NamedTuple):
     """Number of flagged records"""
     flag_spectrum: np.ndarray
     """Flagged spectral channels"""
-    fields: List[str]
+    fields: list[str]
     """Collection of unique field names from the FIELDS table"""
-    ants: List[int]
+    ants: list[int]
     """Collection of unique antennas"""
     beam: int
     """The ASKAP beam number of the measurement set"""
@@ -52,7 +52,7 @@ class MSSummary(NamedTuple):
     """Path to the measurement set that is being represented"""
     phase_dir: SkyCoord
     """The phase direction of the measurement set, which will be where the image will be centred"""
-    spw: Optional[int] = None
+    spw: int | None = None
     """Intended to be used with ASKAP high-frequency resolution modes, where the MS is divided into SPWs"""
 
 
@@ -117,7 +117,7 @@ def critical_ms_interaction(
         output_ms.rename(target=input_ms)
 
 
-def get_field_id_for_field(ms: Union[MS, Path], field_name: str) -> Union[int, None]:
+def get_field_id_for_field(ms: MS | Path, field_name: str) -> int | None:
     """Return the FIELD_ID for an elected field in a measurement set
 
     Args:
@@ -132,7 +132,7 @@ def get_field_id_for_field(ms: Union[MS, Path], field_name: str) -> Union[int, N
     """
     ms_path = ms if isinstance(ms, Path) else ms.path
 
-    with table(f"{str(ms_path)}/FIELD", readonly=True, ack=False) as tab:
+    with table(f"{ms_path!s}/FIELD", readonly=True, ack=False) as tab:
         # The ID is _position_ of the matching row in the table.
         field_names = tab.getcol("NAME")
         field_idx = np.argwhere([fn == field_name for fn in field_names])[0]
@@ -150,7 +150,7 @@ def get_field_id_for_field(ms: Union[MS, Path], field_name: str) -> Union[int, N
     return field_idx
 
 
-def get_beam_from_ms(ms: Union[MS, Path]) -> int:
+def get_beam_from_ms(ms: MS | Path) -> int:
     """Lookup the ASKAP beam number from a measurement set.
 
     Args:
@@ -166,12 +166,12 @@ def get_beam_from_ms(ms: Union[MS, Path]) -> int:
 
     assert (
         len(uniq_beams) == 1
-    ), f"Expected {str(ms_path)} to contain a single beam, found {len(uniq_beams)}: {uniq_beams=}"
+    ), f"Expected {ms_path!s} to contain a single beam, found {len(uniq_beams)}: {uniq_beams=}"
 
     return uniq_beams[0]
 
 
-def get_freqs_from_ms(ms: Union[MS, Path]) -> np.ndarray:
+def get_freqs_from_ms(ms: MS | Path) -> np.ndarray:
     """Return the frequencies observed from an ASKAP Measurement set.
     Some basic checks are performed to ensure they conform to some
     expectations.
@@ -184,7 +184,7 @@ def get_freqs_from_ms(ms: Union[MS, Path]) -> np.ndarray:
     """
     ms = MS.cast(ms)
 
-    with table(f"{str(ms.path)}/SPECTRAL_WINDOW", readonly=True, ack=False) as tab:
+    with table(f"{ms.path!s}/SPECTRAL_WINDOW", readonly=True, ack=False) as tab:
         freqs = tab.getcol("CHAN_FREQ")
 
     freqs = np.squeeze(freqs)
@@ -195,7 +195,7 @@ def get_freqs_from_ms(ms: Union[MS, Path]) -> np.ndarray:
     return freqs
 
 
-def get_phase_dir_from_ms(ms: Union[MS, Path]) -> SkyCoord:
+def get_phase_dir_from_ms(ms: MS | Path) -> SkyCoord:
     """Extract the phase direction from a measurement set.
 
     If more than one phase direction is found an AssertError will
@@ -209,7 +209,7 @@ def get_phase_dir_from_ms(ms: Union[MS, Path]) -> SkyCoord:
     """
     ms = MS.cast(ms)
 
-    with table(f"{str(ms.path)}/FIELD", readonly=True, ack=False) as tab:
+    with table(f"{ms.path!s}/FIELD", readonly=True, ack=False) as tab:
         phase_dir = tab.getcol("PHASE_DIR")[0]
 
     assert phase_dir.shape[0] == 1, "More than one phase direction found. "
@@ -219,7 +219,7 @@ def get_phase_dir_from_ms(ms: Union[MS, Path]) -> SkyCoord:
     return phase_sky
 
 
-def get_times_from_ms(ms: Union[MS, Path]) -> Time:
+def get_times_from_ms(ms: MS | Path) -> Time:
     """Return the observation times from an ASKAP Measurement set.
 
     Args:
@@ -236,7 +236,7 @@ def get_times_from_ms(ms: Union[MS, Path]) -> Time:
     return times
 
 
-def get_telescope_location_from_ms(ms: Union[MS, Path]) -> EarthLocation:
+def get_telescope_location_from_ms(ms: MS | Path) -> EarthLocation:
     """Return the telescope location from an ASKAP Measurement set.
 
     Args:
@@ -255,7 +255,7 @@ def get_telescope_location_from_ms(ms: Union[MS, Path]) -> EarthLocation:
 
 
 def get_pol_axis_from_ms(
-    ms: Union[MS, Path], feed_idx: Optional[int] = None, col: str = "RECEPTOR_ANGLE"
+    ms: MS | Path, feed_idx: int | None = None, col: str = "RECEPTOR_ANGLE"
 ) -> u.Quantity:
     """Get the polarization axis from the ASKAP MS. Checks are performed
     to ensure this polarisation axis angle is constant throughout the observation.
@@ -304,7 +304,7 @@ def get_pol_axis_from_ms(
 
 # TODO: Inline with other changing conventions this should be
 # changed to `create_ms_summary`
-def describe_ms(ms: Union[MS, Path], verbose: bool = False) -> MSSummary:
+def describe_ms(ms: MS | Path, verbose: bool = False) -> MSSummary:
     """Print some basic information from the inpute measurement set.
 
     Args:
@@ -356,11 +356,11 @@ def describe_ms(ms: Union[MS, Path], verbose: bool = False) -> MSSummary:
 
 
 def split_by_field(
-    ms: Union[MS, Path],
-    field: Optional[str] = None,
-    out_dir: Optional[Path] = None,
-    column: Optional[str] = None,
-) -> List[MS]:
+    ms: MS | Path,
+    field: str | None = None,
+    out_dir: Path | None = None,
+    column: str | None = None,
+) -> list[MS]:
     """Attempt to split an input measurement set up by the unique FIELDs recorded
 
     Args:
@@ -382,7 +382,7 @@ def split_by_field(
     fields = [field] if field else ms_summary.fields
     field_idxs = [get_field_id_for_field(ms=ms, field_name=field) for field in fields]
 
-    out_mss: List[MS] = []
+    out_mss: list[MS] = []
 
     ms_out_dir: Path = Path(out_dir) if out_dir is not None else ms.path.parent
     logger.info(f"Will write output MSs to {ms_out_dir}.")
@@ -404,7 +404,7 @@ def split_by_field(
             out_ms_str = create_ms_name(ms_path=ms.path, field=split_name)
             out_path = ms_out_dir / Path(out_ms_str).name
 
-            logger.info(f"Writing {str(out_path)} for {split_name}")
+            logger.info(f"Writing {out_path!s} for {split_name}")
             sub_ms.copy(str(out_path), deep=True)
 
             out_mss.append(
@@ -415,9 +415,9 @@ def split_by_field(
 
 
 def check_column_in_ms(
-    ms: Union[MS, str, PathLike],
-    column: Optional[str] = None,
-    sub_table: Optional[str] = None,
+    ms: MS | str | PathLike,
+    column: str | None = None,
+    sub_table: str | None = None,
 ) -> bool:
     """Checks to see whether a column exists in an MS. If `column` is provided this
     is checked. It `column` is None, then the MS.column is specified. If both are
@@ -443,7 +443,7 @@ def check_column_in_ms(
         raise ValueError(f"No column to check specified: {ms} {column=}.")
 
     ms_path = ms.path if isinstance(ms, MS) else Path(ms)
-    check_table = str(ms_path) if sub_table is None else f"{str(ms_path)}/{sub_table}"
+    check_table = str(ms_path) if sub_table is None else f"{ms_path!s}/{sub_table}"
 
     logger.debug(f"Checking for {check_col} in {check_table}")
     with table(check_table, readonly=True) as tab:
@@ -467,7 +467,7 @@ def consistent_ms(ms1: MS, ms2: MS) -> bool:
         bool: Whether MS1 is consistent with MS2
     """
 
-    logger.info(f"Comparing ms1={str(ms1.path)} to ms2={(ms2.path)}")
+    logger.info(f"Comparing ms1={ms1.path!s} to ms2={(ms2.path)}")
     beam1 = get_beam_from_ms(ms=ms1)
     beam2 = get_beam_from_ms(ms=ms2)
 
@@ -499,13 +499,13 @@ def consistent_ms(ms1: MS, ms2: MS) -> bool:
         result = False
 
     if not result:
-        logger.info(f"{str(ms1.path)} not compatibale with {str(ms2.path)}, {reasons=}")
+        logger.info(f"{ms1.path!s} not compatibale with {ms2.path!s}, {reasons=}")
 
     return result
 
 
 def consistent_channelwise_frequencies(
-    freqs: Union[List[np.ndarray], np.ndarray],
+    freqs: list[np.ndarray] | np.ndarray,
 ) -> np.ndarray:
     """Given a collection of frequencies in the form of
     (N, frequencies), inspect the frequencies channelwise
@@ -531,7 +531,7 @@ def consistent_channelwise_frequencies(
     return freqs_are_same
 
 
-def consistent_ms_frequencies(mss: Tuple[MS, ...]) -> bool:
+def consistent_ms_frequencies(mss: tuple[MS, ...]) -> bool:
     """Given a set of measurement sets, inspect the frequencies
     to ensure they are all the same
 
@@ -593,8 +593,8 @@ def rename_column_in_ms(
 
 
 def remove_columns_from_ms(
-    ms: Union[MS, Path], columns_to_remove: Union[str, List[str]]
-) -> List[str]:
+    ms: MS | Path, columns_to_remove: str | list[str]
+) -> list[str]:
     """Attempt to remove a collection of columns from a measurement set.
     If any of the provided columns do not exist they are ignored.
 
@@ -625,8 +625,8 @@ def remove_columns_from_ms(
 def subtract_model_from_data_column(
     ms: MS,
     model_column: str = "MODEL_DATA",
-    data_column: Optional[str] = None,
-    output_column: Optional[str] = None,
+    data_column: str | None = None,
+    output_column: str | None = None,
     update_tracked_column: bool = False,
 ) -> MS:
     """Execute a ``taql`` query to subtract the MODEL_DATA from a nominated data column.
@@ -680,7 +680,7 @@ def subtract_model_from_data_column(
 # as it is currently being used in unclear ways. Specifically there is a renaming
 # of the data_column to instrument_column before the rotation of things
 def preprocess_askap_ms(
-    ms: Union[MS, Path],
+    ms: MS | Path,
     data_column: str = "DATA",
     instrument_column: str = "INSTRUMENT_DATA",
     overwrite: bool = True,
@@ -717,19 +717,19 @@ def preprocess_askap_ms(
         data_column != instrument_column
     ), f"Received matching column names: {data_column=} {instrument_column=}"
 
-    logger.info(
-        f"Will be running ASKAP MS conversion operations against {str(ms.path)}."
-    )
+    logger.info(f"Will be running ASKAP MS conversion operations against {ms.path!s}.")
     logger.info("Correcting directions. ")
 
     with table(str(ms.path), ack=False, readonly=False) as tab:
         colnames = tab.colnames()
         if data_column not in colnames:
             raise ValueError(
-                f"Column {data_column} not found in {str(ms.path)}. Columns found: {colnames}"
+                f"Column {data_column} not found in {ms.path!s}. Columns found: {colnames}"
             )
         if all([col in colnames for col in (data_column, instrument_column)]):
-            msg = f"Column {instrument_column} already in {str(ms.path)}. Already corrected?"
+            msg = (
+                f"Column {instrument_column} already in {ms.path!s}. Already corrected?"
+            )
             if not overwrite:
                 raise ValueError(msg)
 
@@ -768,7 +768,7 @@ def preprocess_askap_ms(
 
 
 def copy_and_preprocess_casda_askap_ms(
-    casda_ms: Union[MS, Path],
+    casda_ms: MS | Path,
     data_column: str = "DATA",
     instrument_column: str = "INSTRUMENT_DATA",
     fix_stokes_factor: bool = True,
@@ -806,7 +806,7 @@ def copy_and_preprocess_casda_askap_ms(
     ms = ms.with_options(path=out_ms_path)
 
     logger.info(
-        f"Will be running CASDA ASKAP MS conversion operations against {str(ms.path)}."
+        f"Will be running CASDA ASKAP MS conversion operations against {ms.path!s}."
     )
 
     with table(str(ms.path), ack=False, readonly=False) as tab:
@@ -836,7 +836,7 @@ def copy_and_preprocess_casda_askap_ms(
 
 def rename_ms_and_columns_for_selfcal(
     ms: MS,
-    target: Union[str, Path],
+    target: str | Path,
     corrected_data: str = "CORRECTED_DATA",
     data: str = "DATA",
 ) -> MS:
@@ -922,10 +922,10 @@ def rename_ms_and_columns_for_selfcal(
 
 def find_mss(
     mss_parent_path: Path,
-    expected_ms_count: Optional[int] = 36,
-    data_column: Optional[str] = None,
-    model_column: Optional[str] = None,
-) -> Tuple[MS, ...]:
+    expected_ms_count: int | None = 36,
+    data_column: str | None = None,
+    model_column: str | None = None,
+) -> tuple[MS, ...]:
     """Search a directory to find measurement sets via a simple
     `*.ms` glob expression. An expected number of MSs can be enforced
     via the `expected_ms_count` option.
@@ -941,7 +941,7 @@ def find_mss(
     """
     assert (
         mss_parent_path.exists() and mss_parent_path.is_dir()
-    ), f"{str(mss_parent_path)} does not exist or is not a folder. "
+    ), f"{mss_parent_path!s} does not exist or is not a folder. "
 
     found_mss = tuple(
         [MS.cast(ms_path) for ms_path in sorted(mss_parent_path.glob("*.ms"))]
@@ -950,7 +950,7 @@ def find_mss(
     if expected_ms_count:
         assert (
             len(found_mss) == expected_ms_count
-        ), f"Expected to find {expected_ms_count} in {str(mss_parent_path)}, found {len(found_mss)}."
+        ), f"Expected to find {expected_ms_count} in {mss_parent_path!s}, found {len(found_mss)}."
 
     if data_column or model_column:
         logger.info(f"Updating column attribute to {data_column=}")

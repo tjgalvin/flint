@@ -1,5 +1,7 @@
 """Tests around archives"""
 
+from __future__ import annotations
+
 import tarfile
 from pathlib import Path
 
@@ -25,7 +27,7 @@ FILES = [f"some_file_{a:02d}-MFS-image.fits" for a in range(36)] + [
 def glob_files(tmpdir):
     """Create an example set of temporary files in a known directory"""
     for f in FILES:
-        touch_file = f"{str(tmpdir / f)}"
+        touch_file = f"{tmpdir / f!s}"
         with open(touch_file, "w") as out_file:
             out_file.write("example\n")
 
@@ -128,7 +130,7 @@ def test_archive_parser(glob_files):
     assert args.tar_file_re_patterns == DEFAULT_TAR_RE_PATTERNS
 
     example_path = Path("this/no/exist")
-    args = parser.parse_args(f"list --base-path {str(example_path)}".split())
+    args = parser.parse_args(f"list --base-path {example_path!s}".split())
     assert isinstance(args.base_path, Path)
     assert args.base_path == example_path
 
@@ -139,7 +141,7 @@ def test_archive_parser(glob_files):
 
     example_path = Path(base_dir)
     args = parser.parse_args(
-        f"list --base-path {str(example_path)} --copy-file-re-patterns *pdf".split()
+        f"list --base-path {example_path!s} --copy-file-re-patterns *pdf".split()
     )
     assert isinstance(args.base_path, Path)
     assert args.base_path == example_path

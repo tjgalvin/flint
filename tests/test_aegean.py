@@ -3,8 +3,11 @@ tools used in flint. BANE is also used to derive signal maps that ultimately
 feed the clean mask creation.
 """
 
-import pytest
+from __future__ import annotations
+
 from pathlib import Path
+
+import pytest
 
 from flint.exceptions import AttemptRerunException
 from flint.source_finding.aegean import (
