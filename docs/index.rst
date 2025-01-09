@@ -8,7 +8,7 @@ Welcome to flint's documentation!
 
 A pirate themed toy ASKAP-RACS pipeline.
 
-Yarrrr-Harrrr fiddley-dee!
+Yarrrr-Harrrr fiddly-dee!
 
 .. image:: logo.jpeg
    :width: 400

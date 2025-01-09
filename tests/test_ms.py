@@ -2,20 +2,22 @@
 and the MS class
 """
 
+from __future__ import annotations
+
 import shutil
 from pathlib import Path
 
 import numpy as np
-from pydantic import ValidationError
 import pytest
 from casacore.tables import table
+from pydantic import ValidationError
 
 from flint.calibrate.aocalibrate import ApplySolutions
 from flint.ms import (
     MS,
     check_column_in_ms,
-    copy_and_preprocess_casda_askap_ms,
     consistent_channelwise_frequencies,
+    copy_and_preprocess_casda_askap_ms,
     find_mss,
     get_phase_dir_from_ms,
     remove_columns_from_ms,
@@ -138,7 +140,7 @@ def test_copy_preprocess_ms(casda_example, tmpdir):
     )
     _test_the_data(ms=new_ms.path)
 
-    # wjem file format not recgonised
+    # When file format not recognised
     with pytest.raises(ValueError):
         copy_and_preprocess_casda_askap_ms(
             casda_ms=Path(casda_example) / "Thisdoesnotexist",
@@ -189,7 +191,7 @@ def _get_columns(ms_path):
 
 
 def test_rename_ms_and_columns_for_selfcal_correct2data(ms_example, tmpdir):
-    """Sanity around renaming a MS and handlign the columns that should be renamed"""
+    """Sanity around renaming a MS and handling the columns that should be renamed"""
     ms = MS.cast(Path(ms_example))
     with table(str(ms.path), readonly=False, ack=False) as tab:
         tab.renamecol("DATA", "CORRECTED_DATA")
@@ -212,7 +214,7 @@ def test_rename_ms_and_columns_for_selfcal_correct2data(ms_example, tmpdir):
 
 
 def test_rename_ms_and_columns_for_selfcal(ms_example, tmpdir):
-    """Sanity around renaming a MS and handlign the columns that should be renamed"""
+    """Sanity around renaming a MS and handling the columns that should be renamed"""
     ms = MS.cast(Path(ms_example))
     colnames = _get_columns(ms_path=ms.path)
 
@@ -304,7 +306,7 @@ def test_remove_columns_from_ms(ms_remove_example):
     updated_columns = _get_column_names(ms_path=ms_remove_example)
     diff = set(original_columns) - set(updated_columns)
     assert len(diff) == 1
-    assert list(diff)[0] == "DATA"
+    assert next(iter(diff)) == "DATA"
     assert removed_columns[0] == "DATA"
     assert len(removed_columns) == 1
 
@@ -340,7 +342,7 @@ def test_subtract_model_from_data_column(casda_taql_example):
     assert ms.exists()
     ms = MS(path=ms)
 
-    from casacore.tables import maketabdesc, makearrcoldesc
+    from casacore.tables import makearrcoldesc, maketabdesc
 
     with table(str(ms.path), readonly=False) as tab:
         data = tab.getcol("DATA")
@@ -387,7 +389,7 @@ def test_subtract_model_from_data_column_ms_column(tmpdir):
     assert ms.exists()
     ms = MS(path=ms, column="DATA")
 
-    from casacore.tables import maketabdesc, makearrcoldesc
+    from casacore.tables import makearrcoldesc, maketabdesc
 
     with table(str(ms.path), readonly=False) as tab:
         data = tab.getcol("DATA")
@@ -436,7 +438,7 @@ def test_subtract_model_from_data_column_ms_column_new_column(tmpdir):
     assert ms.exists()
     ms = MS(path=ms, column="DATA")
 
-    from casacore.tables import maketabdesc, makearrcoldesc
+    from casacore.tables import makearrcoldesc, maketabdesc
 
     with table(str(ms.path), readonly=False) as tab:
         data = tab.getcol("DATA")

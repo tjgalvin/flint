@@ -1,16 +1,18 @@
 """Bits around testing the convolution utilities"""
 
-import pytest
+from __future__ import annotations
+
 import shutil
 from pathlib import Path
 
 import numpy as np
+import pytest
 from astropy.io import fits
 
 from flint.convol import (
+    BeamShape,
     check_if_cube_fits,
     get_cube_common_beam,
-    BeamShape,
 )
 from flint.utils import get_packaged_resource_path
 

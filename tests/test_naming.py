@@ -1,8 +1,9 @@
 """Some tests related to components around measurement sets."""
 
+from __future__ import annotations
+
 from datetime import datetime
 from pathlib import Path
-from typing import List
 
 import pytest
 
@@ -649,7 +650,7 @@ def test_get_beam_from_name():
     )
 
 
-def get_lots_of_names() -> List[Path]:
+def get_lots_of_names() -> list[Path]:
     examples = [
         "59058/SB59058.RACS_1626-84.ch0285-0286.linmos.fits",
         "59058/SB59058.RACS_1626-84.ch0285-0286.linmos.fits",
@@ -689,7 +690,7 @@ def test_create_name_from_common_fields():
         create_name_from_common_fields(in_paths=examples)
 
 
-def get_lots_of_names_2() -> List[Path]:
+def get_lots_of_names_2() -> list[Path]:
     examples = [
         "59058/SB59058.RACS_1626-84.round4.i.ch0285-0286.linmos.fits",
         "59058/SB59058.RACS_1626-84.round4.i.ch0285-0286.linmos.fits",

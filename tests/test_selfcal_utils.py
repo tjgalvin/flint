@@ -1,5 +1,7 @@
 """Tests around utility helper functions for self-calibration"""
 
+from __future__ import annotations
+
 from flint.selfcal.utils import consider_skip_selfcal_on_round
 
 

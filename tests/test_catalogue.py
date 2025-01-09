@@ -1,5 +1,7 @@
 """Tests that work around the catalogue functionality"""
 
+from __future__ import annotations
+
 from pathlib import Path
 
 import pytest
@@ -8,11 +10,11 @@ from astropy.table import Table
 from flint.catalogue import (
     KNOWN_REFERENCE_CATALOGUES,
     Catalogue,
+    _guess_catalogue_type,
     download_referencce_catalogues,
     download_vizier_catalogue,
     get_reference_catalogue,
     guess_column_in_table,
-    _guess_catalogue_type,
 )
 from flint.utils import get_packaged_resource_path
 

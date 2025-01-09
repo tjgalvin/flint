@@ -3,6 +3,8 @@ somewhat tracked, especially when using an argparse object
 to create it
 """
 
+from __future__ import annotations
+
 from pathlib import Path
 from typing import List
 
@@ -11,10 +13,10 @@ from pydantic.fields import FieldInfo
 
 from flint.options import (
     FieldOptions,
-    dump_field_options_to_yaml,
-    options_to_dict,
     _create_argparse_options,
     create_options_from_parser,
+    dump_field_options_to_yaml,
+    options_to_dict,
 )
 from flint.prefect.flows.continuum_pipeline import get_parser
 
@@ -124,7 +126,7 @@ def test_config_field_options(tmpdir):
     args = parser.parse_args(
         f"""/scratch3/gal16b/askap_sbids/112334/
         --calibrated-bandpass-path /scratch3/gal16b/askap_sbids/111/
-        --cli-config {str(output_file)}""".split()
+        --cli-config {output_file!s}""".split()
     )
 
     field_options = create_options_from_parser(

@@ -6,12 +6,13 @@ from __future__ import annotations
 
 from argparse import ArgumentParser
 from pathlib import Path
-from typing import Collection, Optional, Union, NamedTuple
+from typing import Collection, NamedTuple
 
 import astropy.units as u
 import numpy as np
 from astropy.io import fits
 from astropy.wcs import WCS
+from radio_beam import Beam
 from reproject import reproject_interp
 from scipy.ndimage import (
     binary_dilation as scipy_binary_dilation,  # Rename to distinguish from skimage
@@ -21,7 +22,6 @@ from scipy.ndimage import (
 )
 from scipy.ndimage import label, minimum_filter
 from scipy.signal import fftconvolve
-from radio_beam import Beam
 
 from flint.logging import logger
 from flint.naming import FITSMaskNames, create_fits_mask_names
@@ -53,7 +53,7 @@ class MaskingOptions(BaseOptions):
     """Stepping size used to increase box by should adaptive detect poor boxcar statistics"""
     flood_fill_use_mbc_adaptive_skew_delta: float = 0.2
     """A box is consider too small for a pixel if the fractional proportion of positive pixels is larger than the deviation away of (0.5 + frac). This threshold is therefore 0 to 0.5"""
-    flood_fill_use_mbc_adaptive_max_depth: Optional[int] = None
+    flood_fill_use_mbc_adaptive_max_depth: int | None = None
     """Determines the number of adaptive boxcar scales to use when constructing seed mask. If None no adaptive boxcar sizes"""
     grow_low_snr_island: bool = False
     """Whether to attempt to grow a mask to capture islands of low SNR (e.g. diffuse emission)"""
@@ -69,7 +69,7 @@ class MaskingOptions(BaseOptions):
 
 def consider_beam_mask_round(
     current_round: int,
-    mask_rounds: Union[str, Collection[int], int],
+    mask_rounds: str | Collection[int] | int,
     allow_beam_masks: bool = True,
 ) -> bool:
     """Evaluate whether a self-calibration round should have a beam clean mask
@@ -97,8 +97,7 @@ def consider_beam_mask_round(
     return mask_rounds is not None and (
         (isinstance(mask_rounds, str) and mask_rounds.lower() == "all")
         or (isinstance(mask_rounds, int) and current_round >= mask_rounds)
-        or (isinstance(mask_rounds, (list, tuple)))
-        and current_round in mask_rounds
+        or ((isinstance(mask_rounds, (list, tuple))) and current_round in mask_rounds)
     )  # type: ignore
 
 
@@ -240,10 +239,10 @@ def extract_beam_mask_from_mosaic(
 
 
 def _get_signal_image(
-    image: Optional[np.ndarray] = None,
-    rms: Optional[np.ndarray] = None,
-    background: Optional[np.ndarray] = None,
-    signal: Optional[np.ndarray] = None,
+    image: np.ndarray | None = None,
+    rms: np.ndarray | None = None,
+    background: np.ndarray | None = None,
+    signal: np.ndarray | None = None,
 ) -> np.ndarray:
     if all([item is None for item in (image, background, rms, signal)]):
         raise ValueError("No input maps have been provided. ")
@@ -261,13 +260,13 @@ def _get_signal_image(
 
 
 def grow_low_snr_mask(
-    image: Optional[np.ndarray] = None,
-    rms: Optional[np.ndarray] = None,
-    background: Optional[np.ndarray] = None,
-    signal: Optional[np.ndarray] = None,
+    image: np.ndarray | None = None,
+    rms: np.ndarray | None = None,
+    background: np.ndarray | None = None,
+    signal: np.ndarray | None = None,
     grow_low_snr: float = 2.0,
     grow_low_island_size: int = 512,
-    region_mask: Optional[np.ndarray] = None,
+    region_mask: np.ndarray | None = None,
 ) -> np.ndarray:
     """There may be cases where normal thresholding operations based on simple pixel-wise SNR
     cuts fail to pick up diffuse, low surface brightness regions of emission. When some type
@@ -434,7 +433,7 @@ def minimum_absolute_clip(
     image: np.ndarray,
     increase_factor: float = 2.0,
     box_size: int = 100,
-    adaptive_max_depth: Optional[int] = None,
+    adaptive_max_depth: int | None = None,
     adaptive_box_step: float = 2.0,
     adaptive_skew_delta: float = 0.2,
 ) -> np.ndarray:
@@ -494,10 +493,8 @@ def _verify_set_positive_seed_clip(
     max_signal = np.max(signal)
     if max_signal < positive_seed_clip:
         logger.critical(
-            (
-                f"The maximum signal {max_signal:.4f} is below the provided {positive_seed_clip=}. "
-                "Setting clip to 90 percent of maximum. "
-            )
+            f"The maximum signal {max_signal:.4f} is below the provided {positive_seed_clip=}. "
+            "Setting clip to 90 percent of maximum. "
         )
         positive_seed_clip = max_signal * 0.9
 
@@ -507,7 +504,7 @@ def _verify_set_positive_seed_clip(
 def reverse_negative_flood_fill(
     base_image: np.ndarray,
     masking_options: MaskingOptions,
-    pixels_per_beam: Optional[float] = None,
+    pixels_per_beam: float | None = None,
 ) -> np.ndarray:
     """Attempt to:
 
@@ -597,9 +594,9 @@ def reverse_negative_flood_fill(
 
 
 def _create_signal_from_rmsbkg(
-    image: Union[Path, np.ndarray],
-    rms: Union[Path, np.ndarray],
-    bkg: Union[Path, np.ndarray],
+    image: Path | np.ndarray,
+    rms: Path | np.ndarray,
+    bkg: Path | np.ndarray,
 ) -> np.ndarray:
     logger.info("Creating signal image")
 
@@ -639,8 +636,8 @@ def _need_to_make_signal(masking_options: MaskingOptions) -> bool:
 def create_snr_mask_from_fits(
     fits_image_path: Path,
     masking_options: MaskingOptions,
-    fits_rms_path: Optional[Path],
-    fits_bkg_path: Optional[Path],
+    fits_rms_path: Path | None,
+    fits_bkg_path: Path | None,
     create_signal_fits: bool = False,
     overwrite: bool = True,
 ) -> FITSMaskNames:

@@ -1,8 +1,10 @@
 """Utility functions to carry out flagging against ASKAP measurement sets"""
 
+from __future__ import annotations
+
 from argparse import ArgumentParser
 from pathlib import Path
-from typing import Collection, NamedTuple, Optional, Union
+from typing import Collection, NamedTuple
 
 import numpy as np
 from casacore.tables import table
@@ -23,7 +25,7 @@ class AOFlaggerCommand(NamedTuple):
     """The path to the MS that will be flagged. """
     ms: MS
     """The MS object that was flagged"""
-    strategy_file: Optional[Path] = None
+    strategy_file: Path | None = None
     """The path to the aoflagging strategy file to use"""
 
 
@@ -74,8 +76,8 @@ def flag_ms_zero_uvws(ms: MS, chunk_size: int = 10000) -> MS:
 
 
 def nan_zero_extreme_flag_ms(
-    ms: Union[Path, MS],
-    data_column: Optional[str] = None,
+    ms: Path | MS,
+    data_column: str | None = None,
     flag_extreme_dxy: bool = True,
     dxy_thresh: float = 4.0,
     nan_data_on_flag: bool = False,
@@ -105,7 +107,7 @@ def nan_zero_extreme_flag_ms(
         logger.warning("No valid data column selected, using default of DATA")
         data_column = "DATA"
     elif data_column is None and ms.column is not None:
-        logger.info(f"Using nominated {ms.column} column for {str(ms.path)}")
+        logger.info(f"Using nominated {ms.column} column for {ms.path!s}")
         data_column = ms.column
 
     logger.info(f"Flagging NaNs and zeros in {data_column}.")
@@ -185,7 +187,7 @@ def create_aoflagger_cmd(ms: MS) -> AOFlaggerCommand:
     )
     logger.info(f"Flagging using the strategy file {flagging_strategy}")
 
-    cmd = f"aoflagger -column {ms.column} -strategy {flagging_strategy} -v {str(ms.path.absolute())}"
+    cmd = f"aoflagger -column {ms.column} -strategy {flagging_strategy} -v {ms.path.absolute()!s}"
 
     return AOFlaggerCommand(
         cmd=cmd, ms_path=ms.path, strategy_file=Path(flagging_strategy), ms=ms
@@ -225,7 +227,7 @@ def flag_ms_aoflagger(ms: MS, container: Path) -> MS:
         MS: Measurement set flagged with the appropriate column
     """
     ms = MS.cast(ms)
-    logger.info(f"Will flag column {ms.column} in {str(ms.path)}.")
+    logger.info(f"Will flag column {ms.column} in {ms.path!s}.")
     aoflagger_cmd = create_aoflagger_cmd(ms=ms)
 
     logger.info("Flagging command constructed. ")
@@ -238,9 +240,7 @@ def flag_ms_aoflagger(ms: MS, container: Path) -> MS:
     return ms
 
 
-def flag_ms_by_antenna_ids(
-    ms: Union[Path, MS], ant_ids: Union[int, Collection[int]]
-) -> MS:
+def flag_ms_by_antenna_ids(ms: Path | MS, ant_ids: int | Collection[int]) -> MS:
     """Set the FLAG to True for a collection of rows where ANTENNA1 or ANTENNA2 is in a set of
     antenna IDs to flag. The flagging is performed via the antenna ID as it is in the measurement
     set - it is not by the antenna name.
@@ -260,12 +260,12 @@ def flag_ms_by_antenna_ids(
         logger.info("Antenna list to flag is empty. Exiting. ")
         return ms
 
-    logger.info(f"Will flag {str(ms.path)}.")
+    logger.info(f"Will flag {ms.path!s}.")
     logger.info(f"Antennas to flag: {ant_ids}")
 
     # TODO: Potentially this should be batched into chunks to operate over
     with table(str(ms.path), readonly=False, ack=False) as tab:
-        logger.info(f"Opened {str(ms.path)}, loading metadata.")
+        logger.info(f"Opened {ms.path!s}, loading metadata.")
         ant1 = tab.getcol("ANTENNA1")
         ant2 = tab.getcol("ANTENNA2")
         flags = tab.getcol("FLAG")

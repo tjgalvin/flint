@@ -22,7 +22,7 @@
 - Added a `timelimit_on_context` helper to raise an error after some specified
   length of time. Looking at you, BANE and issue #186. Arrrr.
 - Added a `BANE` callback handler to attempt to help #186. This includes a
-  `AttemptRerunException` and corresponding code in `run_singularity_comand` to
+  `AttemptRerunException` and corresponding code in `run_singularity_command` to
   retry the failing command.
 
 # 0.2.8

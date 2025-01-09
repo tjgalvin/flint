@@ -3,6 +3,8 @@ At the moment this is not testing the actual application. Just
 some of the helper functions around it.
 """
 
+from __future__ import annotations
+
 from pathlib import Path
 
 import numpy as np
@@ -12,11 +14,11 @@ from astropy.io import fits
 from flint.coadd.linmos import (
     BoundingBox,
     LinmosParsetSummary,
-    _linmos_cleanup,
     _create_bound_box_plane,
     _get_alpha_linmos_option,
     _get_holography_linmos_options,
     _get_image_weight_plane,
+    _linmos_cleanup,
     create_bound_box,
     generate_weights_list_and_files,
     trim_fits_image,
@@ -149,13 +151,13 @@ def test_linmos_holo_options(tmpdir):
     parset = _get_holography_linmos_options(holofile=holofile, pol_axis=None)
     assert "linmos.primarybeam      = ASKAP_PB\n" in parset
     assert "linmos.removeleakage    = false\n" in parset
-    assert f"linmos.primarybeam.ASKAP_PB.image = {str(holofile.absolute())}\n" in parset
+    assert f"linmos.primarybeam.ASKAP_PB.image = {holofile.absolute()!s}\n" in parset
     assert "linmos.primarybeam.ASKAP_PB.alpha" not in parset
 
     parset = _get_holography_linmos_options(holofile=holofile, pol_axis=np.deg2rad(-45))
     assert "linmos.primarybeam      = ASKAP_PB\n" in parset
     assert "linmos.removeleakage    = false\n" in parset
-    assert f"linmos.primarybeam.ASKAP_PB.image = {str(holofile.absolute())}\n" in parset
+    assert f"linmos.primarybeam.ASKAP_PB.image = {holofile.absolute()!s}\n" in parset
     assert "linmos.primarybeam.ASKAP_PB.alpha" in parset
 
     parset = _get_holography_linmos_options(
@@ -163,7 +165,7 @@ def test_linmos_holo_options(tmpdir):
     )
     assert "linmos.primarybeam      = ASKAP_PB\n" in parset
     assert "linmos.removeleakage    = true\n" in parset
-    assert f"linmos.primarybeam.ASKAP_PB.image = {str(holofile.absolute())}\n" in parset
+    assert f"linmos.primarybeam.ASKAP_PB.image = {holofile.absolute()!s}\n" in parset
     assert "linmos.primarybeam.ASKAP_PB.alpha" in parset
 
 

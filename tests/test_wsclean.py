@@ -1,9 +1,11 @@
 """Testing some wsclean functionality."""
 
+from __future__ import annotations
+
 import os
 import shutil
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any
 
 import pytest
 
@@ -12,8 +14,8 @@ from flint.imager.wsclean import (
     ImageSet,
     WSCleanCommand,
     WSCleanOptions,
-    _rename_wsclean_title,
     _rename_wsclean_file,
+    _rename_wsclean_title,
     _resolve_wsclean_key_value_to_cli_str,
     _wsclean_output_callback,
     combine_subbands_to_cube,
@@ -113,8 +115,8 @@ def test_rename_wsclean_imageset(tmpdir: Any):
     test_dir.mkdir(parents=True, exist_ok=True)
 
     # create some test files and ensure they all exist
-    keys: Dict[Any, Any] = {}
-    prefix = f"{str(test_dir)}/SB39400.RACS_0635-31.beam33.i"
+    keys: dict[Any, Any] = {}
+    prefix = f"{test_dir!s}/SB39400.RACS_0635-31.beam33.i"
     keys["prefix"] = prefix
     for mode in ("image", "residual"):
         items = [
@@ -372,7 +374,7 @@ def test_wsclean_divergence():
         "Iteration 59228, scale 0 px : -862.94 µJy at 3729,3746",
         "Opening reordered part 0 spw 0 for /scratch3/gal16b/flint_peel/40470/SB40470.RACS_1237+00.beam4.round1.ms",
         "Opening reordered part 0 spw 0 for /scratch3/gal16b/flint_peel/40470/SB40470.RACS_1237+00.beam4.round1.ms",
-        "Although KJy there is no iterat ion, not the lack of a capital-I and the space, clever pirate",
+        "Although KJy there is no iterate ion, not the lack of a capital-I and the space, clever pirate",
     )
     for g in good:
         _wsclean_output_callback(line=g)
@@ -396,16 +398,14 @@ def test_attemptrerun_wsclean_output_callback():
         "Opening reordered part 0 spw 0 for /scratch3/gal16b/flint_peel/40470/SB40470.RACS_1237+00.beam4.round1.ms",
         "Although Input/output is here, it is not next to error",
         "Similar with temporary data file error opening error",
-        "Input/output error",
     )
     for g in good:
         _wsclean_output_callback(line=g)
 
     bad = (
-        "Error opening temporary data file",
-        # "Input/output error",
-        "Some other words Error opening temporary data file",
-        # "Input/output error and more errors to be here",
+        "Input/output error",
+        "But why is the rum gone... Input/output error",
+        "Input/output error should cause a remake of Pirates of the Caribbean",
     )
     for b in bad:
         with pytest.raises(AttemptRerunException):

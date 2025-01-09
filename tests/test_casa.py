@@ -1,5 +1,7 @@
 """Tests around the casa self-calibration tooling"""
 
+from __future__ import annotations
+
 from flint.selfcal.casa import args_to_casa_task_string
 
 

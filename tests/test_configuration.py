@@ -1,8 +1,10 @@
+from __future__ import annotations
+
 import filecmp
 from pathlib import Path
 
-from click import MissingParameter
 import pytest
+from click import MissingParameter
 
 from flint.configuration import (
     Strategy,

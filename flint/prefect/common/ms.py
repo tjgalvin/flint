@@ -1,19 +1,20 @@
 """Common prefect tasks around interacting with measurement sets"""
 
+from __future__ import annotations
+
 from pathlib import Path
-from typing import Optional
 
 from prefect import task
 
 from flint.calibrate.aocalibrate import AddModelOptions, add_model
-from flint.logging import logger
 from flint.imager.wsclean import WSCleanCommand
+from flint.logging import logger
 
 
 # TODO: This can be a dispatcher type function should
 # other modes be added
 def add_model_source_list_to_ms(
-    wsclean_command: WSCleanCommand, calibrate_container: Optional[Path] = None
+    wsclean_command: WSCleanCommand, calibrate_container: Path | None = None
 ) -> WSCleanCommand:
     logger.info("Updating MODEL_DATA with source list")
     ms = wsclean_command.ms

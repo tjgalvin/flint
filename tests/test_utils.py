@@ -1,5 +1,7 @@
 """Basic tests for utility functions"""
 
+from __future__ import annotations
+
 import math
 import os
 import shutil
@@ -521,7 +523,7 @@ def test_package_resource_path_askap_lua():
     assert isinstance(askap_lua, Path)
     assert askap_lua.exists()
 
-    with open(askap_lua, "r") as open_lua:
+    with open(askap_lua) as open_lua:
         line = open_lua.readline()
         assert line == "--[[\n"
 
@@ -535,7 +537,7 @@ def test_package_resource_path_skymodel():
     assert isinstance(askap_model, Path)
     assert askap_model.exists()
 
-    with open(askap_model, "r") as open_model:
+    with open(askap_model) as open_model:
         line = open_model.readline()
         assert (
             line

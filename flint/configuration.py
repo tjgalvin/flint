@@ -4,15 +4,17 @@ be used to specify the options for imaging and self-calibration
 throughout the pipeline.
 """
 
+from __future__ import annotations
+
 import inspect
 import shutil
 from argparse import ArgumentParser
 from pathlib import Path
-from typing import Any, Callable, Dict, ParamSpec, Optional, TypeVar, Union
+from typing import Any, Callable, ParamSpec, TypeVar
 
+import yaml
 from click import MissingParameter
 from pydantic import ValidationError
-import yaml
 
 from flint.imager.wsclean import WSCleanOptions
 from flint.logging import logger
@@ -42,7 +44,7 @@ MODE_OPTIONS_MAPPING = {
 }
 
 
-def _create_mode_mapping_defaults() -> Dict[str, Any]:
+def _create_mode_mapping_defaults() -> dict[str, Any]:
     """Create the default key-values for each of the registered Option classes
 
     Returns:
@@ -82,8 +84,8 @@ def copy_and_timestamp_strategy_file(output_dir: Path, input_yaml: Path) -> Path
 
 
 def _load_and_copy_strategy(
-    output_split_science_path: Path, imaging_strategy: Optional[Path] = None
-) -> Union[Strategy, None]:
+    output_split_science_path: Path, imaging_strategy: Path | None = None
+) -> Strategy | None:
     """Load a strategy file and copy a timestamped version into the output directory
     that would contain the science processing.
 
@@ -107,7 +109,7 @@ def _load_and_copy_strategy(
     )
 
 
-def get_selfcal_options_from_yaml(input_yaml: Optional[Path] = None) -> Dict:
+def get_selfcal_options_from_yaml(input_yaml: Path | None = None) -> dict:
     """Stub to represent interaction with a configurationf ile
 
     If a path is supplied, an error is raised.
@@ -132,8 +134,8 @@ def get_selfcal_options_from_yaml(input_yaml: Optional[Path] = None) -> Dict:
 
 
 def get_image_options_from_yaml(
-    input_yaml: Optional[Path] = None, self_cal_rounds: bool = False
-) -> Dict:
+    input_yaml: Path | None = None, self_cal_rounds: bool = False
+) -> dict:
     """Stub to interact with configuration file.
 
     If a `input_yaml` file is provided an error is raised
@@ -247,12 +249,12 @@ def get_image_options_from_yaml(
 
 
 def get_options_from_strategy(
-    strategy: Union[Strategy, None, Path],
+    strategy: Strategy | None | Path,
     mode: str = "wsclean",
-    round_info: Union[str, int] = "initial",
+    round_info: str | int = "initial",
     max_round_override: bool = True,
-    operation: Optional[str] = None,
-) -> Dict[Any, Any]:
+    operation: str | None = None,
+) -> dict[Any, Any]:
     f"""Extract a set of options from a strategy file to use in a pipeline
     run. If the mode exists in the default section, these are used as a base.
 
@@ -379,11 +381,11 @@ def wrapper_options_from_strategy(update_options_keyword: str):
         # prefect confuxed, wherein it throws an error saying the strategy, mode, round options
         # are not part of the wrappede fn's function signature.
         def wrapper(
-            strategy: Union[Strategy, None, Path] = None,
+            strategy: Strategy | None | Path = None,
             mode: str = "wsclean",
-            round_info: Union[str, int] = "initial",
+            round_info: str | int = "initial",
             max_round_override: bool = True,
-            operation: Optional[str] = None,
+            operation: str | None = None,
             *args: P.args,
             **kwargs: P.kwargs,
         ) -> T:
@@ -516,7 +518,7 @@ def load_strategy_yaml(input_yaml: Path, verify: bool = True) -> Strategy:
 
     logger.info(f"Loading {input_yaml} file. ")
 
-    with open(input_yaml, "r") as in_file:
+    with open(input_yaml) as in_file:
         input_strategy = Strategy(yaml.load(in_file, Loader=yaml.Loader))
 
     if verify:
@@ -545,9 +547,7 @@ def write_strategy_to_yaml(strategy: Strategy, output_path: Path) -> Path:
 
 
 # TODO: Create the file only for a subset of known defaults
-def create_default_yaml(
-    output_yaml: Path, selfcal_rounds: Optional[int] = None
-) -> Path:
+def create_default_yaml(output_yaml: Path, selfcal_rounds: int | None = None) -> Path:
     """Create an example strategy yaml file that outlines the options to use at varies stages
     of some assumed processing pipeline.
 
@@ -561,7 +561,7 @@ def create_default_yaml(
         Path: Path to the written yaml output file.
     """
     logger.info("Generating a default strategy. ")
-    strategy: Dict[Any, Any] = {}
+    strategy: dict[Any, Any] = {}
 
     strategy["version"] = FORMAT_VERSION
 
@@ -571,7 +571,7 @@ def create_default_yaml(
 
     if selfcal_rounds:
         logger.info(f"Creating {selfcal_rounds} self-calibration rounds. ")
-        selfcal: Dict[int, Any] = {}
+        selfcal: dict[int, Any] = {}
         for selfcal_round in range(1, selfcal_rounds + 1):
             selfcal[selfcal_round] = {
                 "wsclean": {},
