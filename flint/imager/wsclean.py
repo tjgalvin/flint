@@ -155,7 +155,7 @@ class WSCleanOptions(BaseOptions):
     parallel_gridding: int | None = None
     """If not none, then this is the number of channel images that will be gridded in parallel"""
     temp_dir: str | Path | None = None
-    """The path to a temporary directory where files will be wrritten. """
+    """The path to a temporary directory where files will be written. """
     pol: str = "i"
     """The polarisation to be imaged"""
     save_source_list: bool = False

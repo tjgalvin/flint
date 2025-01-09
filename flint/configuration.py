@@ -379,7 +379,7 @@ def wrapper_options_from_strategy(update_options_keyword: str):
 
         # Don't use functools.wraps. It does something to the expected args/kwargs that makes
         # prefect confuxed, wherein it throws an error saying the strategy, mode, round options
-        # are not part of the wrappede fn's function signature.
+        # are not part of the wrapped fn's function signature.
         def wrapper(
             strategy: Strategy | None | Path = None,
             mode: str = "wsclean",

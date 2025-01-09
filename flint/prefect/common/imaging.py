@@ -348,7 +348,7 @@ def task_wsclean_imager(
         # how prefect would behave here.
         update_wsclean_options = update_wsclean_options.copy()
         update_wsclean_options.update(**convergence_wsclean_options)
-        logger.warn(
+        logger.warning(
             f"Clean divergence dertected. Rerunning. Updated options {convergence_wsclean_options=}"
         )
 

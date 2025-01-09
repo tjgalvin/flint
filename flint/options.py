@@ -355,40 +355,40 @@ class PolFieldOptions(BaseOptions):
 
     expected_ms: int = 36
     """The expected number of measurement set files to find"""
-    wsclean_container: Optional[Path] = None
+    wsclean_container: Path | None = None
     """Path to the singularity wsclean container"""
-    yandasoft_container: Optional[Path] = None
+    yandasoft_container: Path | None = None
     """Path to the singularity yandasoft container"""
-    holofile: Optional[Path] = None
+    holofile: Path | None = None
     """Path to the holography FITS cube that will be used when co-adding beams"""
     zip_ms: bool = False
     """Whether to zip measurement sets once they are no longer required"""
     run_aegean: bool = False
     """Whether to run the aegean source finding tool"""
-    aegean_container: Optional[Path] = None
+    aegean_container: Path | None = None
     """Path to the singularity aegean container"""
-    reference_catalogue_directory: Optional[Path] = None
+    reference_catalogue_directory: Path | None = None
     """Path to the directory container the reference catalogues, used to generate validation plots"""
     linmos_residuals: bool = False
     """Linmos the cleaning residuals together into a field image"""
     beam_cutoff: float = 150
     """Cutoff in arcseconds to use when calculating the common beam to convol to"""
-    fixed_beam_shape: Optional[List[float]] = None
+    fixed_beam_shape: list[float] | None = None
     """Specify the final beamsize of linmos field images in (arcsec, arcsec, deg)"""
     pb_cutoff: float = 0.1
     """Primary beam attenuation cutoff to use during linmos"""
-    imaging_strategy: Optional[Path] = None
+    imaging_strategy: Path | None = None
     """Path to a FLINT imaging yaml file that contains settings to use throughout imaging"""
-    sbid_archive_path: Optional[Path] = None
+    sbid_archive_path: Path | None = None
     """Path that SBID archive tarballs will be created under. If None no archive tarballs are created. See ArchiveOptions. """
-    sbid_copy_path: Optional[Path] = None
+    sbid_copy_path: Path | None = None
     """Path that final processed products will be copied into. If None no copying of file products is performed. See ArchiveOptions. """
-    coadd_cubes: bool = False
-    """Co-add cubes formed throughout imaging together. Cubes will be smoothed channel-wise to a common resolution. Only performed on final set of images"""
 
 
 def dump_field_options_to_yaml(
-    output_path: Path, field_options: FieldOptions, overwrite: bool = False
+    output_path: Path,
+    field_options: FieldOptions | PolFieldOptions | SubtractFieldOptions,
+    overwrite: bool = False,
 ) -> Path:
     """Dump the supplied instance of `FieldOptions` to a yaml file
     for record keeping.
