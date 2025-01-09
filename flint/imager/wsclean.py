@@ -79,7 +79,7 @@ class WSCleanOptions(BaseOptions):
 
     abs_mem: int = 100
     """Memory wsclean should try to limit itself to"""
-    local_rms_window: int = 65
+    local_rms_window: int | None = None
     """Size of the window used to estimate rms noise"""
     size: int = 10128
     """Image size, only a single dimension is required. Note that this means images will be squares. """
@@ -101,22 +101,13 @@ class WSCleanOptions(BaseOptions):
     """Maximum number of major cycles to perform"""
     niter: int = 750000
     """Maximum number of minor cycles"""
-    multiscale: bool = True
+    multiscale: bool = False
     """Enable multiscale deconvolution"""
     multiscale_scale_bias: float = 0.75
     """Multiscale bias term"""
     multiscale_gain: float | None = None
     """Size of step made in the subminor loop of multi-scale. Default currently 0.2, but shows sign of instability. A value of 0.1 might be more stable."""
-    multiscale_scales: tuple[int, ...] = (
-        0,
-        15,
-        25,
-        50,
-        75,
-        100,
-        250,
-        400,
-    )
+    multiscale_scales: tuple[int, ...] | None = None
     """Scales used for multi-scale deconvolution"""
     fit_spectral_pol: int | None = None
     """Number of spectral terms to include during sub-band subtraction"""
@@ -130,7 +121,7 @@ class WSCleanOptions(BaseOptions):
     """Use the wgridder kernel in wsclean (instead of the default w-stacking method)"""
     nwlayers: int | None = None
     """Number of w-layers to use if the gridder mode is w-stacking"""
-    wgridder_accuracy: float = 1e-4
+    wgridder_accuracy: float | None = None
     """The accuracy requested of the wgridder (should it be used), compared as the RMS error when compred to a DFT"""
     join_channels: bool = True
     """Collapse the sub-band images down to an MFS image when peak-finding"""
@@ -138,6 +129,11 @@ class WSCleanOptions(BaseOptions):
     """Use with -join-channels to perform peak finding in the sum of squared values over
     channels, instead of the normal sum. This is useful for imaging QU polarizations
     with non-zero rotation measures, for which the normal sum is insensitive.
+    """
+    join_polarizations: bool = False
+    """Perform deconvolution by searching for peaks in the sum of squares of the polarizations,
+    but subtract components from the individual images. Only possible when imaging two or four Stokes
+    or linear parameters. Default: off.
     """
     minuv_l: float | None = None
     """The minimum lambda length that the visibility data needs to meet for it to be selected for imaging"""
