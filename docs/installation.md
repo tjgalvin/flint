@@ -14,6 +14,13 @@ whether pre-built wheels are used.
 In practise it might be easier to leverage `conda` to install the appropriate
 `boost` and `casacore` libraries.
 
+We have split out the `pip` dependencies that rely on `python-casacore`. These
+can be installed by running:
+
+```bash
+pip install .[casa]
+```
+
 A helpful script below may be of use.
 
 ```bash
@@ -33,7 +40,7 @@ conda create -y  -n "${DIR}" python="${PYVERSION}" &&  \
         source /home/$(whoami)/.bashrc && \
         conda activate "${DIR}" && \
         conda install -y -c conda-forge boost casacore && \
-        PIP_NO_BINARY="python-casacore" pip install -e .
+        PIP_NO_BINARY="python-casacore" pip install -e .[casa]
 ```
 
 This may set up an appropriate environment that is compatible with the
