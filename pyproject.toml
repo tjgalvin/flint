@@ -1,6 +1,5 @@
 [tool.poetry]
 name = "flint"
-version = "0.2.9"
 description = "Pipeline for RACS processing, and profit along the way"
 authors = ["tgalvin <tim.galvin@csiro.au>"]
 license = "MIT"
@@ -14,6 +13,18 @@ include = [
     {path = 'flint/data/tests'},
     {path = 'flint/data/peel/known_sources.csv'}
 ]
+version = "0.0.0" # A placeholder
+
+[tool.poetry.requires-plugins]
+poetry-dynamic-versioning = { version = ">=1.0.0,<2.0.0", extras = ["plugin"] }
+
+[tool.poetry-dynamic-versioning]
+enable = true
+vcs = "git"
+
+[build-system]
+requires = ["poetry-core>=1.0.0", "poetry-dynamic-versioning>=1.0.0,<2.0.0"]
+build-backend = "poetry_dynamic_versioning.backend"
 
 [tool.poetry.dependencies]
 python = "^3.11"
@@ -59,11 +70,6 @@ dev = [
     "pytest-cov",
     "sphinx",
 ]
-
-
-[build-system]
-requires = ["poetry-core"]
-build-backend = "poetry.core.masonry.api"
 
 [tool.poetry.scripts]
 flint_skymodel = "flint.sky_model:cli"
