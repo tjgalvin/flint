@@ -72,6 +72,7 @@ myst-parser = "*"
 sphinx-autodoc-typehints = "*"
 sphinx-copybutton = "*"
 sphinx-autoapi = "*"
+furo = "*"
 
 [tool.poetry.extras]
 dev = [
@@ -86,7 +87,8 @@ dev = [
     "myst-parser",
     "sphinx-autodoc-typehints",
     "sphinx-copybutton",
-    "sphinx-autoapi"
+    "sphinx-autoapi",
+    "furo"
 ]
 
 [tool.poetry.scripts]

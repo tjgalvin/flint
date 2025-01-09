@@ -14,6 +14,8 @@ Welcome to flint's documentation!
    :maxdepth: 2
    :caption: Contents:
 
+   sky-model
+
 
 
 Indices and tables
