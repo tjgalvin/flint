@@ -21,3 +21,9 @@ Full documentation is provided on [ReadtheDocs](https://readthedocs.io/).
 
 Contributions are welcome! Please do submit a pull-request or issue if you spot
 something you would like to address.
+
+The full set of dev tooling can be installed via:
+
+```bash
+pip install .[dev]
+```
