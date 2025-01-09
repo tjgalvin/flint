@@ -95,6 +95,17 @@ flint_flow_bandpass_calibrate = "flint.prefect.flows.bandpass_pipeline:cli"
 flint_flow_continuum_pipeline = "flint.prefect.flows.continuum_pipeline:cli"
 flint_flow_subtract_cube_pipeline = "flint.prefect.flows.subtract_cube_pipeline:cli"
 
+# [tool.mypy]
+# files = ["flint", "tests"]
+# python_version = "3.11"
+# warn_unused_configs = true
+# strict = true
+# enable_error_code = ["ignore-without-code", "redundant-expr", "truthy-bool"]
+# warn_unreachable = true
+# disallow_untyped_defs = false
+# disallow_incomplete_defs = false
+
+
 [[tool.mypy.overrides]]
 module = "astropy.*"
 ignore_missing_imports = true

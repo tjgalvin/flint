@@ -28,11 +28,8 @@ from flint.naming import get_sbid_from_path
 from flint.options import FieldOptions
 from flint.prefect.clusters import get_dask_runner
 from flint.prefect.common.imaging import (
-    _convolve_linmos_residuals,
     task_convolve_image,
     task_create_apply_solutions_cmd,
-    task_create_linmos_mask_model,
-    task_create_linmos_mask_wbutter_model,
     task_create_validation_plot,
     task_create_validation_tables,
     task_extract_beam_mask_image,
@@ -57,19 +54,20 @@ def _create_linmos_mask(
     This is an internal function that is calling prefect tasks. It itself can not be
     @task, and is intended not to be share among other codes.
     """
+    raise NotImplementedError("Linmos masking is not implemented.")
     # At the moment no others tasks or flows should use this, ya filthy pirate.
-    if butterworth_filter:
-        linmos_mask = task_create_linmos_mask_wbutter_model(
-            linmos_parset=linmos_parset,
-            image_products=aegean_outputs,
-        )
-    else:
-        linmos_mask = task_create_linmos_mask_model(
-            linmos_parset=linmos_parset,
-            image_products=aegean_outputs,
-        )
+    # if butterworth_filter:
+    #     linmos_mask = task_create_linmos_mask_wbutter_model(
+    #         linmos_parset=linmos_parset,
+    #         image_products=aegean_outputs,
+    #     )
+    # else:
+    #     linmos_mask = task_create_linmos_mask_model(
+    #         linmos_parset=linmos_parset,
+    #         image_products=aegean_outputs,
+    #     )
 
-    return linmos_mask
+    # return linmos_mask
 
 
 @flow(name="Flint Continuum Pipeline")
@@ -183,11 +181,12 @@ def process_science_fields(
     )
 
     if field_options.linmos_residuals:
-        _convolve_linmos_residuals(
-            wsclean_cmds=wsclean_cmds,
-            beam_shape=beam_shape,
-            field_options=field_options,
-        )
+        raise NotImplementedError()
+        # _convolve_linmos_residuals(
+        #     wsclean_cmds=wsclean_cmds,
+        #     beam_shape=beam_shape,
+        #     field_options=field_options,
+        # )
 
     aegean_outputs = task_run_bane_and_aegean.submit(
         image=parset, aegean_container=unmapped(field_options.aegean_container)
@@ -293,11 +292,12 @@ def process_science_fields(
         )
 
         if final_round and field_options.linmos_residuals:
-            _convolve_linmos_residuals(
-                wsclean_cmds=wsclean_cmds,
-                beam_shape=beam_shape,
-                field_options=field_options,
-            )
+            raise NotImplementedError()
+            # _convolve_linmos_residuals(
+            #     wsclean_cmds=wsclean_cmds,
+            #     beam_shape=beam_shape,
+            #     field_options=field_options,
+            # )
 
         # Use the mask from the first round
         if round < field_options.rounds:
