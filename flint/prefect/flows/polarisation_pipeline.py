@@ -62,11 +62,12 @@ def process_science_fields_pol(
 
     logger.info(f"{pol_field_options=}")
 
-    components = extract_components_from_name(science_mss[0].path)
-
-    if not isinstance(components, ProcessedNameComponents):
-        msg = f"{science_mss[0]} has not be processed by Flint"
-        raise MSError(msg)
+    # Check that the MSs have been processed by Flint
+    for ms in science_mss:
+        components = extract_components_from_name(ms.path)
+        if not isinstance(components, ProcessedNameComponents):
+            msg = f"{ms} has not be processed by Flint"
+            raise MSError(msg)
 
     logger.info(f"Found the following calibrated measurement sets: {science_mss}")
 
