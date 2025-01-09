@@ -134,6 +134,11 @@ class WSCleanOptions(BaseOptions):
     """The accuracy requested of the wgridder (should it be used), compared as the RMS error when compred to a DFT"""
     join_channels: bool = True
     """Collapse the sub-band images down to an MFS image when peak-finding"""
+    squared_channel_joining: bool = False
+    """Use with -join-channels to perform peak finding in the sum of squared values over
+    channels, instead of the normal sum. This is useful for imaging QU polarizations
+    with non-zero rotation measures, for which the normal sum is insensitive.
+    """
     minuv_l: float | None = None
     """The minimum lambda length that the visibility data needs to meet for it to be selected for imaging"""
     minuvw_m: float | None = None
@@ -306,7 +311,7 @@ def _wsclean_output_callback(line: str) -> None:
 def get_wsclean_output_names(  #
     prefix: str,
     subbands: int | None = None,
-    pols: str | tuple[str] | None = None,
+    pols: str | tuple[str] | tuple[str, ...] | None = None,
     verify_exists: bool = False,
     include_mfs: bool = True,
     output_types: str | Collection[str] = (
@@ -352,7 +357,7 @@ def get_wsclean_output_names(  #
         if include_mfs:
             subband_strs.append("MFS")
 
-    in_pols: tuple[None | str]
+    in_pols: tuple[None | str] | tuple[str] | tuple[str, ...]
     if pols is None:
         in_pols = (None,)
     elif isinstance(pols, str):
@@ -879,9 +884,15 @@ def run_wsclean_imager(
         logger.info("Will clean up files created by wsclean. ")
         rm_files = wsclean_cleanup_files(prefix=prefix, single_channel=single_channel)
 
+    pols: tuple[str, ...] | None = None
+    pol_str = wsclean_cmd.options.pol
+    if pol_str.lower() != "i":
+        pols = tuple(p.upper() for p in "".join(pol_str.split(",")))
+
     imageset = get_wsclean_output_names(
         prefix=prefix,
         subbands=wsclean_cmd.options.channels_out,
+        pols=pols,
         verify_exists=True,
         output_types=("image", "residual"),
         check_exists_when_adding=True,
