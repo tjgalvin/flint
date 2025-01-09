@@ -18,8 +18,8 @@ from flint.catalogue import verify_reference_catalogues
 from flint.coadd.linmos import LinmosCommand
 from flint.configuration import (
     Strategy,
-    _load_and_copy_strategy,
     get_options_from_strategy,
+    load_and_copy_strategy,
 )
 from flint.logging import logger
 from flint.masking import consider_beam_mask_round
@@ -38,9 +38,8 @@ from flint.options import (
 )
 from flint.prefect.clusters import get_dask_runner
 from flint.prefect.common.imaging import (
-    _create_convol_linmos_images,
-    _create_convolve_linmos_cubes,
-    _validation_items,
+    create_convol_linmos_images,
+    create_convolve_linmos_cubes,
     task_copy_and_preprocess_casda_askap_ms,
     task_create_apply_solutions_cmd,
     task_create_image_mask_model,
@@ -54,6 +53,7 @@ from flint.prefect.common.imaging import (
     task_split_by_field,
     task_wsclean_imager,
     task_zip_ms,
+    validation_items,
 )
 from flint.prefect.common.ms import task_add_model_source_list_to_ms
 from flint.prefect.common.utils import (
@@ -174,7 +174,7 @@ def process_science_fields(
 
     archive_wait_for: list[Any] = []
 
-    strategy: Strategy | None = _load_and_copy_strategy(
+    strategy: Strategy | None = load_and_copy_strategy(
         output_split_science_path=output_split_science_path,
         imaging_strategy=field_options.imaging_strategy,
     )
@@ -309,7 +309,7 @@ def process_science_fields(
         )
 
     if field_options.yandasoft_container:
-        parsets = _create_convol_linmos_images(
+        parsets = create_convol_linmos_images(
             wsclean_cmds=wsclean_cmds,
             field_options=field_options,
             field_summary=field_summary,
@@ -330,7 +330,7 @@ def process_science_fields(
             archive_wait_for.append(field_summary)
 
             if run_validation and field_options.reference_catalogue_directory:
-                _validation_items(
+                validation_items(
                     field_summary=field_summary,
                     aegean_outputs=aegean_field_output,
                     reference_catalogue_directory=field_options.reference_catalogue_directory,
@@ -423,7 +423,7 @@ def process_science_fields(
 
             parsets_self: None | list[LinmosCommand] = None  # Without could be unbound
             if field_options.yandasoft_container:
-                parsets_self = _create_convol_linmos_images(
+                parsets_self = create_convol_linmos_images(
                     wsclean_cmds=wsclean_cmds,
                     field_options=field_options,
                     field_summary=field_summary,
@@ -443,7 +443,7 @@ def process_science_fields(
                 )  # type: ignore
                 if run_validation:
                     assert field_options.reference_catalogue_directory, f"Reference catalogue directory should be set when {run_validation=}"
-                    val_results = _validation_items(
+                    val_results = validation_items(
                         field_summary=field_summary,
                         aegean_outputs=aegean_outputs,
                         reference_catalogue_directory=field_options.reference_catalogue_directory,
@@ -452,7 +452,7 @@ def process_science_fields(
 
     if field_options.coadd_cubes:
         with tags("cubes"):
-            cube_parset = _create_convolve_linmos_cubes(
+            cube_parset = create_convolve_linmos_cubes(
                 wsclean_cmds=wsclean_cmds,  # type: ignore
                 field_options=field_options,
                 current_round=(field_options.rounds if field_options.rounds else None),
@@ -473,7 +473,7 @@ def process_science_fields(
                 wait_for=wsclean_cmds,  # Ensure that measurement sets are doubled up during imaging
             )  # type: ignore
             if field_options.yandasoft_container:
-                parsets = _create_convol_linmos_images(
+                parsets = create_convol_linmos_images(
                     wsclean_cmds=wsclean_cmds,
                     field_options=field_options.with_options(linmos_residuals=False),
                     field_summary=field_summary,

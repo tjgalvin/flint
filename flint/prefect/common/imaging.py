@@ -741,7 +741,7 @@ def _convolve_linmos(
     return parset
 
 
-def _create_convol_linmos_images(
+def create_convol_linmos_images(
     wsclean_cmds: Collection[WSCleanCommand],
     field_options: FieldOptions,
     field_summary: FieldSummary | None = None,
@@ -821,7 +821,7 @@ def _create_convol_linmos_images(
     return parsets
 
 
-def _create_convolve_linmos_cubes(
+def create_convolve_linmos_cubes(
     wsclean_cmds: Collection[WSCleanCommand],
     field_options: FieldOptions,
     current_round: int | None = None,
@@ -1034,7 +1034,7 @@ def task_create_validation_tables(
     return validation_tables
 
 
-def _validation_items(
+def validation_items(
     field_summary: FieldSummary,
     aegean_outputs: AegeanOutputs,
     reference_catalogue_directory: Path,

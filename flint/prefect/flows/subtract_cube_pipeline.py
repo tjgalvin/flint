@@ -18,7 +18,7 @@ from fitscube.combine_fits import combine_fits
 from prefect import flow, task, unmapped
 
 from flint.coadd.linmos import LinmosCommand
-from flint.configuration import _load_and_copy_strategy
+from flint.configuration import load_and_copy_strategy
 from flint.exceptions import FrequencyMismatchError
 from flint.logging import logger
 from flint.ms import (
@@ -285,7 +285,7 @@ def flow_subtract_cube(
     subtract_field_options: SubtractFieldOptions,
     addmodel_subtract_field_options: AddModelSubtractFieldOptions,
 ) -> None:
-    strategy = _load_and_copy_strategy(
+    strategy = load_and_copy_strategy(
         output_split_science_path=science_path,
         imaging_strategy=subtract_field_options.imaging_strategy,
     )

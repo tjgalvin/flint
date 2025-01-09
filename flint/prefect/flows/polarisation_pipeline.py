@@ -6,8 +6,8 @@ from typing import Any
 from prefect import flow, tags, unmapped
 
 from flint.configuration import (
-    _load_and_copy_strategy,
     get_options_from_strategy,
+    load_and_copy_strategy,
 )
 from flint.exceptions import MSError
 from flint.logging import logger
@@ -22,12 +22,11 @@ from flint.options import (
     dump_field_options_to_yaml,
 )
 from flint.prefect.common.imaging import (
-    _create_convol_linmos_images,
-    _create_convolve_linmos_cubes,
+    create_convol_linmos_images,
+    create_convolve_linmos_cubes,
     task_wsclean_imager,
     task_zip_ms,
 )
-from flint.prefect.common.ms import task_add_model_source_list_to_ms
 from flint.prefect.common.utils import (
     task_archive_sbid,
 )
@@ -56,14 +55,14 @@ def process_science_fields_pol(
 
     archive_wait_for: list[Any] = []
 
-    strategy = _load_and_copy_strategy(
+    strategy = load_and_copy_strategy(
         output_split_science_path=flint_ms_directory,
         imaging_strategy=pol_field_options.imaging_strategy,
     )
 
     logger.info(f"{pol_field_options=}")
 
-    components = extract_components_from_name(science_mss[0])
+    components = extract_components_from_name(science_mss[0].path)
 
     if not isinstance(components, ProcessedNameComponents):
         msg = f"{science_mss[0]} has not be processed by Flint"
@@ -82,20 +81,11 @@ def process_science_fields_pol(
         mode="wsclean",
     )  # type: ignore
 
-    wsclean_cmds = (
-        task_add_model_source_list_to_ms.map(
-            wsclean_command=wsclean_cmds,
-            calibrate_container=pol_field_options.calibrate_container,
-        )
-        if pol_field_options.update_model_data_with_source_list
-        else wsclean_cmds
-    )
-
     # TODO: This should be waited!
     archive_wait_for.extend(wsclean_cmds)
 
     if pol_field_options.yandasoft_container:
-        parsets = _create_convol_linmos_images(
+        parsets = create_convol_linmos_images(
             wsclean_cmds=wsclean_cmds,
             field_options=pol_field_options,
             field_summary=None,
@@ -105,7 +95,7 @@ def process_science_fields_pol(
 
     # Always create cubes
     with tags("cubes"):
-        cube_parset = _create_convolve_linmos_cubes(
+        cube_parset = create_convolve_linmos_cubes(
             wsclean_cmds=wsclean_cmds,  # type: ignore
             field_options=pol_field_options,
             current_round=None,

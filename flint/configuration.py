@@ -83,7 +83,7 @@ def copy_and_timestamp_strategy_file(output_dir: Path, input_yaml: Path) -> Path
     return Path(stamped_imaging_strategy)
 
 
-def _load_and_copy_strategy(
+def load_and_copy_strategy(
     output_split_science_path: Path, imaging_strategy: Path | None = None
 ) -> Strategy | None:
     """Load a strategy file and copy a timestamped version into the output directory
