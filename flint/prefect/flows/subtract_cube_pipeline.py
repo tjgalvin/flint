@@ -39,7 +39,7 @@ from flint.options import (
 from flint.prefect.clusters import get_dask_runner
 from flint.prefect.common.imaging import (
     convolve_then_linmos,
-    task_get_common_beam_from_cmds,
+    task_get_common_beam_from_results,
     task_wsclean_imager,
 )
 
@@ -350,8 +350,8 @@ def flow_subtract_cube(
             mode="wsclean",
             operation="subtractcube",
         )
-        channel_beam_shape = task_get_common_beam_from_cmds.submit(
-            wsclean_cmds=channel_wsclean_cmds,
+        channel_beam_shape = task_get_common_beam_from_results.submit(
+            wsclean_results=channel_wsclean_cmds,
             cutoff=subtract_field_options.beam_cutoff,
             filter="image.",
         )

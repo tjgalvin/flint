@@ -271,7 +271,7 @@ def process_science_fields(
         )
 
     stokes_v_mss = preprocess_science_mss
-    wsclean_cmds = task_wsclean_imager.map(
+    wsclean_results = task_wsclean_imager.map(
         in_ms=preprocess_science_mss,
         wsclean_container=field_options.wsclean_container,
         strategy=unmapped(strategy),
@@ -279,26 +279,26 @@ def process_science_fields(
         round_info="initial",
     )  # type: ignore
 
-    wsclean_cmds = (
+    wsclean_results = (
         task_add_model_source_list_to_ms.map(
-            wsclean_command=wsclean_cmds,
+            wsclean_command=wsclean_results,
             calibrate_container=field_options.calibrate_container,
         )
         if field_options.update_model_data_with_source_list
-        else wsclean_cmds
+        else wsclean_results
     )
 
     # TODO: This should be waited!
     beam_summaries = task_create_beam_summary.map(
-        ms=preprocess_science_mss, imageset=wsclean_cmds
+        ms=preprocess_science_mss, imageset=wsclean_results
     )
     archive_wait_for.extend(beam_summaries)
-    archive_wait_for.extend(wsclean_cmds)
+    archive_wait_for.extend(wsclean_results)
 
     beam_aegean_outputs = None
     if run_aegean:
         beam_aegean_outputs = task_run_bane_and_aegean.map(
-            image=wsclean_cmds,
+            image=wsclean_results,
             aegean_container=unmapped(field_options.aegean_container),
         )
         beam_summaries = task_update_with_options.map(
@@ -310,7 +310,7 @@ def process_science_fields(
 
     if field_options.yandasoft_container:
         parsets = create_convol_linmos_images(
-            wsclean_cmds=wsclean_cmds,
+            wsclean_results=wsclean_results,
             field_options=field_options,
             field_summary=field_summary,
             current_round=None,
@@ -349,7 +349,7 @@ def process_science_fields(
             )
 
             cal_mss = task_gaincal_applycal_ms.map(
-                ms=wsclean_cmds,
+                ms=wsclean_results,
                 selfcal_round=current_round,
                 archive_input_ms=field_options.zip_ms,
                 skip_selfcal=skip_gaincal_current_round,
@@ -382,21 +382,21 @@ def process_science_fields(
                 # TODO: the aegean outputs are only needed should the signal image be needed
                 beam_aegean_outputs = (
                     task_run_bane_and_aegean.map(
-                        image=wsclean_cmds,
+                        image=wsclean_results,
                         aegean_container=unmapped(field_options.aegean_container),
                     )
                     if (current_round >= 2 or not beam_aegean_outputs)
                     else beam_aegean_outputs
                 )
                 fits_beam_masks = task_create_image_mask_model.map(
-                    image=wsclean_cmds,
+                    image=wsclean_results,
                     image_products=beam_aegean_outputs,
                     strategy=unmapped(strategy),
                     mode="masking",
                     round_info=current_round,
                 )  # type: ignore
 
-            wsclean_cmds = task_wsclean_imager.map(
+            wsclean_results = task_wsclean_imager.map(
                 in_ms=cal_mss,
                 wsclean_container=field_options.wsclean_container,
                 fits_mask=fits_beam_masks,
@@ -404,27 +404,27 @@ def process_science_fields(
                 mode="wsclean",
                 round_info=current_round,
             )  # type: ignore
-            wsclean_cmds = (
+            wsclean_results = (
                 task_add_model_source_list_to_ms.map(
-                    wsclean_command=wsclean_cmds,
+                    wsclean_command=wsclean_results,
                     calibrate_container=field_options.calibrate_container,
                 )
                 if field_options.update_model_data_with_source_list
-                else wsclean_cmds
+                else wsclean_results
             )
-            archive_wait_for.extend(wsclean_cmds)
+            archive_wait_for.extend(wsclean_results)
 
             # Do source finding on the last round of self-cal'ed images
             if round == field_options.rounds and run_aegean:
                 task_run_bane_and_aegean.map(
-                    image=wsclean_cmds,
+                    image=wsclean_results,
                     aegean_container=unmapped(field_options.aegean_container),
                 )
 
             parsets_self: None | list[LinmosResult] = None  # Without could be unbound
             if field_options.yandasoft_container:
                 parsets_self = create_convol_linmos_images(
-                    wsclean_cmds=wsclean_cmds,
+                    wsclean_results=wsclean_results,
                     field_options=field_options,
                     field_summary=field_summary,
                     current_round=current_round,
@@ -453,7 +453,7 @@ def process_science_fields(
     if field_options.coadd_cubes:
         with tags("cubes"):
             cube_parset = create_convolve_linmos_cubes(
-                wsclean_cmds=wsclean_cmds,  # type: ignore
+                wsclean_results=wsclean_results,  # type: ignore
                 field_options=field_options,
                 current_round=(field_options.rounds if field_options.rounds else None),
                 additional_linmos_suffix_str="cube",
@@ -465,16 +465,16 @@ def process_science_fields(
             stokes_v_wsclean_options = get_options_from_strategy(
                 strategy=strategy, mode="wsclean", operation="stokesv"
             )
-            wsclean_cmds = task_wsclean_imager.map(
+            wsclean_results = task_wsclean_imager.map(
                 in_ms=stokes_v_mss,
                 wsclean_container=field_options.wsclean_container,
                 update_wsclean_options=unmapped(stokes_v_wsclean_options),
                 fits_mask=fits_beam_masks,
-                wait_for=wsclean_cmds,  # Ensure that measurement sets are doubled up during imaging
+                wait_for=wsclean_results,  # Ensure that measurement sets are doubled up during imaging
             )  # type: ignore
             if field_options.yandasoft_container:
                 parsets = create_convol_linmos_images(
-                    wsclean_cmds=wsclean_cmds,
+                    wsclean_results=wsclean_results,
                     field_options=field_options.with_options(linmos_residuals=False),
                     field_summary=field_summary,
                     current_round=(
@@ -486,7 +486,7 @@ def process_science_fields(
     # zip up the final measurement set, which is not included in the above loop
     if field_options.zip_ms:
         archive_wait_for = task_zip_ms.map(
-            in_item=wsclean_cmds, wait_for=archive_wait_for
+            in_item=wsclean_results, wait_for=archive_wait_for
         )
 
     if field_options.sbid_archive_path or field_options.sbid_copy_path:

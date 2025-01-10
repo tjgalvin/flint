@@ -35,7 +35,7 @@ from flint.prefect.common.imaging import (
     task_extract_beam_mask_image,
     task_flag_ms_aoflagger,
     task_gaincal_applycal_ms,
-    task_get_common_beam_from_cmds,
+    task_get_common_beam_from_results,
     task_linmos_images,
     task_preprocess_askap_ms,
     task_run_bane_and_aegean,
@@ -159,21 +159,21 @@ def process_science_fields(
         "channels_out": 8,
     }
 
-    wsclean_cmds = task_wsclean_imager.map(
+    wsclean_results = task_wsclean_imager.map(
         in_ms=flagged_mss,
         wsclean_container=field_options.wsclean_container,
         update_wsclean_options=unmapped(wsclean_init),
     )
 
     task_run_bane_and_aegean.map(
-        image=wsclean_cmds, aegean_container=unmapped(field_options.aegean_container)
+        image=wsclean_results, aegean_container=unmapped(field_options.aegean_container)
     )
 
-    beam_shape = task_get_common_beam_from_cmds.submit(
-        wsclean_cmds=wsclean_cmds, cutoff=150.0
+    beam_shape = task_get_common_beam_from_results.submit(
+        wsclean_results=wsclean_results, cutoff=150.0
     )
     conv_images = task_convolve_image.map(
-        wsclean_cmd=wsclean_cmds, beam_shape=unmapped(beam_shape), cutoff=150.0
+        wsclean_result=wsclean_results, beam_shape=unmapped(beam_shape), cutoff=150.0
     )
     parset = task_linmos_images.submit(
         images=conv_images,
@@ -185,7 +185,7 @@ def process_science_fields(
     if field_options.linmos_residuals:
         raise NotImplementedError()
         # _convolve_linmos_residuals(
-        #     wsclean_cmds=wsclean_cmds,
+        #     wsclean_results=wsclean_results,
         #     beam_shape=beam_shape,
         #     field_options=field_options,
         # )
@@ -201,7 +201,7 @@ def process_science_fields(
     )
 
     beam_masks = task_extract_beam_mask_image.map(
-        linmos_mask_names=unmapped(linmos_mask), wsclean_cmd=wsclean_cmds
+        linmos_mask_names=unmapped(linmos_mask), wsclean_result=wsclean_results
     )
 
     if field_options.rounds is None:
@@ -248,7 +248,7 @@ def process_science_fields(
         wsclean_options = wsclean_rounds.get(round, None)
 
         cal_mss = task_gaincal_applycal_ms.map(
-            wsclean_cmd=wsclean_cmds,
+            wsclean_result=wsclean_results,
             round=round,
             update_gain_cal_options=unmapped(gain_cal_options),
             archive_input_ms=field_options.zip_ms,
@@ -257,7 +257,7 @@ def process_science_fields(
         flag_mss = task_flag_ms_aoflagger.map(
             ms=cal_mss, container=field_options.flagger_container, rounds=1
         )
-        wsclean_cmds = task_wsclean_imager.map(
+        wsclean_results = task_wsclean_imager.map(
             in_ms=flag_mss,
             wsclean_container=field_options.wsclean_container,
             update_wsclean_options=unmapped(wsclean_options),
@@ -267,16 +267,18 @@ def process_science_fields(
         # Do source finding on the last round of self-cal'ed images
         if final_round and run_aegean:
             task_run_bane_and_aegean.map(
-                image=wsclean_cmds,
+                image=wsclean_results,
                 aegean_container=unmapped(field_options.aegean_container),
             )
-            task_zip_ms.map(in_item=wsclean_cmds)
+            task_zip_ms.map(in_item=wsclean_results)
 
-        beam_shape = task_get_common_beam_from_cmds.submit(
-            wsclean_cmds=wsclean_cmds, cutoff=150.0
+        beam_shape = task_get_common_beam_from_results.submit(
+            wsclean_results=wsclean_results, cutoff=150.0
         )
         conv_images = task_convolve_image.map(
-            wsclean_cmd=wsclean_cmds, beam_shape=unmapped(beam_shape), cutoff=150.0
+            wsclean_result=wsclean_results,
+            beam_shape=unmapped(beam_shape),
+            cutoff=150.0,
         )
         if field_options.yandasoft_container is None:
             logger.info("No yandasoft container supplied, not linmosing. ")
@@ -296,7 +298,7 @@ def process_science_fields(
         if final_round and field_options.linmos_residuals:
             raise NotImplementedError()
             # _convolve_linmos_residuals(
-            #     wsclean_cmds=wsclean_cmds,
+            #     wsclean_results=wsclean_results,
             #     beam_shape=beam_shape,
             #     field_options=field_options,
             # )
@@ -310,7 +312,7 @@ def process_science_fields(
             )
 
             beam_masks = task_extract_beam_mask_image.map(
-                linmos_mask_names=unmapped(linmos_mask), wsclean_cmd=wsclean_cmds
+                linmos_mask_names=unmapped(linmos_mask), wsclean_result=wsclean_results
             )
 
         if run_validation:

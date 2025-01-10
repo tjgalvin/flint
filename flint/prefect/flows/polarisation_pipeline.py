@@ -95,7 +95,7 @@ def process_science_fields_pol(
 
     if pol_field_options.yandasoft_container:
         parsets = create_convol_linmos_images(
-            wsclean_cmds=wsclean_results,
+            wsclean_results=wsclean_results,
             field_options=pol_field_options,
             field_summary=None,
             current_round=None,
@@ -105,7 +105,7 @@ def process_science_fields_pol(
     # Always create cubes
     with tags("cubes"):
         cube_parset = create_convolve_linmos_cubes(
-            wsclean_cmds=wsclean_results,  # type: ignore
+            wsclean_results=wsclean_results,  # type: ignore
             field_options=pol_field_options,
             current_round=None,
             additional_linmos_suffix_str="cube",
