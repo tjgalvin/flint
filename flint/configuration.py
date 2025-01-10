@@ -420,6 +420,7 @@ def wrapper_options_from_strategy(update_options_keyword: str):
                     round_info=round_info,
                     max_round_override=max_round_override,
                     operation=operation,
+                    polarisation=polarisation,
                 )
                 logger.info(f"Adding extracted options to {update_options_keyword}")
                 kwargs[update_options_keyword] = update_options
