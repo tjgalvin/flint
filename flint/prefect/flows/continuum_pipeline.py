@@ -15,7 +15,7 @@ from prefect import flow, tags, unmapped
 
 from flint.calibrate.aocalibrate import find_existing_solutions
 from flint.catalogue import verify_reference_catalogues
-from flint.coadd.linmos import LinmosCommand
+from flint.coadd.linmos import LinmosResult
 from flint.configuration import (
     Strategy,
     get_options_from_strategy,
@@ -421,7 +421,7 @@ def process_science_fields(
                     aegean_container=unmapped(field_options.aegean_container),
                 )
 
-            parsets_self: None | list[LinmosCommand] = None  # Without could be unbound
+            parsets_self: None | list[LinmosResult] = None  # Without could be unbound
             if field_options.yandasoft_container:
                 parsets_self = create_convol_linmos_images(
                     wsclean_cmds=wsclean_cmds,

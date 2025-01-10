@@ -35,7 +35,7 @@ from flint.prefect.common.imaging import (
     task_extract_beam_mask_image,
     task_flag_ms_aoflagger,
     task_gaincal_applycal_ms,
-    task_get_common_beam,
+    task_get_common_beam_from_cmds,
     task_linmos_images,
     task_preprocess_askap_ms,
     task_run_bane_and_aegean,
@@ -169,7 +169,9 @@ def process_science_fields(
         image=wsclean_cmds, aegean_container=unmapped(field_options.aegean_container)
     )
 
-    beam_shape = task_get_common_beam.submit(wsclean_cmds=wsclean_cmds, cutoff=150.0)
+    beam_shape = task_get_common_beam_from_cmds.submit(
+        wsclean_cmds=wsclean_cmds, cutoff=150.0
+    )
     conv_images = task_convolve_image.map(
         wsclean_cmd=wsclean_cmds, beam_shape=unmapped(beam_shape), cutoff=150.0
     )
@@ -270,7 +272,7 @@ def process_science_fields(
             )
             task_zip_ms.map(in_item=wsclean_cmds)
 
-        beam_shape = task_get_common_beam.submit(
+        beam_shape = task_get_common_beam_from_cmds.submit(
             wsclean_cmds=wsclean_cmds, cutoff=150.0
         )
         conv_images = task_convolve_image.map(

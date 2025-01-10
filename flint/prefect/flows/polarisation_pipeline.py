@@ -79,11 +79,11 @@ def process_science_fields_pol(
         logger.info("No wsclean container provided. Returning. ")
         return
 
-    polarisations: dict[str, str] = strategy.get("polarisations", {"total": {}})
+    polarisations: dict[str, str] = strategy.get("polarisation", {"total": {}})
 
     for polarisation in polarisations.keys():
         with tags(f"polarisation-{polarisation}"):
-            wsclean_cmds = task_wsclean_imager.map(
+            wsclean_results = task_wsclean_imager.map(
                 in_ms=science_mss,
                 wsclean_container=pol_field_options.wsclean_container,
                 strategy=unmapped(strategy),
@@ -91,11 +91,11 @@ def process_science_fields_pol(
                 mode="wsclean",
                 polarisation=polarisation,
             )  # type: ignore
-            archive_wait_for.extend(wsclean_cmds)
+            archive_wait_for.extend(wsclean_results)
 
     if pol_field_options.yandasoft_container:
         parsets = create_convol_linmos_images(
-            wsclean_cmds=wsclean_cmds,
+            wsclean_cmds=wsclean_results,
             field_options=pol_field_options,
             field_summary=None,
             current_round=None,
@@ -105,7 +105,7 @@ def process_science_fields_pol(
     # Always create cubes
     with tags("cubes"):
         cube_parset = create_convolve_linmos_cubes(
-            wsclean_cmds=wsclean_cmds,  # type: ignore
+            wsclean_cmds=wsclean_results,  # type: ignore
             field_options=pol_field_options,
             current_round=None,
             additional_linmos_suffix_str="cube",
@@ -115,7 +115,7 @@ def process_science_fields_pol(
     # zip up the final measurement set, which is not included in the above loop
     if pol_field_options.zip_ms:
         archive_wait_for = task_zip_ms.map(
-            in_item=wsclean_cmds, wait_for=archive_wait_for
+            in_item=wsclean_results, wait_for=archive_wait_for
         )
 
     if pol_field_options.sbid_archive_path or pol_field_options.sbid_copy_path:
