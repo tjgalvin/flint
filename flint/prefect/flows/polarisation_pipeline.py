@@ -10,6 +10,7 @@ from flint.configuration import (
     load_and_copy_strategy,
 )
 from flint.exceptions import MSError
+from flint.imager.wsclean import task_merge_image_sets_from_results
 from flint.logging import logger
 from flint.ms import find_mss
 from flint.naming import (
@@ -81,6 +82,7 @@ def process_science_fields_pol(
 
     polarisations: dict[str, str] = strategy.get("polarisation", {"total": {}})
 
+    wsclean_results_list = []
     for polarisation in polarisations.keys():
         with tags(f"polarisation-{polarisation}"):
             wsclean_results = task_wsclean_imager.map(
@@ -92,6 +94,12 @@ def process_science_fields_pol(
                 polarisation=polarisation,
             )  # type: ignore
             archive_wait_for.extend(wsclean_results)
+            wsclean_results_list.append(wsclean_results)
+
+    merged_image_set = task_merge_image_sets_from_results(
+        wsclean_results=wsclean_results_list,
+    )
+    logger.debug(f"{merged_image_set=}")
 
     if pol_field_options.yandasoft_container:
         parsets = create_convol_linmos_images(

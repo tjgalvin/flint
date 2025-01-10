@@ -174,10 +174,10 @@ def task_run_bane_and_aegean(
     """Run BANE and Aegean against a FITS image.
 
     Notes:
-         It has been noted that BANE can sometimes get caught in a interpolation error which haults execution.
-         The ``timelimit_seconds`` will attempt to detect long runnings BANE processes and raise an error. The
-         retry functionality of prefect should then restart the task. Since this task is pure (e.g. no last
-         dataproducts, modification to data etc) simply restarting should be fine.
+        It has been noted that BANE can sometimes get caught in a interpolation error which haults execution.
+        The ``timelimit_seconds`` will attempt to detect long runnings BANE processes and raise an error. The
+        retry functionality of prefect should then restart the task. Since this task is pure (e.g. no last
+        dataproducts, modification to data etc) simply restarting should be fine.
 
     Args:
         image (Union[WSCleanResult, LinmosResult]): The image that will be searched
@@ -540,9 +540,8 @@ def task_convolve_cube(
     )
 
 
-@task
-def task_convolve_image(
-    wsclean_result: WSCleanResult,
+def convolve_image_set(
+    image_set: ImageSet,
     beam_shape: BeamShape,
     cutoff: float = 60,
     mode: str = "image",
@@ -563,7 +562,6 @@ def task_convolve_image(
     Returns:
         Collection[Path]: Path to the output images that have been convolved.
     """
-    image_set = wsclean_result.imageset
     supported_modes = ("image", "residual")
     logger.info(f"Extracting {mode}")
     if mode == "image":
@@ -619,6 +617,44 @@ def task_convolve_image(
         _ = [image_path.unlink() for image_path in image_paths]  # type: ignore
 
     return convolved_images
+
+
+task_convolve_image_set = task(convolve_image_set)
+
+
+@task
+def task_convolve_image(
+    wsclean_result: WSCleanResult,
+    beam_shape: BeamShape,
+    cutoff: float = 60,
+    mode: str = "image",
+    filter: str | None = None,
+    convol_suffix_str: str = "conv",
+    remove_original_images: bool = False,
+) -> Collection[Path]:
+    """Convolve images to a specified resolution
+
+    Args:
+        wsclean_result (WSCleanResult): Collection of output images from wsclean that will be convolved
+        beam_shape (BeamShape): The shape images will be convolved to
+        cutoff (float, optional): Maximum major beam axis an image is allowed to have before it will not be convolved. Defaults to 60.
+        filter (Optional[str], optional): This string must be contained in the image path for it to be convolved. Defaults to None.
+        convol_suffix_str (str, optional): The suffix added to the convolved images. Defaults to 'conv'.
+        remove_original_images (bool, optional): If True remove the original image after they have been convolved. Defaults to False.
+
+    Returns:
+        Collection[Path]: Path to the output images that have been convolved.
+    """
+    image_set = wsclean_result.imageset
+    return convolve_image_set(
+        image_set=image_set,
+        beam_shape=beam_shape,
+        cutoff=cutoff,
+        mode=mode,
+        filter=filter,
+        convol_suffix_str=convol_suffix_str,
+        remove_original_images=remove_original_images,
+    )
 
 
 @task

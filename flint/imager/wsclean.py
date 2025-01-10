@@ -25,6 +25,7 @@ from typing import Any, Collection, NamedTuple
 
 import numpy as np
 from fitscube.combine_fits import combine_fits
+from prefect import task
 
 from flint.exceptions import AttemptRerunException, CleanDivergenceError
 from flint.logging import logger
@@ -241,6 +242,9 @@ def merge_image_sets_from_results(
         result.image_set for result in wsclean_results if result.image_set is not None
     ]
     return merge_image_sets(image_sets)
+
+
+task_merge_image_sets_from_results = task(merge_image_sets_from_results)
 
 
 def get_wsclean_output_source_list_path(
