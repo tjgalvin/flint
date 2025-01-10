@@ -519,3 +519,27 @@ def test_write_strategy_to_yaml(package_strategy, tmpdir):
 def test_polarisation_options(package_strategy_polarisation):
     strategy = package_strategy_polarisation
     verify_configuration(input_strategy=strategy)
+
+    total_options = get_options_from_strategy(
+        strategy=strategy,
+        operation="polarisation",
+        polarisation="total",
+    )
+    assert total_options["pol"] == "i"
+    assert not total_options["squared_channel_joining"]
+
+    linear_options = get_options_from_strategy(
+        strategy=strategy,
+        operation="polarisation",
+        polarisation="linear",
+    )
+    assert linear_options["pol"] == "qu"
+    assert linear_options["squared_channel_joining"]
+    assert linear_options["join_polarizations"]
+
+    circular_options = get_options_from_strategy(
+        strategy=strategy,
+        operation="polarisation",
+        polarisation="circular",
+    )
+    assert circular_options["pol"] == "v"

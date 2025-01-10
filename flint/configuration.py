@@ -43,6 +43,11 @@ MODE_OPTIONS_MAPPING = {
     "bane": BANEOptions,
     "aegean": AegeanOptions,
 }
+POLARISATION_MAPPING = {
+    "total": "i",
+    "linear": "qu",
+    "circular": "v",
+}
 
 
 def _create_mode_mapping_defaults() -> dict[str, Any]:
@@ -255,6 +260,7 @@ def get_options_from_strategy(
     mode: str = "wsclean",
     round_info: int | None = None,
     max_round_override: bool = True,
+    polarisation: str | None = None,
 ) -> dict[Any, Any]:
     f"""Extract a set of options from a strategy file to use in a pipeline
     run. If the mode exists in the default section, these are used as a base.
@@ -316,9 +322,32 @@ def get_options_from_strategy(
     update_options = {}
 
     assert operation in strategy, f"{operation=} not in {strategy.keys()}"
-    operation_scope = strategy[operation]
+
+    operation_scope = strategy.get(operation)
     if round_info is not None:
+        if not isinstance(operation_scope, dict):
+            raise ValueError(
+                f"{operation_scope=} is not a dictionary. Cannot extract {round_info=}"
+            )
         operation_scope = operation_scope[round_info]
+
+    # Override the polarisation if requested
+    if polarisation is not None:
+        if not isinstance(operation_scope, dict):
+            raise ValueError(
+                f"{operation_scope=} is not a dictionary. Cannot extract {polarisation=}"
+            )
+        operation_scope = operation_scope[polarisation]
+        # Update the wsclean options with the polarisation mapping
+        if mode == "wsclean":
+            operation_scope.setdefault(mode, {}).update(
+                {"pol": POLARISATION_MAPPING[polarisation]}
+            )
+
+    if not isinstance(operation_scope, dict):
+        raise ValueError(
+            f"{operation_scope=} is not a dictionary. Cannot extract {round_info=}"
+        )
 
     if mode in operation_scope:
         update_options = dict(**operation_scope[mode])
@@ -376,6 +405,7 @@ def wrapper_options_from_strategy(update_options_keyword: str):
             mode: str = "wsclean",
             round_info: int | None = None,
             max_round_override: bool = True,
+            polarisation: str | None = None,
             *args: P.args,
             **kwargs: P.kwargs,
         ) -> T:
@@ -467,7 +497,7 @@ def verify_configuration(input_strategy: Strategy, raise_on_error: bool = True) 
                     errors.append(f"{exception}")
 
     if "polarisation" in input_strategy:
-        _supported_polarisations = ("total", "linear", "circular")
+        _supported_polarisations = tuple(POLARISATION_MAPPING.keys())
         polarisations = input_strategy["polarisation"].keys()
         for polarisation in polarisations:
             if polarisation not in _supported_polarisations:

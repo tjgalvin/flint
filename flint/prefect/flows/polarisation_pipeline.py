@@ -62,6 +62,10 @@ def process_science_fields_pol(
 
     logger.info(f"{pol_field_options=}")
 
+    if strategy is None:
+        logger.info("No strategy provided. Returning.")
+        return
+
     # Check that the MSs have been processed by Flint
     for ms in science_mss:
         components = extract_components_from_name(ms.path)
@@ -75,15 +79,19 @@ def process_science_fields_pol(
         logger.info("No wsclean container provided. Returning. ")
         return
 
-    wsclean_cmds = task_wsclean_imager.map(
-        in_ms=science_mss,
-        wsclean_container=pol_field_options.wsclean_container,
-        strategy=unmapped(strategy),
-        mode="wsclean",
-    )  # type: ignore
+    polarisations: dict[str, str] = strategy.get("polarisations", {"total": {}})
 
-    # TODO: This should be waited!
-    archive_wait_for.extend(wsclean_cmds)
+    for polarisation in polarisations.keys():
+        with tags(f"polarisation-{polarisation}"):
+            wsclean_cmds = task_wsclean_imager.map(
+                in_ms=science_mss,
+                wsclean_container=pol_field_options.wsclean_container,
+                strategy=unmapped(strategy),
+                operation="polarisation",
+                mode="wsclean",
+                polarisation=polarisation,
+            )  # type: ignore
+            archive_wait_for.extend(wsclean_cmds)
 
     if pol_field_options.yandasoft_container:
         parsets = create_convol_linmos_images(

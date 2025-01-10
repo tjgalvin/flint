@@ -101,8 +101,11 @@ stokesv:
 
 polarisation:
   total:
-    wsclean: {}
+    wsclean:
+      squared_channel_joining: false
   linear:
-    wsclean: {}
+    wsclean:
+      join_polarizations: true
+      squared_channel_joining: true
   circular:
     wsclean: {}
