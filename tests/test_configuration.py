@@ -45,6 +45,17 @@ def package_strategy_operations():
 
 
 @pytest.fixture
+def package_strategy_polarisation():
+    example = get_packaged_resource_path(
+        package="flint", filename="data/tests/test_config_pol.yaml"
+    )
+
+    strategy = load_strategy_yaml(input_yaml=example, verify=False)
+
+    return strategy
+
+
+@pytest.fixture
 def strategy(tmpdir):
     output = create_default_yaml(
         output_yaml=Path(tmpdir) / "example.yaml", selfcal_rounds=3
@@ -503,3 +514,8 @@ def test_write_strategy_to_yaml(package_strategy, tmpdir):
         loaded_strategy["selfcal"][1]["wsclean"]["data_column"]
         == strategy["selfcal"][1]["wsclean"]["data_column"]
     )
+
+
+def test_polarisation_options(package_strategy_polarisation):
+    strategy = package_strategy_polarisation
+    verify_configuration(input_strategy=strategy)

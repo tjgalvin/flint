@@ -466,9 +466,31 @@ def verify_configuration(input_strategy: Strategy, raise_on_error: bool = True) 
                 except Exception as exception:
                     errors.append(f"{exception}")
 
+    if "polarisation" in input_strategy:
+        _supported_polarisations = ("total", "linear", "circular")
+        polarisations = input_strategy["polarisation"].keys()
+        for polarisation in polarisations:
+            if polarisation not in _supported_polarisations:
+                errors.append(f"{polarisation=} not in {_supported_polarisations}. ")
+            for mode in input_strategy["polarisation"][polarisation]:
+                try:
+                    options = get_options_from_strategy(
+                        strategy=input_strategy,
+                        operation="polarisation",
+                        mode=mode,
+                    )
+                    try:
+                        _ = MODE_OPTIONS_MAPPING[mode](**options)
+                    except TypeError as typeerror:
+                        errors.append(
+                            f"{mode=} mode in {round_info=} incorrectly formed. {typeerror} "
+                        )
+                except Exception as exception:
+                    errors.append(f"{exception}")
+
     for operation in KNOWN_OPERATIONS:
         # Already checked above
-        if operation == "selfcal":
+        if operation == "selfcal" or operation == "polarisation":
             continue
         if operation in input_strategy.keys():
             for mode in input_strategy[operation]:
