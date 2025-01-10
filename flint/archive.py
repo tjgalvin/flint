@@ -229,7 +229,7 @@ def get_archive_options_from_yaml(strategy_yaml_path: Path) -> dict[str, Any]:
         Dict[str, Any]: Loaded options for ArchiveOptions
     """
     archive_options = get_options_from_strategy(
-        strategy=strategy_yaml_path, mode="archive", round_info="initial"
+        strategy=strategy_yaml_path, mode="archive", round_info=0, operation="selfcal"
     )
 
     logger.info(f"{archive_options=}")

@@ -262,7 +262,7 @@ def process_science_fields(
         # The call into potato peel task has two potential update option keywords.
         # So for the moment we will not use the task decorated version.
         potato_wsclean_init = get_options_from_strategy(
-            strategy=strategy, mode="wsclean", round_info="initial"
+            strategy=strategy, mode="wsclean", round_info=0, operation="selfcal"
         )
         preprocess_science_mss = task_potato_peel.map(
             ms=preprocess_science_mss,
@@ -491,7 +491,7 @@ def process_science_fields(
 
     if field_options.sbid_archive_path or field_options.sbid_copy_path:
         update_archive_options = get_options_from_strategy(
-            strategy=strategy, mode="archive"
+            strategy=strategy, mode="archive", round_info=0, operation="selfcal"
         )
         task_archive_sbid.submit(
             science_folder_path=output_split_science_path,

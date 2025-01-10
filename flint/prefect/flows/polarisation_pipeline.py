@@ -112,7 +112,7 @@ def process_science_fields_pol(
 
     if pol_field_options.sbid_archive_path or pol_field_options.sbid_copy_path:
         update_archive_options = get_options_from_strategy(
-            strategy=strategy, mode="archive"
+            strategy=strategy, mode="archive", operation="polarisation"
         )
         task_archive_sbid.submit(
             science_folder_path=flint_ms_directory,
