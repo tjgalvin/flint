@@ -9,6 +9,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, NamedTuple
 
+from flint.exceptions import NamingException
 from flint.logging import logger
 from flint.options import MS
 
@@ -493,6 +494,40 @@ def extract_components_from_name(
     results = matched[0]
 
     return results
+
+
+def split_images(
+    images: list[Path],
+    by: str = "pol",
+) -> dict[str, Any]:
+    """Split a list of images by a given field. This is intended to be used
+    when a set of images are to be split by a common field, such as polarisation.
+
+    Args:
+        images (List[Path]): The images to split
+        by (str, optional): The field to split the images by. Defaults to "pol".
+
+    Returns:
+        Dict[str,List[Path]]: A dictionary of the images split by the field
+    """
+    split_images: dict[str, Any] = {}
+    for image in images:
+        components = extract_components_from_name(name=image)
+
+        try:
+            field = getattr(components, by)
+            if field is None:
+                raise AttributeError(f"{field=} is None")
+
+        except AttributeError as e:
+            msg = f"Failed to extract {by=} from {image=}"
+            raise NamingException(msg) from e
+
+        if field not in split_images:
+            split_images[field] = []
+        split_images[field].append(image)
+
+    return split_images
 
 
 def extract_beam_from_name(name: str | Path) -> int:
