@@ -216,7 +216,7 @@ def convolve_images(
     beam_shape: BeamShape,
     cutoff: float | None = None,
     convol_suffix: str = "conv",
-) -> Collection[Path]:
+) -> list[Path]:
     """Convolve a set of input images to a common resolution as specified
     by the beam_shape. If the major-axis of the native resolution is larger
     than cutoff (in arcseconds) then the racs_tools beamconv_2D task will
