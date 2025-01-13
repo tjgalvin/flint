@@ -403,6 +403,68 @@ def get_common_beam_from_images(
     return beam_shape
 
 
+task_get_common_beam_from_images = task(get_common_beam_from_images)
+
+
+def get_common_beam_from_imageset(
+    image_set: ImageSet,
+    cutoff: float = 25,
+    filter: str | None = None,
+    fixed_beam_shape: list[float] | None = None,
+) -> BeamShape:
+    """Compute a common beam size that all input images will be convoled to.
+
+    Args:
+        wsclean_results (Collection[WSCleanResult]): Input images whose restoring beam properties will be considered
+        cutoff (float, optional): Major axis larger than this valur, in arcseconds, will be ignored. Defaults to 25.
+        filter (Optional[str], optional): Only include images when considering beam shape if this string is in the file path. Defaults to None.
+        fixed_beam_shape (Optional[List[float]], optional): Specify the final beamsize of linmos field images in (arcsec, arcsec, deg). If None it is deduced from images. Defaults to None;
+
+    Returns:
+        BeamShape: The final convolving beam size to be used
+    """
+    return get_common_beam_from_images(
+        image_paths=image_set.image,
+        cutoff=cutoff,
+        filter=filter,
+        fixed_beam_shape=fixed_beam_shape,
+    )
+
+
+task_get_common_beam_from_imageset = task(get_common_beam_from_imageset)
+
+
+def get_common_beam_from_image_sets(
+    image_sets: list[ImageSet],
+    cutoff: float = 25,
+    filter: str | None = None,
+    fixed_beam_shape: list[float] | None = None,
+) -> BeamShape:
+    """Compute a common beam size that all input images will be convoled to.
+
+    Args:
+        wsclean_results (Collection[WSCleanResult]): Input images whose restoring beam properties will be considered
+        cutoff (float, optional): Major axis larger than this valur, in arcseconds, will be ignored. Defaults to 25.
+        filter (Optional[str], optional): Only include images when considering beam shape if this string is in the file path. Defaults to None.
+        fixed_beam_shape (Optional[List[float]], optional): Specify the final beamsize of linmos field images in (arcsec, arcsec, deg). If None it is deduced from images. Defaults to None;
+
+    Returns:
+        BeamShape: The final convolving beam size to be used
+    """
+    images_to_consider: list[Path] = []
+    for image_set in image_sets:
+        images_to_consider.extend(image_set.image)
+    return get_common_beam_from_images(
+        image_paths=images_to_consider,
+        cutoff=cutoff,
+        filter=filter,
+        fixed_beam_shape=fixed_beam_shape,
+    )
+
+
+task_get_common_beam_from_image_sets = task(get_common_beam_from_image_sets)
+
+
 def get_common_beam_from_results(
     wsclean_results: list[WSCleanResult],
     cutoff: float = 25,
@@ -420,18 +482,6 @@ def get_common_beam_from_results(
     Returns:
         BeamShape: The final convolving beam size to be used
     """
-    # TODO: This function could have a wrapper around it that checks to see if
-    # fixed_beam_shape is present, and simply return, avoiding using this functions
-    # .submit method. Ahhh.
-    if fixed_beam_shape:
-        beam_shape = BeamShape(
-            bmaj_arcsec=fixed_beam_shape[0],
-            bmin_arcsec=fixed_beam_shape[1],
-            bpa_deg=fixed_beam_shape[2],
-        )
-        logger.info(f"Using fixed {beam_shape=}")
-        return beam_shape
-
     images_to_consider: list[Path] = []
 
     # TODO: This should support other image types
@@ -444,7 +494,10 @@ def get_common_beam_from_results(
         images_to_consider.extend(wsclean_result.imageset.image)
 
     return get_common_beam_from_images(
-        image_paths=images_to_consider, cutoff=cutoff, filter=filter
+        image_paths=images_to_consider,
+        cutoff=cutoff,
+        filter=filter,
+        fixed_beam_shape=fixed_beam_shape,
     )
 
 
@@ -548,7 +601,7 @@ def convolve_image_set(
     filter: str | None = None,
     convol_suffix_str: str = "conv",
     remove_original_images: bool = False,
-) -> Collection[Path]:
+) -> list[Path]:
     """Convolve images to a specified resolution
 
     Args:
@@ -574,7 +627,7 @@ def convolve_image_set(
     else:
         raise ValueError(f"{mode=} is not supported. Known modes are {supported_modes}")
 
-    if filter:
+    if filter is not None:
         logger.info(f"Filtering images paths with {filter=}")
         image_paths = [
             image_path for image_path in image_paths if filter in str(image_path)
