@@ -120,9 +120,9 @@ def create_beam_mask_kernel(
     Returns:
         np.ndarray: Boolean mask of the kernel shape
     """
-    assert (
-        0.0 < minimum_response < 1.0
-    ), f"{minimum_response=}, should be between 0 to 1 (exclusive)"
+    assert 0.0 < minimum_response < 1.0, (
+        f"{minimum_response=}, should be between 0 to 1 (exclusive)"
+    )
 
     POSITION_KEYS = ("CDELT1", "CDELT2")
     if not all([key in fits_header for key in POSITION_KEYS]):
@@ -132,9 +132,9 @@ def create_beam_mask_kernel(
     assert isinstance(beam, Beam)
 
     cdelt1, cdelt2 = np.abs(fits_header["CDELT1"]), np.abs(fits_header["CDELT2"])  # type: ignore
-    assert np.isclose(
-        cdelt1, cdelt2
-    ), f"Pixel scales {cdelt1=} {cdelt2=}, but must be equal"
+    assert np.isclose(cdelt1, cdelt2), (
+        f"Pixel scales {cdelt1=} {cdelt2=}, but must be equal"
+    )
 
     k = beam.as_kernel(
         pixscale=cdelt1 * u.Unit("deg"), x_size=kernel_size, y_size=kernel_size
@@ -340,9 +340,9 @@ def create_boxcar_skew_mask(
     image: np.ndarray, skew_delta: float, box_size: int
 ) -> np.ndarray:
     assert 0.0 < skew_delta < 0.5, f"{skew_delta=}, but should be 0.0 to 0.5"
-    assert (
-        len(image.shape) == 2
-    ), f"Expected two dimensions, got image shape of {image.shape}"
+    assert len(image.shape) == 2, (
+        f"Expected two dimensions, got image shape of {image.shape}"
+    )
     logger.info(f"Computing boxcar skew with {box_size=} and {skew_delta=}")
     positive_pixels = (image > 0.0).astype(np.float32)
 
@@ -605,9 +605,9 @@ def _create_signal_from_rmsbkg(
             logger.info(f"Loading {image}")
             image = in_fits[0].data  # type: ignore
 
-    assert isinstance(
-        image, np.ndarray
-    ), f"Expected the image to be a numpy array by now, instead have {type(image)}"
+    assert isinstance(image, np.ndarray), (
+        f"Expected the image to be a numpy array by now, instead have {type(image)}"
+    )
 
     if isinstance(bkg, Path):
         with fits.open(bkg) as in_fits:
@@ -677,9 +677,9 @@ def create_snr_mask_from_fits(
         signal_data = fits_image[0].data  # type: ignore
 
     if _need_to_make_signal(masking_options=masking_options):
-        assert isinstance(fits_rms_path, Path) and isinstance(
-            fits_bkg_path, Path
-        ), "Expected paths for input RMS and bkg FITS files"
+        assert isinstance(fits_rms_path, Path) and isinstance(fits_bkg_path, Path), (
+            "Expected paths for input RMS and bkg FITS files"
+        )
         signal_data = _create_signal_from_rmsbkg(
             image=signal_data, rms=fits_rms_path, bkg=fits_bkg_path
         )

@@ -175,9 +175,9 @@ def create_aoflagger_cmd(ms: MS) -> AOFlaggerCommand:
     logger.info("Creating an AOFlagger command. ")
     ms = MS.cast(ms)
 
-    assert (
-        ms.column is not None
-    ), f"MS column must be set in order to flag, currently {ms.column=}. Full {ms=}"
+    assert ms.column is not None, (
+        f"MS column must be set in order to flag, currently {ms.column=}. Full {ms=}"
+    )
 
     if not check_column_in_ms(ms):
         raise MSError(f"Column {ms.column} not found in {ms.path}.")
@@ -201,9 +201,9 @@ def run_aoflagger_cmd(aoflagger_cmd: AOFlaggerCommand, container: Path) -> None:
         aoflagger_cmd (AOFlaggerCommand): The command that will be executed
         container (Path): Path to the container that contains aoflagger
     """
-    assert (
-        container.exists()
-    ), f"The applysolutions container {container} does not exist. "
+    assert container.exists(), (
+        f"The applysolutions container {container} does not exist. "
+    )
 
     bind_dirs = [aoflagger_cmd.ms_path.parent.absolute()]
     logger.debug(f"Bind directory for aoflagger: {bind_dirs}")
@@ -287,7 +287,7 @@ def flag_ms_by_antenna_ids(ms: Path | MS, ant_ids: int | Collection[int]) -> MS:
 
     diff_flags = end_flags - init_flags
     logger.info(
-        f"Loaded flags: {init_flags}, Final flags: {end_flags}, Difference: {diff_flags} ({diff_flags/np.prod(flags.shape)*100.:.2f}%)"
+        f"Loaded flags: {init_flags}, Final flags: {end_flags}, Difference: {diff_flags} ({diff_flags / np.prod(flags.shape) * 100.0:.2f}%)"
     )
 
     return ms

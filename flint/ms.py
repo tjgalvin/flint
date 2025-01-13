@@ -91,9 +91,9 @@ def critical_ms_interaction(
     # a target output measurement set already on disk. This second check would be
     # useful in copy==True mode, ya seadog
     assert input_ms.exists(), f"The input measurement set {input_ms} does not exist. "
-    assert (
-        not output_ms.exists()
-    ), f"The output measurement set {output_ms} already exists. "
+    assert not output_ms.exists(), (
+        f"The output measurement set {output_ms} already exists. "
+    )
     logger.info(f"Critical section for {input_ms=}")
     if copy:
         rsync_copy_directory(target_path=input_ms, out_path=output_ms)
@@ -164,9 +164,9 @@ def get_beam_from_ms(ms: MS | Path) -> int:
     with table(str(ms_path), readonly=True, ack=False) as tab:
         uniq_beams = sorted(list(set(tab.getcol("FEED1"))))
 
-    assert (
-        len(uniq_beams) == 1
-    ), f"Expected {ms_path!s} to contain a single beam, found {len(uniq_beams)}: {uniq_beams=}"
+    assert len(uniq_beams) == 1, (
+        f"Expected {ms_path!s} to contain a single beam, found {len(uniq_beams)}: {uniq_beams=}"
+    )
 
     return uniq_beams[0]
 
@@ -188,9 +188,9 @@ def get_freqs_from_ms(ms: MS | Path) -> np.ndarray:
         freqs = tab.getcol("CHAN_FREQ")
 
     freqs = np.squeeze(freqs)
-    assert (
-        len(freqs.shape) == 1
-    ), f"Frequency axis has dimensionality greater than one. Not expecting that. {len(freqs.shape)}"
+    assert len(freqs.shape) == 1, (
+        f"Frequency axis has dimensionality greater than one. Not expecting that. {len(freqs.shape)}"
+    )
 
     return freqs
 
@@ -338,7 +338,7 @@ def describe_ms(ms: MS | Path, verbose: bool = False) -> MSSummary:
         logger.info(f"Inspecting {ms.path}.")
         logger.info(f"Contains: {colnames}")
 
-        logger.info(f"{flagged} of {total} flagged ({flagged/total*100.:.4f}%). ")
+        logger.info(f"{flagged} of {total} flagged ({flagged / total * 100.0:.4f}%). ")
         logger.info(f"{len(uniq_ants)} unique antenna: {uniq_ants}")
         logger.info(f"Unique fields: {uniq_fields}")
         logger.info(f"Phase direction: {phase_dir}")
@@ -520,14 +520,14 @@ def consistent_channelwise_frequencies(
         np.ndarray: Same length as the frequencies. True if for a single channel all frequencies are the same. False otherwise.
     """
     freqs = np.array(freqs)
-    assert (
-        len(freqs.shape) == 2
-    ), f"{freqs.shape=}, but was expecting something of rank 2"
+    assert len(freqs.shape) == 2, (
+        f"{freqs.shape=}, but was expecting something of rank 2"
+    )
 
     freqs_are_same = np.all(freqs - freqs[0, None] == 0, axis=1)
-    assert (
-        len(freqs_are_same.shape) == 1
-    ), f"Channelwise check should be length 1, but have {freqs_are_same.shaope=}"
+    assert len(freqs_are_same.shape) == 1, (
+        f"Channelwise check should be length 1, but have {freqs_are_same.shaope=}"
+    )
     return freqs_are_same
 
 
@@ -575,12 +575,12 @@ def rename_column_in_ms(
 
     with table(tablename=str(ms.path), readonly=False, ack=False) as tab:
         colnames = tab.colnames()
-        assert (
-            original_column_name in colnames
-        ), f"{original_column_name=} missing from {ms}"
-        assert (
-            new_column_name not in colnames
-        ), f"{new_column_name=} already exists in {ms}"
+        assert original_column_name in colnames, (
+            f"{original_column_name=} missing from {ms}"
+        )
+        assert new_column_name not in colnames, (
+            f"{new_column_name=} already exists in {ms}"
+        )
 
         logger.info(f"Renaming {original_column_name} to {new_column_name}")
         tab.renamecol(oldname=original_column_name, newname=new_column_name)
@@ -654,9 +654,9 @@ def subtract_model_from_data_column(
         with table(str(critical_ms), readonly=False) as tab:
             logger.info("Extracting columns")
             colnames = tab.colnames()
-            assert all(
-                [d in colnames for d in (model_column, data_column)]
-            ), f"{model_column=} or {data_column=} missing from {colnames=}"
+            assert all([d in colnames for d in (model_column, data_column)]), (
+                f"{model_column=} or {data_column=} missing from {colnames=}"
+            )
 
             if output_column not in colnames:
                 from casacore.tables import makecoldesc
@@ -713,9 +713,9 @@ def preprocess_askap_ms(
     """
     ms = MS.cast(ms)
 
-    assert (
-        data_column != instrument_column
-    ), f"Received matching column names: {data_column=} {instrument_column=}"
+    assert data_column != instrument_column, (
+        f"Received matching column names: {data_column=} {instrument_column=}"
+    )
 
     logger.info(f"Will be running ASKAP MS conversion operations against {ms.path!s}.")
     logger.info("Correcting directions. ")
@@ -811,9 +811,9 @@ def copy_and_preprocess_casda_askap_ms(
 
     with table(str(ms.path), ack=False, readonly=False) as tab:
         column_names = tab.colnames()
-        assert (
-            data_column in column_names and instrument_column not in column_names
-        ), f"{ms.path} column names failed. {data_column=} {instrument_column=} {column_names=}"
+        assert data_column in column_names and instrument_column not in column_names, (
+            f"{ms.path} column names failed. {data_column=} {instrument_column=} {column_names=}"
+        )
         tab.renamecol(data_column, instrument_column)
         tab.flush()
 
@@ -913,9 +913,9 @@ def rename_ms_and_columns_for_selfcal(
     # This is a safe guard against my bad handling of the above / mutineers
     # There could be interplay with these columns when potato peel is used
     # as some MSs will have CORRECYED_DATA and others may not.
-    assert (
-        data == "DATA"
-    ), f"Somehow data column is not DATA, instead {data=}. Likely a problem for casa."
+    assert data == "DATA", (
+        f"Somehow data column is not DATA, instead {data=}. Likely a problem for casa."
+    )
 
     return ms.with_options(path=target, column=data)
 
@@ -939,18 +939,18 @@ def find_mss(
     Returns:
         Tuple[MS, ...]: Collection of found MSs
     """
-    assert (
-        mss_parent_path.exists() and mss_parent_path.is_dir()
-    ), f"{mss_parent_path!s} does not exist or is not a folder. "
+    assert mss_parent_path.exists() and mss_parent_path.is_dir(), (
+        f"{mss_parent_path!s} does not exist or is not a folder. "
+    )
 
     found_mss = tuple(
         [MS.cast(ms_path) for ms_path in sorted(mss_parent_path.glob("*.ms"))]
     )
 
     if expected_ms_count:
-        assert (
-            len(found_mss) == expected_ms_count
-        ), f"Expected to find {expected_ms_count} in {mss_parent_path!s}, found {len(found_mss)}."
+        assert len(found_mss) == expected_ms_count, (
+            f"Expected to find {expected_ms_count} in {mss_parent_path!s}, found {len(found_mss)}."
+        )
 
     if data_column or model_column:
         logger.info(f"Updating column attribute to {data_column=}")

@@ -67,9 +67,9 @@ def flag_bandpass_offset_pointings(ms: MS | Path) -> MS:
         field_names = tab.getcol("NAME")
         field_idx = np.argwhere([fn == good_field_name for fn in field_names])[0]
 
-        assert (
-            len(field_idx) == 1
-        ), f"More than one matching field name found. This should not happen. {good_field_name=} {field_names=}"
+        assert len(field_idx) == 1, (
+            f"More than one matching field name found. This should not happen. {good_field_name=} {field_names=}"
+        )
 
         field_idx = field_idx[0]
         logger.info(f"{good_field_name} FIELD_ID is {field_idx}")

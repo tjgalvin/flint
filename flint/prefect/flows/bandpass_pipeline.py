@@ -146,9 +146,9 @@ def run_bandpass_stage(
     Returns:
         List[CalibrateCommand]: Set of calibration commands used
     """
-    assert (
-        bandpass_options.flag_calibrate_rounds >= 0
-    ), f"Currently {bandpass_options.flag_calibrate_rounds=}, needs to be 0 or higher"
+    assert bandpass_options.flag_calibrate_rounds >= 0, (
+        f"Currently {bandpass_options.flag_calibrate_rounds=}, needs to be 0 or higher"
+    )
 
     if not output_split_bandpass_path.exists():
         logger.info(f"Creating {output_split_bandpass_path!s}")
@@ -235,14 +235,14 @@ def calibrate_bandpass_flow(
     Returns:
         Path: Directory that contains the extracted measurement sets and the ao-style gain solutions files.
     """
-    assert (
-        bandpass_path.exists() and bandpass_path.is_dir()
-    ), f"{bandpass_path!s} does not exist or is not a folder. "
+    assert bandpass_path.exists() and bandpass_path.is_dir(), (
+        f"{bandpass_path!s} does not exist or is not a folder. "
+    )
     bandpass_mss = list([MS.cast(ms_path) for ms_path in bandpass_path.glob("*.ms")])
 
-    assert (
-        len(bandpass_mss) == bandpass_options.expected_ms
-    ), f"Expected to find {bandpass_options.expected_ms} in {bandpass_path!s}, found {len(bandpass_mss)}."
+    assert len(bandpass_mss) == bandpass_options.expected_ms, (
+        f"Expected to find {bandpass_options.expected_ms} in {bandpass_path!s}, found {len(bandpass_mss)}."
+    )
 
     logger.info(
         f"Found the following bandpass measurement set: {[bp.path for bp in bandpass_mss]}."

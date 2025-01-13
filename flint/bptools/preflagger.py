@@ -312,9 +312,9 @@ def flags_over_threshold(
         bool: Whether the number of flags has reached a threshold
     """
 
-    assert (
-        0.0 <= thresh <= 1.0
-    ), f"The provided {thresh=} should be a fraction between 0 to 1. "
+    assert 0.0 <= thresh <= 1.0, (
+        f"The provided {thresh=} should be a fraction between 0 to 1. "
+    )
 
     number_flagged = np.sum(flags)
     # Use the shape in case multi-dimensional array passed in
@@ -468,9 +468,9 @@ def flag_mean_xxyy_amplitude_ratio(
         bool: Whether data should be flagged (True) or not (False)
     """
 
-    assert (
-        xx_complex_gains.shape == yy_complex_gains.shape
-    ), f"Input xx and yy shapes do not match. {xx_complex_gains.shape=} {yy_complex_gains.shape=}"
+    assert xx_complex_gains.shape == yy_complex_gains.shape, (
+        f"Input xx and yy shapes do not match. {xx_complex_gains.shape=} {yy_complex_gains.shape=}"
+    )
     logger.info("Calculating mean ratios. ")
 
     xx_amplitudes = np.abs(xx_complex_gains)
@@ -514,9 +514,9 @@ def construct_mesh_ant_flags(mask: np.ndarray) -> np.ndarray:
         np.ndarray: Output array where antennas have common sets of flags
     """
 
-    assert (
-        len(mask.shape) == 3
-    ), f"Expect array of shape (ant, channel, pol), received {mask.shape=}"
+    assert len(mask.shape) == 3, (
+        f"Expect array of shape (ant, channel, pol), received {mask.shape=}"
+    )
     accumulate_mask = np.zeros_like(mask[0], dtype=bool)
 
     nant = mask.shape[0]
@@ -562,9 +562,9 @@ def construct_jones_over_max_amp_flags(
         np.ndarray: Boolean array of equal shape to `complex_gains`, with `True` indicating a flag
     """
 
-    assert (
-        complex_gains.shape[-1] == 4
-    ), f"Expected last dimension to be length 4, received {complex_gains.shape=}"
+    assert complex_gains.shape[-1] == 4, (
+        f"Expected last dimension to be length 4, received {complex_gains.shape=}"
+    )
 
     logger.info(f"Creating mask for Jones with amplitudes of {max_amplitude=}")
     complex_gains = complex_gains.copy()

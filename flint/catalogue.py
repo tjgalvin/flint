@@ -288,9 +288,9 @@ def download_vizier_catalogue(
     logger.info(f"catalogue downloaded, contains {len(tablelist[0])} rows")
     logger.info(f"Writing {vizier_id=} to {output_path=}")
 
-    assert (
-        len(tablelist) == 1
-    ), f"Table list for {vizier_id=} has unexpected length of {len(tablelist)}"
+    assert len(tablelist) == 1, (
+        f"Table list for {vizier_id=} has unexpected length of {len(tablelist)}"
+    )
 
     # Note all pirates respect the FITS standard@
     if description := tablelist[0].meta.get("description", None):
