@@ -3,6 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
+from configargparse import ArgumentParser
 from prefect import flow, tags, unmapped
 
 from flint.configuration import (
@@ -17,11 +18,15 @@ from flint.naming import (
     ProcessedNameComponents,
     add_timestamp_to_path,
     extract_components_from_name,
+    get_sbid_from_path,
 )
 from flint.options import (
     PolFieldOptions,
+    add_options_to_parser,
+    create_options_from_parser,
     dump_field_options_to_yaml,
 )
+from flint.prefect.clusters import get_dask_runner
 from flint.prefect.common.imaging import (
     create_convol_linmos_images,
     create_convolve_linmos_cubes,
@@ -137,4 +142,83 @@ def process_science_fields_pol(
             max_round=None,
             update_archive_options=update_archive_options,
             wait_for=archive_wait_for,
-        )  # type: ignore
+        )
+
+
+def setup_run_process_science_field(
+    cluster_config: str | Path,
+    flint_ms_directory: Path,
+    pol_field_options: PolFieldOptions,
+) -> None:
+    science_sbid = get_sbid_from_path(path=flint_ms_directory)
+
+    if pol_field_options.sbid_copy_path:
+        updated_sbid_copy_path = pol_field_options.sbid_copy_path / f"{science_sbid}"
+        logger.info(f"Updating archive copy path to {updated_sbid_copy_path=}")
+        pol_field_options = pol_field_options.with_options(
+            sbid_copy_path=updated_sbid_copy_path
+        )
+
+    dask_task_runner = get_dask_runner(cluster=cluster_config)
+
+    process_science_fields_pol.with_options(
+        name=f"Flint Polarisation Pipeline - {science_sbid}",
+        task_runner=dask_task_runner,
+    )(
+        flint_ms_directory=flint_ms_directory,
+        pol_field_options=pol_field_options,
+    )
+
+
+def get_parser() -> ArgumentParser:
+    parser = ArgumentParser(description=__doc__)
+
+    parser.add_argument(
+        "--cli-config", is_config_file=True, help="Path to configuration file"
+    )
+
+    parser.add_argument(
+        "flint_ms_directory",
+        type=Path,
+        help="Path to directories containing the beam-wise flint-calibrated MeasurementSets.",
+    )
+    parser.add_argument(
+        "--cluster-config",
+        type=str,
+        default="petrichor",
+        help="Path to a cluster configuration file, or a known cluster name. ",
+    )
+
+    parser = add_options_to_parser(
+        parser=parser,
+        options_class=PolFieldOptions,
+        description="Polarisation processing options",
+    )
+
+    return parser
+
+
+def cli() -> None:
+    import logging
+
+    # logger = logging.getLogger("flint")
+    logger.setLevel(logging.INFO)
+
+    parser = get_parser()
+
+    args = parser.parse_args()
+
+    field_options = create_options_from_parser(
+        parser_namespace=args,
+        options_class=PolFieldOptions,
+    )
+
+    setup_run_process_science_field(
+        cluster_config=args.cluster_config,
+        flint_ms_directory=args.flint_ms_directory,
+        pol_field_options=field_options,
+    )
+
+
+if __name__ == "__main__":
+    cli()

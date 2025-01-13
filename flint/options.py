@@ -111,7 +111,9 @@ def _create_argparse_options(name: str, field: FieldInfo) -> tuple[str, dict[str
 
 
 def add_options_to_parser(
-    parser: ArgumentParser, options_class: type[BaseOptions]
+    parser: ArgumentParser,
+    options_class: type[BaseOptions],
+    description: str | None = None,
 ) -> ArgumentParser:
     """Given an established argument parser and a class derived
     from a ``pydantic.BaseModel``, populate the argument parser
@@ -130,8 +132,7 @@ def add_options_to_parser(
     ), f"{options_class=} is not a pydantic BaseModel"
 
     group = parser.add_argument_group(
-        title=f"Inputs for {options_class.__name__}",
-        description="Options for the masking options example",
+        title=f"Inputs for {options_class.__name__}", description=description
     )
 
     for name, field in options_class.model_fields.items():
