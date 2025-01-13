@@ -193,6 +193,13 @@ class WSCleanResult(BaseOptions):
     """The set of images produced by wsclean"""
 
 
+def image_set_from_result(wsclean_result: WSCleanResult) -> ImageSet | None:
+    return wsclean_result.image_set
+
+
+task_image_set_from_result = task(image_set_from_result)
+
+
 def merge_image_sets(
     image_sets: list[ImageSet],
 ) -> ImageSet:
@@ -225,6 +232,9 @@ def merge_image_sets(
     image_set_dict["prefix"] = prefix
 
     return ImageSet(**image_set_dict)
+
+
+task_merge_image_sets = task(merge_image_sets)
 
 
 def merge_image_sets_from_results(
