@@ -18,7 +18,7 @@ from flint.sclient import run_singularity_command
 EXPECTED_HOLOGRAPHY_ROTATION_CONSTANT_RADIANS = -2 * np.pi / 8
 
 
-class LinmosCommand(NamedTuple):
+class LinmosResult(NamedTuple):
     cmd: str
     """The yandasoft linmos task that will be executed"""
     parset: Path
@@ -586,7 +586,7 @@ def linmos_images(
     pol_axis: float | None = None,
     trim_linmos_fits: bool = True,
     cleanup: bool = False,
-) -> LinmosCommand:
+) -> LinmosResult:
     """Create a linmos parset file and execute it.
 
     Args:
@@ -602,7 +602,7 @@ def linmos_images(
         cleanup (bool, optional): Remove files generated throughout linmos, including the text files with the channel weights. Defaults to False.
 
     Returns:
-        LinmosCommand: The linmos command executed and the associated parset file
+        LinmosResult: The linmos command executed and the associated parset file
     """
 
     assert container.exists(), f"The yandasoft container {container!s} was not found. "
@@ -630,7 +630,7 @@ def linmos_images(
         image=container, command=linmos_cmd_str, bind_dirs=bind_dirs
     )
 
-    linmos_cmd = LinmosCommand(
+    linmos_cmd = LinmosResult(
         cmd=linmos_cmd_str,
         parset=linmos_parset_summary.parset_path,
         image_fits=linmos_names.image_fits.absolute(),

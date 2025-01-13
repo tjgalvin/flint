@@ -12,8 +12,8 @@ import pytest
 from flint.exceptions import AttemptRerunException, CleanDivergenceError
 from flint.imager.wsclean import (
     ImageSet,
-    WSCleanCommand,
     WSCleanOptions,
+    WSCleanResult,
     _rename_wsclean_file,
     _rename_wsclean_title,
     _resolve_wsclean_key_value_to_cli_str,
@@ -353,7 +353,7 @@ def test_create_wsclean_command(ms_example):
     command = create_wsclean_cmd(
         ms=MS.cast(ms_example), wsclean_options=wsclean_options
     )
-    assert isinstance(command, WSCleanCommand)
+    assert isinstance(command, WSCleanResult)
 
 
 def test_create_wsclean_command_with_environment(ms_example):
@@ -363,7 +363,7 @@ def test_create_wsclean_command_with_environment(ms_example):
     command = create_wsclean_cmd(
         ms=MS.cast(ms_example), wsclean_options=wsclean_options
     )
-    assert isinstance(command, WSCleanCommand)
+    assert isinstance(command, WSCleanResult)
     assert "Pirates/be/here" in command.cmd
     assert command.cmd.startswith("wsclean ")
 

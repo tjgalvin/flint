@@ -129,3 +129,5 @@ flint/data/tests/*.ms
 tests/*.csv
 tests/*.png
 flint/_version.py
+example.yaml
+test.yml

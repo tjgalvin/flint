@@ -7,15 +7,15 @@ from pathlib import Path
 from prefect import task
 
 from flint.calibrate.aocalibrate import AddModelOptions, add_model
-from flint.imager.wsclean import WSCleanCommand
+from flint.imager.wsclean import WSCleanResult
 from flint.logging import logger
 
 
 # TODO: This can be a dispatcher type function should
 # other modes be added
 def add_model_source_list_to_ms(
-    wsclean_command: WSCleanCommand, calibrate_container: Path | None = None
-) -> WSCleanCommand:
+    wsclean_command: WSCleanResult, calibrate_container: Path | None = None
+) -> WSCleanResult:
     logger.info("Updating MODEL_DATA with source list")
     ms = wsclean_command.ms
 
