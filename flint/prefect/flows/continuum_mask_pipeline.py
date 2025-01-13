@@ -82,15 +82,15 @@ def process_science_fields(
     )
     run_validation = field_options.reference_catalogue_directory is not None
 
-    assert (
-        science_path.exists() and science_path.is_dir()
-    ), f"{science_path!s} does not exist or is not a folder. "
+    assert science_path.exists() and science_path.is_dir(), (
+        f"{science_path!s} does not exist or is not a folder. "
+    )
     science_mss = list(
         [MS.cast(ms_path) for ms_path in sorted(science_path.glob("*.ms"))]
     )
-    assert (
-        len(science_mss) == field_options.expected_ms
-    ), f"Expected to find {field_options.expected_ms} in {science_path!s}, found {len(science_mss)}."
+    assert len(science_mss) == field_options.expected_ms, (
+        f"Expected to find {field_options.expected_ms} in {science_path!s}, found {len(science_mss)}."
+    )
 
     science_folder_name = science_path.name
 
@@ -331,9 +331,9 @@ def setup_run_process_science_field(
     split_path: Path,
     field_options: FieldOptions,
 ) -> None:
-    assert (
-        bandpass_path.exists() and bandpass_path.is_dir()
-    ), f"{bandpass_path=} needs to exist and be a directory! "
+    assert bandpass_path.exists() and bandpass_path.is_dir(), (
+        f"{bandpass_path=} needs to exist and be a directory! "
+    )
 
     science_sbid = get_sbid_from_path(path=science_path)
 

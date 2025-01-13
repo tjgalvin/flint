@@ -198,9 +198,9 @@ def task_run_bane_and_aegean(
 
         # For the moment, will only source find on an MFS image
         image_paths = [image for image in image_paths if ".MFS." in str(image)]
-        assert (
-            len(image_paths) == 1
-        ), "More than one image found after filter for MFS only images. "
+        assert len(image_paths) == 1, (
+            "More than one image found after filter for MFS only images. "
+        )
         # Get out the only path in the list.
         image_path = image_paths[0]
     elif isinstance(image, LinmosCommand):
@@ -475,9 +475,9 @@ def task_convolve_cube(
     Returns:
         Collection[Path]: Path to the output images that have been convolved.
     """
-    assert (
-        wsclean_cmd.imageset is not None
-    ), f"{wsclean_cmd.ms} has no attached imageset."
+    assert wsclean_cmd.imageset is not None, (
+        f"{wsclean_cmd.ms} has no attached imageset."
+    )
 
     supported_modes = ("image",)
     logger.info(f"Extracting {mode}")
@@ -494,9 +494,9 @@ def task_convolve_cube(
     # handling this. The pirate in me feels like less is more, so an error will be enough. Keeping
     # things simple and avoiding the problem is probably the better way of dealing with this
     # situation. In time this would mean that we inspect and handle conflicting pipeline options.
-    assert (
-        image_paths is not None
-    ), f"{image_paths=} for {mode=} and {wsclean_cmd.imageset=}"
+    assert image_paths is not None, (
+        f"{image_paths=} for {mode=} and {wsclean_cmd.imageset=}"
+    )
 
     logger.info(f"Will convolve {image_paths}")
 
@@ -531,18 +531,18 @@ def task_convolve_image(
     Returns:
         Collection[Path]: Path to the output images that have been convolved.
     """
-    assert (
-        wsclean_cmd.imageset is not None
-    ), f"{wsclean_cmd.ms} has no attached imageset."
+    assert wsclean_cmd.imageset is not None, (
+        f"{wsclean_cmd.ms} has no attached imageset."
+    )
 
     supported_modes = ("image", "residual")
     logger.info(f"Extracting {mode}")
     if mode == "image":
         image_paths = list(wsclean_cmd.imageset.image)
     elif mode == "residual":
-        assert (
-            wsclean_cmd.imageset.residual is not None
-        ), f"{wsclean_cmd.imageset.residual=}, which should not happen"
+        assert wsclean_cmd.imageset.residual is not None, (
+            f"{wsclean_cmd.imageset.residual=}, which should not happen"
+        )
         image_paths = list(wsclean_cmd.imageset.residual)
     else:
         raise ValueError(f"{mode=} is not supported. Known modes are {supported_modes}")
@@ -558,9 +558,9 @@ def task_convolve_image(
     # handling this. The pirate in me feels like less is more, so an error will be enough. Keeping
     # things simple and avoiding the problem is probably the better way of dealing with this
     # situation. In time this would mean that we inspect and handle conflicting pipeline options.
-    assert (
-        image_paths is not None
-    ), f"{image_paths=} for {mode=} and {wsclean_cmd.imageset=}"
+    assert image_paths is not None, (
+        f"{image_paths=} for {mode=} and {wsclean_cmd.imageset=}"
+    )
 
     logger.info(f"Will convolve {image_paths}")
 
@@ -930,9 +930,9 @@ def task_extract_beam_mask_image(
         FITSMaskNames: Clean mask for a image
     """
     # All images made by wsclean will have the same WCS
-    assert (
-        wsclean_cmd.imageset is not None
-    ), f"{wsclean_cmd.imageset=}, which should not happen"
+    assert wsclean_cmd.imageset is not None, (
+        f"{wsclean_cmd.imageset=}, which should not happen"
+    )
     beam_image = next(iter(wsclean_cmd.imageset.image))
     beam_mask_names = extract_beam_mask_from_mosaic(
         fits_beam_image_path=beam_image, fits_mosaic_mask_names=linmos_mask_names

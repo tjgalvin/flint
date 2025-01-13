@@ -135,9 +135,9 @@ def get_1934_model(mode: str = "calibrate") -> Path:
         package="flint.data.models", filename=model_fn
     )
 
-    assert (
-        model_path.exists()
-    ), f"Constructed {model_path} apparently does not exist. Check packaged models. "
+    assert model_path.exists(), (
+        f"Constructed {model_path} apparently does not exist. Check packaged models. "
+    )
     logger.info(f"Calibrate 1934-638 model path: {model_path!s}.")
 
     return model_path
@@ -418,9 +418,9 @@ def get_known_catalogue(cata: str) -> Catalogue:
     Returns:
         Catalogue: properties of known catalogue
     """
-    assert (
-        cata.upper() in KNOWN_CATAS.keys()
-    ), f"'{cata}' not a known catalogue. Acceptable keys are: {KNOWN_CATAS.keys()}."
+    assert cata.upper() in KNOWN_CATAS.keys(), (
+        f"'{cata}' not a known catalogue. Acceptable keys are: {KNOWN_CATAS.keys()}."
+    )
 
     cata_info = KNOWN_CATAS[cata.upper()]
     logger.info(f"Loading {cata}={cata_info.file_name}")
@@ -450,9 +450,9 @@ def load_catalogue(
     Returns:
         Tuple[Catalogue,Table]: The `Catalogue` information and `Table` of components loaded
     """
-    assert (
-        catalogue is not None or ms_pointing is not None
-    ), "Either catalogue or dec_point have to be provided. "
+    assert catalogue is not None or ms_pointing is not None, (
+        "Either catalogue or dec_point have to be provided. "
+    )
 
     if catalogue:
         logger.info(f"Loading provided catalogue {catalogue=}")
@@ -744,7 +744,7 @@ def create_sky_model(
 
     freqs = freqs_from_ms(ms_path) * u.Hz
     logger.info(
-        f"Frequency range: {freqs[0]/1000.:.3f} MHz - {freqs[-1]/1000.:.3f} MHz (centre = {np.mean(freqs/1000.):.3f} MHz)"
+        f"Frequency range: {freqs[0] / 1000.0:.3f} MHz - {freqs[-1] / 1000.0:.3f} MHz (centre = {np.mean(freqs / 1000.0):.3f} MHz)"
     )
 
     # This is used to estimate a frequency-dependent search radius

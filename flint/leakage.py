@@ -73,9 +73,9 @@ def _load_fits_image(fits_path: Path) -> FITSImage:
         FITSImage: Loaded FITS properties
     """
 
-    assert (
-        fits_path.suffix == ".fits"
-    ), f"Unexpected file type for {fits_path=}, expected fits"
+    assert fits_path.suffix == ".fits", (
+        f"Unexpected file type for {fits_path=}, expected fits"
+    )
     logger.info(f"Opening {fits_path=}")
     with fits.open(fits_path) as in_fits:
         image_data = in_fits[0].data  # type: ignore
@@ -131,7 +131,9 @@ def filter_components(
             col in table.colnames
             for col in (ra_col, dec_col, peak_col, int_col, int_err_col)
         ]
-    ), f"Supplied column names {ra_col=} {dec_col=} {peak_col=} {int_col=} partly missing from {table.colnames=}"
+    ), (
+        f"Supplied column names {ra_col=} {dec_col=} {peak_col=} {int_col=} partly missing from {table.colnames=}"
+    )
 
     total_comps = len(table)
     sky_coords = SkyCoord(table[ra_col], table[dec_col], unit=(u.deg, u.deg))
@@ -339,9 +341,9 @@ def _get_output_catalogue_path(
         if output_path is None
         else output_path
     )
-    assert (
-        output_path is not None
-    ), f"{output_path=} is empty, and no catalogue path provided"
+    assert output_path is not None, (
+        f"{output_path=} is empty, and no catalogue path provided"
+    )
 
     return Path(output_path)
 

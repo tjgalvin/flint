@@ -116,9 +116,9 @@ def get_cube_common_beam(
         )
 
     first_cube_fits_beam = common_beam_data_list[0][0]
-    assert isinstance(
-        first_cube_fits_beam, Beams
-    ), f"Unexpected type for common beams. Expected Beams, got {type(first_cube_fits_beam)}"
+    assert isinstance(first_cube_fits_beam, Beams), (
+        f"Unexpected type for common beams. Expected Beams, got {type(first_cube_fits_beam)}"
+    )
 
     beam_shape_list = [
         BeamShape.from_radio_beam(radio_beam=beam)  # type: ignore
@@ -173,9 +173,9 @@ def convolve_cubes(
         logger.info(f"{input_cube=} convolved to {output_cube}")
 
     # Trust no one
-    assert all(
-        [p.exists() for p in convol_cubes_path]
-    ), "A convolved cube does not exist"
+    assert all([p.exists() for p in convol_cubes_path]), (
+        "A convolved cube does not exist"
+    )
     return convol_cubes_path
 
 
@@ -362,9 +362,9 @@ def cli() -> None:
         get_common_beam(image_paths=args.images, cutoff=args.cutoff)
     if args.mode == "convol":
         if args.cubes:
-            assert all(
-                [check_if_cube_fits(fits_file=f) for f in args.images]
-            ), "Not all input files are FITS cubes"
+            assert all([check_if_cube_fits(fits_file=f) for f in args.images]), (
+                "Not all input files are FITS cubes"
+            )
             common_beams = get_cube_common_beam(
                 cube_paths=args.images, cutoff=args.cutoff
             )
@@ -378,9 +378,9 @@ def cli() -> None:
                 )
 
         else:
-            assert not all(
-                [check_if_cube_fits(fits_file=f) for f in args.images]
-            ), "Not all input files are FITS images (not cubes)"
+            assert not all([check_if_cube_fits(fits_file=f) for f in args.images]), (
+                "Not all input files are FITS images (not cubes)"
+            )
             common_beam = get_common_beam(image_paths=args.images, cutoff=args.cutoff)
             _ = convolve_images(
                 image_paths=args.images,
