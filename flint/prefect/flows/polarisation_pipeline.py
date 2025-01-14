@@ -50,13 +50,22 @@ def process_science_fields_pol(
     flint_ms_directory: Path,
     pol_field_options: PolFieldOptions,
 ) -> None:
-    # Verify no nasty incompatible options
-    # _check_field_options(field_options=field_options)
+    strategy = load_and_copy_strategy(
+        output_split_science_path=flint_ms_directory,
+        imaging_strategy=pol_field_options.imaging_strategy,
+    )
+
+    logger.info(f"{pol_field_options=}")
+
+    if strategy is None:
+        logger.info("No strategy provided. Returning.")
+        return
 
     # Get some placeholder names
     science_mss = find_mss(
         mss_parent_path=flint_ms_directory,
         expected_ms_count=pol_field_options.expected_ms,
+        data_column=strategy["defaults"].get("data_column", "DATA"),
     )
 
     field_summary = task_create_field_summary.submit(
@@ -70,17 +79,6 @@ def process_science_fields_pol(
         ),
         field_options=pol_field_options,
     )
-
-    strategy = load_and_copy_strategy(
-        output_split_science_path=flint_ms_directory,
-        imaging_strategy=pol_field_options.imaging_strategy,
-    )
-
-    logger.info(f"{pol_field_options=}")
-
-    if strategy is None:
-        logger.info("No strategy provided. Returning.")
-        return
 
     # Check that the MSs have been processed by Flint
     for ms in science_mss:
