@@ -540,6 +540,20 @@ def split_and_get_images(
     get: str,
     by: str = "pol",
 ) -> list[Path]:
+    """Split a list of images by a given field and return the images that match
+    the field of interest.
+
+    Args:
+        images (list[Path]): The images to split
+        get (str): The field to extract from the split images
+        by (str, optional): How to split the images. Defaults to "pol".
+
+    Raises:
+        ValueError: If the field to extract is not found in the split images
+
+    Returns:
+        list[Path]: The images that match the field of interest
+    """
     split_dict = split_images(images=images, by=by)
 
     split_list = split_dict.get(get, None)
@@ -554,6 +568,19 @@ def split_image_set(
     by: str = "pol",
     mode: str = "image",
 ) -> dict[str, list[Path]]:
+    """Split an ImageSet by a given field.
+
+    Args:
+        image_set (ImageSet): The ImageSet to split
+        by (str, optional): Field to split images by. Defaults to "pol".
+        mode (str, optional): Type of images to extract from ImageSet. Defaults to "image".
+
+    Raises:
+        NamingException: If the field to split by is not found in the ImageSet
+
+    Returns:
+        dict[str, list[Path]]: _description_
+    """
     try:
         image_list = getattr(image_set, mode)
     except AttributeError as e:
@@ -570,11 +597,25 @@ def split_and_get_image_set(
     by: str = "pol",
     mode: str = "image",
 ) -> list[Path]:
+    """Split an ImageSet by a given field and return the images that match the field of interest.
+
+    Args:
+        image_set (ImageSet): The ImageSet to split
+        get (str): The field to extract from the split images
+        by (str, optional): The field to split by. Defaults to "pol".
+        mode (str, optional): The mode to extract from ImageSet. Defaults to "image".
+
+    Raises:
+        NamingException: If the field to split by is not found in the ImageSet
+
+    Returns:
+        list[Path]: The images that match the field of interest
+    """
     split_dict = split_image_set(image_set=image_set, by=by, mode=mode)
 
     split_list = split_dict.get(get, None)
     if split_list is None:
-        raise ValueError(f"Failed to get {get=} from {split_dict=}")
+        raise NamingException(f"Failed to get {get=} from {split_dict=}")
 
     return split_list
 
