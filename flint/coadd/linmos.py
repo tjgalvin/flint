@@ -630,7 +630,7 @@ def linmos_images(
         image=container, command=linmos_cmd_str, bind_dirs=bind_dirs
     )
 
-    linmos_cmd = LinmosResult(
+    linmos_result = LinmosResult(
         cmd=linmos_cmd_str,
         parset=linmos_parset_summary.parset_path,
         image_fits=linmos_names.image_fits.absolute(),
@@ -648,7 +648,7 @@ def linmos_images(
     if cleanup:
         _linmos_cleanup(linmos_parset_summary=linmos_parset_summary)
 
-    return linmos_cmd
+    return linmos_result
 
 
 def get_parser() -> ArgumentParser:
