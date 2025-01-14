@@ -514,6 +514,7 @@ def split_images(
     Returns:
         Dict[str,List[Path]]: A dictionary of the images split by the field
     """
+    logger.info(f"Splitting {images=} by {by=}")
     split_dict: dict[str, list[Path]] = {}
     for image in images:
         components = extract_components_from_name(name=image)
