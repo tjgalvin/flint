@@ -112,9 +112,9 @@ def process_science_fields_pol(
                         make_cube_from_subbands=False,  # We will do this later
                     )
                 )
-                image_set = task_image_set_from_result.submit(wsclean_result)
-                _image_sets.append(image_set)
-                image_sets_list.append(image_set)
+                _image_set = task_image_set_from_result.submit(wsclean_result)
+                _image_sets.append(_image_set)
+                image_sets_list.append(_image_set)
         image_sets_dict[polarisation] = _image_sets
 
     merged_image_set = task_merge_image_sets.submit(image_sets=image_sets_list)
@@ -131,29 +131,30 @@ def process_science_fields_pol(
         if polarisation not in POLARISATION_MAPPING.keys():
             raise ValueError(f"Unknown polarisation {polarisation}")
         stokes_list = list(POLARISATION_MAPPING[polarisation])
-        for stokes in stokes_list:
-            stokes_image_list = task_split_and_get_image_set.submit(
-                image_set=image_set,
-                get=stokes,
-                by="pol",
-                mode="image",
-            )
-            convolved_image_list = task_convolve_images.submit(
-                image_paths=stokes_image_list,
-                beam_shape=common_beam_shape,
-                cutoff=pol_field_options.beam_cutoff,
-            )
-            channel_image_list = task_get_fits_cube_from_paths.submit(
-                paths=convolved_image_list
-            )
-            linmos_results = task_linmos_images.submit(
-                images=channel_image_list,
-                container=pol_field_options.yandasoft_container,
-                holofile=pol_field_options.holofile,
-                cutoff=pol_field_options.pb_cutoff,
-                field_summary=field_summary,
-            )
-            linmos_result_list.append(linmos_results)
+        for image_set in image_set_list:
+            for stokes in stokes_list:
+                stokes_image_list = task_split_and_get_image_set.submit(
+                    image_set=image_set,
+                    get=stokes,
+                    by="pol",
+                    mode="image",
+                )
+                convolved_image_list = task_convolve_images.submit(
+                    image_paths=stokes_image_list,
+                    beam_shape=common_beam_shape,
+                    cutoff=pol_field_options.beam_cutoff,
+                )
+                channel_image_list = task_get_fits_cube_from_paths.submit(
+                    paths=convolved_image_list
+                )
+                linmos_results = task_linmos_images.submit(
+                    images=channel_image_list,
+                    container=pol_field_options.yandasoft_container,
+                    holofile=pol_field_options.holofile,
+                    cutoff=pol_field_options.pb_cutoff,
+                    field_summary=field_summary,
+                )
+                linmos_result_list.append(linmos_results)
 
     # wait for all linmos results to be completed
     _ = [linmos_result.result() for linmos_result in linmos_result_list]
