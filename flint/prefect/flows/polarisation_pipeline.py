@@ -6,6 +6,7 @@ from configargparse import ArgumentParser
 from prefect import flow, tags
 from prefect.futures import PrefectFuture
 
+from flint.coadd.linmos import LinmosResult
 from flint.configuration import (
     POLARISATION_MAPPING,
     load_and_copy_strategy,
@@ -15,7 +16,7 @@ from flint.exceptions import MSError
 from flint.imager.wsclean import (
     ImageSet,
     WSCleanResult,
-    task_image_set_from_result,
+    combine_images_to_cube,
     task_merge_image_sets,
     task_split_and_get_image_set,
 )
@@ -42,6 +43,7 @@ from flint.prefect.common.imaging import (
 )
 from flint.prefect.common.utils import (
     task_create_field_summary,
+    task_getattr,
 )
 
 
@@ -112,7 +114,9 @@ def process_science_fields_pol(
                         make_cube_from_subbands=False,  # We will do this later
                     )
                 )
-                _image_set = task_image_set_from_result.submit(wsclean_result)
+                _image_set: PrefectFuture[ImageSet] = task_getattr(
+                    wsclean_result, "image_set"
+                )
                 _image_sets.append(_image_set)
                 image_sets_list.append(_image_set)
         image_sets_dict[polarisation] = _image_sets
@@ -125,16 +129,17 @@ def process_science_fields_pol(
         fixed_beam_shape=pol_field_options.fixed_beam_shape,
     )
 
-    linmos_result_list = []
+    linmos_result_list: list[PrefectFuture[LinmosResult]] = []
     for polarisation, image_set_list in image_sets_dict.items():
         with tags(f"polarisation-{polarisation}"):
             # Get the individual Stokes parameters in case of joint imaging
             if polarisation not in POLARISATION_MAPPING.keys():
                 raise ValueError(f"Unknown polarisation {polarisation}")
             stokes_list = list(POLARISATION_MAPPING[polarisation])
-            for image_set in image_set_list:
-                for stokes in stokes_list:
-                    with tags(f"stokes-{stokes}"):
+            for stokes in stokes_list:
+                with tags(f"stokes-{stokes}"):
+                    beam_cubes: list[PrefectFuture[Path]] = []
+                    for image_set in image_set_list:
                         stokes_image_list = task_split_and_get_image_set.submit(
                             image_set=image_set,
                             get=stokes,
@@ -149,14 +154,23 @@ def process_science_fields_pol(
                         channel_image_list = task_get_fits_cube_from_paths.submit(
                             paths=convolved_image_list
                         )
-                        linmos_results = task_linmos_images.submit(
+                        prefix = task_getattr(image_set, "prefix")
+                        cube_path = combine_images_to_cube(
                             images=channel_image_list,
-                            container=pol_field_options.yandasoft_container,
-                            holofile=pol_field_options.holofile,
-                            cutoff=pol_field_options.pb_cutoff,
-                            field_summary=field_summary,
+                            prefix=prefix,
+                            mode="image",
+                            remove_original_images=True,
                         )
-                        linmos_result_list.append(linmos_results)
+                        beam_cubes.append(cube_path)
+
+                    linmos_result = task_linmos_images.submit(
+                        images=beam_cubes,
+                        container=pol_field_options.yandasoft_container,
+                        holofile=pol_field_options.holofile,
+                        cutoff=pol_field_options.pb_cutoff,
+                        field_summary=field_summary,
+                    )
+                    linmos_result_list.append(linmos_result)
 
     # wait for all linmos results to be completed
     _ = [linmos_result.result() for linmos_result in linmos_result_list]

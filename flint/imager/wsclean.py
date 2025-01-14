@@ -849,7 +849,7 @@ def create_wsclean_cmd(
     )
 
 
-def combine_subbands_to_cube(
+def combine_image_set_to_cube(
     imageset: ImageSet,
     remove_original_images: bool = False,
 ) -> ImageSet:
@@ -909,6 +909,44 @@ def combine_subbands_to_cube(
             remove_files_folders(*subband_images)
 
     return ImageSet(**imageset_dict)
+
+
+@task
+def combine_images_to_cube(
+    images: list[Path],
+    prefix: str,
+    mode: str,
+    remove_original_images: bool = False,
+) -> Path:
+    """Combine wsclean subband channel images into a cube. Each collection attribute
+    of the input `imageset` will be inspected. The MFS images will be ignored.
+
+    A output file name will be generated based on the  prefix and mode (e.g. `image`, `residual`, `psf`, `dirty`).
+
+    Args:
+        imageset (ImageSet): Collection of wsclean image productds
+        remove_original_images (bool, optional): If True, images that went into the cube are removed. Defaults to False.
+
+    Returns:
+        ImageSet: Updated iamgeset describing the new outputs
+    """
+    logger.info("Combining subband images into fits cubes")
+
+    output_cube_name = create_image_cube_name(image_prefix=Path(prefix), mode=mode)
+
+    logger.info(f"Combining {len(images)} images. {images=}")
+    freqs = combine_fits(file_list=images, out_cube=output_cube_name)
+
+    # Write out the hdu to preserve the beam table constructed in fitscube
+    logger.info(f"Writing {output_cube_name=}")
+
+    output_freqs_name = output_cube_name.with_suffix(".freqs_Hz.txt")
+    np.savetxt(output_freqs_name, freqs.to("Hz").value)
+
+    if remove_original_images:
+        remove_files_folders(*images)
+
+    return output_cube_name
 
 
 def rename_wsclean_prefix_in_imageset(input_imageset: ImageSet) -> ImageSet:
@@ -1069,7 +1107,7 @@ def run_wsclean_imager(
         imageset = imageset.with_options(source_list=source_list_path)
 
     if make_cube_from_subbands:
-        imageset = combine_subbands_to_cube(
+        imageset = combine_image_set_to_cube(
             imageset=imageset, remove_original_images=True
         )
 

@@ -818,6 +818,8 @@ def task_linmos_images(
 ) -> LinmosResult:
     logger.info(f"Number of images to examine {len(images)}")
 
+    logger.info(f"Combining images {images}")
+
     from flint.naming import create_name_from_common_fields
 
     out_name = create_name_from_common_fields(

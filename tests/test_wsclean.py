@@ -18,7 +18,7 @@ from flint.imager.wsclean import (
     _rename_wsclean_title,
     _resolve_wsclean_key_value_to_cli_str,
     _wsclean_output_callback,
-    combine_subbands_to_cube,
+    combine_image_set_to_cube,
     create_wsclean_cmd,
     create_wsclean_name_argument,
     get_wsclean_output_names,
@@ -238,7 +238,7 @@ def test_combine_subbands_to_cube(tmpdir):
         image=files,
     )
 
-    new_imageset = combine_subbands_to_cube(
+    new_imageset = combine_image_set_to_cube(
         imageset=imageset, remove_original_images=False
     )
 
@@ -246,7 +246,7 @@ def test_combine_subbands_to_cube(tmpdir):
     assert len(new_imageset.image) == 1
 
     with pytest.raises(TypeError):
-        _ = combine_subbands_to_cube(imageset=files, remove_original_images=False)  # type: ignore
+        _ = combine_image_set_to_cube(imageset=files, remove_original_images=False)  # type: ignore
 
 
 def test_combine_subbands_to_cube2(tmpdir):
@@ -269,7 +269,7 @@ def test_combine_subbands_to_cube2(tmpdir):
         image=files,
     )
 
-    new_imageset = combine_subbands_to_cube(
+    new_imageset = combine_image_set_to_cube(
         imageset=imageset, remove_original_images=True
     )
     assert all([not file.exists() for file in files])
