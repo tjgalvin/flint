@@ -95,7 +95,7 @@ def process_science_fields_pol(
 
     polarisations: dict[str, str] = strategy.get("polarisation", {"total": {}})
 
-    image_sets_dict: list[str, PrefectFuture[ImageSet]] = {}
+    image_sets_dict: dict[str, PrefectFuture[ImageSet]] = {}
     image_sets_list: list[PrefectFuture[ImageSet]] = []
     for polarisation in polarisations.keys():
         _image_sets = []
