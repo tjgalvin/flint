@@ -94,20 +94,11 @@ def process_science_fields_pol(
         return
 
     polarisations: dict[str, str] = strategy.get("polarisation", {"total": {}})
-    # Get the individual Stokes parameters in case of joint imaging
-    stokes_list: list[str] = []
-    for p in polarisations.keys():
-        if p == "linear":
-            stokes_list.append("q")
-            stokes_list.append("u")
-        else:
-            stokes = POLARISATION_MAPPING.get(p, None)
-            if stokes is None:
-                raise ValueError(f"Unknown polarisation {p}")
-            stokes_list.append(stokes)
 
-    image_sets: list[PrefectFuture[ImageSet]] = []
+    image_sets_dict: list[str, PrefectFuture[ImageSet]] = {}
+    image_sets_list: list[PrefectFuture[ImageSet]] = []
     for polarisation in polarisations.keys():
+        _image_sets = []
         with tags(f"polarisation-{polarisation}"):
             for science_ms in science_mss:
                 wsclean_result: PrefectFuture[WSCleanResult] = (
@@ -121,9 +112,11 @@ def process_science_fields_pol(
                     )
                 )
                 image_set = task_image_set_from_result.submit(wsclean_result)
-                image_sets.append(image_set)
+                _image_sets.append(image_set)
+                image_sets_list.append(image_set)
+        image_sets_dict[polarisation] = _image_sets
 
-    merged_image_set = task_merge_image_sets.submit(image_sets=image_sets)
+    merged_image_set = task_merge_image_sets.submit(image_sets=image_sets_list)
 
     common_beam_shape = task_get_common_beam_from_imageset.submit(
         image_set=merged_image_set,
@@ -132,7 +125,11 @@ def process_science_fields_pol(
     )
 
     linmos_result_list = []
-    for image_set in image_sets:
+    for polarisation, image_set_list in image_sets_dict.items():
+        # Get the individual Stokes parameters in case of joint imaging
+        if polarisation not in POLARISATION_MAPPING.keys():
+            raise ValueError(f"Unknown polarisation {polarisation}")
+        stokes_list = list(POLARISATION_MAPPING[polarisation])
         for stokes in stokes_list:
             stokes_image_list = task_split_and_get_image_set.submit(
                 image_set=image_set,
