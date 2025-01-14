@@ -200,7 +200,7 @@ def task_run_bane_and_aegean(
         image_paths = [image for image in image_paths if ".MFS." in str(image)]
         assert (
             len(image_paths) == 1
-        ), "More than one image found after filter for MFS only images. "
+        ), "More than one image found after filter_str for MFS only images. "
         # Get out the only path in the list.
         image_path = image_paths[0]
     elif isinstance(image, LinmosResult):
@@ -362,7 +362,7 @@ def task_wsclean_imager(
 def get_common_beam_from_images(
     image_paths: list[Path],
     cutoff: float = 25,
-    filter: str | None = None,
+    filter_str: str | None = None,
     fixed_beam_shape: list[float] | None = None,
 ) -> BeamShape:
     """Compute a common beam size that all input images will be convoled to.
@@ -370,7 +370,7 @@ def get_common_beam_from_images(
     Args:
         image_paths (list[Path]): Input images whose restoring beam properties will be considered
         cutoff (float, optional): Major axis larger than this valur, in arcseconds, will be ignored. Defaults to 25.
-        filter (Optional[str], optional): Only include images when considering beam shape if this string is in the file path. Defaults to None.
+        filter_str (Optional[str], optional): Only include images when considering beam shape if this string is in the file path. Defaults to None.
         fixed_beam_shape (Optional[List[float]], optional): Specify the final beamsize of linmos field images in (arcsec, arcsec, deg). If None it is deduced from images. Defaults to None;
 
     Returns:
@@ -388,8 +388,8 @@ def get_common_beam_from_images(
         logger.info(f"Using fixed {beam_shape=}")
         return beam_shape
 
-    if filter:
-        image_paths = [image for image in image_paths if filter in str(image)]
+    if filter_str:
+        image_paths = [image for image in image_paths if filter_str in str(image)]
 
     logger.info(f"Considering {len(image_paths)} images. ")
 
@@ -398,7 +398,7 @@ def get_common_beam_from_images(
         logger.critical("Failed to get beam resolution for:")
         logger.critical(f"{image_paths=}")
         logger.critical(f"{cutoff=}")
-        logger.critical(f"{filter=}")
+        logger.critical(f"{filter_str=}")
 
     return beam_shape
 
@@ -409,7 +409,7 @@ task_get_common_beam_from_images = task(get_common_beam_from_images)
 def get_common_beam_from_imageset(
     image_set: ImageSet,
     cutoff: float = 25,
-    filter: str | None = None,
+    filter_str: str | None = None,
     fixed_beam_shape: list[float] | None = None,
 ) -> BeamShape:
     """Compute a common beam size that all input images will be convoled to.
@@ -417,7 +417,7 @@ def get_common_beam_from_imageset(
     Args:
         wsclean_results (Collection[WSCleanResult]): Input images whose restoring beam properties will be considered
         cutoff (float, optional): Major axis larger than this valur, in arcseconds, will be ignored. Defaults to 25.
-        filter (Optional[str], optional): Only include images when considering beam shape if this string is in the file path. Defaults to None.
+        filter_str (Optional[str], optional): Only include images when considering beam shape if this string is in the file path. Defaults to None.
         fixed_beam_shape (Optional[List[float]], optional): Specify the final beamsize of linmos field images in (arcsec, arcsec, deg). If None it is deduced from images. Defaults to None;
 
     Returns:
@@ -426,7 +426,7 @@ def get_common_beam_from_imageset(
     return get_common_beam_from_images(
         image_paths=image_set.image,
         cutoff=cutoff,
-        filter=filter,
+        filter_str=filter_str,
         fixed_beam_shape=fixed_beam_shape,
     )
 
@@ -437,7 +437,7 @@ task_get_common_beam_from_imageset = task(get_common_beam_from_imageset)
 def get_common_beam_from_image_sets(
     image_sets: list[ImageSet],
     cutoff: float = 25,
-    filter: str | None = None,
+    filter_str: str | None = None,
     fixed_beam_shape: list[float] | None = None,
 ) -> BeamShape:
     """Compute a common beam size that all input images will be convoled to.
@@ -445,7 +445,7 @@ def get_common_beam_from_image_sets(
     Args:
         wsclean_results (Collection[WSCleanResult]): Input images whose restoring beam properties will be considered
         cutoff (float, optional): Major axis larger than this valur, in arcseconds, will be ignored. Defaults to 25.
-        filter (Optional[str], optional): Only include images when considering beam shape if this string is in the file path. Defaults to None.
+        filter_str (Optional[str], optional): Only include images when considering beam shape if this string is in the file path. Defaults to None.
         fixed_beam_shape (Optional[List[float]], optional): Specify the final beamsize of linmos field images in (arcsec, arcsec, deg). If None it is deduced from images. Defaults to None;
 
     Returns:
@@ -457,7 +457,7 @@ def get_common_beam_from_image_sets(
     return get_common_beam_from_images(
         image_paths=images_to_consider,
         cutoff=cutoff,
-        filter=filter,
+        filter_str=filter_str,
         fixed_beam_shape=fixed_beam_shape,
     )
 
@@ -468,7 +468,7 @@ task_get_common_beam_from_image_sets = task(get_common_beam_from_image_sets)
 def get_common_beam_from_results(
     wsclean_results: list[WSCleanResult],
     cutoff: float = 25,
-    filter: str | None = None,
+    filter_str: str | None = None,
     fixed_beam_shape: list[float] | None = None,
 ) -> BeamShape:
     """Compute a common beam size that all input images will be convoled to.
@@ -476,7 +476,7 @@ def get_common_beam_from_results(
     Args:
         wsclean_results (Collection[WSCleanResult]): Input images whose restoring beam properties will be considered
         cutoff (float, optional): Major axis larger than this valur, in arcseconds, will be ignored. Defaults to 25.
-        filter (Optional[str], optional): Only include images when considering beam shape if this string is in the file path. Defaults to None.
+        filter_str (Optional[str], optional): Only include images when considering beam shape if this string is in the file path. Defaults to None.
         fixed_beam_shape (Optional[List[float]], optional): Specify the final beamsize of linmos field images in (arcsec, arcsec, deg). If None it is deduced from images. Defaults to None;
 
     Returns:
@@ -496,7 +496,7 @@ def get_common_beam_from_results(
     return get_common_beam_from_images(
         image_paths=images_to_consider,
         cutoff=cutoff,
-        filter=filter,
+        filter_str=filter_str,
         fixed_beam_shape=fixed_beam_shape,
     )
 
@@ -598,7 +598,7 @@ def convolve_image_set(
     beam_shape: BeamShape,
     cutoff: float = 60,
     mode: str = "image",
-    filter: str | None = None,
+    filter_str: str | None = None,
     convol_suffix_str: str = "conv",
     remove_original_images: bool = False,
 ) -> list[Path]:
@@ -608,7 +608,7 @@ def convolve_image_set(
         wsclean_result (WSCleanResult): Collection of output images from wsclean that will be convolved
         beam_shape (BeamShape): The shape images will be convolved to
         cutoff (float, optional): Maximum major beam axis an image is allowed to have before it will not be convolved. Defaults to 60.
-        filter (Optional[str], optional): This string must be contained in the image path for it to be convolved. Defaults to None.
+        filter_str (Optional[str], optional): This string must be contained in the image path for it to be convolved. Defaults to None.
         convol_suffix_str (str, optional): The suffix added to the convolved images. Defaults to 'conv'.
         remove_original_images (bool, optional): If True remove the original image after they have been convolved. Defaults to False.
 
@@ -627,10 +627,10 @@ def convolve_image_set(
     else:
         raise ValueError(f"{mode=} is not supported. Known modes are {supported_modes}")
 
-    if filter is not None:
-        logger.info(f"Filtering images paths with {filter=}")
+    if filter_str is not None:
+        logger.info(f"Filtering images paths with {filter_str=}")
         image_paths = [
-            image_path for image_path in image_paths if filter in str(image_path)
+            image_path for image_path in image_paths if filter_str in str(image_path)
         ]
 
     # It is possible depending on how aggressively cleaning image products are deleted that these
@@ -681,7 +681,7 @@ def task_convolve_image(
     beam_shape: BeamShape,
     cutoff: float = 60,
     mode: str = "image",
-    filter: str | None = None,
+    filter_str: str | None = None,
     convol_suffix_str: str = "conv",
     remove_original_images: bool = False,
 ) -> Collection[Path]:
@@ -691,7 +691,7 @@ def task_convolve_image(
         wsclean_result (WSCleanResult): Collection of output images from wsclean that will be convolved
         beam_shape (BeamShape): The shape images will be convolved to
         cutoff (float, optional): Maximum major beam axis an image is allowed to have before it will not be convolved. Defaults to 60.
-        filter (Optional[str], optional): This string must be contained in the image path for it to be convolved. Defaults to None.
+        filter_str (Optional[str], optional): This string must be contained in the image path for it to be convolved. Defaults to None.
         convol_suffix_str (str, optional): The suffix added to the convolved images. Defaults to 'conv'.
         remove_original_images (bool, optional): If True remove the original image after they have been convolved. Defaults to False.
 
@@ -704,17 +704,17 @@ def task_convolve_image(
         beam_shape=beam_shape,
         cutoff=cutoff,
         mode=mode,
-        filter=filter,
+        filter_str=filter_str,
         convol_suffix_str=convol_suffix_str,
         remove_original_images=remove_original_images,
     )
 
 
 @task
-def task_linmos_images(
-    images: Collection[Collection[Path]],
+def task_linmos_images_list(
+    image_list_list: Collection[Collection[Path]],
     container: Path,
-    filter: str | None = ".MFS.",
+    filter_str: str | None = ".MFS.",
     field_name: str | None = None,
     suffix_str: str = "noselfcal",
     holofile: Path | None = None,
@@ -731,7 +731,7 @@ def task_linmos_images(
     Args:
         images (Collection[Collection[Path]]): Images that will be co-added together
         container (Path): Path to singularity container that contains yandasoft
-        filter (Optional[str], optional): Filter to extract the images that will be extracted from the set of input images. These will be co-added. If None all images are co-added. Defaults to ".MFS.".
+        filter_str (Optional[str], optional): Filter to extract the images that will be extracted from the set of input images. These will be co-added. If None all images are co-added. Defaults to ".MFS.".
         suffix_str (str, optional): Additional string added to the prefix of the output linmos image products. Defaults to "noselfcal".
         holofile (Optional[Path], optional): The FITS cube with the beam corrections derived from ASKAP holography. Defaults to None.
         parset_output_path (Optional[str], optional): Location to write the linmos parset file to. Defaults to None.
@@ -747,14 +747,16 @@ def task_linmos_images(
     # TODO: Need to flatten images
     # TODO: Need a better way of getting field names
 
-    # TODO: Need a better filter approach. Would probably be better to
+    # TODO: Need a better filter_str approach. Would probably be better to
     # have literals for the type of product (MFS, cube, model) to be
     # sure of appropriate extraction
-    all_images = [img for beam_images in images for img in beam_images]
+    all_images = [img for beam_images in image_list_list for img in beam_images]
     logger.info(f"Number of images to examine {len(all_images)}")
 
     filter_images = (
-        [img for img in all_images if filter in str(img)] if filter else all_images
+        [img for img in all_images if filter_str in str(img)]
+        if filter_str
+        else all_images
     )
     logger.info(f"Number of filtered images to linmos: {len(filter_images)}")
 
@@ -780,7 +782,7 @@ def task_linmos_images(
 
     # TODO: Perhaps the 'remove_original_files' should also be dealt with
     # internally by linmos_images
-    linmos_cmd = linmos_images(
+    linmos_result = linmos_images(
         images=filter_images,
         parset_output_path=Path(output_path),
         image_output_name=str(out_name),
@@ -795,7 +797,61 @@ def task_linmos_images(
         logger.info(f"Removing {len(filter_images)} input images")
         _ = [image_path.unlink() for image_path in filter_images]  # type: ignore
 
-    return linmos_cmd
+    return linmos_result
+
+
+@task
+def task_linmos_images(
+    images: list[Path],
+    container: Path,
+    suffix_str: str | None = None,
+    holofile: Path | None = None,
+    parset_output_path: str | None = None,
+    cutoff: float = 0.05,
+    field_summary: FieldSummary | None = None,
+    trim_linmos_fits: bool = True,
+    remove_original_images: bool = False,
+    cleanup: bool = False,
+) -> LinmosResult:
+    logger.info(f"Number of images to examine {len(images)}")
+
+    from flint.naming import create_name_from_common_fields
+
+    out_name = create_name_from_common_fields(
+        in_paths=tuple(images), additional_suffixes=suffix_str
+    )
+    out_dir = out_name.parent
+    logger.info(f"Base output image name will be: {out_name}")
+
+    out_file_name = (
+        parset_output_path
+        if parset_output_path
+        else Path(f"{out_name.name}_parset.txt")
+    )
+
+    assert out_dir is not None, f"{out_dir=}, which should not happen"
+    output_path = Path(out_dir) / Path(out_file_name)
+    logger.info(f"Parsert output path is {parset_output_path}")
+
+    pol_axis = field_summary.pol_axis if field_summary else None
+
+    linmos_result = linmos_images(
+        images=images,
+        parset_output_path=Path(output_path),
+        image_output_name=str(out_name),
+        container=container,
+        holofile=holofile,
+        cutoff=cutoff,
+        pol_axis=pol_axis,
+        trim_linmos_fits=trim_linmos_fits,
+        cleanup=cleanup,
+    )
+    if remove_original_images:
+        logger.info(f"Removing {len(images)} input images")
+        for image_path in images:
+            image_path.unlink(missing_ok=True)
+
+    return linmos_result
 
 
 def convolve_then_linmos(
@@ -836,12 +892,12 @@ def convolve_then_linmos(
         beam_shape=unmapped(beam_shape),  # type: ignore
         cutoff=field_options.beam_cutoff,
         mode=convol_mode,
-        filter=convol_filter,
+        filter_str=convol_filter,
         convol_suffix_str=convol_suffix_str,
         remove_original_images=remove_original_images,
     )
     assert field_options.yandasoft_container is not None
-    parset = task_linmos_images.submit(
+    parset = task_linmos_images_list.submit(
         images=conv_images,  # type: ignore
         container=field_options.yandasoft_container,
         suffix_str=linmos_suffix_str,
@@ -849,7 +905,7 @@ def convolve_then_linmos(
         cutoff=field_options.pb_cutoff,
         field_summary=field_summary,
         trim_linmos_fits=trim_linmos_fits,
-        filter=convol_filter,
+        filter_str=convol_filter,
         remove_original_images=remove_original_images,
         cleanup=cleanup_linmos,
     )  # type: ignore
@@ -902,7 +958,7 @@ def create_convol_linmos_images(
         beam_shape = task_get_common_beam_from_results.submit(
             wsclean_results=wsclean_results,
             cutoff=field_options.beam_cutoff,
-            filter=".MFS.",
+            filter_str=".MFS.",
             fixed_beam_shape=round_beam_shape,
         )
         # NOTE: The order matters here. The last linmos file is used
@@ -959,13 +1015,13 @@ def create_convolve_linmos_cubes(
     )
 
     assert field_options.yandasoft_container is not None
-    parset = task_linmos_images.submit(
+    parset = task_linmos_images_list.submit(
         images=convolved_cubes,  # type: ignore
         container=field_options.yandasoft_container,
         suffix_str=linmos_suffix_str,
         holofile=field_options.holofile,
         cutoff=field_options.pb_cutoff,
-        filter=None,
+        filter_str=None,
     )
     return parset
 
