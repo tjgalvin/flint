@@ -12,7 +12,6 @@ from typing import Any, NamedTuple
 from prefect import task
 
 from flint.exceptions import NamingException
-from flint.imager.wsclean import ImageSet
 from flint.logging import logger
 from flint.options import MS
 
@@ -561,66 +560,6 @@ def split_and_get_images(
         raise ValueError(f"Failed to get {get=} from {split_dict=}")
 
     return split_list
-
-
-def split_image_set(
-    image_set: ImageSet,
-    by: str = "pol",
-    mode: str = "image",
-) -> dict[str, list[Path]]:
-    """Split an ImageSet by a given field.
-
-    Args:
-        image_set (ImageSet): The ImageSet to split
-        by (str, optional): Field to split images by. Defaults to "pol".
-        mode (str, optional): Type of images to extract from ImageSet. Defaults to "image".
-
-    Raises:
-        NamingException: If the field to split by is not found in the ImageSet
-
-    Returns:
-        dict[str, list[Path]]: _description_
-    """
-    try:
-        image_list = getattr(image_set, mode)
-    except AttributeError as e:
-        msg = f"Failed to extract {mode=} from {image_set=}"
-        raise NamingException(msg) from e
-    split_list = split_images(images=image_list, by=by)
-
-    return split_list
-
-
-def split_and_get_image_set(
-    image_set: ImageSet,
-    get: str,
-    by: str = "pol",
-    mode: str = "image",
-) -> list[Path]:
-    """Split an ImageSet by a given field and return the images that match the field of interest.
-
-    Args:
-        image_set (ImageSet): The ImageSet to split
-        get (str): The field to extract from the split images
-        by (str, optional): The field to split by. Defaults to "pol".
-        mode (str, optional): The mode to extract from ImageSet. Defaults to "image".
-
-    Raises:
-        NamingException: If the field to split by is not found in the ImageSet
-
-    Returns:
-        list[Path]: The images that match the field of interest
-    """
-    split_dict = split_image_set(image_set=image_set, by=by, mode=mode)
-
-    split_list = split_dict.get(get, None)
-    if split_list is None:
-        raise NamingException(f"Failed to get {get=} from {split_dict=}")
-
-    return split_list
-
-
-task_split_and_get_image_set = task(split_and_get_image_set)
 
 
 def extract_beam_from_name(name: str | Path) -> int:
