@@ -31,6 +31,7 @@ from flint.exceptions import (
     AttemptRerunException,
     CleanDivergenceError,
     NamingException,
+    NotSupportedError,
 )
 from flint.logging import logger
 from flint.ms import MS
@@ -284,6 +285,7 @@ def split_image_set(
     Returns:
         dict[str, list[Path]]: _description_
     """
+    logger.info(f"Splitting {image_set=} by {by=} with {mode=}")
     try:
         image_list = getattr(image_set, mode)
     except AttributeError as e:
@@ -932,6 +934,25 @@ def rename_wsclean_prefix_in_imageset(input_imageset: ImageSet) -> ImageSet:
     return output_imageset
 
 
+def _make_pols(pol_str: str) -> tuple[str, ...] | None:
+    """Create a tuple of polarisations from a polarisation string
+
+    Args:
+        pol_str (str): Polarisation string to convert
+
+    Returns:
+        tuple[str, ...] | None: Tuple of polarisations
+    """
+    if any(pol in pol_str.lower() for pol in ("x", "y", "r", "l")):
+        msg = f"Found instrumental polarisation in {pol_str=}. This is not supported."
+        raise NotSupportedError(msg)
+
+    pols: tuple[str, ...] | None = None
+    if len(pol_str) > 1:
+        pols = tuple(p.upper() for p in "".join(pol_str.split(",")))
+    return pols
+
+
 def run_wsclean_imager(
     wsclean_result: WSCleanResult,
     container: Path,
@@ -1016,10 +1037,7 @@ def run_wsclean_imager(
         logger.info("Will clean up files created by wsclean. ")
         rm_files = wsclean_cleanup_files(prefix=prefix, single_channel=single_channel)
 
-    pols: tuple[str, ...] | None = None
-    pol_str = wsclean_result.options.pol
-    if pol_str.lower() != "i":
-        pols = tuple(p.upper() for p in "".join(pol_str.split(",")))
+    pols = _make_pols(pol_str=wsclean_result.options.pol)
 
     imageset = get_wsclean_output_names(
         prefix=prefix,

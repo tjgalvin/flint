@@ -13,6 +13,12 @@ class NamingException(FlintException):
     pass
 
 
+class NotSupportedError(FlintException):
+    """Raised when something is not supported"""
+
+    pass
+
+
 class AttemptRerunException(FlintException):
     """Intended to be used in stream call back functions to
     capture strange errors and signify that they should be
