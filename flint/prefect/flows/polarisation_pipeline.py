@@ -17,6 +17,7 @@ from flint.imager.wsclean import (
     WSCleanResult,
     task_image_set_from_result,
     task_merge_image_sets,
+    task_split_and_get_image_set,
 )
 from flint.logging import logger
 from flint.ms import find_mss
@@ -26,7 +27,6 @@ from flint.naming import (
     extract_components_from_name,
     get_sbid_from_path,
     task_get_fits_cube_from_paths,
-    task_split_and_get_image_set,
 )
 from flint.options import (
     PolFieldOptions,
