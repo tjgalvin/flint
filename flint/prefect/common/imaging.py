@@ -295,6 +295,7 @@ def task_wsclean_imager(
     update_wsclean_options: dict[str, Any] | None = None,
     fits_mask: FITSMaskNames | None = None,
     channel_range: tuple[int, int] | None = None,
+    make_cube_from_subbands: bool = True,
 ) -> WSCleanResult:
     """Run the wsclean imager against an input measurement set
 
@@ -328,6 +329,7 @@ def task_wsclean_imager(
             ms=ms,
             wsclean_container=wsclean_container,
             update_wsclean_options=update_wsclean_options,
+            make_cube_from_subbands=make_cube_from_subbands,
         )
     except CleanDivergenceError:
         # NOTE: If the cleaning failed retry with some larger images
@@ -356,6 +358,7 @@ def task_wsclean_imager(
             ms=ms,
             wsclean_container=wsclean_container,
             update_wsclean_options=update_wsclean_options,
+            make_cube_from_subbands=make_cube_from_subbands,
         )
 
 

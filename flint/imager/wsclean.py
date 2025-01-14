@@ -1053,6 +1053,7 @@ def wsclean_imager(
     ms: Path | MS,
     wsclean_container: Path,
     update_wsclean_options: dict[str, Any] | None = None,
+    make_cube_from_subbands: bool = True,
 ) -> WSCleanResult:
     """Create and run a wsclean imager command against a measurement set.
 
@@ -1082,6 +1083,7 @@ def wsclean_imager(
     image_set = run_wsclean_imager(
         wsclean_result=wsclean_result,
         container=wsclean_container,
+        make_cube_from_subbands=make_cube_from_subbands,
     )
 
     return wsclean_result.with_options(image_set=image_set)

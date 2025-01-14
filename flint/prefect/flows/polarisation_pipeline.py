@@ -109,6 +109,7 @@ def process_science_fields_pol(
                         operation="polarisation",
                         mode="wsclean",
                         polarisation=polarisation,
+                        make_cube_from_subbands=False, # We will do this later
                     )
                 )
                 image_set = task_image_set_from_result.submit(wsclean_result)
