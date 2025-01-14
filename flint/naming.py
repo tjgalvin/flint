@@ -9,7 +9,10 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, NamedTuple
 
+from prefect import task
+
 from flint.exceptions import NamingException
+from flint.imager.wsclean import ImageSet
 from flint.logging import logger
 from flint.options import MS
 
@@ -31,6 +34,8 @@ def get_fits_cube_from_paths(paths: list[Path]) -> list[Path]:
 
     return cube_files
 
+
+task_get_fits_cube_from_paths = task(get_fits_cube_from_paths)
 
 LONG_FIELD_TO_SHORTHAND = {"sbid": "SB", "beam": "beam", "ch": "ch", "round": "round"}
 """Name mapping between the longform of ProcessedFieldComponents and shorthands used"""
@@ -499,7 +504,7 @@ def extract_components_from_name(
 def split_images(
     images: list[Path],
     by: str = "pol",
-) -> dict[str, Any]:
+) -> dict[str, list[Path]]:
     """Split a list of images by a given field. This is intended to be used
     when a set of images are to be split by a common field, such as polarisation.
 
@@ -510,7 +515,7 @@ def split_images(
     Returns:
         Dict[str,List[Path]]: A dictionary of the images split by the field
     """
-    split_images: dict[str, Any] = {}
+    split_dict: dict[str, list[Path]] = {}
     for image in images:
         components = extract_components_from_name(name=image)
 
@@ -523,11 +528,58 @@ def split_images(
             msg = f"Failed to extract {by=} from {image=}"
             raise NamingException(msg) from e
 
-        if field not in split_images:
-            split_images[field] = []
-        split_images[field].append(image)
+        if field not in split_dict:
+            split_dict[field] = []
+        split_dict[field].append(image)
 
-    return split_images
+    return split_dict
+
+
+def split_and_get_images(
+    images: list[Path],
+    get: str,
+    by: str = "pol",
+) -> list[Path]:
+    split_dict = split_images(images=images, by=by)
+
+    split_list = split_dict.get(get, None)
+    if split_list is None:
+        raise ValueError(f"Failed to get {get=} from {split_dict=}")
+
+    return split_list
+
+
+def split_image_set(
+    image_set: ImageSet,
+    by: str = "pol",
+    mode: str = "image",
+) -> dict[str, list[Path]]:
+    try:
+        image_list = getattr(image_set, mode)
+    except AttributeError as e:
+        msg = f"Failed to extract {mode=} from {image_set=}"
+        raise NamingException(msg) from e
+    split_list = split_images(images=image_list, by=by)
+
+    return split_list
+
+
+def split_and_get_image_set(
+    image_set: ImageSet,
+    get: str,
+    by: str = "pol",
+    mode: str = "image",
+) -> list[Path]:
+    split_dict = split_image_set(image_set=image_set, by=by, mode=mode)
+
+    split_list = split_dict.get(get, None)
+    if split_list is None:
+        raise ValueError(f"Failed to get {get=} from {split_dict=}")
+
+    return split_list
+
+
+task_split_and_get_image_set = task(split_and_get_image_set)
 
 
 def extract_beam_from_name(name: str | Path) -> int:

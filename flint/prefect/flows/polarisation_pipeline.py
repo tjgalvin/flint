@@ -1,17 +1,23 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any
 
 from configargparse import ArgumentParser
-from prefect import flow, tags, unmapped
+from prefect import flow, tags
+from prefect.futures import PrefectFuture
 
 from flint.configuration import (
-    get_options_from_strategy,
+    POLARISATION_MAPPING,
     load_and_copy_strategy,
 )
+from flint.convol import task_convolve_images
 from flint.exceptions import MSError
-from flint.imager.wsclean import task_merge_image_sets_from_results
+from flint.imager.wsclean import (
+    ImageSet,
+    WSCleanResult,
+    task_image_set_from_result,
+    task_merge_image_sets,
+)
 from flint.logging import logger
 from flint.ms import find_mss
 from flint.naming import (
@@ -19,6 +25,8 @@ from flint.naming import (
     add_timestamp_to_path,
     extract_components_from_name,
     get_sbid_from_path,
+    task_get_fits_cube_from_paths,
+    task_split_and_get_image_set,
 )
 from flint.options import (
     PolFieldOptions,
@@ -28,13 +36,12 @@ from flint.options import (
 )
 from flint.prefect.clusters import get_dask_runner
 from flint.prefect.common.imaging import (
-    create_convol_linmos_images,
-    create_convolve_linmos_cubes,
+    task_get_common_beam_from_imageset,
+    task_linmos_images,
     task_wsclean_imager,
-    task_zip_ms,
 )
 from flint.prefect.common.utils import (
-    task_archive_sbid,
+    task_create_field_summary,
 )
 
 
@@ -52,14 +59,17 @@ def process_science_fields_pol(
         expected_ms_count=pol_field_options.expected_ms,
     )
 
+    field_summary = task_create_field_summary.submit(
+        mss=science_mss,
+        holography_path=pol_field_options.holofile,
+    )
+
     dump_field_options_to_yaml(
         output_path=add_timestamp_to_path(
             input_path=flint_ms_directory / "pol_field_options.yaml"
         ),
         field_options=pol_field_options,
     )
-
-    archive_wait_for: list[Any] = []
 
     strategy = load_and_copy_strategy(
         output_split_science_path=flint_ms_directory,
@@ -86,63 +96,71 @@ def process_science_fields_pol(
         return
 
     polarisations: dict[str, str] = strategy.get("polarisation", {"total": {}})
+    # Get the individual Stokes parameters in case of joint imaging
+    stokes_list: list[str] = []
+    for p in polarisations.keys():
+        if p == "linear":
+            stokes_list.append("q")
+            stokes_list.append("u")
+        else:
+            stokes = POLARISATION_MAPPING.get(p, None)
+            if stokes is None:
+                raise ValueError(f"Unknown polarisation {p}")
+            stokes_list.append(stokes)
 
-    wsclean_results_list = []
+    image_sets: list[PrefectFuture[ImageSet]] = []
     for polarisation in polarisations.keys():
         with tags(f"polarisation-{polarisation}"):
-            wsclean_results = task_wsclean_imager.map(
-                in_ms=science_mss,
-                wsclean_container=pol_field_options.wsclean_container,
-                strategy=unmapped(strategy),
-                operation="polarisation",
-                mode="wsclean",
-                polarisation=polarisation,
-            )  # type: ignore
-            archive_wait_for.extend(wsclean_results)
-            wsclean_results_list.append(wsclean_results)
+            for science_ms in science_mss:
+                wsclean_result: PrefectFuture[WSCleanResult] = (
+                    task_wsclean_imager.submit(
+                        in_ms=science_ms,
+                        wsclean_container=pol_field_options.wsclean_container,
+                        strategy=strategy,
+                        operation="polarisation",
+                        mode="wsclean",
+                        polarisation=polarisation,
+                    )
+                )
+                image_set = task_image_set_from_result(wsclean_result)
+                image_sets.append(image_set)
 
-    merged_image_set = task_merge_image_sets_from_results(
-        wsclean_results=wsclean_results_list,
+    merged_image_set = task_merge_image_sets(image_sets=image_sets)
+
+    common_beam_shape = task_get_common_beam_from_imageset.submit(
+        image_set=merged_image_set,
+        cutoff=pol_field_options.beam_cutoff,
+        fixed_beam_shape=pol_field_options.fixed_beam_shape,
     )
-    logger.debug(f"{merged_image_set=}")
 
-    if pol_field_options.yandasoft_container:
-        parsets = create_convol_linmos_images(
-            wsclean_results=wsclean_results,
-            field_options=pol_field_options,
-            field_summary=None,
-            current_round=None,
-        )
-        archive_wait_for.extend(parsets)
+    linmos_result_list = []
+    for image_set in image_sets:
+        for stokes in stokes_list:
+            stokes_image_list = task_split_and_get_image_set.submit(
+                image_set=image_set,
+                get=stokes,
+                by="pol",
+                mode="image",
+            )
+            convolved_image_list = task_convolve_images.submit(
+                image_paths=stokes_image_list,
+                beam_shape=common_beam_shape,
+                cutoff=pol_field_options.beam_cutoff,
+            )
+            channel_image_list = task_get_fits_cube_from_paths.submit(
+                image_paths=convolved_image_list
+            )
+            linmos_results = task_linmos_images.submit(
+                images=channel_image_list,
+                container=pol_field_options.yandasoft_container,
+                holofile=pol_field_options.holofile,
+                cutoff=pol_field_options.pb_cutoff,
+                field_summary=field_summary,
+            )
+            linmos_result_list.append(linmos_results)
 
-    # Always create cubes
-    with tags("cubes"):
-        cube_parset = create_convolve_linmos_cubes(
-            wsclean_results=wsclean_results,  # type: ignore
-            field_options=pol_field_options,
-            current_round=None,
-            additional_linmos_suffix_str="cube",
-        )
-        archive_wait_for.append(cube_parset)
-
-    # zip up the final measurement set, which is not included in the above loop
-    if pol_field_options.zip_ms:
-        archive_wait_for = task_zip_ms.map(
-            in_item=wsclean_results, wait_for=archive_wait_for
-        )
-
-    if pol_field_options.sbid_archive_path or pol_field_options.sbid_copy_path:
-        update_archive_options = get_options_from_strategy(
-            strategy=strategy, mode="archive", operation="polarisation"
-        )
-        task_archive_sbid.submit(
-            science_folder_path=flint_ms_directory,
-            archive_path=pol_field_options.sbid_archive_path,
-            copy_path=pol_field_options.sbid_copy_path,
-            max_round=None,
-            update_archive_options=update_archive_options,
-            wait_for=archive_wait_for,
-        )
+    # wait for all linmos results to be completed
+    _ = [linmos_result.result() for linmos_result in linmos_result_list]
 
 
 def setup_run_process_science_field(
