@@ -122,10 +122,10 @@ def process_science_fields_pol(
                         polarisation=polarisation,
                     )
                 )
-                image_set = task_image_set_from_result(wsclean_result)
+                image_set = task_image_set_from_result.submit(wsclean_result)
                 image_sets.append(image_set)
 
-    merged_image_set = task_merge_image_sets(image_sets=image_sets)
+    merged_image_set = task_merge_image_sets.submit(image_sets=image_sets)
 
     common_beam_shape = task_get_common_beam_from_imageset.submit(
         image_set=merged_image_set,
@@ -148,7 +148,7 @@ def process_science_fields_pol(
                 cutoff=pol_field_options.beam_cutoff,
             )
             channel_image_list = task_get_fits_cube_from_paths.submit(
-                image_paths=convolved_image_list
+                paths=convolved_image_list
             )
             linmos_results = task_linmos_images.submit(
                 images=channel_image_list,

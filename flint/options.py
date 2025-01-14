@@ -362,16 +362,6 @@ class PolFieldOptions(BaseOptions):
     """Path to the singularity yandasoft container"""
     holofile: Path | None = None
     """Path to the holography FITS cube that will be used when co-adding beams"""
-    zip_ms: bool = False
-    """Whether to zip measurement sets once they are no longer required"""
-    run_aegean: bool = False
-    """Whether to run the aegean source finding tool"""
-    aegean_container: Path | None = None
-    """Path to the singularity aegean container"""
-    reference_catalogue_directory: Path | None = None
-    """Path to the directory container the reference catalogues, used to generate validation plots"""
-    linmos_residuals: bool = False
-    """Linmos the cleaning residuals together into a field image"""
     beam_cutoff: float = 150
     """Cutoff in arcseconds to use when calculating the common beam to convol to"""
     fixed_beam_shape: list[float] | None = None
@@ -380,8 +370,6 @@ class PolFieldOptions(BaseOptions):
     """Primary beam attenuation cutoff to use during linmos"""
     imaging_strategy: Path | None = None
     """Path to a FLINT imaging yaml file that contains settings to use throughout imaging"""
-    sbid_archive_path: Path | None = None
-    """Path that SBID archive tarballs will be created under. If None no archive tarballs are created. See ArchiveOptions. """
     sbid_copy_path: Path | None = None
     """Path that final processed products will be copied into. If None no copying of file products is performed. See ArchiveOptions. """
 
