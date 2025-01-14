@@ -72,8 +72,6 @@ class ImageSet(BaseOptions):
     """Residual images."""
     source_list: Path | None = None
     """Path to a source list that accompanies the image data"""
-    in_pols: tuple[str, ...] | tuple[None, ...] = (None,)
-    """The polarisations that were imaged"""
 
 
 class WSCleanOptions(BaseOptions):
@@ -237,9 +235,14 @@ def merge_image_sets(
                 continue
             if key not in image_set_dict:
                 image_set_dict[key] = []
-            image_set_dict[key].extend(value)
+            if isinstance(value, (list, tuple)):
+                image_set_dict[key].extend(value)
+            else:
+                image_set_dict[key].append(value)
 
     image_set_dict["prefix"] = prefix
+
+    logger.info(f"Merged image set: {image_set_dict=}")
 
     return ImageSet(**image_set_dict)
 
@@ -380,6 +383,15 @@ def _rename_wsclean_title(name_str: str) -> str:
     Returns:
         str: The modified string if a wsclean string was matched, otherwise the input `name-str`
     """
+    # Yolo chatGPT
+    # The following should replace the .qu with .q or .u whilst removing the -Q and -U
+    logger.info(f"Renaming {name_str=} for qu components if necessary")
+    name_str = re.sub(
+        r"(\.qu)-([^-]+)-?([QU])?(\-(psf|image|dirty|model|residual)\.fits)",
+        lambda m: f".{m.group(3).lower() if m.group(3) else 'q'}-{m.group(2)}{m.group(4)}",
+        name_str,
+    )
+
     search_re = r"(-(i|q|u|v|xx|xy|yx|yy))?(-(MFS|[0-9]{4}))?(-t[0-9]{5})?-(image|dirty|model|residual|psf)"
     match_re = re.compile(search_re)
 
@@ -557,7 +569,7 @@ def get_wsclean_output_names(  #
                 f"The following {len(paths_no_exists)} files do not exist: {paths_no_exists}"
             )
 
-    return ImageSet(prefix=prefix, in_pols=in_pols, **images)
+    return ImageSet(prefix=prefix, **images)
 
 
 def delete_wsclean_outputs(
