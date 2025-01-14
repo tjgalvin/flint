@@ -224,7 +224,8 @@ def merge_image_sets(
     prefix = image_sets[0].prefix
     for image_set in image_sets:
         if image_set.prefix != prefix:
-            raise ValueError("Cannot merge image sets with different prefixes")
+            msg = f"Image sets have different prefixes - will use the first prefix {prefix}"
+            logger.warning(msg)
 
     image_set_dict: dict[str, Any] = {}
     for image_set in image_sets:
