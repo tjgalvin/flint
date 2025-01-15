@@ -7,13 +7,51 @@ from __future__ import annotations
 import re
 from datetime import datetime
 from pathlib import Path
-from typing import Any, NamedTuple
+from typing import Any, NamedTuple, overload
 
 from prefect import task
 
 from flint.exceptions import NamingException
 from flint.logging import logger
 from flint.options import MS
+
+
+@overload
+def rename_linear_to_stokes(
+    linear_name: Path,
+    stokes: str,
+) -> Path: ...
+
+
+@overload
+def rename_linear_to_stokes(
+    linear_name: str,
+    stokes: str,
+) -> str: ...
+
+
+def rename_linear_to_stokes(
+    linear_name: Path | str,
+    stokes: str,
+) -> Path | str:
+    if stokes.lower() not in ("q", "u"):
+        raise NameError(f"Stokes {stokes=} is not linear!")
+
+    if isinstance(linear_name, Path):
+        name_str = linear_name.as_posix()
+        stokes_name = re.sub(r"\.qu\.", stokes, name_str)
+        return Path(stokes_name)
+    else:
+        stokes_name = re.sub(r"\.qu\.", stokes, linear_name)
+        return stokes_name
+
+
+task_rename_linear_to_stokes = task(rename_linear_to_stokes)
+
+
+@task
+def task_get_channel_images_from_paths(paths: list[Path]) -> list[Path]:
+    return [path for path in paths if "MFS" not in path.name]
 
 
 def get_fits_cube_from_paths(paths: list[Path]) -> list[Path]:

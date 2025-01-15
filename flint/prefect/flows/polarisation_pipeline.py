@@ -27,7 +27,8 @@ from flint.naming import (
     add_timestamp_to_path,
     extract_components_from_name,
     get_sbid_from_path,
-    task_get_fits_cube_from_paths,
+    task_get_channel_images_from_paths,
+    task_rename_linear_to_stokes,
 )
 from flint.options import (
     PolFieldOptions,
@@ -114,7 +115,7 @@ def process_science_fields_pol(
                         make_cube_from_subbands=False,  # We will do this later
                     )
                 )
-                _image_set: PrefectFuture[ImageSet] = task_getattr(
+                _image_set: PrefectFuture[ImageSet] = task_getattr.submit(
                     wsclean_result, "image_set"
                 )
                 _image_sets.append(_image_set)
@@ -151,11 +152,16 @@ def process_science_fields_pol(
                             beam_shape=common_beam_shape,
                             cutoff=pol_field_options.beam_cutoff,
                         )
-                        channel_image_list = task_get_fits_cube_from_paths.submit(
+                        channel_image_list = task_get_channel_images_from_paths.submit(
                             paths=convolved_image_list
                         )
-                        prefix = task_getattr(image_set, "prefix")
-                        cube_path = combine_images_to_cube(
+                        prefix = task_getattr.submit(image_set, "prefix")
+
+                        if polarisation == "linear":
+                            # Get single Stokes prefix - the original prefix is the linear prefix
+                            # i.e. `.qu.` -> `.q.` or `.u.` depending on the stokes
+                            prefix = task_rename_linear_to_stokes.submit(prefix)
+                        cube_path = combine_images_to_cube.submit(
                             images=channel_image_list,
                             prefix=prefix,
                             mode="image",
