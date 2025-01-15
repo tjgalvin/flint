@@ -7,27 +7,13 @@ from __future__ import annotations
 import re
 from datetime import datetime
 from pathlib import Path
-from typing import Any, NamedTuple, overload
+from typing import Any, NamedTuple
 
 from prefect import task
 
 from flint.exceptions import NamingException
 from flint.logging import logger
 from flint.options import MS
-
-
-@overload
-def rename_linear_to_stokes(
-    linear_name: Path,
-    stokes: str,
-) -> Path: ...
-
-
-@overload
-def rename_linear_to_stokes(
-    linear_name: str,
-    stokes: str,
-) -> str: ...
 
 
 def rename_linear_to_stokes(
