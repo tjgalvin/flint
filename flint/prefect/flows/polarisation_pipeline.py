@@ -160,7 +160,10 @@ def process_science_fields_pol(
                         if polarisation == "linear":
                             # Get single Stokes prefix - the original prefix is the linear prefix
                             # i.e. `.qu.` -> `.q.` or `.u.` depending on the stokes
-                            prefix = task_rename_linear_to_stokes.submit(prefix)
+                            prefix = task_rename_linear_to_stokes.submit(
+                                linear_name=prefix,
+                                stokes=stokes,
+                            )
                         cube_path = combine_images_to_cube.submit(
                             images=channel_image_list,
                             prefix=prefix,

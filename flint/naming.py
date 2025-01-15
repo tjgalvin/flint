@@ -7,7 +7,7 @@ from __future__ import annotations
 import re
 from datetime import datetime
 from pathlib import Path
-from typing import Any, NamedTuple
+from typing import Any, NamedTuple, overload
 
 from prefect import task
 
@@ -16,22 +16,33 @@ from flint.logging import logger
 from flint.options import MS
 
 
+def _rename_linear_to_stokes(
+    linear_name_str: str,
+    stokes: str,
+) -> str:
+    if stokes.lower() not in ("q", "u"):
+        raise NameError(f"Stokes {stokes=} is not linear!")
+    pattern = r"\.qu\."  # Regex pattern to replace
+    stokes_name = re.sub(pattern, stokes, linear_name_str)
+    return stokes_name
+
+
+@overload
+def rename_linear_to_stokes(linear_name: Path, stokes: str) -> Path: ...
+
+
+@overload
+def rename_linear_to_stokes(linear_name: str, stokes: str) -> str: ...
+
+
 def rename_linear_to_stokes(
     linear_name: Path | str,
     stokes: str,
 ) -> Path | str:
-    if stokes.lower() not in ("q", "u"):
-        raise NameError(f"Stokes {stokes=} is not linear!")
-
-    pattern = r"\.qu\."  # Regex pattern to replace
-
     if isinstance(linear_name, Path):
-        name_str = linear_name.as_posix()
-        stokes_name = re.sub(pattern, stokes, name_str)
-        return Path(stokes_name)
-    else:
-        stokes_name = re.sub(pattern, stokes, linear_name)
-        return stokes_name
+        return Path(_rename_linear_to_stokes(linear_name.as_posix(), stokes))
+
+    return _rename_linear_to_stokes(linear_name, stokes)
 
 
 task_rename_linear_to_stokes = task(rename_linear_to_stokes)
