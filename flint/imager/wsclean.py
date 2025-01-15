@@ -24,6 +24,7 @@ from pathlib import Path
 from typing import Any, Collection, NamedTuple
 
 import numpy as np
+from astropy.io import fits
 from fitscube.combine_fits import combine_fits
 from prefect import task
 
@@ -849,6 +850,31 @@ def create_wsclean_cmd(
     )
 
 
+def _rotate_cube(output_cube_name) -> None:
+    logger.info(f"Rotating {output_cube_name=}")
+    # This changes the output cube to a shape of (chan, pol, dec, ra)
+    # which is what yandasoft linmos tasks like
+    with fits.open(output_cube_name, mode="update", memmap=True) as hdulist:
+        hdu = hdulist[0]
+        new_header = hdu[0].header
+        data_cube = hdu[0].data
+
+        tmp_header = new_header.copy()
+        # Need to swap NAXIS 3 and 4 to make LINMOS happy - booo
+        for a, b in ((3, 4), (4, 3)):
+            new_header[f"CTYPE{a}"] = tmp_header[f"CTYPE{b}"]
+            new_header[f"CRPIX{a}"] = tmp_header[f"CRPIX{b}"]
+            new_header[f"CRVAL{a}"] = tmp_header[f"CRVAL{b}"]
+            new_header[f"CDELT{a}"] = tmp_header[f"CDELT{b}"]
+            new_header[f"CUNIT{a}"] = tmp_header[f"CUNIT{b}"]
+
+        # Cube is currently STOKES, FREQ, RA, DEC - needs to be FREQ, STOKES, RA, DEC
+        data_cube = np.moveaxis(data_cube, 1, 0)
+        hdu[0].data = data_cube
+        hdu[0].header = new_header
+        hdulist.flush()
+
+
 def combine_image_set_to_cube(
     imageset: ImageSet,
     remove_original_images: bool = False,
@@ -895,6 +921,8 @@ def combine_image_set_to_cube(
         logger.info(f"Combining {len(subband_images)} images. {subband_images=}")
         freqs = combine_fits(file_list=subband_images, out_cube=output_cube_name)
 
+        _rotate_cube(output_cube_name)
+
         # Write out the hdu to preserve the beam table constructed in fitscube
         logger.info(f"Writing {output_cube_name=}")
 
@@ -936,6 +964,7 @@ def combine_images_to_cube(
 
     logger.info(f"Combining {len(images)} images. {images=}")
     freqs = combine_fits(file_list=images, out_cube=output_cube_name)
+    _rotate_cube(output_cube_name)
 
     # Write out the hdu to preserve the beam table constructed in fitscube
     logger.info(f"Writing {output_cube_name=}")

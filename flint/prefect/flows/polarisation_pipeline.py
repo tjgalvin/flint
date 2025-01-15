@@ -181,16 +181,17 @@ def process_science_fields_pol(
         force_remove_leakage = False
 
     for stokes, beam_cubes in stokes_beam_cubes.items():
-        linmos_result = task_linmos_images.submit(
-            images=beam_cubes,
-            container=pol_field_options.yandasoft_container,
-            holofile=pol_field_options.holofile,
-            cutoff=pol_field_options.pb_cutoff,
-            field_summary=field_summary,
-            stokesi_images=stokes_beam_cubes.get("i"),
-            force_remove_leakage=force_remove_leakage,
-        )
-        linmos_result_list.append(linmos_result)
+        with tags(f"stokes-{stokes}"):
+            linmos_result = task_linmos_images.submit(
+                images=beam_cubes,
+                container=pol_field_options.yandasoft_container,
+                holofile=pol_field_options.holofile,
+                cutoff=pol_field_options.pb_cutoff,
+                field_summary=field_summary,
+                stokesi_images=stokes_beam_cubes.get("i"),
+                force_remove_leakage=force_remove_leakage,
+            )
+            linmos_result_list.append(linmos_result)
 
     # wait for all linmos results to be completed
     _ = [linmos_result.result() for linmos_result in linmos_result_list]

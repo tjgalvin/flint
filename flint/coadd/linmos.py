@@ -541,8 +541,6 @@ def generate_linmos_parameter_set(
         f"linmos.weightstate      = Inherent\n"
         f"linmos.cutoff           = {cutoff}\n"
         f"linmos.finalcutoff           = 0.01\n"
-        "linmos.imageaccess.axis  = 3\n"  # WSClean outputs frequency as second dimension (so 3 in zero indexing)
-        # Assuming linmos uses FITS/fortran indexing - which is weird...
     )
     # Construct the holography section of the linmos parset
     remove_leakage = (holofile is not None) and (".i." not in str(next(iter(images))))
