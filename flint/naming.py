@@ -7,10 +7,51 @@ from __future__ import annotations
 import re
 from datetime import datetime
 from pathlib import Path
-from typing import Any, NamedTuple
+from typing import Any, NamedTuple, overload
 
+from prefect import task
+
+from flint.exceptions import NamingException
 from flint.logging import logger
 from flint.options import MS
+
+
+def _rename_linear_to_stokes(
+    linear_name_str: str,
+    stokes: str,
+) -> str:
+    if stokes.lower() not in ("q", "u"):
+        raise NameError(f"Stokes {stokes=} is not linear!")
+    pattern = r"\.qu"  # Regex pattern to replace
+    stokes_name = re.sub(pattern, f".{stokes}", linear_name_str)
+    logger.info(f"Renamed {linear_name_str=} to {stokes_name=}")
+    return stokes_name
+
+
+@overload
+def rename_linear_to_stokes(linear_name: Path, stokes: str) -> Path: ...
+
+
+@overload
+def rename_linear_to_stokes(linear_name: str, stokes: str) -> str: ...
+
+
+def rename_linear_to_stokes(
+    linear_name: Path | str,
+    stokes: str,
+) -> Path | str:
+    if isinstance(linear_name, Path):
+        return Path(_rename_linear_to_stokes(linear_name.as_posix(), stokes))
+
+    return _rename_linear_to_stokes(linear_name, stokes)
+
+
+task_rename_linear_to_stokes = task(rename_linear_to_stokes)
+
+
+@task
+def task_get_channel_images_from_paths(paths: list[Path]) -> list[Path]:
+    return [path for path in paths if "MFS" not in path.name]
 
 
 def get_fits_cube_from_paths(paths: list[Path]) -> list[Path]:
@@ -30,6 +71,8 @@ def get_fits_cube_from_paths(paths: list[Path]) -> list[Path]:
 
     return cube_files
 
+
+task_get_fits_cube_from_paths = task(get_fits_cube_from_paths)
 
 LONG_FIELD_TO_SHORTHAND = {"sbid": "SB", "beam": "beam", "ch": "ch", "round": "round"}
 """Name mapping between the longform of ProcessedFieldComponents and shorthands used"""
@@ -493,6 +536,69 @@ def extract_components_from_name(
     results = matched[0]
 
     return results
+
+
+def split_images(
+    images: list[Path],
+    by: str = "pol",
+) -> dict[str, list[Path]]:
+    """Split a list of images by a given field. This is intended to be used
+    when a set of images are to be split by a common field, such as polarisation.
+
+    Args:
+        images (List[Path]): The images to split
+        by (str, optional): The field to split the images by. Defaults to "pol".
+
+    Returns:
+        Dict[str,List[Path]]: A dictionary of the images split by the field
+    """
+    logger.info(f"Splitting {images=} by {by=}")
+    split_dict: dict[str, list[Path]] = {}
+    for image in images:
+        components = extract_components_from_name(name=image)
+
+        try:
+            field = getattr(components, by)
+            if field is None:
+                raise AttributeError(f"{field=} is None")
+
+        except AttributeError as e:
+            msg = f"Failed to extract {by=} from {image=}"
+            raise NamingException(msg) from e
+
+        if field not in split_dict:
+            split_dict[field] = []
+        split_dict[field].append(image)
+
+    return split_dict
+
+
+def split_and_get_images(
+    images: list[Path],
+    get: str,
+    by: str = "pol",
+) -> list[Path]:
+    """Split a list of images by a given field and return the images that match
+    the field of interest.
+
+    Args:
+        images (list[Path]): The images to split
+        get (str): The field to extract from the split images
+        by (str, optional): How to split the images. Defaults to "pol".
+
+    Raises:
+        ValueError: If the field to extract is not found in the split images
+
+    Returns:
+        list[Path]: The images that match the field of interest
+    """
+    split_dict = split_images(images=images, by=by)
+
+    split_list = split_dict.get(get, None)
+    if split_list is None:
+        raise ValueError(f"Failed to get {get=} from {split_dict=}")
+
+    return split_list
 
 
 def extract_beam_from_name(name: str | Path) -> int:

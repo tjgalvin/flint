@@ -14,6 +14,7 @@ import astropy.units as u
 import numpy as np
 from astropy.io import fits
 from astropy.wcs import FITSFixedWarning
+from prefect import task
 from racs_tools import beamcon_2D, beamcon_3D
 from radio_beam import Beam, Beams
 
@@ -216,7 +217,7 @@ def convolve_images(
     beam_shape: BeamShape,
     cutoff: float | None = None,
     convol_suffix: str = "conv",
-) -> Collection[Path]:
+) -> list[Path]:
     """Convolve a set of input images to a common resolution as specified
     by the beam_shape. If the major-axis of the native resolution is larger
     than cutoff (in arcseconds) then the racs_tools beamconv_2D task will
@@ -280,6 +281,9 @@ def convolve_images(
         return_conv_image_paths.append(convol_output_path)
 
     return return_conv_image_paths
+
+
+task_convolve_images = task(convolve_images)
 
 
 def get_parser() -> ArgumentParser:

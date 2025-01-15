@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import base64
 from pathlib import Path
-from typing import Any, TypeVar
+from typing import Any, Iterable, TypeVar
 from uuid import UUID
 
 from prefect import task
@@ -23,6 +23,41 @@ from flint.summary import (
 T = TypeVar("T")
 
 SUPPORTED_IMAGE_TYPES = ("png",)
+
+
+@task
+def task_getattr(
+    item: object,
+    attribute: str,
+    /,
+) -> Any:
+    """Retrieve an attribute from an input instance of a class or structure.
+
+    Args:
+        item (Any): The item that has the input class or structure
+        attribute (str): The attribute to extract
+
+    Returns:
+        Any: Value of the requested attribute
+    """
+    logger.debug(f"Pulling {attribute=}")
+    return getattr(item, attribute)
+
+
+@task
+def task_sorted(
+    iterable: Iterable[T],
+    /,
+    *,
+    key: Any = None,
+    reverse: bool = False,
+) -> list[T]:
+    return sorted(iterable, key=key, reverse=reverse)
+
+
+@task
+def task_zip_list_of_list(list_of_list: list[list[T]]) -> list[tuple[T, ...]]:
+    return list(zip(*list_of_list))
 
 
 def upload_image_as_artifact(image_path: Path, description: str | None = None) -> UUID:

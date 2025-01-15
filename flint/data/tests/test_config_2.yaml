@@ -1,4 +1,4 @@
-version: 0.1
+version: 0.2
 defaults:
   wsclean:
     abs_mem: 100
@@ -71,9 +71,10 @@ defaults:
       - .*png
       - .*csv
       - testing_for_sparrow.csv
-initial:
-  wsclean: {}
+
 selfcal:
+  0:
+    wsclean: {}
   1:
     wsclean:
       data_column: "EXAMPLE"
