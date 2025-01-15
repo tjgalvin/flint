@@ -856,8 +856,8 @@ def _rotate_cube(output_cube_name) -> None:
     # which is what yandasoft linmos tasks like
     with fits.open(output_cube_name, mode="update", memmap=True) as hdulist:
         hdu = hdulist[0]
-        new_header = hdu[0].header
-        data_cube = hdu[0].data
+        new_header = hdu.header
+        data_cube = hdu.data
 
         tmp_header = new_header.copy()
         # Need to swap NAXIS 3 and 4 to make LINMOS happy - booo
@@ -870,8 +870,8 @@ def _rotate_cube(output_cube_name) -> None:
 
         # Cube is currently STOKES, FREQ, RA, DEC - needs to be FREQ, STOKES, RA, DEC
         data_cube = np.moveaxis(data_cube, 1, 0)
-        hdu[0].data = data_cube
-        hdu[0].header = new_header
+        hdu.data = data_cube
+        hdu.header = new_header
         hdulist.flush()
 
 
