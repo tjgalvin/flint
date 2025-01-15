@@ -24,6 +24,7 @@ def _rename_linear_to_stokes(
         raise NameError(f"Stokes {stokes=} is not linear!")
     pattern = r"\.qu\."  # Regex pattern to replace
     stokes_name = re.sub(pattern, stokes, linear_name_str)
+    logger.info(f"Renamed {linear_name_str=} to {stokes_name=}")
     return stokes_name
 
 
