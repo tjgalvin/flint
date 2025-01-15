@@ -815,6 +815,8 @@ def task_linmos_images(
     trim_linmos_fits: bool = True,
     remove_original_images: bool = False,
     cleanup: bool = False,
+    stokesi_images: list[Path] | None = None,
+    force_remove_leakage: bool | None = None,
 ) -> LinmosResult:
     logger.info(f"Number of images to examine {len(images)}")
 
@@ -836,7 +838,7 @@ def task_linmos_images(
 
     assert out_dir is not None, f"{out_dir=}, which should not happen"
     output_path = Path(out_dir) / Path(out_file_name)
-    logger.info(f"Parsert output path is {parset_output_path}")
+    logger.info(f"Parset output path is {parset_output_path}")
 
     pol_axis = field_summary.pol_axis if field_summary else None
 
@@ -850,6 +852,8 @@ def task_linmos_images(
         pol_axis=pol_axis,
         trim_linmos_fits=trim_linmos_fits,
         cleanup=cleanup,
+        stokesi_images=stokesi_images,
+        force_remove_leakage=force_remove_leakage,
     )
     if remove_original_images:
         logger.info(f"Removing {len(images)} input images")

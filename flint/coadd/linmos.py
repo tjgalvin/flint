@@ -409,6 +409,7 @@ def _get_holography_linmos_options(
     holofile: Path | None = None,
     pol_axis: float | None = None,
     remove_leakage: bool = False,
+    stokesi_images: Collection[Path] | None = None,
 ) -> str:
     """Construct the appropriate set of linmos options that
     describe the use of the holography cube file to primary
@@ -440,7 +441,28 @@ def _get_holography_linmos_options(
     )
     parset += _get_alpha_linmos_option(pol_axis=pol_axis)
 
+    if stokesi_images is not None:
+        logger.info("Stokes I images provided. Adding to linmos parset.")
+        stokesi_list = _file_list_to_string(stokesi_images)
+        parset += f"linmos.stokesinames         = {stokesi_list}\n"
+
     return parset
+
+
+def _file_list_to_string(file_list: Collection[Path]) -> str:
+    img_str: list[str] = list(
+        [str(p).replace(".fits", "") for p in file_list if p.exists()]
+    )
+    logger.info(
+        f"{len(img_str)} unique images from {len(file_list)} input collection. "
+    )
+    img_list: str = "[" + ",".join(img_str) + "]"
+
+    assert (
+        len(set(img_str)) == len(file_list)
+    ), "Some images were dropped from the linmos image string. Something is bad, walk the plank. "
+
+    return img_list
 
 
 def generate_linmos_parameter_set(
@@ -452,6 +474,8 @@ def generate_linmos_parameter_set(
     cutoff: float = 0.001,
     pol_axis: float | None = None,
     overwrite: bool = True,
+    stokesi_images: Collection[Path] | None = None,
+    force_remove_leakage: bool | None = None,
 ) -> LinmosParsetSummary:
     """Generate a parset file that will be used with the
     yandasoft linmos task.
@@ -469,15 +493,13 @@ def generate_linmos_parameter_set(
     Returns:
         LinmosParsetSummary: Important components around the generated parset file.
     """
-    img_str: list[str] = list(
-        [str(p).replace(".fits", "") for p in images if p.exists()]
-    )
-    logger.info(f"{len(img_str)} unique images from {len(images)} input collection. ")
-    img_list: str = "[" + ",".join(img_str) + "]"
 
-    assert (
-        len(set(img_str)) == len(images)
-    ), "Some images were dropped from the linmos image string. Something is bad, walk the plank. "
+    img_list = _file_list_to_string(images)
+
+    if stokesi_images is not None and len(stokesi_images) != len(images):
+        raise ValueError(
+            f"Stokes I images provided {len(stokesi_images)} do not match the number of input images {len(images)}"
+        )
 
     # If no weights_list has been provided (and therefore no optimal
     # beam-wise weighting) assume that all beams are of about the same
@@ -492,12 +514,7 @@ def generate_linmos_parameter_set(
         assert (
             weight_files is not None
         ), f"{weight_files=}, which should not happen after creating weight files"
-        _weight_str = [
-            str(weight_file)
-            for weight_file in weight_files
-            if Path(weight_file).exists()
-        ]
-        weight_str = "[" + ",".join(_weight_str) + "]"
+        weight_str = _file_list_to_string(weight_files)
 
     beam_order_strs = [str(extract_beam_from_name(str(p.name))) for p in images]
     beam_order_list = "[" + ",".join(beam_order_strs) + "]"
@@ -524,13 +541,20 @@ def generate_linmos_parameter_set(
         f"linmos.weightstate      = Inherent\n"
         f"linmos.cutoff           = {cutoff}\n"
         f"linmos.finalcutoff           = 0.01\n"
-        "linmos.imageaccess.axis  = 1\n"  # WSClean outputs frequency as second dimension (so 1 in zero indexing)
+        "linmos.imageaccess.axis  = 3\n"  # WSClean outputs frequency as second dimension (so 3 in zero indexing)
+        # Assuming linmos uses FITS/fortran indexing - which is weird...
     )
     # Construct the holography section of the linmos parset
+    remove_leakage = (holofile is not None) and (".i." not in str(next(iter(images))))
+    if force_remove_leakage is not None:
+        logger.info(f"Force removing leakage: Setting to {force_remove_leakage}")
+        remove_leakage = force_remove_leakage
+
     parset += _get_holography_linmos_options(
         holofile=holofile,
         pol_axis=pol_axis,
-        remove_leakage=".i." not in str(next(iter(images))),
+        remove_leakage=remove_leakage,
+        stokesi_images=stokesi_images,
     )
 
     # Now write the file, me hearty
@@ -586,6 +610,8 @@ def linmos_images(
     pol_axis: float | None = None,
     trim_linmos_fits: bool = True,
     cleanup: bool = False,
+    stokesi_images: Collection[Path] | None = None,
+    force_remove_leakage: bool | None = None,
 ) -> LinmosResult:
     """Create a linmos parset file and execute it.
 
@@ -617,6 +643,8 @@ def linmos_images(
         holofile=holofile,
         cutoff=cutoff,
         pol_axis=pol_axis,
+        stokesi_images=stokesi_images,
+        force_remove_leakage=force_remove_leakage,
     )
 
     linmos_cmd_str = f"linmos -c {linmos_parset_summary.parset_path!s}"
