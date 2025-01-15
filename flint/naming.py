@@ -37,12 +37,14 @@ def rename_linear_to_stokes(
     if stokes.lower() not in ("q", "u"):
         raise NameError(f"Stokes {stokes=} is not linear!")
 
+    pattern = r"\.qu\."  # Regex pattern to replace
+
     if isinstance(linear_name, Path):
         name_str = linear_name.as_posix()
-        stokes_name = re.sub(r"\.qu\.", stokes, name_str)
+        stokes_name = re.sub(pattern, stokes, name_str)
         return Path(stokes_name)
     else:
-        stokes_name = re.sub(r"\.qu\.", stokes, linear_name)
+        stokes_name = re.sub(pattern, stokes, linear_name)
         return stokes_name
 
 
