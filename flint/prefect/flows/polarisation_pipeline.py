@@ -130,7 +130,7 @@ def process_science_fields_pol(
         fixed_beam_shape=pol_field_options.fixed_beam_shape,
     )
 
-    linmos_result_list: list[PrefectFuture[LinmosResult]] = []
+    stokes_beam_cubes: dict[str, list[PrefectFuture[Path]]] = {}
     for polarisation, image_set_list in image_sets_dict.items():
         with tags(f"polarisation-{polarisation}"):
             # Get the individual Stokes parameters in case of joint imaging
@@ -171,15 +171,26 @@ def process_science_fields_pol(
                             remove_original_images=True,
                         )
                         beam_cubes.append(cube_path)
+                stokes_beam_cubes[stokes] = beam_cubes
 
-                    linmos_result = task_linmos_images.submit(
-                        images=beam_cubes,
-                        container=pol_field_options.yandasoft_container,
-                        holofile=pol_field_options.holofile,
-                        cutoff=pol_field_options.pb_cutoff,
-                        field_summary=field_summary,
-                    )
-                    linmos_result_list.append(linmos_result)
+    linmos_result_list: list[PrefectFuture[LinmosResult]] = []
+    # We run linmos now to ensure we have Stokes I images for leakage correction
+    # If we have not imaged Stokes I, we cannot do leakage correction
+    force_remove_leakage: bool | None = None
+    if "i" not in stokes_beam_cubes.keys():
+        force_remove_leakage = False
+
+    for stokes, beam_cubes in stokes_beam_cubes.items():
+        linmos_result = task_linmos_images.submit(
+            images=beam_cubes,
+            container=pol_field_options.yandasoft_container,
+            holofile=pol_field_options.holofile,
+            cutoff=pol_field_options.pb_cutoff,
+            field_summary=field_summary,
+            stokesi_images=stokes_beam_cubes.get("i"),
+            force_remove_leakage=force_remove_leakage,
+        )
+        linmos_result_list.append(linmos_result)
 
     # wait for all linmos results to be completed
     _ = [linmos_result.result() for linmos_result in linmos_result_list]
