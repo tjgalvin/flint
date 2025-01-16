@@ -460,7 +460,7 @@ def _file_list_to_string(file_list: Collection[Path]) -> str:
 
     assert (
         len(set(img_str)) == len(file_list)
-    ), "Some images were dropped from the linmos image string. Something is bad, walk the plank. "
+    ), f"Some images were dropped from the linmos image string (found {len(set(img_str))}, expcected {len(file_list)}). Walk the plank. "
 
     return img_list
 

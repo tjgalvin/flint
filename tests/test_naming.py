@@ -7,6 +7,7 @@ from pathlib import Path
 
 import pytest
 
+from flint.exceptions import NamingException
 from flint.ms import MS
 from flint.naming import (
     CASDANameComponents,
@@ -14,6 +15,7 @@ from flint.naming import (
     ProcessedNameComponents,
     RawNameComponents,
     _long_field_name_to_shorthand,
+    _rename_linear_to_stokes,
     add_timestamp_to_path,
     casda_ms_format,
     create_fits_mask_names,
@@ -31,6 +33,8 @@ from flint.naming import (
     get_selfcal_ms_name,
     processed_ms_format,
     raw_ms_format,
+    rename_linear_to_stokes,
+    split_images,
 )
 
 
@@ -729,3 +733,86 @@ def test_create_name_from_common_fields_2():
 
     with pytest.raises(ValueError):
         create_name_from_common_fields(in_paths=examples)
+
+
+def test_rename_linear_to_stokes():
+    linear_names = (
+        "jack.qu.sparrow",
+        "qu.sparrow.jack",
+        ".qu.sparrow.jack",
+        "sparrow.jack.qu",
+    )
+    stokes_q_names = (
+        "jack.q.sparrow",
+        "qu.sparrow.jack",
+        ".q.sparrow.jack",
+        "sparrow.jack.q",
+    )
+    stokes_u_names = (
+        "jack.u.sparrow",
+        "qu.sparrow.jack",
+        ".u.sparrow.jack",
+        "sparrow.jack.u",
+    )
+
+    for stokes, stokes_names in zip(("q", "u"), (stokes_q_names, stokes_u_names)):
+        for linear_name, check_name in zip(linear_names, stokes_names):
+            stokes_name = _rename_linear_to_stokes(linear_name, stokes)
+            assert stokes_name == check_name
+
+    with pytest.raises(NameError):
+        _rename_linear_to_stokes("jack.sparrow", "i")
+        _rename_linear_to_stokes("jack.sparrow", "v")
+        _rename_linear_to_stokes("jack.sparrow", "pearl")
+
+    stokes_path = rename_linear_to_stokes(
+        linear_name=Path("jack.qu.sparrow"), stokes="q"
+    )
+    assert isinstance(stokes_path, Path)
+    stokes_path = rename_linear_to_stokes(linear_name="jack.qu.sparrow", stokes="q")
+    assert isinstance(stokes_path, str)
+
+
+def test_split_images():
+    with pytest.raises(ValueError):
+        split_images(images=[Path("jack.sparrow.i.fits")], by="pol")
+
+    pols = "iquv"
+    images = [Path(f"SB1234.FieldName.beam00.round4.{p}.fits") for p in pols]
+
+    split_dict = split_images(images=images, by="pol")
+
+    assert len(split_dict) == 4
+    assert split_dict.keys() == set(pols)
+    for key, val in split_dict.items():
+        assert len(val) == 1
+        assert val[0] == Path(f"SB1234.FieldName.beam00.round4.{key}.fits")
+
+    images = [
+        Path("SB1234.FieldName.beam00.round4.i.fits"),
+        Path("SB1234.FieldName.beam00.round4.i.MFS.fits"),
+        Path("SB1234.FieldName.beam00.round4.v.fits"),
+    ]
+
+    split_dict = split_images(images=images, by="pol")
+    assert len(split_dict) == 2
+    assert split_dict.keys() == {"i", "v"}
+    assert len(split_dict["i"]) == 2
+    assert len(split_dict["v"]) == 1
+
+    sbids = [
+        "1234",
+        "5678",
+        "9012",
+    ]
+
+    images = [Path(f"SB{sbid}.FieldName.beam00.round4.i.fits") for sbid in sbids]
+    split_dict = split_images(images=images, by="sbid")
+    assert len(split_dict) == 3
+    assert list(split_dict.keys()) == list(sbids)
+    for key, val in split_dict.items():
+        assert len(val) == 1
+        assert val[0] == Path(f"SB{key}.FieldName.beam00.round4.i.fits")
+
+    with pytest.raises(NamingException):
+        split_images(images=images, by="jack")
