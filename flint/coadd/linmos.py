@@ -444,7 +444,7 @@ def _get_holography_linmos_options(
     if stokesi_images is not None:
         logger.info("Stokes I images provided. Adding to linmos parset.")
         stokesi_list = _file_list_to_string(stokesi_images)
-        parset += f"linmos.stokesinames         = {stokesi_list}\n"
+        parset += f"linmos.stokesinames = {stokesi_list}\n"
 
     return parset
 
