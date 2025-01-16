@@ -190,6 +190,7 @@ def process_science_fields_pol(
                 field_summary=field_summary,
                 stokesi_images=stokes_beam_cubes.get("i"),
                 force_remove_leakage=force_remove_leakage,
+                trim_linmos_fits=pol_field_options.trim_linmos_fits,
             )
             linmos_result_list.append(linmos_result)
 

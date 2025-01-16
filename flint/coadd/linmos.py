@@ -539,8 +539,8 @@ def generate_linmos_parameter_set(
         f"linmos.useweightslog    = true\n"
         f"linmos.weighttype       = Combined\n"
         f"linmos.weightstate      = Inherent\n"
-        f"linmos.cutoff           = {cutoff}\n"
-        f"linmos.finalcutoff           = 0.01\n"
+        f"linmos.cutoff           = 0\n"  # This `cutoff` is based on weights, not primary beam attenuation
+        f"linmos.finalcutoff           = {cutoff}\n"  # This one though, uses the PB.
     )
     # Construct the holography section of the linmos parset
     remove_leakage = (holofile is not None) and (".i." not in str(next(iter(images))))
