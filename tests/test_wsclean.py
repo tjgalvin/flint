@@ -25,6 +25,7 @@ from flint.imager.wsclean import (
     get_wsclean_output_source_list_path,
     merge_image_sets,
     rename_wsclean_prefix_in_imageset,
+    split_and_get_image_set,
     split_image_set,
 )
 from flint.logging import logger
@@ -646,3 +647,66 @@ def test_split_image_set():
         assert len(val) == 4
         assert isinstance(val[0], Path)
         assert key == s
+
+
+def test_split_and_get_image_set():
+    ms = Path("SB1234.FieldNme.beam00.round4.ms")
+    i_prefix = create_imaging_name_prefix(ms, pol="i")
+    q_prefix = create_imaging_name_prefix(ms, pol="q")
+    u_prefix = create_imaging_name_prefix(ms, pol="u")
+    v_prefix = create_imaging_name_prefix(ms, pol="v")
+
+    i_image_set = get_wsclean_output_names(
+        prefix=i_prefix,
+        subbands=4,
+        include_mfs=False,
+        pols="I",
+    )
+    q_image_set = get_wsclean_output_names(
+        prefix=q_prefix,
+        subbands=4,
+        include_mfs=False,
+        pols="Q",
+    )
+    u_image_set = get_wsclean_output_names(
+        prefix=u_prefix,
+        subbands=4,
+        include_mfs=False,
+        pols="U",
+    )
+    v_image_set = get_wsclean_output_names(
+        prefix=v_prefix,
+        subbands=4,
+        include_mfs=False,
+        pols="V",
+    )
+
+    image_set = ImageSet(
+        prefix=i_prefix,
+        image=i_image_set.image
+        + q_image_set.image
+        + u_image_set.image
+        + v_image_set.image,
+        dirty=i_image_set.dirty
+        + q_image_set.dirty
+        + u_image_set.dirty
+        + v_image_set.dirty,
+        model=i_image_set.model
+        + q_image_set.model
+        + u_image_set.model
+        + v_image_set.model,
+        residual=i_image_set.residual
+        + q_image_set.residual
+        + u_image_set.residual
+        + v_image_set.residual,
+        psf=i_image_set.psf + q_image_set.psf + u_image_set.psf + v_image_set.psf,
+    )
+
+    split_list = split_and_get_image_set(
+        image_set=image_set, get="i", by="pol", mode="image"
+    )
+
+    assert isinstance(split_list, list)
+    assert len(split_list) == 4
+    assert isinstance(split_list[0], Path)
+    assert split_list[0].name.endswith("I-image.fits")
