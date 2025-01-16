@@ -152,6 +152,7 @@ def process_science_fields_pol(
                             beam_shape=common_beam_shape,
                             cutoff=pol_field_options.beam_cutoff,
                         )
+                        # TODO: Consider accerating this by doing a linmos per-channel, then combining
                         channel_image_list = task_get_channel_images_from_paths.submit(
                             paths=convolved_image_list
                         )
