@@ -9,7 +9,11 @@ from typing import Any
 
 import pytest
 
-from flint.exceptions import AttemptRerunException, CleanDivergenceError
+from flint.exceptions import (
+    AttemptRerunException,
+    CleanDivergenceError,
+    NamingException,
+)
 from flint.imager.wsclean import (
     ImageSet,
     WSCleanOptions,
@@ -647,6 +651,9 @@ def test_split_image_set():
         assert len(val) == 4
         assert isinstance(val[0], Path)
         assert key == s
+
+    with pytest.raises(NamingException):
+        split_image_set(image_set=image_set, by="pol", mode="plunder")
 
 
 def test_split_and_get_image_set():
