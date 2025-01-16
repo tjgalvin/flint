@@ -187,7 +187,7 @@ def test_linmos_holo_options(tmpdir):
     assert "linmos.removeleakage    = true\n" in parset
     assert f"linmos.primarybeam.ASKAP_PB.image = {holofile.absolute()!s}\n" in parset
     assert "linmos.primarybeam.ASKAP_PB.alpha" in parset
-    assert f"linmos.stokesinames = [{ifile.with_suffix("").as_posix()}]\n" in parset
+    assert f"linmos.stokesinames = [{ifile.with_suffix('').as_posix()}]\n" in parset
 
     with pytest.raises(AssertionError):
         parset = _get_holography_linmos_options(
