@@ -702,6 +702,7 @@ def task_convolve_image(
         Collection[Path]: Path to the output images that have been convolved.
     """
     image_set = wsclean_result.image_set
+    assert isinstance(image_set, ImageSet), f"{image_set=}, but should be ImageSet instance"
     return convolve_image_set(
         image_set=image_set,
         beam_shape=beam_shape,
