@@ -405,7 +405,7 @@ def process_science_fields(
                 fits_mask=fits_beam_masks,
                 strategy=unmapped(strategy),
                 mode="wsclean",
-                    operation="selfcal",
+                operation="selfcal",
                 round_info=current_round,
             )  # type: ignore
             wsclean_results = (

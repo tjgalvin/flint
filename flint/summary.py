@@ -379,7 +379,9 @@ def create_beam_summary(
     # TODO: Another example where a .cast type method could be useful
     # or where a standardised set of attributes with a HasImageSet type
     if image_set:
-        image_set = image_set if isinstance(image_set, ImageSet) else image_set.image_set
+        image_set = (
+            image_set if isinstance(image_set, ImageSet) else image_set.image_set
+        )
 
     beam_summary = BeamSummary(
         ms_summary=ms_summary, image_set=image_set, components=components
