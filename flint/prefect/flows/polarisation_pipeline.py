@@ -38,7 +38,7 @@ from flint.options import (
 )
 from flint.prefect.clusters import get_dask_runner
 from flint.prefect.common.imaging import (
-    task_get_common_beam_from_imageset,
+    task_get_common_beam_from_image_set,
     task_linmos_images,
     task_wsclean_imager,
 )
@@ -124,7 +124,7 @@ def process_science_fields_pol(
 
     merged_image_set = task_merge_image_sets.submit(image_sets=image_sets_list)
 
-    common_beam_shape = task_get_common_beam_from_imageset.submit(
+    common_beam_shape = task_get_common_beam_from_image_set.submit(
         image_set=merged_image_set,
         cutoff=pol_field_options.beam_cutoff,
         fixed_beam_shape=pol_field_options.fixed_beam_shape,

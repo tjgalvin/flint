@@ -876,16 +876,16 @@ def _rotate_cube(output_cube_name) -> None:
 
 
 def combine_image_set_to_cube(
-    imageset: ImageSet,
+    image_set: ImageSet,
     remove_original_images: bool = False,
 ) -> ImageSet:
     """Combine wsclean subband channel images into a cube. Each collection attribute
-    of the input `imageset` will be inspected. The MFS images will be ignored.
+    of the input `image_set` will be inspected. The MFS images will be ignored.
 
     A output file name will be generated based on the  prefix and mode (e.g. `image`, `residual`, `psf`, `dirty`).
 
     Args:
-        imageset (ImageSet): Collection of wsclean image productds
+        image_set (ImageSet): Collection of wsclean image productds
         remove_original_images (bool, optional): If True, images that went into the cube are removed. Defaults to False.
 
     Returns:
@@ -893,29 +893,29 @@ def combine_image_set_to_cube(
     """
     logger.info("Combining subband image products into fits cubes")
 
-    if not isinstance(imageset, ImageSet):
+    if not isinstance(image_set, ImageSet):
         raise TypeError(
-            f"Input imageset of type {type(imageset)}, expect {type(ImageSet)}"
+            f"Input image_set of type {type(image_set)}, expect {type(ImageSet)}"
         )
 
-    imageset_dict = options_to_dict(input_options=imageset)
+    image_set_dict = options_to_dict(input_options=image_set)
 
     for mode in ("image", "residual", "dirty", "model", "psf"):
-        if imageset_dict[mode] is None or not isinstance(
-            imageset_dict[mode], (list, tuple)
+        if image_set_dict[mode] is None or not isinstance(
+            image_set_dict[mode], (list, tuple)
         ):
             logger.info(f"{mode=} is None or not appropriately formed. Skipping. ")
             continue
 
         subband_images = [
-            image for image in imageset_dict[mode] if "-MFS-" not in str(image)
+            image for image in image_set_dict[mode] if "-MFS-" not in str(image)
         ]
         if len(subband_images) <= 1:
             logger.info(f"Not enough subband images for {mode=}, not creating a cube")
             continue
 
         output_cube_name = create_image_cube_name(
-            image_prefix=Path(imageset.prefix), mode=mode
+            image_prefix=Path(image_set.prefix), mode=mode
         )
 
         logger.info(f"Combining {len(subband_images)} images. {subband_images=}")
@@ -929,14 +929,14 @@ def combine_image_set_to_cube(
         output_freqs_name = Path(output_cube_name).with_suffix(".freqs_Hz.txt")
         np.savetxt(output_freqs_name, freqs.to("Hz").value)
 
-        imageset_dict[mode] = [Path(output_cube_name)] + [
-            image for image in imageset_dict[mode] if image not in subband_images
+        image_set_dict[mode] = [Path(output_cube_name)] + [
+            image for image in image_set_dict[mode] if image not in subband_images
         ]
 
         if remove_original_images:
             remove_files_folders(*subband_images)
 
-    return ImageSet(**imageset_dict)
+    return ImageSet(**image_set_dict)
 
 
 @task
@@ -947,12 +947,12 @@ def combine_images_to_cube(
     remove_original_images: bool = False,
 ) -> Path:
     """Combine wsclean subband channel images into a cube. Each collection attribute
-    of the input `imageset` will be inspected. The MFS images will be ignored.
+    of the input `image_set` will be inspected. The MFS images will be ignored.
 
     A output file name will be generated based on the  prefix and mode (e.g. `image`, `residual`, `psf`, `dirty`).
 
     Args:
-        imageset (ImageSet): Collection of wsclean image productds
+        image_set (ImageSet): Collection of wsclean image productds
         remove_original_images (bool, optional): If True, images that went into the cube are removed. Defaults to False.
 
     Returns:
@@ -978,20 +978,20 @@ def combine_images_to_cube(
     return output_cube_name
 
 
-def rename_wsclean_prefix_in_imageset(input_imageset: ImageSet) -> ImageSet:
-    """Given an input imageset, rename the files contained in it to
+def rename_wsclean_prefix_in_image_set(input_image_set: ImageSet) -> ImageSet:
+    """Given an input image_set, rename the files contained in it to
     remove the `-` separator that wsclean uses and replace it with `.`.
 
     Files will be renamed on disk appropriately.
 
     Args:
-        input_imageset (ImageSet): The collection of output wsclean products
+        input_image_set (ImageSet): The collection of output wsclean products
 
     Returns:
-        ImageSet: The updated imageset after replacing the separator and renaming files
+        ImageSet: The updated image_set after replacing the separator and renaming files
     """
 
-    input_args = options_to_dict(input_options=input_imageset)
+    input_args = options_to_dict(input_options=input_image_set)
 
     check_keys = ("prefix", "image", "residual", "model", "dirty")
 
@@ -1008,9 +1008,9 @@ def rename_wsclean_prefix_in_imageset(input_imageset: ImageSet) -> ImageSet:
         else:
             output_args[key] = value
 
-    output_imageset = ImageSet(**output_args)
+    output_image_set = ImageSet(**output_args)
 
-    return output_imageset
+    return output_image_set
 
 
 def _make_pols(pol_str: str) -> tuple[str, ...] | None:
@@ -1118,7 +1118,7 @@ def run_wsclean_imager(
 
     pols = _make_pols(pol_str=wsclean_result.options.pol)
 
-    imageset = get_wsclean_output_names(
+    image_set = get_wsclean_output_names(
         prefix=prefix,
         subbands=wsclean_result.options.channels_out,
         pols=pols,
@@ -1133,18 +1133,18 @@ def run_wsclean_imager(
             name_path=prefix, pol=None
         )
         assert source_list_path.exists(), f"{source_list_path=} does not exist"
-        imageset = imageset.with_options(source_list=source_list_path)
+        image_set = image_set.with_options(source_list=source_list_path)
 
     if make_cube_from_subbands:
-        imageset = combine_image_set_to_cube(
-            imageset=imageset, remove_original_images=True
+        image_set = combine_image_set_to_cube(
+            image_set=image_set, remove_original_images=True
         )
 
-    imageset = rename_wsclean_prefix_in_imageset(input_imageset=imageset)
+    image_set = rename_wsclean_prefix_in_image_set(input_image_set=image_set)
 
-    logger.info(f"Constructed {imageset=}")
+    logger.info(f"Constructed {image_set=}")
 
-    return imageset
+    return image_set
 
 
 def wsclean_imager(

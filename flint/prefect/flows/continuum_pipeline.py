@@ -276,7 +276,8 @@ def process_science_fields(
         wsclean_container=field_options.wsclean_container,
         strategy=unmapped(strategy),
         mode="wsclean",
-        round_info="initial",
+        round_info=0,
+        operation="selfcal",
     )  # type: ignore
 
     wsclean_results = (
@@ -290,7 +291,7 @@ def process_science_fields(
 
     # TODO: This should be waited!
     beam_summaries = task_create_beam_summary.map(
-        ms=preprocess_science_mss, imageset=wsclean_results
+        ms=preprocess_science_mss, image_set=wsclean_results
     )
     archive_wait_for.extend(beam_summaries)
     archive_wait_for.extend(wsclean_results)
@@ -359,6 +360,7 @@ def process_science_fields(
                 strategy=unmapped(strategy),
                 mode="gaincal",
                 round_info=current_round,
+                operation="selfcal",
                 wait_for=[
                     field_summary
                 ],  # To make sure field summary is created with unzipped MSs
@@ -394,6 +396,7 @@ def process_science_fields(
                     strategy=unmapped(strategy),
                     mode="masking",
                     round_info=current_round,
+                    operation="selfcal",
                 )  # type: ignore
 
             wsclean_results = task_wsclean_imager.map(
@@ -402,6 +405,7 @@ def process_science_fields(
                 fits_mask=fits_beam_masks,
                 strategy=unmapped(strategy),
                 mode="wsclean",
+                    operation="selfcal",
                 round_info=current_round,
             )  # type: ignore
             wsclean_results = (

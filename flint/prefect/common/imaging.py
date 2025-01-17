@@ -191,16 +191,16 @@ def task_run_bane_and_aegean(
         AegeanOutputs: Output BANE and aegean products, including the RMS and BKG images
     """
     if isinstance(image, WSCleanResult):
-        assert image.imageset is not None, "Image set attribute unset. "
-        image_paths = image.imageset.image
+        assert image.image_set is not None, "Image set attribute unset. "
+        image_paths = image.image_set.image
 
         logger.info(f"Have extracted image: {image_paths}")
 
         # For the moment, will only source find on an MFS image
         image_paths = [image for image in image_paths if ".MFS." in str(image)]
-        assert (
-            len(image_paths) == 1
-        ), "More than one image found after filter_str for MFS only images. "
+        assert len(image_paths) == 1, (
+            "More than one image found after filter_str for MFS only images. "
+        )
         # Get out the only path in the list.
         image_path = image_paths[0]
     elif isinstance(image, LinmosResult):
@@ -409,7 +409,7 @@ def get_common_beam_from_images(
 task_get_common_beam_from_images = task(get_common_beam_from_images)
 
 
-def get_common_beam_from_imageset(
+def get_common_beam_from_image_set(
     image_set: ImageSet,
     cutoff: float = 25,
     filter_str: str | None = None,
@@ -434,7 +434,7 @@ def get_common_beam_from_imageset(
     )
 
 
-task_get_common_beam_from_imageset = task(get_common_beam_from_imageset)
+task_get_common_beam_from_image_set = task(get_common_beam_from_image_set)
 
 
 def get_common_beam_from_image_sets(
@@ -489,12 +489,12 @@ def get_common_beam_from_results(
 
     # TODO: This should support other image types
     for wsclean_result in wsclean_results:
-        if wsclean_result.imageset is None:
+        if wsclean_result.image_set is None:
             logger.warning(
-                f"No imageset for {wsclean_result.ms} found. Has imager finished?"
+                f"No image_set for {wsclean_result.ms} found. Has imager finished?"
             )
             continue
-        images_to_consider.extend(wsclean_result.imageset.image)
+        images_to_consider.extend(wsclean_result.image_set.image)
 
     return get_common_beam_from_images(
         image_paths=images_to_consider,
@@ -526,12 +526,12 @@ def task_get_cube_common_beam(
 
     # TODO: This should support other image types
     for wsclean_result in wsclean_results:
-        if wsclean_result.imageset is None:
+        if wsclean_result.image_set is None:
             logger.warning(
-                f"No imageset for {wsclean_result.ms} found. Has imager finished?"
+                f"No image_set for {wsclean_result.ms} found. Has imager finished?"
             )
             continue
-        images_to_consider.extend(wsclean_result.imageset.image)
+        images_to_consider.extend(wsclean_result.image_set.image)
 
     images_to_consider = get_fits_cube_from_paths(paths=images_to_consider)
 
@@ -563,18 +563,18 @@ def task_convolve_cube(
     Returns:
         Collection[Path]: Path to the output images that have been convolved.
     """
-    assert (
-        wsclean_result.imageset is not None
-    ), f"{wsclean_result.ms} has no attached imageset."
+    assert wsclean_result.image_set is not None, (
+        f"{wsclean_result.ms} has no attached image_set."
+    )
 
     supported_modes = ("image",)
     logger.info(f"Extracting {mode}")
     if mode == "image":
-        image_paths = list(wsclean_result.imageset.image)
+        image_paths = list(wsclean_result.image_set.image)
     else:
         raise ValueError(f"{mode=} is not supported. Known modes are {supported_modes}")
 
-    logger.info(f"Extracting cubes from imageset {mode=}")
+    logger.info(f"Extracting cubes from image_set {mode=}")
     image_paths = get_fits_cube_from_paths(paths=image_paths)
 
     # It is possible depending on how aggressively cleaning image products are deleted that these
@@ -582,9 +582,9 @@ def task_convolve_cube(
     # handling this. The pirate in me feels like less is more, so an error will be enough. Keeping
     # things simple and avoiding the problem is probably the better way of dealing with this
     # situation. In time this would mean that we inspect and handle conflicting pipeline options.
-    assert (
-        image_paths is not None
-    ), f"{image_paths=} for {mode=} and {wsclean_result.imageset=}"
+    assert image_paths is not None, (
+        f"{image_paths=} for {mode=} and {wsclean_result.image_set=}"
+    )
 
     logger.info(f"Will convolve {image_paths}")
 
@@ -623,9 +623,9 @@ def convolve_image_set(
     if mode == "image":
         image_paths = list(image_set.image)
     elif mode == "residual":
-        assert (
-            image_set.residual is not None
-        ), f"{image_set.residual=}, which should not happen"
+        assert image_set.residual is not None, (
+            f"{image_set.residual=}, which should not happen"
+        )
         image_paths = list(image_set.residual)
     else:
         raise ValueError(f"{mode=} is not supported. Known modes are {supported_modes}")
@@ -701,7 +701,7 @@ def task_convolve_image(
     Returns:
         Collection[Path]: Path to the output images that have been convolved.
     """
-    image_set = wsclean_result.imageset
+    image_set = wsclean_result.image_set
     return convolve_image_set(
         image_set=image_set,
         beam_shape=beam_shape,
@@ -715,7 +715,7 @@ def task_convolve_image(
 
 @task
 def task_linmos_images_list(
-    image_list_list: Collection[Collection[Path]],
+    image_list: Collection[Collection[Path]],
     container: Path,
     filter_str: str | None = ".MFS.",
     field_name: str | None = None,
@@ -732,7 +732,7 @@ def task_linmos_images_list(
     """Run the yandasoft linmos task against a set of input images
 
     Args:
-        images (Collection[Collection[Path]]): Images that will be co-added together
+        image_list (Collection[Collection[Path]]): Images that will be co-added together
         container (Path): Path to singularity container that contains yandasoft
         filter_str (Optional[str], optional): Filter to extract the images that will be extracted from the set of input images. These will be co-added. If None all images are co-added. Defaults to ".MFS.".
         suffix_str (str, optional): Additional string added to the prefix of the output linmos image products. Defaults to "noselfcal".
@@ -753,11 +753,11 @@ def task_linmos_images_list(
     # TODO: Need a better filter_str approach. Would probably be better to
     # have literals for the type of product (MFS, cube, model) to be
     # sure of appropriate extraction
-    all_images = [img for beam_images in image_list_list for img in beam_images]
+    all_images = [img for beam_images in image_list for img in beam_images]
     logger.info(f"Number of images to examine {len(all_images)}")
 
     filter_images = (
-        [img for img in all_images if filter_str in str(img)]
+        list(filter(lambda img: filter_str in str(img), all_images))
         if filter_str
         else all_images
     )
@@ -897,7 +897,7 @@ def convolve_then_linmos(
     """
 
     conv_images = task_convolve_image.map(
-        wsclean_results=wsclean_results,
+        wsclean_result=wsclean_results,
         beam_shape=unmapped(beam_shape),  # type: ignore
         cutoff=field_options.beam_cutoff,
         mode=convol_mode,
@@ -907,7 +907,7 @@ def convolve_then_linmos(
     )
     assert field_options.yandasoft_container is not None
     parset = task_linmos_images_list.submit(
-        images=conv_images,  # type: ignore
+        image_list=conv_images,  # type: ignore
         container=field_options.yandasoft_container,
         suffix_str=linmos_suffix_str,
         holofile=field_options.holofile,
@@ -1025,7 +1025,7 @@ def create_convolve_linmos_cubes(
 
     assert field_options.yandasoft_container is not None
     parset = task_linmos_images_list.submit(
-        images=convolved_cubes,  # type: ignore
+        image_list=convolved_cubes,  # type: ignore
         container=field_options.yandasoft_container,
         suffix_str=linmos_suffix_str,
         holofile=field_options.holofile,
@@ -1068,8 +1068,8 @@ def task_create_image_mask_model(
         source_image = image.image_fits
     elif isinstance(image, ImageSet) and image.image is not None:
         source_image = list(image.image)[-1]
-    elif isinstance(image, WSCleanResult) and image.imageset is not None:
-        source_image = list(image.imageset.image)[-1]
+    elif isinstance(image, WSCleanResult) and image.image_set is not None:
+        source_image = list(image.image_set.image)[-1]
     else:
         source_image = image_products.image
 
@@ -1111,10 +1111,10 @@ def task_extract_beam_mask_image(
         FITSMaskNames: Clean mask for a image
     """
     # All images made by wsclean will have the same WCS
-    assert (
-        wsclean_result.imageset is not None
-    ), f"{wsclean_result.imageset=}, which should not happen"
-    beam_image = next(iter(wsclean_result.imageset.image))
+    assert wsclean_result.image_set is not None, (
+        f"{wsclean_result.image_set=}, which should not happen"
+    )
+    beam_image = next(iter(wsclean_result.image_set.image))
     beam_mask_names = extract_beam_mask_from_mosaic(
         fits_beam_image_path=beam_image, fits_mosaic_mask_names=linmos_mask_names
     )

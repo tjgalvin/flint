@@ -28,7 +28,7 @@ from flint.imager.wsclean import (
     get_wsclean_output_names,
     get_wsclean_output_source_list_path,
     merge_image_sets,
-    rename_wsclean_prefix_in_imageset,
+    rename_wsclean_prefix_in_image_set,
     split_and_get_image_set,
     split_image_set,
 )
@@ -116,10 +116,10 @@ def _write_test_image(items: Any):
             out_file.write(str(item))
 
 
-def test_rename_wsclean_imageset(tmpdir: Any):
+def test_rename_wsclean_image_set(tmpdir: Any):
     """Ensure that items described in an image set are able to be properly renamed"""
 
-    test_dir = Path(tmpdir) / "imagesetrename"
+    test_dir = Path(tmpdir) / "image_setrename"
     test_dir.mkdir(parents=True, exist_ok=True)
 
     # create some test files and ensure they all exist
@@ -137,7 +137,7 @@ def test_rename_wsclean_imageset(tmpdir: Any):
     # form the image set that will have the wsclean appended properties string renamed
     image_set = ImageSet(**keys)
     assert isinstance(image_set, ImageSet)
-    new_image_set = rename_wsclean_prefix_in_imageset(input_imageset=image_set)
+    new_image_set = rename_wsclean_prefix_in_image_set(input_image_set=image_set)
 
     # test to see thhat files exists
     assert new_image_set.prefix == prefix
@@ -241,20 +241,20 @@ def test_combine_subbands_to_cube(tmpdir):
     assert all([f.exists() for f in files])
     file_parent = files[0].parent
     prefix = f"{file_parent}/SB56659.RACS_0940-04.beam17.round3"
-    imageset = ImageSet(
+    image_set = ImageSet(
         prefix=prefix,
         image=files,
     )
 
-    new_imageset = combine_image_set_to_cube(
-        imageset=imageset, remove_original_images=False
+    new_image_set = combine_image_set_to_cube(
+        image_set=image_set, remove_original_images=False
     )
 
-    assert new_imageset.prefix == imageset.prefix
-    assert len(new_imageset.image) == 1
+    assert new_image_set.prefix == image_set.prefix
+    assert len(new_image_set.image) == 1
 
     with pytest.raises(TypeError):
-        _ = combine_image_set_to_cube(imageset=files, remove_original_images=False)  # type: ignore
+        _ = combine_image_set_to_cube(image_set=files, remove_original_images=False)  # type: ignore
 
 
 def test_combine_subbands_to_cube2(tmpdir):
@@ -272,17 +272,17 @@ def test_combine_subbands_to_cube2(tmpdir):
     assert all([f.exists() for f in files])
     file_parent = files[0].parent
     prefix = f"{file_parent}/SB56659.RACS_0940-04.beam17.round3"
-    imageset = ImageSet(
+    image_set = ImageSet(
         prefix=prefix,
         image=files,
     )
 
-    new_imageset = combine_image_set_to_cube(
-        imageset=imageset, remove_original_images=True
+    new_image_set = combine_image_set_to_cube(
+        image_set=image_set, remove_original_images=True
     )
     assert all([not file.exists() for file in files])
-    assert new_imageset.prefix == imageset.prefix
-    assert len(new_imageset.image) == 1
+    assert new_image_set.prefix == image_set.prefix
+    assert len(new_image_set.image) == 1
 
 
 def test_resolve_key_value_to_cli():

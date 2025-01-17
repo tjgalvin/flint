@@ -345,7 +345,7 @@ class BeamSummary(NamedTuple):
 
     ms_summary: MSSummary
     """A summary object of a measurement set"""
-    imageset: ImageSet | None = None
+    image_set: ImageSet | None = None
     """A set of images that have been created from the measurement set represented by `summary`"""
     components: AegeanOutputs | None = None
     """The source finding components from the aegean source finder"""
@@ -359,14 +359,14 @@ class BeamSummary(NamedTuple):
 
 def create_beam_summary(
     ms: MS | Path,
-    imageset: ImageSet | WSCleanResult | None = None,
+    image_set: ImageSet | WSCleanResult | None = None,
     components: AegeanOutputs | None = None,
 ) -> BeamSummary:
     """Create a summary of a beam
 
     Args:
         ms (Union[MS, Path]): The measurement set being considered
-        imageset (Optional[ImageSet], optional): Images produced from an imager. Defaults to None.
+        image_set (Optional[ImageSet], optional): Images produced from an imager. Defaults to None.
         components (Optional[AegeanOutputs], optional): Source finding output components. Defaults to None.
 
     Returns:
@@ -378,11 +378,11 @@ def create_beam_summary(
 
     # TODO: Another example where a .cast type method could be useful
     # or where a standardised set of attributes with a HasImageSet type
-    if imageset:
-        imageset = imageset if isinstance(imageset, ImageSet) else imageset.imageset
+    if image_set:
+        image_set = image_set if isinstance(image_set, ImageSet) else image_set.image_set
 
     beam_summary = BeamSummary(
-        ms_summary=ms_summary, imageset=imageset, components=components
+        ms_summary=ms_summary, image_set=image_set, components=components
     )
 
     return beam_summary
