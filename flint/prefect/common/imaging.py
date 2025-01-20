@@ -954,55 +954,92 @@ def create_convol_linmos_images(
 
     main_linmos_suffix_str = ".".join(suffixes)
 
-    todo: list[tuple[Any, str]] = [(None, get_beam_resolution_str(mode="optimal"))]
-    if field_options.fixed_beam_shape:
-        logger.info(
-            f"Creating second round of linmos images with {field_options.fixed_beam_shape}"
-        )
-        todo.append(
-            (field_options.fixed_beam_shape, get_beam_resolution_str(mode="fixed"))
-        )
+    beam_str = get_beam_resolution_str(mode="optimal")
 
-    for round_beam_shape, beam_str in todo:
-        linmos_suffix_str = f"{beam_str}.{main_linmos_suffix_str}"
-        convol_suffix_str = f"{beam_str}.conv"
+    linmos_suffix_str = f"{beam_str}.{main_linmos_suffix_str}"
+    convol_suffix_str = f"{beam_str}.conv"
 
-        beam_shape = task_get_common_beam_from_results.submit(
-            wsclean_results=wsclean_results,
-            cutoff=field_options.beam_cutoff,
-            filter_str=".MFS.",
-            fixed_beam_shape=round_beam_shape,
-        )
-        # NOTE: The order matters here. The last linmos file is used
-        # when running the source finding. Putting this order around means
-        # we would source find on the residual image
-        if field_options.linmos_residuals:
-            parsets.append(
-                convolve_then_linmos(
-                    wsclean_results=wsclean_results,
-                    beam_shape=beam_shape,  # type: ignore
-                    field_options=field_options,
-                    linmos_suffix_str=f"{linmos_suffix_str}.residual",
-                    field_summary=field_summary,
-                    convol_mode="residual",
-                    convol_filter=".MFS.",
-                    convol_suffix_str=convol_suffix_str,
-                )
-            )
+    beam_shape = task_get_common_beam_from_results.submit(
+        wsclean_results=wsclean_results,
+        cutoff=field_options.beam_cutoff,
+        filter_str=".MFS.",
+    )
+    # NOTE: The order matters here. The last linmos file is used
+    # when running the source finding. Putting this order around means
+    # we would source find on the residual image
+    if field_options.linmos_residuals:
         parsets.append(
             convolve_then_linmos(
                 wsclean_results=wsclean_results,
                 beam_shape=beam_shape,  # type: ignore
                 field_options=field_options,
-                linmos_suffix_str=linmos_suffix_str,
+                linmos_suffix_str=f"{linmos_suffix_str}.residual",
                 field_summary=field_summary,
-                convol_mode="image",
+                convol_mode="residual",
                 convol_filter=".MFS.",
                 convol_suffix_str=convol_suffix_str,
             )
         )
+    parsets.append(
+        convolve_then_linmos(
+            wsclean_results=wsclean_results,
+            beam_shape=beam_shape,  # type: ignore
+            field_options=field_options,
+            linmos_suffix_str=linmos_suffix_str,
+            field_summary=field_summary,
+            convol_mode="image",
+            convol_filter=".MFS.",
+            convol_suffix_str=convol_suffix_str,
+        )
+    )
 
     return parsets
+
+
+@task
+def task_convolve_linmos_to_fixed_shape(
+    linmos_result: LinmosResult, field_options: FieldOptions
+) -> LinmosResult:
+    """Smooth the linm
+
+    Args:
+        linmos_result (LinmosResult): _description_
+        field_options (FieldOptions): _description_
+
+    Returns:
+        LinmosResult: _description_
+    """
+    from flint.naming import update_beam_resolution_field_in_path
+
+    image_to_smooth = linmos_result.image_fits
+
+    output_image_path: Path = update_beam_resolution_field_in_path(
+        path=image_to_smooth, original_mode="optimal", updated_mode="fixed", marker="."
+    )
+
+    assert (
+        field_options.fixed_beam_shape
+    ), f"{field_options.fixed_beam_shape=}, which is not allowed"
+    beam_shape = BeamShape(
+        bmaj_arcsec=field_options.fixed_beam_shape[0],
+        bmin_arcsec=field_options.fixed_beam_shape[1],
+        bpa_deg=field_options.fixed_beam_shape[2],
+    )
+
+    # There is no option to provide a fully qualified name. So, capture then rename
+    # the smoothed file
+    images_to_smooth = [image_to_smooth]
+    smoothed_linmos_paths = convolve_images(
+        image_paths=images_to_smooth,
+        beam_shape=beam_shape,
+        convol_suffix="conv_to_rename",
+        output_paths=[output_image_path],
+    )
+    assert (
+        len(smoothed_linmos_paths) == len(images_to_smooth) == 1
+    ), f"Need matching path lengths between {images_to_smooth=} and {smoothed_linmos_paths=}"
+
+    return linmos_result.with_options(image_fits=output_image_path)
 
 
 def create_convolve_linmos_cubes(

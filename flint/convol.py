@@ -217,17 +217,24 @@ def convolve_images(
     beam_shape: BeamShape,
     cutoff: float | None = None,
     convol_suffix: str = "conv",
+    output_paths: list[Path] | None = None,
 ) -> list[Path]:
     """Convolve a set of input images to a common resolution as specified
     by the beam_shape. If the major-axis of the native resolution is larger
     than cutoff (in arcseconds) then the racs_tools beamconv_2D task will
     nan it.
 
+    Additionally, some input subject image will simply copied if:
+
+    * the input ``beam_shape`` is not finite, or
+    * the beamshape encoded in the FITS header of the subject image is not defined
+
     Args:
         image_paths (Collection[Path]): Set of image paths to FITS images to convol
         beam_shape (BeamShape): The specification of the desired final resolution
         cutoff (Optional[float], optional): Images whose major-axis is larger than this will be blank. Expected in arcseconds. Defaults to None.
         convol_suffix (str, optional): The suffix added to .fits to indicate smoothed image. Defaults to 'conv'.
+        output_paths (list[Path] | None, optional): The final output file namesfor each input image. If provided this renamed files created using the `convol_suffix`. Defaults to None.
 
     Returns:
         Collection[Path]: Set of paths to the smoothed images
@@ -260,8 +267,16 @@ def convolve_images(
 
     return_conv_image_paths: list[Path] = []
 
-    for image_path in image_paths:
-        convol_output_path = Path(
+    if output_paths:
+        assert isinstance(
+            output_paths, type(image_paths)
+        ), "Types for image_paths and output_paths need to be the same"
+        assert (
+            len(output_paths) == len(image_paths)
+        ), f"Mismatch collection lengths of image_paths ({len(image_paths)}) and output_paths ({len(output_paths)})"
+
+    for idx, image_path in enumerate(image_paths):
+        convol_output_path: Path = Path(
             str(image_path).replace(".fits", f".{convol_suffix}.fits")
         )
         header = fits.getheader(image_path)
@@ -278,6 +293,18 @@ def convolve_images(
                 suffix=convol_suffix,
                 cutoff=cutoff,
             )
+
+        if output_paths:
+            output_path: Path = output_paths[idx]
+            logger.info(f"Renaming generate convolved file to {output_path=}")
+            convol_output_path.rename(output_path)
+            convol_output_path = output_path
+
+            # Pirates trust nothing, especially with the silly logic
+            assert (
+                convol_output_path.exists()
+            ), f"{convol_output_path=} should exist, but doesn't"
+
         return_conv_image_paths.append(convol_output_path)
 
     return return_conv_image_paths

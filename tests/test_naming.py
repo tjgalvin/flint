@@ -35,6 +35,7 @@ from flint.naming import (
     raw_ms_format,
     rename_linear_to_stokes,
     split_images,
+    update_beam_resolution_field_in_path,
 )
 
 
@@ -150,6 +151,29 @@ def test_get_beam_resolution_str():
 
     with pytest.raises(ValueError):
         _ = get_beam_resolution_str("Jack")
+
+
+def test_update_beam_resolution_mode_in_path():
+    """Given a path that has a known beam resolution mode in it, update to another"""
+
+    example = Path("SB57516.RACS_0929-81.round4.i.optimal.round4.residual.linmos.fits")
+    expected = Path("SB57516.RACS_0929-81.round4.i.fixed.round4.residual.linmos.fits")
+
+    assert expected == update_beam_resolution_field_in_path(
+        path=example, original_mode="optimal", updated_mode="fixed"
+    )
+    assert expected == update_beam_resolution_field_in_path(
+        path=example, original_mode="optimal", updated_mode="fixed", marker="."
+    )
+    with pytest.raises(AssertionError):
+        update_beam_resolution_field_in_path(
+            path=example, original_mode="fixed", updated_mode="optimal"
+        )
+        update_beam_resolution_field_in_path(
+            path=Path("JackSparrowCaresNotForBeamResolutions"),
+            original_mode="optimal",
+            updated_mode="fixed",
+        )
 
 
 def test_casda_ms_format_1934():

@@ -11,6 +11,7 @@ from astropy.io import fits
 
 from flint.logging import logger
 from flint.naming import LinmosNames, create_linmos_names, extract_beam_from_name
+from flint.options import BaseOptions
 from flint.sclient import run_singularity_command
 
 # This is the expected orientation of the third-axis and footprint (remember the footprint
@@ -18,7 +19,7 @@ from flint.sclient import run_singularity_command
 EXPECTED_HOLOGRAPHY_ROTATION_CONSTANT_RADIANS = -2 * np.pi / 8
 
 
-class LinmosResult(NamedTuple):
+class LinmosResult(BaseOptions):
     cmd: str
     """The yandasoft linmos task that will be executed"""
     parset: Path

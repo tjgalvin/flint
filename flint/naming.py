@@ -7,9 +7,7 @@ from __future__ import annotations
 import re
 from datetime import datetime
 from pathlib import Path
-from typing import Any, NamedTuple, overload
-
-from prefect import task
+from typing import Any, Literal, NamedTuple, overload
 
 from flint.exceptions import NamingException
 from flint.logging import logger
@@ -26,6 +24,9 @@ def _rename_linear_to_stokes(
     stokes_name = re.sub(pattern, f".{stokes}", linear_name_str)
     logger.info(f"Renamed {linear_name_str=} to {stokes_name=}")
     return stokes_name
+
+
+# TODO: Why overload and not TypeVar(Path,str)
 
 
 @overload
@@ -46,14 +47,6 @@ def rename_linear_to_stokes(
     return _rename_linear_to_stokes(linear_name, stokes)
 
 
-task_rename_linear_to_stokes = task(rename_linear_to_stokes)
-
-
-@task
-def task_get_channel_images_from_paths(paths: list[Path]) -> list[Path]:
-    return [path for path in paths if "MFS" not in path.name]
-
-
 def get_fits_cube_from_paths(paths: list[Path]) -> list[Path]:
     """Given a list of files, find the ones that appear to be FITS files
     and contain the ``.cube.`` field indicator. A regular expression searching
@@ -71,8 +64,6 @@ def get_fits_cube_from_paths(paths: list[Path]) -> list[Path]:
 
     return cube_files
 
-
-task_get_fits_cube_from_paths = task(get_fits_cube_from_paths)
 
 LONG_FIELD_TO_SHORTHAND = {"sbid": "SB", "beam": "beam", "ch": "ch", "round": "round"}
 """Name mapping between the longform of ProcessedFieldComponents and shorthands used"""
@@ -229,14 +220,17 @@ def create_imaging_name_prefix(
     return ".".join(names)
 
 
-def get_beam_resolution_str(mode: str, marker: str | None = None) -> str:
+ResolutionModes = Literal["optimal", "fixed"]
+
+
+def get_beam_resolution_str(mode: ResolutionModes, marker: str | None = None) -> str:
     """Map a beam resolution mode to an appropriate suffix. This
     is located her in anticipation of other imaging modes.
 
     Supported modes are: 'optimal', 'fixed', 'raw'
 
     Args:
-        mode (str): The mode of image resolution to use.
+        mode (Literal["fixed","optimal"]): The mode of image resolution to use.
         marker (Optional[str], optional): Append the marker to the end of the returned mode string. If None mode string is returned. Defaults to None.
 
     Raises:
@@ -257,6 +251,24 @@ def get_beam_resolution_str(mode: str, marker: str | None = None) -> str:
     mode_str = supported_modes[mode.lower()]
 
     return mode_str + marker if marker else mode_str
+
+
+def update_beam_resolution_field_in_path(
+    path: Path,
+    original_mode: ResolutionModes,
+    updated_mode: ResolutionModes,
+    marker: str | None = None,
+) -> Path:
+    original_mode_str = get_beam_resolution_str(mode=original_mode, marker=marker)
+    updated_mode_str = get_beam_resolution_str(mode=updated_mode, marker=marker)
+
+    assert original_mode_str in str(path), f"{original_mode_str=} not in {path=}"
+    new_path = Path(str(path).replace(original_mode_str, updated_mode_str))
+    logger.info(
+        f"Updated beam resolution mode from {original_mode=} to {updated_mode=}"
+    )
+
+    return new_path
 
 
 def get_selfcal_ms_name(in_ms_path: Path, round: int = 1) -> Path:

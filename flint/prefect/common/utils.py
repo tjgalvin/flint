@@ -12,7 +12,12 @@ from prefect.artifacts import create_markdown_artifact
 
 from flint.archive import copy_sbid_files_archive, create_sbid_tar_archive
 from flint.logging import logger
-from flint.naming import add_timestamp_to_path, get_sbid_from_path
+from flint.naming import (
+    add_timestamp_to_path,
+    get_fits_cube_from_paths,
+    get_sbid_from_path,
+    rename_linear_to_stokes,
+)
 from flint.options import ArchiveOptions
 from flint.summary import (
     create_beam_summary,
@@ -60,6 +65,11 @@ def task_zip_list_of_list(list_of_list: list[list[T]]) -> list[tuple[T, ...]]:
     return list(zip(*list_of_list))
 
 
+@task
+def task_get_channel_images_from_paths(paths: list[Path]) -> list[Path]:
+    return [path for path in paths if "MFS" not in path.name]
+
+
 def upload_image_as_artifact(image_path: Path, description: str | None = None) -> UUID:
     """Create and submit a markdown artifact tracked by prefect for an
     input image. Currently supporting png formatted images.
@@ -97,6 +107,8 @@ def upload_image_as_artifact(image_path: Path, description: str | None = None) -
 task_update_field_summary = task(update_field_summary)
 task_create_field_summary = task(create_field_summary)
 task_create_beam_summary = task(create_beam_summary)
+task_get_fits_cube_from_paths = task(get_fits_cube_from_paths)
+task_rename_linear_to_stokes = task(rename_linear_to_stokes)
 
 
 @task
