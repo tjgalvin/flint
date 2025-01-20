@@ -740,6 +740,12 @@ def task_linmos_images(
 
     logger.info(f"Number of images to examine {len(image_list)}")
 
+    # TODO: Need to have a generic flatten helper function
+    if isinstance(image_list[0], (list, tuple)):
+        # This is a just in case. Some silly pirate ignore the types and pass through list of lists
+        logger.info("Image list appears as though it needs to be flattened.")
+        image_list = [img for image in image_list for img in image]  # type: ignore
+
     logger.info(f"Combining images {image_list}")
 
     from flint.naming import create_name_from_common_fields
