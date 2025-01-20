@@ -1,6 +1,7 @@
 # Change log
 
 # dev
+
 - Added a `flint_flow_polarisation_pipeline`, implemented by @AlecThomson
   - changes to `image_set`
   - `poetry` to `hatchling`
