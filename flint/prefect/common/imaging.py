@@ -770,6 +770,7 @@ def task_linmos_images(
         image_output_name=str(out_name),
         stokesi_images=stokesi_images,
         force_remove_leakage=force_remove_leakage,
+        remove_original_images=remove_original_images,
     )
 
     linmos_result = linmos_images(
@@ -778,13 +779,6 @@ def task_linmos_images(
         linmos_options=linmos_options,
         container=container,
     )
-
-    # TODO: Perhaps the 'remove_original_files' should also be dealt with
-    # internally by linmos_images
-    if remove_original_images:
-        logger.info(f"Removing {len(images)} input images")
-        for image_path in images:
-            image_path.unlink(missing_ok=True)
 
     return linmos_result
 
@@ -1005,8 +999,8 @@ def task_create_image_mask_model(
     image_products: AegeanOutputs,
     update_masking_options: dict[str, Any] | None = None,
 ) -> FITSMaskNames:
-    """Create a mask from a linmos image, with the intention of providing it as a clean mask
-    to an appropriate imager. This is derived using a simple signal to noise cut.
+    """Create a mask for an image, with the intention of providing it as a clean mask
+    to an appropriate imager.
 
     Args:
         linmos_parset (LinmosResult): Linmos command and associated meta-data

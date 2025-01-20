@@ -13,6 +13,7 @@ from flint.logging import logger
 from flint.naming import LinmosNames, create_linmos_names, extract_beam_from_name
 from flint.options import BaseOptions, add_options_to_parser, create_options_from_parser
 from flint.sclient import run_singularity_command
+from flint.utils import remove_files_folders
 
 # This is the expected orientation of the third-axis and footprint (remember the footprint
 # can be electronically rotated).
@@ -51,6 +52,8 @@ class LinmosOptions(BaseOptions):
     """Overwrite the ``removeLeakage`` option to ``linmos``. Defaults to None. """
     overwrite: bool = False
     """Overwrite the linmos parset file generated if it exists. Defaults to False."""
+    remove_original_images: bool = False
+    """Delete the images that were coaddede together. Defaults to False."""
 
 
 class BoundingBox(NamedTuple):
@@ -680,6 +683,9 @@ def linmos_images(
 
     if linmos_options.cleanup:
         _linmos_cleanup(linmos_parset_summary=linmos_parset_summary)
+
+    if linmos_options.remove_original_images:
+        remove_files_folders(*images)
 
     return linmos_result
 
