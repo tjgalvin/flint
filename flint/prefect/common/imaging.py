@@ -20,7 +20,7 @@ from flint.calibrate.aocalibrate import (
     create_apply_solutions_cmd,
     select_aosolution_for_ms,
 )
-from flint.coadd.linmos import LinmosResult, linmos_images
+from flint.coadd.linmos import LinmosOptions, LinmosResult, linmos_images
 from flint.configuration import wrapper_options_from_strategy
 from flint.convol import (
     BeamShape,
@@ -717,96 +717,6 @@ def task_convolve_image(
 
 
 @task
-def task_linmos_images_list(
-    image_list: Collection[Collection[Path]],
-    container: Path,
-    filter_str: str | None = ".MFS.",
-    field_name: str | None = None,
-    suffix_str: str = "noselfcal",
-    holofile: Path | None = None,
-    sbid: int | str | None = None,
-    parset_output_path: str | None = None,
-    cutoff: float = 0.05,
-    field_summary: FieldSummary | None = None,
-    trim_linmos_fits: bool = True,
-    remove_original_images: bool = False,
-    cleanup: bool = False,
-) -> LinmosResult:
-    """Run the yandasoft linmos task against a set of input images
-
-    Args:
-        image_list (Collection[Collection[Path]]): Images that will be co-added together
-        container (Path): Path to singularity container that contains yandasoft
-        filter_str (Optional[str], optional): Filter to extract the images that will be extracted from the set of input images. These will be co-added. If None all images are co-added. Defaults to ".MFS.".
-        suffix_str (str, optional): Additional string added to the prefix of the output linmos image products. Defaults to "noselfcal".
-        holofile (Optional[Path], optional): The FITS cube with the beam corrections derived from ASKAP holography. Defaults to None.
-        parset_output_path (Optional[str], optional): Location to write the linmos parset file to. Defaults to None.
-        cutoff (float, optional): The primary beam attenuation cutoff supplied to linmos when coadding. Defaults to 0.05.
-        field_summary (Optional[FieldSummary], optional): The summary of the field, including (importantly) to orientation of the third-axis. Defaults to None.
-        trim_linmos_fits (bool, optional): Attempt to trim the output linmos files of as much empty space as possible. Defaults to True.
-        remove_original_images (bool, optional): If True remove the original image after they have been convolved. Defaults to False.
-        cleanup (bool, optional): Clean up items created throughout linmos, including the per-channel weight text files for each input image. Defaults to False.
-
-    Returns:
-        LinmosResult: The linmos command and associated meta-data
-    """
-    # TODO: Need to flatten images
-    # TODO: Need a better way of getting field names
-
-    # TODO: Need a better filter_str approach. Would probably be better to
-    # have literals for the type of product (MFS, cube, model) to be
-    # sure of appropriate extraction
-    all_images = [img for beam_images in image_list for img in beam_images]
-    logger.info(f"Number of images to examine {len(all_images)}")
-
-    filter_images = (
-        list(filter(lambda img: filter_str in str(img), all_images))
-        if filter_str
-        else all_images
-    )
-    logger.info(f"Number of filtered images to linmos: {len(filter_images)}")
-
-    from flint.naming import create_name_from_common_fields
-
-    out_name = create_name_from_common_fields(
-        in_paths=tuple(filter_images), additional_suffixes=suffix_str
-    )
-    out_dir = out_name.parent
-    logger.info(f"Base output image name will be: {out_name}")
-
-    out_file_name = (
-        parset_output_path
-        if parset_output_path
-        else Path(f"{out_name.name}_parset.txt")
-    )
-
-    assert out_dir is not None, f"{out_dir=}, which should not happen"
-    output_path: Path = Path(out_dir) / Path(out_file_name)  # type: ignore
-    logger.info(f"Parsert output path is {parset_output_path}")
-
-    pol_axis = field_summary.pol_axis if field_summary else None
-
-    # TODO: Perhaps the 'remove_original_files' should also be dealt with
-    # internally by linmos_images
-    linmos_result = linmos_images(
-        images=filter_images,
-        parset_output_path=Path(output_path),
-        image_output_name=str(out_name),
-        container=container,
-        holofile=holofile,
-        cutoff=cutoff,
-        pol_axis=pol_axis,
-        trim_linmos_fits=trim_linmos_fits,
-        cleanup=cleanup,
-    )
-    if remove_original_images:
-        logger.info(f"Removing {len(filter_images)} input images")
-        _ = [image_path.unlink() for image_path in filter_images]  # type: ignore
-
-    return linmos_result
-
-
-@task
 def task_linmos_images(
     images: list[Path],
     container: Path,
@@ -821,6 +731,12 @@ def task_linmos_images(
     stokesi_images: list[Path] | None = None,
     force_remove_leakage: bool | None = None,
 ) -> LinmosResult:
+    # TODO: Need to flatten images
+    # TODO: Need a better way of getting field names
+
+    # TODO: Need a better filter_str approach. Would probably be better to
+    # have literals for the type of product (MFS, cube, model) to be
+    # sure of appropriate extraction
     logger.info(f"Number of images to examine {len(images)}")
 
     logger.info(f"Combining images {images}")
@@ -845,19 +761,26 @@ def task_linmos_images(
 
     pol_axis = field_summary.pol_axis if field_summary else None
 
-    linmos_result = linmos_images(
-        images=images,
-        parset_output_path=Path(output_path),
-        image_output_name=str(out_name),
-        container=container,
+    linmos_options = LinmosOptions(
         holofile=holofile,
         cutoff=cutoff,
         pol_axis=pol_axis,
         trim_linmos_fits=trim_linmos_fits,
         cleanup=cleanup,
+        image_output_name=str(out_name),
         stokesi_images=stokesi_images,
         force_remove_leakage=force_remove_leakage,
     )
+
+    linmos_result = linmos_images(
+        images=images,
+        parset_output_path=Path(output_path),
+        linmos_options=linmos_options,
+        container=container,
+    )
+
+    # TODO: Perhaps the 'remove_original_files' should also be dealt with
+    # internally by linmos_images
     if remove_original_images:
         logger.info(f"Removing {len(images)} input images")
         for image_path in images:
@@ -909,7 +832,7 @@ def convolve_then_linmos(
         remove_original_images=remove_original_images,
     )
     assert field_options.yandasoft_container is not None
-    parset = task_linmos_images_list.submit(
+    parset = task_linmos_images.submit(
         image_list=conv_images,  # type: ignore
         container=field_options.yandasoft_container,
         suffix_str=linmos_suffix_str,
@@ -1064,7 +987,7 @@ def create_convolve_linmos_cubes(
     )
 
     assert field_options.yandasoft_container is not None
-    parset = task_linmos_images_list.submit(
+    parset = task_linmos_images.submit(
         image_list=convolved_cubes,  # type: ignore
         container=field_options.yandasoft_container,
         suffix_str=linmos_suffix_str,
