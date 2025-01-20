@@ -7,6 +7,18 @@ class FlintException(Exception):
     pass
 
 
+class NamingException(FlintException):
+    """Raised when there are issues with naming"""
+
+    pass
+
+
+class NotSupportedError(FlintException):
+    """Raised when something is not supported"""
+
+    pass
+
+
 class AttemptRerunException(FlintException):
     """Intended to be used in stream call back functions to
     capture strange errors and signify that they should be

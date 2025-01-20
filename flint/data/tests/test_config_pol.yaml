@@ -92,3 +92,20 @@ selfcal:
       data_column: "TheLastRoundIs3"
     gaincal: {}
     masking: {}
+
+stokesv:
+  wsclean:
+    pol: V
+    channels_out: 2
+    deconvolution_channels: null
+
+polarisation:
+  total:
+    wsclean:
+      squared_channel_joining: false
+  linear:
+    wsclean:
+      join_polarizations: true
+      squared_channel_joining: true
+  circular:
+    wsclean: {}

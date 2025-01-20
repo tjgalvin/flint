@@ -1253,9 +1253,9 @@ def _make_beam_psf_row(beam_summary: BeamSummary) -> PSFTableRow:
     vis_flagged = beam_summary.ms_summary.flagged
 
     assert (
-        beam_summary.imageset is not None
-    ), f"{beam_summary.imageset=}, which should not happen"
-    image_file = list(beam_summary.imageset.image)[-1]
+        beam_summary.image_set is not None
+    ), f"{beam_summary.image_set=}, which should not happen"
+    image_file = list(beam_summary.image_set.image)[-1]
     with fits.open(image_file) as image:
         bmaj = image[0].header["BMAJ"]  # type: ignore
         bmin = image[0].header["BMIN"]  # type: ignore

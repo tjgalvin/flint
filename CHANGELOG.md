@@ -1,5 +1,13 @@
 # Change log
 
+# dev
+
+- Added a `flint_flow_polarisation_pipeline`, implemented by @AlecThomson
+  - changes to `image_set`
+  - `poetry` to `hatchling`
+  - using `vcs` version scheme
+  - added read the docs integration
+
 # 0.2.9
 
 - Created `subtract_cube_pipeline.py`. Associated changes include:

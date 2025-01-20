@@ -22,8 +22,8 @@ from astropy.time import Time
 # Addressing some time interval IERS issue with astropy.
 from astropy.utils.iers import conf
 
-from flint.coadd.linmos import LinmosCommand
-from flint.imager.wsclean import ImageSet, WSCleanCommand
+from flint.coadd.linmos import LinmosResult
+from flint.imager.wsclean import ImageSet, WSCleanResult
 from flint.logging import logger
 from flint.ms import (
     MS,
@@ -200,21 +200,21 @@ def add_rms_information(
 
 
 def add_linmos_fits_image(
-    field_summary: FieldSummary, linmos_command: LinmosCommand
+    field_summary: FieldSummary, linmos_command: LinmosResult
 ) -> FieldSummary:
-    """Extract the path of the linmos fits image from the LinmosCommand
+    """Extract the path of the linmos fits image from the LinmosResult
     the co-added the field
 
     Args:
         field_summary (FieldSummary): Existing field summary to update
-        linmos_command (LinmosCommand): Instance of a completed linmos command that coadded a field
+        linmos_command (LinmosResult): Instance of a completed linmos command that coadded a field
 
     Returns:
         FieldSummary: The updated field summary object with the linmos fits image added
     """
     assert isinstance(
-        linmos_command, LinmosCommand
-    ), f"{linmos_command=} is type {type(linmos_command)}, expected LinmosCommand"
+        linmos_command, LinmosResult
+    ), f"{linmos_command=} is type {type(linmos_command)}, expected LinmosResult"
 
     image_fits = linmos_command.image_fits
     field_summary = field_summary.with_options(linmos_image=image_fits)
@@ -226,7 +226,7 @@ def update_field_summary(
     field_summary: FieldSummary,
     aegean_outputs: AegeanOutputs | None = None,
     mss: list[MS] | None = None,
-    linmos_command: LinmosCommand | None = None,
+    linmos_command: LinmosResult | None = None,
     **kwargs,
 ) -> FieldSummary:
     """Update an existing `FieldSummary` instance with additional information.
@@ -238,7 +238,7 @@ def update_field_summary(
         field_summary (FieldSummary): Field summary object to update
         aegean_outputs (Optional[AegeanOutputs], optional): Will add RMS and aegean related properties. Defaults to None.
         mss (Optional[Collection[MS]], optionals): Set of measurement sets to describe
-        linmos_command (Optional[LinmosCommand], optional): The linmos command created when co-adding all beam images together
+        linmos_command (Optional[LinmosResult], optional): The linmos command created when co-adding all beam images together
 
     Returns:
         FieldSummary: An updated field summary objects
@@ -345,7 +345,7 @@ class BeamSummary(NamedTuple):
 
     ms_summary: MSSummary
     """A summary object of a measurement set"""
-    imageset: ImageSet | None = None
+    image_set: ImageSet | None = None
     """A set of images that have been created from the measurement set represented by `summary`"""
     components: AegeanOutputs | None = None
     """The source finding components from the aegean source finder"""
@@ -359,14 +359,14 @@ class BeamSummary(NamedTuple):
 
 def create_beam_summary(
     ms: MS | Path,
-    imageset: ImageSet | WSCleanCommand | None = None,
+    image_set: ImageSet | WSCleanResult | None = None,
     components: AegeanOutputs | None = None,
 ) -> BeamSummary:
     """Create a summary of a beam
 
     Args:
         ms (Union[MS, Path]): The measurement set being considered
-        imageset (Optional[ImageSet], optional): Images produced from an imager. Defaults to None.
+        image_set (Optional[ImageSet], optional): Images produced from an imager. Defaults to None.
         components (Optional[AegeanOutputs], optional): Source finding output components. Defaults to None.
 
     Returns:
@@ -378,11 +378,13 @@ def create_beam_summary(
 
     # TODO: Another example where a .cast type method could be useful
     # or where a standardised set of attributes with a HasImageSet type
-    if imageset:
-        imageset = imageset if isinstance(imageset, ImageSet) else imageset.imageset
+    if image_set:
+        image_set = (
+            image_set if isinstance(image_set, ImageSet) else image_set.image_set
+        )
 
     beam_summary = BeamSummary(
-        ms_summary=ms_summary, imageset=imageset, components=components
+        ms_summary=ms_summary, image_set=image_set, components=components
     )
 
     return beam_summary

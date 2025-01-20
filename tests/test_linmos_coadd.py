@@ -140,6 +140,10 @@ def test_linmos_holo_options(tmpdir):
     holofile = Path(tmpdir) / "testholooptions/holo_file.fits"
     holofile.parent.mkdir(parents=True, exist_ok=True)
 
+    ifile = Path(tmpdir) / "blackpearl.fits"
+    ifile.touch()
+    ifile.parent.mkdir(parents=True, exist_ok=True)
+
     with pytest.raises(AssertionError):
         _get_holography_linmos_options(holofile=holofile, pol_axis=None)
 
@@ -167,6 +171,33 @@ def test_linmos_holo_options(tmpdir):
     assert "linmos.removeleakage    = true\n" in parset
     assert f"linmos.primarybeam.ASKAP_PB.image = {holofile.absolute()!s}\n" in parset
     assert "linmos.primarybeam.ASKAP_PB.alpha" in parset
+
+    parset = _get_holography_linmos_options(
+        holofile=holofile,
+        remove_leakage=True,
+        pol_axis=np.deg2rad(-45),
+        stokesi_images=[
+            ifile,
+        ],
+    )
+    from flint.logging import logger
+
+    logger.info(parset)
+    assert "linmos.primarybeam      = ASKAP_PB\n" in parset
+    assert "linmos.removeleakage    = true\n" in parset
+    assert f"linmos.primarybeam.ASKAP_PB.image = {holofile.absolute()!s}\n" in parset
+    assert "linmos.primarybeam.ASKAP_PB.alpha" in parset
+    assert f"linmos.stokesinames = [{ifile.with_suffix('').as_posix()}]\n" in parset
+
+    with pytest.raises(AssertionError):
+        parset = _get_holography_linmos_options(
+            holofile=holofile,
+            remove_leakage=True,
+            pol_axis=np.deg2rad(-45),
+            stokesi_images=[
+                Path("doesnotexist.fits"),
+            ],
+        )
 
 
 def test_trim_fits(tmp_path):

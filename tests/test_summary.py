@@ -76,7 +76,7 @@ def test_create_field_summary_beam_summary(ms_example, aegean_outputs_example):
 
     beam_summaries = [
         create_beam_summary(
-            ms=ms_example, imageset=image_set, components=aegean_outputs_example
+            ms=ms_example, image_set=image_set, components=aegean_outputs_example
         )
         for _ in range(36)
     ]
@@ -97,7 +97,7 @@ def test_create_field_summary_beam_summary_nocalid(ms_example, aegean_outputs_ex
 
     beam_summaries = [
         create_beam_summary(
-            ms=ms_example, imageset=image_set, components=aegean_outputs_example
+            ms=ms_example, image_set=image_set, components=aegean_outputs_example
         )
         for _ in range(36)
     ]
@@ -119,7 +119,7 @@ def test_field_summary_beam_summary_make_psf(
 
     beam_summaries = [
         create_beam_summary(
-            ms=ms_example, imageset=image_set, components=aegean_outputs_example
+            ms=ms_example, image_set=image_set, components=aegean_outputs_example
         )
         for _ in range(36)
     ]

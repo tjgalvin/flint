@@ -111,7 +111,9 @@ def _create_argparse_options(name: str, field: FieldInfo) -> tuple[str, dict[str
 
 
 def add_options_to_parser(
-    parser: ArgumentParser, options_class: type[BaseOptions]
+    parser: ArgumentParser,
+    options_class: type[BaseOptions],
+    description: str | None = None,
 ) -> ArgumentParser:
     """Given an established argument parser and a class derived
     from a ``pydantic.BaseModel``, populate the argument parser
@@ -130,8 +132,7 @@ def add_options_to_parser(
     ), f"{options_class=} is not a pydantic BaseModel"
 
     group = parser.add_argument_group(
-        title=f"Inputs for {options_class.__name__}",
-        description="Options for the masking options example",
+        title=f"Inputs for {options_class.__name__}", description=description
     )
 
     for name, field in options_class.model_fields.items():
@@ -340,8 +341,45 @@ class FieldOptions(BaseOptions):
     """Attempt to update a MSs MODEL_DATA column with a source list (e.g. source list output from wsclean)"""
 
 
+class PolFieldOptions(BaseOptions):
+    """Container that represents the flint related options that
+    might be used throughout components related to the actual
+    pipeline.
+
+    In its present form this `FieldOptions` class is not intended
+    to contain properties of the data that are being processed,
+    rather how those data will be processed.
+
+    These settings are not meant to be adjustable throughout
+    rounds of self-calibration.
+    """
+
+    expected_ms: int = 36
+    """The expected number of measurement set files to find"""
+    wsclean_container: Path | None = None
+    """Path to the singularity wsclean container"""
+    yandasoft_container: Path | None = None
+    """Path to the singularity yandasoft container"""
+    holofile: Path | None = None
+    """Path to the holography FITS cube that will be used when co-adding beams"""
+    beam_cutoff: float = 150
+    """Cutoff in arcseconds to use when calculating the common beam to convol to"""
+    fixed_beam_shape: list[float] | None = None
+    """Specify the final beamsize of linmos field images in (arcsec, arcsec, deg)"""
+    pb_cutoff: float = 0.1
+    """Primary beam attenuation cutoff to use during linmos"""
+    trim_linmos_fits: bool = False
+    """Trim the linmos fits files to remove the padding that is added. If True, the output fits files will be smaller but might be different shapes"""
+    imaging_strategy: Path | None = None
+    """Path to a FLINT imaging yaml file that contains settings to use throughout imaging"""
+    sbid_copy_path: Path | None = None
+    """Path that final processed products will be copied into. If None no copying of file products is performed. See ArchiveOptions. """
+
+
 def dump_field_options_to_yaml(
-    output_path: Path, field_options: FieldOptions, overwrite: bool = False
+    output_path: Path,
+    field_options: FieldOptions | PolFieldOptions | SubtractFieldOptions,
+    overwrite: bool = False,
 ) -> Path:
     """Dump the supplied instance of `FieldOptions` to a yaml file
     for record keeping.

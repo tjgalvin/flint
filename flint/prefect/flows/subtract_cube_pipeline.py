@@ -17,8 +17,8 @@ from configargparse import ArgumentParser
 from fitscube.combine_fits import combine_fits
 from prefect import flow, task, unmapped
 
-from flint.coadd.linmos import LinmosCommand
-from flint.configuration import _load_and_copy_strategy
+from flint.coadd.linmos import LinmosResult
+from flint.configuration import load_and_copy_strategy
 from flint.exceptions import FrequencyMismatchError
 from flint.logging import logger
 from flint.ms import (
@@ -38,8 +38,8 @@ from flint.options import (
 )
 from flint.prefect.clusters import get_dask_runner
 from flint.prefect.common.imaging import (
-    _convolve_linmos,
-    task_get_common_beam,
+    convolve_then_linmos,
+    task_get_common_beam_from_results,
     task_wsclean_imager,
 )
 
@@ -207,7 +207,7 @@ def task_crystalball_to_ms(ms: MS, crystalball_options: CrystalBallOptions) -> M
 
 @task
 def task_combine_all_linmos_images(
-    linmos_commands: list[LinmosCommand],
+    linmos_commands: list[LinmosResult],
     remove_original_images: bool = False,
     combine_weights: bool = False,
 ) -> Path:
@@ -285,7 +285,7 @@ def flow_subtract_cube(
     subtract_field_options: SubtractFieldOptions,
     addmodel_subtract_field_options: AddModelSubtractFieldOptions,
 ) -> None:
-    strategy = _load_and_copy_strategy(
+    strategy = load_and_copy_strategy(
         output_split_science_path=science_path,
         imaging_strategy=subtract_field_options.imaging_strategy,
     )
@@ -350,13 +350,13 @@ def flow_subtract_cube(
             mode="wsclean",
             operation="subtractcube",
         )
-        channel_beam_shape = task_get_common_beam.submit(
-            wsclean_cmds=channel_wsclean_cmds,
+        channel_beam_shape = task_get_common_beam_from_results.submit(
+            wsclean_results=channel_wsclean_cmds,
             cutoff=subtract_field_options.beam_cutoff,
-            filter="image.",
+            filter_str="image.",
         )
-        channel_parset = _convolve_linmos(
-            wsclean_cmds=channel_wsclean_cmds,
+        channel_parset = convolve_then_linmos(
+            wsclean_results=channel_wsclean_cmds,
             beam_shape=channel_beam_shape,
             linmos_suffix_str=f"ch{channel_range[0]:04d}-{channel_range[1]:04d}",
             field_options=subtract_field_options,

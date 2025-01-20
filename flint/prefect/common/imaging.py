@@ -20,7 +20,7 @@ from flint.calibrate.aocalibrate import (
     create_apply_solutions_cmd,
     select_aosolution_for_ms,
 )
-from flint.coadd.linmos import LinmosCommand, linmos_images
+from flint.coadd.linmos import LinmosResult, linmos_images
 from flint.configuration import wrapper_options_from_strategy
 from flint.convol import (
     BeamShape,
@@ -32,8 +32,8 @@ from flint.convol import (
 from flint.flagging import flag_ms_aoflagger
 from flint.imager.wsclean import (
     ImageSet,
-    WSCleanCommand,
     WSCleanOptions,
+    WSCleanResult,
     wsclean_imager,
 )
 from flint.logging import logger
@@ -167,20 +167,20 @@ def task_extract_solution_path(calibrate_cmd: CalibrateCommand) -> Path:
 # BANE sometimes gets cauht in some stalled staTE
 @task(retries=3)
 def task_run_bane_and_aegean(
-    image: WSCleanCommand | LinmosCommand,
+    image: WSCleanResult | LinmosResult,
     aegean_container: Path,
     timelimit_seconds: int | float = 60 * 45,
 ) -> AegeanOutputs:
     """Run BANE and Aegean against a FITS image.
 
     Notes:
-         It has been noted that BANE can sometimes get caught in a interpolation error which haults execution.
-         The ``timelimit_seconds`` will attempt to detect long runnings BANE processes and raise an error. The
-         retry functionality of prefect should then restart the task. Since this task is pure (e.g. no last
-         dataproducts, modification to data etc) simply restarting should be fine.
+        It has been noted that BANE can sometimes get caught in a interpolation error which haults execution.
+        The ``timelimit_seconds`` will attempt to detect long runnings BANE processes and raise an error. The
+        retry functionality of prefect should then restart the task. Since this task is pure (e.g. no last
+        dataproducts, modification to data etc) simply restarting should be fine.
 
     Args:
-        image (Union[WSCleanCommand, LinmosCommand]): The image that will be searched
+        image (Union[WSCleanResult, LinmosResult]): The image that will be searched
         aegean_container (Path): Path to a singularity container containing BANE and aegean
         timelimit_seconds (Union[int,float], optional): The maximum amount of time, in seconds, before an exception is raised. Defaults to 45*60.
 
@@ -190,9 +190,9 @@ def task_run_bane_and_aegean(
     Returns:
         AegeanOutputs: Output BANE and aegean products, including the RMS and BKG images
     """
-    if isinstance(image, WSCleanCommand):
-        assert image.imageset is not None, "Image set attribute unset. "
-        image_paths = image.imageset.image
+    if isinstance(image, WSCleanResult):
+        assert image.image_set is not None, "Image set attribute unset. "
+        image_paths = image.image_set.image
 
         logger.info(f"Have extracted image: {image_paths}")
 
@@ -200,10 +200,10 @@ def task_run_bane_and_aegean(
         image_paths = [image for image in image_paths if ".MFS." in str(image)]
         assert (
             len(image_paths) == 1
-        ), "More than one image found after filter for MFS only images. "
+        ), "More than one image found after filter_str for MFS only images. "
         # Get out the only path in the list.
         image_path = image_paths[0]
-    elif isinstance(image, LinmosCommand):
+    elif isinstance(image, LinmosResult):
         logger.info("Will be running aegean on a linmos image")
 
         image_path = image.image_fits
@@ -219,11 +219,11 @@ def task_run_bane_and_aegean(
 
 
 @task
-def task_zip_ms(in_item: WSCleanCommand) -> Path:
+def task_zip_ms(in_item: WSCleanResult) -> Path:
     """Zip a measurement set
 
     Args:
-        in_item (WSCleanCommand): The inpute item with a ``.ms`` attribute of type ``MS``.
+        in_item (WSCleanResult): The inpute item with a ``.ms`` attribute of type ``MS``.
 
     Returns:
         Path: Output path of the zipped measurement set
@@ -239,7 +239,7 @@ def task_zip_ms(in_item: WSCleanCommand) -> Path:
 @task
 @wrapper_options_from_strategy(update_options_keyword="update_gain_cal_options")
 def task_gaincal_applycal_ms(
-    ms: MS | WSCleanCommand,
+    ms: MS | WSCleanResult,
     selfcal_round: int,
     casa_container: Path,
     update_gain_cal_options: dict[str, Any] | None = None,
@@ -251,7 +251,7 @@ def task_gaincal_applycal_ms(
     """Perform self-calibration using CASA gaincal and applycal.
 
     Args:
-        ms (Union[MS, WSCleanCommand]): A resulting wsclean output. This is used purely to extract the ``.ms`` attribute.
+        ms (Union[MS, WSCleanResult]): A resulting wsclean output. This is used purely to extract the ``.ms`` attribute.
         selfcal_round (int): Counter indication which self-calibration round is being performed. A name is included based on this.
         casa_container (Path): A path to a singularity container with CASA tooling.
         update_gain_cal_options (Optional[Dict[str, Any]], optional): Options used to overwrite the default ``gaincal`` options. Defaults to None.
@@ -295,7 +295,8 @@ def task_wsclean_imager(
     update_wsclean_options: dict[str, Any] | None = None,
     fits_mask: FITSMaskNames | None = None,
     channel_range: tuple[int, int] | None = None,
-) -> WSCleanCommand:
+    make_cube_from_subbands: bool = True,
+) -> WSCleanResult:
     """Run the wsclean imager against an input measurement set
 
     Args:
@@ -306,7 +307,7 @@ def task_wsclean_imager(
         channel_range (Optional[Tuple[int,int]], optional): Add to the wsclean options the specific channel range to be imaged. Defaults to None.
 
     Returns:
-        WSCleanCommand: A resulting wsclean command and resulting meta-data
+        WSCleanResult: A resulting wsclean command and resulting meta-data
     """
     from flint.exceptions import CleanDivergenceError
 
@@ -328,6 +329,7 @@ def task_wsclean_imager(
             ms=ms,
             wsclean_container=wsclean_container,
             update_wsclean_options=update_wsclean_options,
+            make_cube_from_subbands=make_cube_from_subbands,
         )
     except CleanDivergenceError:
         # NOTE: If the cleaning failed retry with some larger images
@@ -348,7 +350,7 @@ def task_wsclean_imager(
         # how prefect would behave here.
         update_wsclean_options = update_wsclean_options.copy()
         update_wsclean_options.update(**convergence_wsclean_options)
-        logger.warn(
+        logger.warning(
             f"Clean divergence dertected. Rerunning. Updated options {convergence_wsclean_options=}"
         )
 
@@ -356,22 +358,22 @@ def task_wsclean_imager(
             ms=ms,
             wsclean_container=wsclean_container,
             update_wsclean_options=update_wsclean_options,
+            make_cube_from_subbands=make_cube_from_subbands,
         )
 
 
-@task
-def task_get_common_beam(
-    wsclean_cmds: Collection[WSCleanCommand],
+def get_common_beam_from_images(
+    image_paths: list[Path],
     cutoff: float = 25,
-    filter: str | None = None,
+    filter_str: str | None = None,
     fixed_beam_shape: list[float] | None = None,
 ) -> BeamShape:
     """Compute a common beam size that all input images will be convoled to.
 
     Args:
-        wsclean_cmds (Collection[WSCleanCommand]): Input images whose restoring beam properties will be considered
+        image_paths (list[Path]): Input images whose restoring beam properties will be considered
         cutoff (float, optional): Major axis larger than this valur, in arcseconds, will be ignored. Defaults to 25.
-        filter (Optional[str], optional): Only include images when considering beam shape if this string is in the file path. Defaults to None.
+        filter_str (Optional[str], optional): Only include images when considering beam shape if this string is in the file path. Defaults to None.
         fixed_beam_shape (Optional[List[float]], optional): Specify the final beamsize of linmos field images in (arcsec, arcsec, deg). If None it is deduced from images. Defaults to None;
 
     Returns:
@@ -389,45 +391,131 @@ def task_get_common_beam(
         logger.info(f"Using fixed {beam_shape=}")
         return beam_shape
 
-    images_to_consider: list[Path] = []
+    if filter_str:
+        image_paths = [image for image in image_paths if filter_str in str(image)]
 
-    # TODO: This should support other image types
-    for wsclean_cmd in wsclean_cmds:
-        if wsclean_cmd.imageset is None:
-            logger.warning(
-                f"No imageset for {wsclean_cmd.ms} found. Has imager finished?"
-            )
-            continue
-        images_to_consider.extend(wsclean_cmd.imageset.image)
+    logger.info(f"Considering {len(image_paths)} images. ")
 
-    if filter:
-        images_to_consider = [
-            image for image in images_to_consider if filter in str(image)
-        ]
-
-    logger.info(
-        f"Considering {len(images_to_consider)} images across {len(wsclean_cmds)} outputs. "
-    )
-
-    beam_shape = get_common_beam(image_paths=images_to_consider, cutoff=cutoff)
+    beam_shape = get_common_beam(image_paths=image_paths, cutoff=cutoff)
     if np.isnan(beam_shape.bmaj_arcsec):
         logger.critical("Failed to get beam resolution for:")
-        logger.critical(f"{images_to_consider=}")
+        logger.critical(f"{image_paths=}")
         logger.critical(f"{cutoff=}")
-        logger.critical(f"{filter=}")
+        logger.critical(f"{filter_str=}")
 
     return beam_shape
 
 
+task_get_common_beam_from_images = task(get_common_beam_from_images)
+
+
+def get_common_beam_from_image_set(
+    image_set: ImageSet,
+    cutoff: float = 25,
+    filter_str: str | None = None,
+    fixed_beam_shape: list[float] | None = None,
+) -> BeamShape:
+    """Compute a common beam size that all input images will be convoled to.
+
+    Args:
+        wsclean_results (Collection[WSCleanResult]): Input images whose restoring beam properties will be considered
+        cutoff (float, optional): Major axis larger than this valur, in arcseconds, will be ignored. Defaults to 25.
+        filter_str (Optional[str], optional): Only include images when considering beam shape if this string is in the file path. Defaults to None.
+        fixed_beam_shape (Optional[List[float]], optional): Specify the final beamsize of linmos field images in (arcsec, arcsec, deg). If None it is deduced from images. Defaults to None;
+
+    Returns:
+        BeamShape: The final convolving beam size to be used
+    """
+    return get_common_beam_from_images(
+        image_paths=image_set.image,
+        cutoff=cutoff,
+        filter_str=filter_str,
+        fixed_beam_shape=fixed_beam_shape,
+    )
+
+
+task_get_common_beam_from_image_set = task(get_common_beam_from_image_set)
+
+
+def get_common_beam_from_image_sets(
+    image_sets: list[ImageSet],
+    cutoff: float = 25,
+    filter_str: str | None = None,
+    fixed_beam_shape: list[float] | None = None,
+) -> BeamShape:
+    """Compute a common beam size that all input images will be convoled to.
+
+    Args:
+        wsclean_results (Collection[WSCleanResult]): Input images whose restoring beam properties will be considered
+        cutoff (float, optional): Major axis larger than this valur, in arcseconds, will be ignored. Defaults to 25.
+        filter_str (Optional[str], optional): Only include images when considering beam shape if this string is in the file path. Defaults to None.
+        fixed_beam_shape (Optional[List[float]], optional): Specify the final beamsize of linmos field images in (arcsec, arcsec, deg). If None it is deduced from images. Defaults to None;
+
+    Returns:
+        BeamShape: The final convolving beam size to be used
+    """
+    images_to_consider: list[Path] = []
+    for image_set in image_sets:
+        images_to_consider.extend(image_set.image)
+    return get_common_beam_from_images(
+        image_paths=images_to_consider,
+        cutoff=cutoff,
+        filter_str=filter_str,
+        fixed_beam_shape=fixed_beam_shape,
+    )
+
+
+task_get_common_beam_from_image_sets = task(get_common_beam_from_image_sets)
+
+
+def get_common_beam_from_results(
+    wsclean_results: list[WSCleanResult],
+    cutoff: float = 25,
+    filter_str: str | None = None,
+    fixed_beam_shape: list[float] | None = None,
+) -> BeamShape:
+    """Compute a common beam size that all input images will be convoled to.
+
+    Args:
+        wsclean_results (Collection[WSCleanResult]): Input images whose restoring beam properties will be considered
+        cutoff (float, optional): Major axis larger than this valur, in arcseconds, will be ignored. Defaults to 25.
+        filter_str (Optional[str], optional): Only include images when considering beam shape if this string is in the file path. Defaults to None.
+        fixed_beam_shape (Optional[List[float]], optional): Specify the final beamsize of linmos field images in (arcsec, arcsec, deg). If None it is deduced from images. Defaults to None;
+
+    Returns:
+        BeamShape: The final convolving beam size to be used
+    """
+    images_to_consider: list[Path] = []
+
+    # TODO: This should support other image types
+    for wsclean_result in wsclean_results:
+        if wsclean_result.image_set is None:
+            logger.warning(
+                f"No image_set for {wsclean_result.ms} found. Has imager finished?"
+            )
+            continue
+        images_to_consider.extend(wsclean_result.image_set.image)
+
+    return get_common_beam_from_images(
+        image_paths=images_to_consider,
+        cutoff=cutoff,
+        filter_str=filter_str,
+        fixed_beam_shape=fixed_beam_shape,
+    )
+
+
+task_get_common_beam_from_results = task(get_common_beam_from_results)
+
+
 @task
 def task_get_cube_common_beam(
-    wsclean_cmds: Collection[WSCleanCommand],
+    wsclean_results: Collection[WSCleanResult],
     cutoff: float = 25,
 ) -> list[BeamShape]:
     """Compute a common beam size  for input cubes.
 
     Args:
-        wsclean_cmds (Collection[WSCleanCommand]): Input images whose restoring beam properties will be considered
+        wsclean_results (Collection[WSCleanResult]): Input images whose restoring beam properties will be considered
         cutoff (float, optional): Major axis larger than this valur, in arcseconds, will be ignored. Defaults to 25.
 
     Returns:
@@ -437,18 +525,18 @@ def task_get_cube_common_beam(
     images_to_consider: list[Path] = []
 
     # TODO: This should support other image types
-    for wsclean_cmd in wsclean_cmds:
-        if wsclean_cmd.imageset is None:
+    for wsclean_result in wsclean_results:
+        if wsclean_result.image_set is None:
             logger.warning(
-                f"No imageset for {wsclean_cmd.ms} found. Has imager finished?"
+                f"No image_set for {wsclean_result.ms} found. Has imager finished?"
             )
             continue
-        images_to_consider.extend(wsclean_cmd.imageset.image)
+        images_to_consider.extend(wsclean_result.image_set.image)
 
     images_to_consider = get_fits_cube_from_paths(paths=images_to_consider)
 
     logger.info(
-        f"Considering {len(images_to_consider)} images across {len(wsclean_cmds)} outputs. "
+        f"Considering {len(images_to_consider)} images across {len(wsclean_results)} outputs. "
     )
 
     beam_shapes = get_cube_common_beam(cube_paths=images_to_consider, cutoff=cutoff)
@@ -458,7 +546,7 @@ def task_get_cube_common_beam(
 
 @task
 def task_convolve_cube(
-    wsclean_cmd: WSCleanCommand,
+    wsclean_result: WSCleanResult,
     beam_shapes: list[BeamShape],
     cutoff: float = 60,
     mode: Literal["image"] = "image",
@@ -467,7 +555,7 @@ def task_convolve_cube(
     """Convolve images to a specified resolution
 
     Args:
-        wsclean_cmd (WSCleanCommand): Collection of output images from wsclean that will be convolved
+        wsclean_result (WSCleanResult): Collection of output images from wsclean that will be convolved
         beam_shapes (BeamShape): The shape images will be convolved to
         cutoff (float, optional): Maximum major beam axis an image is allowed to have before it will not be convolved. Defaults to 60.
         convol_suffix_str (str, optional): The suffix added to the convolved images. Defaults to 'conv'.
@@ -476,17 +564,17 @@ def task_convolve_cube(
         Collection[Path]: Path to the output images that have been convolved.
     """
     assert (
-        wsclean_cmd.imageset is not None
-    ), f"{wsclean_cmd.ms} has no attached imageset."
+        wsclean_result.image_set is not None
+    ), f"{wsclean_result.ms} has no attached image_set."
 
     supported_modes = ("image",)
     logger.info(f"Extracting {mode}")
     if mode == "image":
-        image_paths = list(wsclean_cmd.imageset.image)
+        image_paths = list(wsclean_result.image_set.image)
     else:
         raise ValueError(f"{mode=} is not supported. Known modes are {supported_modes}")
 
-    logger.info(f"Extracting cubes from imageset {mode=}")
+    logger.info(f"Extracting cubes from image_set {mode=}")
     image_paths = get_fits_cube_from_paths(paths=image_paths)
 
     # It is possible depending on how aggressively cleaning image products are deleted that these
@@ -496,7 +584,7 @@ def task_convolve_cube(
     # situation. In time this would mean that we inspect and handle conflicting pipeline options.
     assert (
         image_paths is not None
-    ), f"{image_paths=} for {mode=} and {wsclean_cmd.imageset=}"
+    ), f"{image_paths=} for {mode=} and {wsclean_result.image_set=}"
 
     logger.info(f"Will convolve {image_paths}")
 
@@ -508,49 +596,44 @@ def task_convolve_cube(
     )
 
 
-@task
-def task_convolve_image(
-    wsclean_cmd: WSCleanCommand,
+def convolve_image_set(
+    image_set: ImageSet,
     beam_shape: BeamShape,
     cutoff: float = 60,
     mode: str = "image",
-    filter: str | None = None,
+    filter_str: str | None = None,
     convol_suffix_str: str = "conv",
     remove_original_images: bool = False,
-) -> Collection[Path]:
+) -> list[Path]:
     """Convolve images to a specified resolution
 
     Args:
-        wsclean_cmd (WSCleanCommand): Collection of output images from wsclean that will be convolved
+        wsclean_result (WSCleanResult): Collection of output images from wsclean that will be convolved
         beam_shape (BeamShape): The shape images will be convolved to
         cutoff (float, optional): Maximum major beam axis an image is allowed to have before it will not be convolved. Defaults to 60.
-        filter (Optional[str], optional): This string must be contained in the image path for it to be convolved. Defaults to None.
+        filter_str (Optional[str], optional): This string must be contained in the image path for it to be convolved. Defaults to None.
         convol_suffix_str (str, optional): The suffix added to the convolved images. Defaults to 'conv'.
         remove_original_images (bool, optional): If True remove the original image after they have been convolved. Defaults to False.
 
     Returns:
         Collection[Path]: Path to the output images that have been convolved.
     """
-    assert (
-        wsclean_cmd.imageset is not None
-    ), f"{wsclean_cmd.ms} has no attached imageset."
-
     supported_modes = ("image", "residual")
     logger.info(f"Extracting {mode}")
     if mode == "image":
-        image_paths = list(wsclean_cmd.imageset.image)
+        image_paths = list(image_set.image)
     elif mode == "residual":
         assert (
-            wsclean_cmd.imageset.residual is not None
-        ), f"{wsclean_cmd.imageset.residual=}, which should not happen"
-        image_paths = list(wsclean_cmd.imageset.residual)
+            image_set.residual is not None
+        ), f"{image_set.residual=}, which should not happen"
+        image_paths = list(image_set.residual)
     else:
         raise ValueError(f"{mode=} is not supported. Known modes are {supported_modes}")
 
-    if filter:
-        logger.info(f"Filtering images paths with {filter=}")
+    if filter_str is not None:
+        logger.info(f"Filtering images paths with {filter_str=}")
         image_paths = [
-            image_path for image_path in image_paths if filter in str(image_path)
+            image_path for image_path in image_paths if filter_str in str(image_path)
         ]
 
     # It is possible depending on how aggressively cleaning image products are deleted that these
@@ -558,9 +641,7 @@ def task_convolve_image(
     # handling this. The pirate in me feels like less is more, so an error will be enough. Keeping
     # things simple and avoiding the problem is probably the better way of dealing with this
     # situation. In time this would mean that we inspect and handle conflicting pipeline options.
-    assert (
-        image_paths is not None
-    ), f"{image_paths=} for {mode=} and {wsclean_cmd.imageset=}"
+    assert image_paths is not None, f"{image_paths=} for {mode=} and {image_set=}"
 
     logger.info(f"Will convolve {image_paths}")
 
@@ -594,11 +675,52 @@ def task_convolve_image(
     return convolved_images
 
 
+task_convolve_image_set = task(convolve_image_set)
+
+
 @task
-def task_linmos_images(
-    images: Collection[Collection[Path]],
+def task_convolve_image(
+    wsclean_result: WSCleanResult,
+    beam_shape: BeamShape,
+    cutoff: float = 60,
+    mode: str = "image",
+    filter_str: str | None = None,
+    convol_suffix_str: str = "conv",
+    remove_original_images: bool = False,
+) -> Collection[Path]:
+    """Convolve images to a specified resolution
+
+    Args:
+        wsclean_result (WSCleanResult): Collection of output images from wsclean that will be convolved
+        beam_shape (BeamShape): The shape images will be convolved to
+        cutoff (float, optional): Maximum major beam axis an image is allowed to have before it will not be convolved. Defaults to 60.
+        filter_str (Optional[str], optional): This string must be contained in the image path for it to be convolved. Defaults to None.
+        convol_suffix_str (str, optional): The suffix added to the convolved images. Defaults to 'conv'.
+        remove_original_images (bool, optional): If True remove the original image after they have been convolved. Defaults to False.
+
+    Returns:
+        Collection[Path]: Path to the output images that have been convolved.
+    """
+    image_set = wsclean_result.image_set
+    assert isinstance(
+        image_set, ImageSet
+    ), f"{image_set=}, but should be ImageSet instance"
+    return convolve_image_set(
+        image_set=image_set,
+        beam_shape=beam_shape,
+        cutoff=cutoff,
+        mode=mode,
+        filter_str=filter_str,
+        convol_suffix_str=convol_suffix_str,
+        remove_original_images=remove_original_images,
+    )
+
+
+@task
+def task_linmos_images_list(
+    image_list: Collection[Collection[Path]],
     container: Path,
-    filter: str | None = ".MFS.",
+    filter_str: str | None = ".MFS.",
     field_name: str | None = None,
     suffix_str: str = "noselfcal",
     holofile: Path | None = None,
@@ -609,13 +731,13 @@ def task_linmos_images(
     trim_linmos_fits: bool = True,
     remove_original_images: bool = False,
     cleanup: bool = False,
-) -> LinmosCommand:
+) -> LinmosResult:
     """Run the yandasoft linmos task against a set of input images
 
     Args:
-        images (Collection[Collection[Path]]): Images that will be co-added together
+        image_list (Collection[Collection[Path]]): Images that will be co-added together
         container (Path): Path to singularity container that contains yandasoft
-        filter (Optional[str], optional): Filter to extract the images that will be extracted from the set of input images. These will be co-added. If None all images are co-added. Defaults to ".MFS.".
+        filter_str (Optional[str], optional): Filter to extract the images that will be extracted from the set of input images. These will be co-added. If None all images are co-added. Defaults to ".MFS.".
         suffix_str (str, optional): Additional string added to the prefix of the output linmos image products. Defaults to "noselfcal".
         holofile (Optional[Path], optional): The FITS cube with the beam corrections derived from ASKAP holography. Defaults to None.
         parset_output_path (Optional[str], optional): Location to write the linmos parset file to. Defaults to None.
@@ -626,19 +748,21 @@ def task_linmos_images(
         cleanup (bool, optional): Clean up items created throughout linmos, including the per-channel weight text files for each input image. Defaults to False.
 
     Returns:
-        LinmosCommand: The linmos command and associated meta-data
+        LinmosResult: The linmos command and associated meta-data
     """
     # TODO: Need to flatten images
     # TODO: Need a better way of getting field names
 
-    # TODO: Need a better filter approach. Would probably be better to
+    # TODO: Need a better filter_str approach. Would probably be better to
     # have literals for the type of product (MFS, cube, model) to be
     # sure of appropriate extraction
-    all_images = [img for beam_images in images for img in beam_images]
+    all_images = [img for beam_images in image_list for img in beam_images]
     logger.info(f"Number of images to examine {len(all_images)}")
 
     filter_images = (
-        [img for img in all_images if filter in str(img)] if filter else all_images
+        list(filter(lambda img: filter_str in str(img), all_images))
+        if filter_str
+        else all_images
     )
     logger.info(f"Number of filtered images to linmos: {len(filter_images)}")
 
@@ -664,7 +788,7 @@ def task_linmos_images(
 
     # TODO: Perhaps the 'remove_original_files' should also be dealt with
     # internally by linmos_images
-    linmos_cmd = linmos_images(
+    linmos_result = linmos_images(
         images=filter_images,
         parset_output_path=Path(output_path),
         image_output_name=str(out_name),
@@ -679,11 +803,71 @@ def task_linmos_images(
         logger.info(f"Removing {len(filter_images)} input images")
         _ = [image_path.unlink() for image_path in filter_images]  # type: ignore
 
-    return linmos_cmd
+    return linmos_result
 
 
-def _convolve_linmos(
-    wsclean_cmds: Collection[WSCleanCommand],
+@task
+def task_linmos_images(
+    images: list[Path],
+    container: Path,
+    suffix_str: str | None = None,
+    holofile: Path | None = None,
+    parset_output_path: str | None = None,
+    cutoff: float = 0.05,
+    field_summary: FieldSummary | None = None,
+    trim_linmos_fits: bool = True,
+    remove_original_images: bool = False,
+    cleanup: bool = False,
+    stokesi_images: list[Path] | None = None,
+    force_remove_leakage: bool | None = None,
+) -> LinmosResult:
+    logger.info(f"Number of images to examine {len(images)}")
+
+    logger.info(f"Combining images {images}")
+
+    from flint.naming import create_name_from_common_fields
+
+    out_name = create_name_from_common_fields(
+        in_paths=tuple(images), additional_suffixes=suffix_str
+    )
+    out_dir = out_name.parent
+    logger.info(f"Base output image name will be: {out_name}")
+
+    out_file_name = (
+        parset_output_path
+        if parset_output_path
+        else Path(f"{out_name.name}_parset.txt")
+    )
+
+    assert out_dir is not None, f"{out_dir=}, which should not happen"
+    output_path = Path(out_dir) / Path(out_file_name)
+    logger.info(f"Parset output path is {parset_output_path}")
+
+    pol_axis = field_summary.pol_axis if field_summary else None
+
+    linmos_result = linmos_images(
+        images=images,
+        parset_output_path=Path(output_path),
+        image_output_name=str(out_name),
+        container=container,
+        holofile=holofile,
+        cutoff=cutoff,
+        pol_axis=pol_axis,
+        trim_linmos_fits=trim_linmos_fits,
+        cleanup=cleanup,
+        stokesi_images=stokesi_images,
+        force_remove_leakage=force_remove_leakage,
+    )
+    if remove_original_images:
+        logger.info(f"Removing {len(images)} input images")
+        for image_path in images:
+            image_path.unlink(missing_ok=True)
+
+    return linmos_result
+
+
+def convolve_then_linmos(
+    wsclean_results: Collection[WSCleanResult],
     beam_shape: BeamShape,
     field_options: FieldOptions | SubtractFieldOptions,
     linmos_suffix_str: str,
@@ -694,12 +878,12 @@ def _convolve_linmos(
     trim_linmos_fits: bool = True,
     remove_original_images: bool = False,
     cleanup_linmos: bool = False,
-) -> LinmosCommand:
+) -> LinmosResult:
     """An internal function that launches the convolution to a common resolution
     and subsequent linmos of the wsclean residual images.
 
     Args:
-        wsclean_cmds (Collection[WSCleanCommand]): Collection of wsclean imaging results, with residual images described in the attached ``ImageSet``
+        wsclean_results (Collection[WSCleanResult]): Collection of wsclean imaging results, with residual images described in the attached ``ImageSet``
         beam_shape (BeamShape): The beam shape that residual images will be convolved to
         field_options (FieldOptions): Options related to the processing of the field
         linmos_suffix_str (str): The suffix string passed to the linmos parset name
@@ -712,28 +896,28 @@ def _convolve_linmos(
         cleanup_linmos (bool, optional): Clean up items created throughout linmos, including the per-channel weight text files for each input image. Defaults to False.
 
     Returns:
-        LinmosCommand: Resulting linmos command parset
+        LinmosResult: Resulting linmos command parset
     """
 
     conv_images = task_convolve_image.map(
-        wsclean_cmd=wsclean_cmds,
+        wsclean_result=wsclean_results,
         beam_shape=unmapped(beam_shape),  # type: ignore
         cutoff=field_options.beam_cutoff,
         mode=convol_mode,
-        filter=convol_filter,
+        filter_str=convol_filter,
         convol_suffix_str=convol_suffix_str,
         remove_original_images=remove_original_images,
     )
     assert field_options.yandasoft_container is not None
-    parset = task_linmos_images.submit(
-        images=conv_images,  # type: ignore
+    parset = task_linmos_images_list.submit(
+        image_list=conv_images,  # type: ignore
         container=field_options.yandasoft_container,
         suffix_str=linmos_suffix_str,
         holofile=field_options.holofile,
         cutoff=field_options.pb_cutoff,
         field_summary=field_summary,
         trim_linmos_fits=trim_linmos_fits,
-        filter=convol_filter,
+        filter_str=convol_filter,
         remove_original_images=remove_original_images,
         cleanup=cleanup_linmos,
     )  # type: ignore
@@ -741,30 +925,30 @@ def _convolve_linmos(
     return parset
 
 
-def _create_convol_linmos_images(
-    wsclean_cmds: Collection[WSCleanCommand],
+def create_convol_linmos_images(
+    wsclean_results: Collection[WSCleanResult],
     field_options: FieldOptions,
     field_summary: FieldSummary | None = None,
     current_round: int | None = None,
     additional_linmos_suffix_str: str | None = None,
-) -> list[LinmosCommand]:
+) -> list[LinmosResult]:
     """Derive the appropriate set of beam shapes and then produce corresponding
     convolved and co-added images
 
     Args:
-        wsclean_cmds (Collection[WSCleanCommand]): Set of wsclean commands that have been executed
+        wsclean_results (Collection[WSCleanResult]): Set of wsclean commands that have been executed
         field_options (FieldOptions): Set of field imaging options, containing details of the beam/s
         field_summary (Optional[FieldSummary], optional): Summary of the MSs, importantly containing their third-axis rotation. Defaults to None.
         current_round (Optional[int], optional): Which self-cal imaging round. If None 'noselfcal'. Defaults to None.
         additional_linmos_suffix_str (Optional[str], optional): An additional string added to the end of the auto-generated linmos base name. Defaults to None.
 
     Returns:
-        List[LinmosCommand]: The collection of linmos commands executed.
+        List[LinmosResult]: The collection of linmos commands executed.
     """
-    parsets: list[LinmosCommand] = []
+    parsets: list[LinmosResult] = []
 
     # Come up with the linmos suffix to add to output file
-    suffixes = [f"round{current_round}" if current_round else "noselfcal"]
+    suffixes = [f"round{current_round}" if current_round is not None else "noselfcal"]
     if additional_linmos_suffix_str:
         suffixes.insert(0, additional_linmos_suffix_str)
 
@@ -783,10 +967,10 @@ def _create_convol_linmos_images(
         linmos_suffix_str = f"{beam_str}.{main_linmos_suffix_str}"
         convol_suffix_str = f"{beam_str}.conv"
 
-        beam_shape = task_get_common_beam.submit(
-            wsclean_cmds=wsclean_cmds,
+        beam_shape = task_get_common_beam_from_results.submit(
+            wsclean_results=wsclean_results,
             cutoff=field_options.beam_cutoff,
-            filter=".MFS.",
+            filter_str=".MFS.",
             fixed_beam_shape=round_beam_shape,
         )
         # NOTE: The order matters here. The last linmos file is used
@@ -794,8 +978,8 @@ def _create_convol_linmos_images(
         # we would source find on the residual image
         if field_options.linmos_residuals:
             parsets.append(
-                _convolve_linmos(
-                    wsclean_cmds=wsclean_cmds,
+                convolve_then_linmos(
+                    wsclean_results=wsclean_results,
                     beam_shape=beam_shape,  # type: ignore
                     field_options=field_options,
                     linmos_suffix_str=f"{linmos_suffix_str}.residual",
@@ -806,8 +990,8 @@ def _create_convol_linmos_images(
                 )
             )
         parsets.append(
-            _convolve_linmos(
-                wsclean_cmds=wsclean_cmds,
+            convolve_then_linmos(
+                wsclean_results=wsclean_results,
                 beam_shape=beam_shape,  # type: ignore
                 field_options=field_options,
                 linmos_suffix_str=linmos_suffix_str,
@@ -821,35 +1005,35 @@ def _create_convol_linmos_images(
     return parsets
 
 
-def _create_convolve_linmos_cubes(
-    wsclean_cmds: Collection[WSCleanCommand],
+def create_convolve_linmos_cubes(
+    wsclean_results: Collection[WSCleanResult],
     field_options: FieldOptions,
     current_round: int | None = None,
     additional_linmos_suffix_str: str | None = "cube",
 ):
-    suffixes = [f"round{current_round}" if current_round else "noselfcal"]
+    suffixes = [f"round{current_round}" if current_round is not None else "noselfcal"]
     if additional_linmos_suffix_str:
         suffixes.insert(0, additional_linmos_suffix_str)
     linmos_suffix_str = ".".join(suffixes)
 
     beam_shapes = task_get_cube_common_beam.submit(
-        wsclean_cmds=wsclean_cmds, cutoff=field_options.beam_cutoff
+        wsclean_results=wsclean_results, cutoff=field_options.beam_cutoff
     )
     convolved_cubes = task_convolve_cube.map(
-        wsclean_cmd=wsclean_cmds,  # type: ignore
+        wsclean_result=wsclean_results,  # type: ignore
         cutoff=field_options.beam_cutoff,
         mode=unmapped("image"),  # type: ignore
         beam_shapes=unmapped(beam_shapes),  # type: ignore
     )
 
     assert field_options.yandasoft_container is not None
-    parset = task_linmos_images.submit(
-        images=convolved_cubes,  # type: ignore
+    parset = task_linmos_images_list.submit(
+        image_list=convolved_cubes,  # type: ignore
         container=field_options.yandasoft_container,
         suffix_str=linmos_suffix_str,
         holofile=field_options.holofile,
         cutoff=field_options.pb_cutoff,
-        filter=None,
+        filter_str=None,
     )
     return parset
 
@@ -857,7 +1041,7 @@ def _create_convolve_linmos_cubes(
 @task
 @wrapper_options_from_strategy(update_options_keyword="update_masking_options")
 def task_create_image_mask_model(
-    image: LinmosCommand | ImageSet | WSCleanCommand,
+    image: LinmosResult | ImageSet | WSCleanResult,
     image_products: AegeanOutputs,
     update_masking_options: dict[str, Any] | None = None,
 ) -> FITSMaskNames:
@@ -865,7 +1049,7 @@ def task_create_image_mask_model(
     to an appropriate imager. This is derived using a simple signal to noise cut.
 
     Args:
-        linmos_parset (LinmosCommand): Linmos command and associated meta-data
+        linmos_parset (LinmosResult): Linmos command and associated meta-data
         image_products (AegeanOutputs): Images of the RMS and BKG
         update_masking_options (Optional[Dict[str,Any]], optional): Updated options supplied to the default MaskingOptions. Defaults to None.
 
@@ -883,12 +1067,12 @@ def task_create_image_mask_model(
         raise ValueError("Unsupported bkg/rms mode. ")
 
     source_image = None
-    if isinstance(image, LinmosCommand):
+    if isinstance(image, LinmosResult):
         source_image = image.image_fits
     elif isinstance(image, ImageSet) and image.image is not None:
         source_image = list(image.image)[-1]
-    elif isinstance(image, WSCleanCommand) and image.imageset is not None:
-        source_image = list(image.imageset.image)[-1]
+    elif isinstance(image, WSCleanResult) and image.image_set is not None:
+        source_image = list(image.image_set.image)[-1]
     else:
         source_image = image_products.image
 
@@ -918,22 +1102,22 @@ def task_create_image_mask_model(
 
 @task
 def task_extract_beam_mask_image(
-    linmos_mask_names: FITSMaskNames, wsclean_cmd: WSCleanCommand
+    linmos_mask_names: FITSMaskNames, wsclean_result: WSCleanResult
 ) -> FITSMaskNames:
     """Extract a clean mask for a beam from a larger clean mask (e.g. derived from a field)
 
     Args:
         linmos_mask_names (FITSMaskNames): Mask that will be drawn from to form a smaller clean mask (e.g. for a beam)
-        wsclean_cmd (WSCleanCommand): Wsclean command and meta-data. This is used to draw from the WCS to create an appropriate pixel-to-pixel mask
+        wsclean_result (WSCleanResult): Wsclean command and meta-data. This is used to draw from the WCS to create an appropriate pixel-to-pixel mask
 
     Returns:
         FITSMaskNames: Clean mask for a image
     """
     # All images made by wsclean will have the same WCS
     assert (
-        wsclean_cmd.imageset is not None
-    ), f"{wsclean_cmd.imageset=}, which should not happen"
-    beam_image = next(iter(wsclean_cmd.imageset.image))
+        wsclean_result.image_set is not None
+    ), f"{wsclean_result.image_set=}, which should not happen"
+    beam_image = next(iter(wsclean_result.image_set.image))
     beam_mask_names = extract_beam_mask_from_mosaic(
         fits_beam_image_path=beam_image, fits_mosaic_mask_names=linmos_mask_names
     )
@@ -1034,7 +1218,7 @@ def task_create_validation_tables(
     return validation_tables
 
 
-def _validation_items(
+def validation_items(
     field_summary: FieldSummary,
     aegean_outputs: AegeanOutputs,
     reference_catalogue_directory: Path,

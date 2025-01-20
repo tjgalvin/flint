@@ -14,7 +14,6 @@ from typing import Any, Callable, ParamSpec, TypeVar
 
 import yaml
 from click import MissingParameter
-from pydantic import ValidationError
 
 from flint.imager.wsclean import WSCleanOptions
 from flint.logging import logger
@@ -31,9 +30,11 @@ from flint.source_finding.aegean import AegeanOptions, BANEOptions
 # better to have an "imager" operation mode, and put these two things
 # into there
 
-KNOWN_HEADERS = ("defaults", "initial", "selfcal", "version")
-KNOWN_OPERATIONS = ("stokesv", "subtractcube")
-FORMAT_VERSION = 0.1
+# Known headers must **always** be present in the strategy file
+KNOWN_HEADERS = ("defaults", "version")
+# Known options are optional, but if present must be in the correct format
+KNOWN_OPERATIONS = ("selfcal", "stokesv", "subtractcube", "polarisation")
+FORMAT_VERSION = 0.2
 MODE_OPTIONS_MAPPING = {
     "wsclean": WSCleanOptions,
     "gaincal": GainCalOptions,
@@ -41,6 +42,11 @@ MODE_OPTIONS_MAPPING = {
     "archive": ArchiveOptions,
     "bane": BANEOptions,
     "aegean": AegeanOptions,
+}
+POLARISATION_MAPPING = {
+    "total": "i",
+    "linear": "qu",
+    "circular": "v",
 }
 
 
@@ -83,7 +89,7 @@ def copy_and_timestamp_strategy_file(output_dir: Path, input_yaml: Path) -> Path
     return Path(stamped_imaging_strategy)
 
 
-def _load_and_copy_strategy(
+def load_and_copy_strategy(
     output_split_science_path: Path, imaging_strategy: Path | None = None
 ) -> Strategy | None:
     """Load a strategy file and copy a timestamped version into the output directory
@@ -150,7 +156,7 @@ def get_image_options_from_yaml(
 
     assert (
         input_yaml is None
-    ), "Configuring via a yaml configuration file is not yet support. "
+    ), "Configuring via a yaml configuration file is not yet supported. "
 
     MULTISCALE_SCALES = (0, 15, 30, 40, 50, 60, 70, 120)
     IMAGE_SIZE = 7144
@@ -250,10 +256,11 @@ def get_image_options_from_yaml(
 
 def get_options_from_strategy(
     strategy: Strategy | None | Path,
+    operation: str,
     mode: str = "wsclean",
-    round_info: str | int = "initial",
+    round_info: int | None = None,
     max_round_override: bool = True,
-    operation: str | None = None,
+    polarisation: str | None = None,
 ) -> dict[Any, Any]:
     f"""Extract a set of options from a strategy file to use in a pipeline
     run. If the mode exists in the default section, these are used as a base.
@@ -291,9 +298,13 @@ def get_options_from_strategy(
     assert isinstance(
         strategy, (Strategy, dict)
     ), f"Unknown input strategy type {type(strategy)}"
-    assert round_info == "initial" or isinstance(
+    assert round_info is None or isinstance(
         round_info, int
     ), f"{round_info=} not a known value or type. "
+    if operation not in KNOWN_OPERATIONS:
+        raise ValueError(
+            f"{operation=} is not recognised. Known operations are {KNOWN_OPERATIONS}"
+        )
 
     # Override the round if requested
     if (
@@ -310,28 +321,36 @@ def get_options_from_strategy(
     # A default empty dict
     update_options = {}
 
-    # Now get the updates. When using the 'in' on dicts
-    # remember it is checking against the keys
-    if operation is not None:
-        if operation not in KNOWN_OPERATIONS:
+    assert operation in strategy, f"{operation=} not in {strategy.keys()}"
+
+    operation_scope = strategy.get(operation)
+    if round_info is not None:
+        if not isinstance(operation_scope, dict):
             raise ValueError(
-                f"{operation=} is not recognised. Known operations are {KNOWN_OPERATIONS}"
+                f"{operation_scope=} is not a dictionary. Cannot extract {round_info=}"
             )
-        if mode in strategy[operation]:
-            update_options = dict(**strategy[operation][mode])
-    elif round_info == "initial":
-        # separate function to avoid a missing mode from raising value error
-        if mode in strategy["initial"]:
-            update_options = dict(**strategy["initial"][mode])
-    elif isinstance(round_info, int):
-        # separate function to avoid a missing mode from raising value error
-        if (
-            round_info in strategy["selfcal"]
-            and mode in strategy["selfcal"][round_info]
-        ):
-            update_options = dict(**strategy["selfcal"][round_info][mode])
-    else:
-        raise ValueError(f"{round_info=} not recognised.")
+        operation_scope = operation_scope[round_info]
+
+    # Override the polarisation if requested
+    if polarisation is not None:
+        if not isinstance(operation_scope, dict):
+            raise ValueError(
+                f"{operation_scope=} is not a dictionary. Cannot extract {polarisation=}"
+            )
+        operation_scope = operation_scope[polarisation]
+        # Update the wsclean options with the polarisation mapping
+        if mode == "wsclean":
+            operation_scope.setdefault(mode, {}).update(
+                {"pol": POLARISATION_MAPPING[polarisation]}
+            )
+
+    if not isinstance(operation_scope, dict):
+        raise ValueError(
+            f"{operation_scope=} is not a dictionary. Cannot extract {round_info=}"
+        )
+
+    if mode in operation_scope:
+        update_options = dict(**operation_scope[mode])
 
     if update_options:
         logger.debug(f"Updating options with {update_options=}")
@@ -379,13 +398,14 @@ def wrapper_options_from_strategy(update_options_keyword: str):
 
         # Don't use functools.wraps. It does something to the expected args/kwargs that makes
         # prefect confuxed, wherein it throws an error saying the strategy, mode, round options
-        # are not part of the wrappede fn's function signature.
+        # are not part of the wrapped fn's function signature.
         def wrapper(
             strategy: Strategy | None | Path = None,
+            operation: str = "selfcal",
             mode: str = "wsclean",
-            round_info: str | int = "initial",
+            round_info: int | None = None,
             max_round_override: bool = True,
-            operation: str | None = None,
+            polarisation: str | None = None,
             *args: P.args,
             **kwargs: P.kwargs,
         ) -> T:
@@ -400,6 +420,7 @@ def wrapper_options_from_strategy(update_options_keyword: str):
                     round_info=round_info,
                     max_round_override=max_round_override,
                     operation=operation,
+                    polarisation=polarisation,
                 )
                 logger.info(f"Adding extracted options to {update_options_keyword}")
                 kwargs[update_options_keyword] = update_options
@@ -428,10 +449,19 @@ def verify_configuration(input_strategy: Strategy, raise_on_error: bool = True) 
         bool: Config file is not valid. Raised only if `raise_on_error` is `True`
     """
 
-    errors = []
+    errors: list[str] = []
 
-    if "defaults" not in input_strategy.keys():
-        errors.append("Default section missing from input configuration. ")
+    for known_header in KNOWN_HEADERS:
+        if known_header not in input_strategy.keys():
+            errors.append(
+                f"Required section header {known_header} missing from input configuration."
+            )
+
+    if "version" in input_strategy.keys():
+        if input_strategy["version"] != FORMAT_VERSION:
+            errors.append(
+                f"Version mismatch. Expected {FORMAT_VERSION}, got {input_strategy['version']}"
+            )
 
     # make sure the main components of the file are there
     unknown_headers = [
@@ -443,20 +473,6 @@ def verify_configuration(input_strategy: Strategy, raise_on_error: bool = True) 
     if unknown_headers:
         errors.append(f"{unknown_headers=} found. Supported headers: {KNOWN_HEADERS}")
 
-    if "initial" not in input_strategy.keys():
-        errors.append("No initial imaging round parameters")
-    else:
-        for key in input_strategy["initial"].keys():
-            options = get_options_from_strategy(
-                strategy=input_strategy, mode=key, round_info="initial"
-            )
-            try:
-                _ = MODE_OPTIONS_MAPPING[key](**options)
-            except (ValidationError, TypeError) as typeerror:
-                errors.append(
-                    f"{key} mode in initial round incorrectly formed. {typeerror} "
-                )
-
     if "selfcal" in input_strategy:
         round_keys = input_strategy["selfcal"].keys()
 
@@ -465,28 +481,62 @@ def verify_configuration(input_strategy: Strategy, raise_on_error: bool = True) 
 
         for round_info in round_keys:
             for mode in input_strategy["selfcal"][round_info]:
-                options = get_options_from_strategy(
-                    strategy=input_strategy, mode=mode, round_info=round_info
-                )
                 try:
-                    _ = MODE_OPTIONS_MAPPING[mode](**options)
-                except TypeError as typeerror:
-                    errors.append(
-                        f"{mode=} mode in {round_info=} incorrectly formed. {typeerror} "
+                    options = get_options_from_strategy(
+                        strategy=input_strategy,
+                        operation="selfcal",
+                        mode=mode,
+                        round_info=round_info,
                     )
+                    try:
+                        _ = MODE_OPTIONS_MAPPING[mode](**options)
+                    except TypeError as typeerror:
+                        errors.append(
+                            f"{mode=} mode in {round_info=} incorrectly formed. {typeerror} "
+                        )
+                except Exception as exception:
+                    errors.append(f"{exception}")
+
+    if "polarisation" in input_strategy:
+        _supported_polarisations = tuple(POLARISATION_MAPPING.keys())
+        polarisations = input_strategy["polarisation"].keys()
+        for polarisation in polarisations:
+            if polarisation not in _supported_polarisations:
+                errors.append(f"{polarisation=} not in {_supported_polarisations}. ")
+            for mode in input_strategy["polarisation"][polarisation]:
+                try:
+                    options = get_options_from_strategy(
+                        strategy=input_strategy,
+                        operation="polarisation",
+                        mode=mode,
+                    )
+                    try:
+                        _ = MODE_OPTIONS_MAPPING[mode](**options)
+                    except TypeError as typeerror:
+                        errors.append(
+                            f"{mode=} mode in {round_info=} incorrectly formed. {typeerror} "
+                        )
+                except Exception as exception:
+                    errors.append(f"{exception}")
 
     for operation in KNOWN_OPERATIONS:
+        # Already checked above
+        if operation == "selfcal" or operation == "polarisation":
+            continue
         if operation in input_strategy.keys():
             for mode in input_strategy[operation]:
-                options = get_options_from_strategy(
-                    strategy=input_strategy, mode=mode, operation=operation
-                )
                 try:
-                    _ = MODE_OPTIONS_MAPPING[mode](**options)
-                except TypeError as typeerror:
-                    errors.append(
-                        f"{mode=} mode in {operation=} incorrectly formed. {typeerror} "
+                    options = get_options_from_strategy(
+                        strategy=input_strategy, mode=mode, operation=operation
                     )
+                    try:
+                        _ = MODE_OPTIONS_MAPPING[mode](**options)
+                    except TypeError as typeerror:
+                        errors.append(
+                            f"{mode=} mode in {operation=} incorrectly formed. {typeerror} "
+                        )
+                except Exception as exception:
+                    errors.append(f"{exception}")
 
     valid_config = len(errors) == 0
     if not valid_config:
@@ -567,12 +617,10 @@ def create_default_yaml(output_yaml: Path, selfcal_rounds: int | None = None) ->
 
     strategy["defaults"] = _create_mode_mapping_defaults()
 
-    strategy["initial"] = {"wsclean": {}}
-
     if selfcal_rounds:
         logger.info(f"Creating {selfcal_rounds} self-calibration rounds. ")
         selfcal: dict[int, Any] = {}
-        for selfcal_round in range(1, selfcal_rounds + 1):
+        for selfcal_round in range(0, selfcal_rounds):
             selfcal[selfcal_round] = {
                 "wsclean": {},
                 "gaincal": {},

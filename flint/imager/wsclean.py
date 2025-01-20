@@ -24,12 +24,23 @@ from pathlib import Path
 from typing import Any, Collection, NamedTuple
 
 import numpy as np
+from astropy.io import fits
 from fitscube.combine_fits import combine_fits
+from prefect import task
 
-from flint.exceptions import AttemptRerunException, CleanDivergenceError
+from flint.exceptions import (
+    AttemptRerunException,
+    CleanDivergenceError,
+    NamingException,
+    NotSupportedError,
+)
 from flint.logging import logger
 from flint.ms import MS
-from flint.naming import create_image_cube_name, create_imaging_name_prefix
+from flint.naming import (
+    create_image_cube_name,
+    create_imaging_name_prefix,
+    split_images,
+)
 from flint.options import (
     BaseOptions,
     add_options_to_parser,
@@ -79,7 +90,7 @@ class WSCleanOptions(BaseOptions):
 
     abs_mem: int = 100
     """Memory wsclean should try to limit itself to"""
-    local_rms_window: int = 65
+    local_rms_window: int | None = None
     """Size of the window used to estimate rms noise"""
     size: int = 10128
     """Image size, only a single dimension is required. Note that this means images will be squares. """
@@ -101,22 +112,13 @@ class WSCleanOptions(BaseOptions):
     """Maximum number of major cycles to perform"""
     niter: int = 750000
     """Maximum number of minor cycles"""
-    multiscale: bool = True
+    multiscale: bool = False
     """Enable multiscale deconvolution"""
     multiscale_scale_bias: float = 0.75
     """Multiscale bias term"""
     multiscale_gain: float | None = None
     """Size of step made in the subminor loop of multi-scale. Default currently 0.2, but shows sign of instability. A value of 0.1 might be more stable."""
-    multiscale_scales: tuple[int, ...] = (
-        0,
-        15,
-        25,
-        50,
-        75,
-        100,
-        250,
-        400,
-    )
+    multiscale_scales: tuple[int, ...] | None = None
     """Scales used for multi-scale deconvolution"""
     fit_spectral_pol: int | None = None
     """Number of spectral terms to include during sub-band subtraction"""
@@ -130,10 +132,20 @@ class WSCleanOptions(BaseOptions):
     """Use the wgridder kernel in wsclean (instead of the default w-stacking method)"""
     nwlayers: int | None = None
     """Number of w-layers to use if the gridder mode is w-stacking"""
-    wgridder_accuracy: float = 1e-4
+    wgridder_accuracy: float | None = None
     """The accuracy requested of the wgridder (should it be used), compared as the RMS error when compred to a DFT"""
     join_channels: bool = True
     """Collapse the sub-band images down to an MFS image when peak-finding"""
+    squared_channel_joining: bool = False
+    """Use with -join-channels to perform peak finding in the sum of squared values over
+    channels, instead of the normal sum. This is useful for imaging QU polarizations
+    with non-zero rotation measures, for which the normal sum is insensitive.
+    """
+    join_polarizations: bool = False
+    """Perform deconvolution by searching for peaks in the sum of squares of the polarizations,
+    but subtract components from the individual images. Only possible when imaging two or four Stokes
+    or linear parameters. Default: off.
+    """
     minuv_l: float | None = None
     """The minimum lambda length that the visibility data needs to meet for it to be selected for imaging"""
     minuvw_m: float | None = None
@@ -155,7 +167,7 @@ class WSCleanOptions(BaseOptions):
     parallel_gridding: int | None = None
     """If not none, then this is the number of channel images that will be gridded in parallel"""
     temp_dir: str | Path | None = None
-    """The path to a temporary directory where files will be wrritten. """
+    """The path to a temporary directory where files will be written. """
     pol: str = "i"
     """The polarisation to be imaged"""
     save_source_list: bool = False
@@ -168,7 +180,7 @@ class WSCleanOptions(BaseOptions):
     """If True do not log the wsclean output"""
 
 
-class WSCleanCommand(BaseOptions):
+class WSCleanResult(BaseOptions):
     """Simple container for a wsclean command."""
 
     cmd: str
@@ -177,10 +189,147 @@ class WSCleanCommand(BaseOptions):
     """The set of wslean options used for imaging"""
     ms: MS
     """The measurement sets that have been included in the wsclean command. """
-    imageset: ImageSet | None = None
-    """Collection of images produced by wsclean"""
+    bind_dirs: tuple[Path, ...]
+    """Paths that should be binded to when executing the command"""
+    move_hold_directories: tuple[Path, Path]
+    """Paths that should be moved to and from when executing the command"""
+    image_prefix_str: str | None = None
+    """The prefix of the images that will be created"""
     cleanup: bool = True
     """Will clean up the dirty images/psfs/residuals/models when the imaging has completed"""
+    image_set: ImageSet | None = None
+    """The set of images produced by wsclean"""
+
+
+def image_set_from_result(wsclean_result: WSCleanResult) -> ImageSet | None:
+    return wsclean_result.image_set
+
+
+task_image_set_from_result = task(image_set_from_result)
+
+
+def merge_image_sets(
+    image_sets: list[ImageSet],
+) -> ImageSet:
+    """Merge the image sets from multiple wsclean results into a single image set.
+
+    Args:
+        wsclean_results (List[WSCleanResult]): The results of multiple wsclean imaging runs
+
+    Returns:
+        ImageSet: The merged image set
+    """
+    logger.info(f"Merging {len(image_sets)} image sets")
+
+    prefix = image_sets[0].prefix
+    for image_set in image_sets:
+        if image_set.prefix != prefix:
+            msg = f"Image sets have different prefixes - will use the first prefix {prefix}"
+            logger.warning(msg)
+
+    image_set_dict: dict[str, Any] = {}
+    for image_set in image_sets:
+        for key, value in image_set._asdict().items():
+            if key == "prefix":
+                continue
+            if value is None:
+                continue
+            if key not in image_set_dict:
+                image_set_dict[key] = []
+            if isinstance(value, (list, tuple)):
+                image_set_dict[key].extend(value)
+            else:
+                image_set_dict[key].append(value)
+
+    image_set_dict["prefix"] = prefix
+
+    logger.info(f"Merged image set: {image_set_dict=}")
+
+    return ImageSet(**image_set_dict)
+
+
+task_merge_image_sets = task(merge_image_sets)
+
+
+def merge_image_sets_from_results(
+    wsclean_results: list[WSCleanResult],
+) -> ImageSet:
+    """Merge the image sets from multiple wsclean results into a single image set.
+
+    Args:
+        wsclean_results (List[WSCleanResult]): The results of multiple wsclean imaging runs
+
+    Returns:
+        ImageSet: The merged image set
+    """
+    image_sets = [
+        result.image_set for result in wsclean_results if result.image_set is not None
+    ]
+    return merge_image_sets(image_sets)
+
+
+task_merge_image_sets_from_results = task(merge_image_sets_from_results)
+
+
+def split_image_set(
+    image_set: ImageSet,
+    by: str = "pol",
+    mode: str = "image",
+) -> dict[str, list[Path]]:
+    """Split an ImageSet by a given field.
+
+    Args:
+        image_set (ImageSet): The ImageSet to split
+        by (str, optional): Field to split images by. Defaults to "pol".
+        mode (str, optional): Type of images to extract from ImageSet. Defaults to "image".
+
+    Raises:
+        NamingException: If the field to split by is not found in the ImageSet
+
+    Returns:
+        dict[str, list[Path]]: _description_
+    """
+    logger.info(f"Splitting {image_set=} by {by=} with {mode=}")
+    try:
+        image_list = getattr(image_set, mode)
+    except AttributeError as e:
+        msg = f"Failed to extract {mode=} from {image_set=}"
+        raise NamingException(msg) from e
+    split_list = split_images(images=image_list, by=by)
+
+    return split_list
+
+
+def split_and_get_image_set(
+    image_set: ImageSet,
+    get: str,
+    by: str = "pol",
+    mode: str = "image",
+) -> list[Path]:
+    """Split an ImageSet by a given field and return the images that match the field of interest.
+
+    Args:
+        image_set (ImageSet): The ImageSet to split
+        get (str): The field to extract from the split images
+        by (str, optional): The field to split by. Defaults to "pol".
+        mode (str, optional): The mode to extract from ImageSet. Defaults to "image".
+
+    Raises:
+        NamingException: If the field to split by is not found in the ImageSet
+
+    Returns:
+        list[Path]: The images that match the field of interest
+    """
+    split_dict = split_image_set(image_set=image_set, by=by, mode=mode)
+
+    split_list = split_dict.get(get, None)
+    if split_list is None:
+        raise NamingException(f"Failed to get {get=} from {split_dict=}")
+
+    return split_list
+
+
+task_split_and_get_image_set = task(split_and_get_image_set)
 
 
 def get_wsclean_output_source_list_path(
@@ -235,6 +384,15 @@ def _rename_wsclean_title(name_str: str) -> str:
     Returns:
         str: The modified string if a wsclean string was matched, otherwise the input `name-str`
     """
+    # Yolo chatGPT
+    # The following should replace the .qu with .q or .u whilst removing the -Q and -U
+    logger.info(f"Renaming {name_str=} for qu components if necessary")
+    name_str = re.sub(
+        r"(\.qu)-([^-]+)-?([QU])?(\-(psf|image|dirty|model|residual)\.fits)",
+        lambda m: f".{m.group(3).lower() if m.group(3) else 'q'}-{m.group(2)}{m.group(4)}",
+        name_str,
+    )
+
     search_re = r"(-(i|q|u|v|xx|xy|yx|yy))?(-(MFS|[0-9]{4}))?(-t[0-9]{5})?-(image|dirty|model|residual|psf)"
     match_re = re.compile(search_re)
 
@@ -306,7 +464,7 @@ def _wsclean_output_callback(line: str) -> None:
 def get_wsclean_output_names(  #
     prefix: str,
     subbands: int | None = None,
-    pols: str | tuple[str] | None = None,
+    pols: str | tuple[str] | tuple[str, ...] | None = None,
     verify_exists: bool = False,
     include_mfs: bool = True,
     output_types: str | Collection[str] = (
@@ -352,7 +510,7 @@ def get_wsclean_output_names(  #
         if include_mfs:
             subband_strs.append("MFS")
 
-    in_pols: tuple[None | str]
+    in_pols: tuple[None, ...] | tuple[str, ...]
     if pols is None:
         in_pols = (None,)
     elif isinstance(pols, str):
@@ -609,8 +767,7 @@ def _resolve_wsclean_key_value_to_cli_str(key: str, value: Any) -> ResolvedCLIRe
 def create_wsclean_cmd(
     ms: MS,
     wsclean_options: WSCleanOptions,
-    container: Path | None = None,
-) -> WSCleanCommand:
+) -> WSCleanResult:
     """Create a wsclean command from a WSCleanOptions container
 
     For the most part these are one-to-one mappings to the wsclean CLI with the
@@ -631,7 +788,7 @@ def create_wsclean_cmd(
         ValueError: Raised when a option has not been successfully processed
 
     Returns:
-        WSCleanCommand: The wsclean command to run
+        WSCleanResult: The wsclean command to run
     """
     # TODO: This is very very smelly. I think removing the `.name` from WSCleanOptions
     # to start with, build that as an explicit testable function, and pass/return the name
@@ -682,33 +839,53 @@ def create_wsclean_cmd(
 
     logger.info(f"Constructed wsclean command: {cmd=}")
     logger.info("Setting default model data column to 'MODEL_DATA'")
-    wsclean_cmd = WSCleanCommand(
-        cmd=cmd, options=wsclean_options, ms=ms.with_options(model_column="MODEL_DATA")
+
+    return WSCleanResult(
+        cmd=cmd,
+        options=wsclean_options,
+        ms=ms.with_options(model_column="MODEL_DATA"),
+        bind_dirs=tuple(bind_dir_paths),
+        move_hold_directories=(move_directory, hold_directory),
+        image_prefix_str=str(name_argument_path),
     )
 
-    if container:
-        wsclean_cmd = run_wsclean_imager(
-            wsclean_cmd=wsclean_cmd,
-            container=container,
-            bind_dirs=tuple(bind_dir_paths),
-            move_hold_directories=(move_directory, hold_directory),
-            image_prefix_str=str(name_argument_path),
-        )
 
-    return wsclean_cmd
+def _rotate_cube(output_cube_name) -> None:
+    logger.info(f"Rotating {output_cube_name=}")
+    # This changes the output cube to a shape of (chan, pol, dec, ra)
+    # which is what yandasoft linmos tasks like
+    with fits.open(output_cube_name, mode="update", memmap=True) as hdulist:
+        hdu = hdulist[0]
+        new_header = hdu.header
+        data_cube = hdu.data
+
+        tmp_header = new_header.copy()
+        # Need to swap NAXIS 3 and 4 to make LINMOS happy - booo
+        for a, b in ((3, 4), (4, 3)):
+            new_header[f"CTYPE{a}"] = tmp_header[f"CTYPE{b}"]
+            new_header[f"CRPIX{a}"] = tmp_header[f"CRPIX{b}"]
+            new_header[f"CRVAL{a}"] = tmp_header[f"CRVAL{b}"]
+            new_header[f"CDELT{a}"] = tmp_header[f"CDELT{b}"]
+            new_header[f"CUNIT{a}"] = tmp_header[f"CUNIT{b}"]
+
+        # Cube is currently STOKES, FREQ, RA, DEC - needs to be FREQ, STOKES, RA, DEC
+        data_cube = np.moveaxis(data_cube, 1, 0)
+        hdu.data = data_cube
+        hdu.header = new_header
+        hdulist.flush()
 
 
-def combine_subbands_to_cube(
-    imageset: ImageSet,
+def combine_image_set_to_cube(
+    image_set: ImageSet,
     remove_original_images: bool = False,
 ) -> ImageSet:
     """Combine wsclean subband channel images into a cube. Each collection attribute
-    of the input `imageset` will be inspected. The MFS images will be ignored.
+    of the input `image_set` will be inspected. The MFS images will be ignored.
 
     A output file name will be generated based on the  prefix and mode (e.g. `image`, `residual`, `psf`, `dirty`).
 
     Args:
-        imageset (ImageSet): Collection of wsclean image productds
+        image_set (ImageSet): Collection of wsclean image productds
         remove_original_images (bool, optional): If True, images that went into the cube are removed. Defaults to False.
 
     Returns:
@@ -716,33 +893,35 @@ def combine_subbands_to_cube(
     """
     logger.info("Combining subband image products into fits cubes")
 
-    if not isinstance(imageset, ImageSet):
+    if not isinstance(image_set, ImageSet):
         raise TypeError(
-            f"Input imageset of type {type(imageset)}, expect {type(ImageSet)}"
+            f"Input image_set of type {type(image_set)}, expect {type(ImageSet)}"
         )
 
-    imageset_dict = options_to_dict(input_options=imageset)
+    image_set_dict = options_to_dict(input_options=image_set)
 
     for mode in ("image", "residual", "dirty", "model", "psf"):
-        if imageset_dict[mode] is None or not isinstance(
-            imageset_dict[mode], (list, tuple)
+        if image_set_dict[mode] is None or not isinstance(
+            image_set_dict[mode], (list, tuple)
         ):
             logger.info(f"{mode=} is None or not appropriately formed. Skipping. ")
             continue
 
         subband_images = [
-            image for image in imageset_dict[mode] if "-MFS-" not in str(image)
+            image for image in image_set_dict[mode] if "-MFS-" not in str(image)
         ]
         if len(subband_images) <= 1:
             logger.info(f"Not enough subband images for {mode=}, not creating a cube")
             continue
 
         output_cube_name = create_image_cube_name(
-            image_prefix=Path(imageset.prefix), mode=mode
+            image_prefix=Path(image_set.prefix), mode=mode
         )
 
         logger.info(f"Combining {len(subband_images)} images. {subband_images=}")
         freqs = combine_fits(file_list=subband_images, out_cube=output_cube_name)
+
+        _rotate_cube(output_cube_name)
 
         # Write out the hdu to preserve the beam table constructed in fitscube
         logger.info(f"Writing {output_cube_name=}")
@@ -750,30 +929,69 @@ def combine_subbands_to_cube(
         output_freqs_name = Path(output_cube_name).with_suffix(".freqs_Hz.txt")
         np.savetxt(output_freqs_name, freqs.to("Hz").value)
 
-        imageset_dict[mode] = [Path(output_cube_name)] + [
-            image for image in imageset_dict[mode] if image not in subband_images
+        image_set_dict[mode] = [Path(output_cube_name)] + [
+            image for image in image_set_dict[mode] if image not in subband_images
         ]
 
         if remove_original_images:
             remove_files_folders(*subband_images)
 
-    return ImageSet(**imageset_dict)
+    return ImageSet(**image_set_dict)
 
 
-def rename_wsclean_prefix_in_imageset(input_imageset: ImageSet) -> ImageSet:
-    """Given an input imageset, rename the files contained in it to
+@task
+def combine_images_to_cube(
+    images: list[Path],
+    prefix: str,
+    mode: str,
+    remove_original_images: bool = False,
+) -> Path:
+    """Combine wsclean subband channel images into a cube. Each collection attribute
+    of the input `image_set` will be inspected. The MFS images will be ignored.
+
+    A output file name will be generated based on the  prefix and mode (e.g. `image`, `residual`, `psf`, `dirty`).
+
+    Args:
+        image_set (ImageSet): Collection of wsclean image productds
+        remove_original_images (bool, optional): If True, images that went into the cube are removed. Defaults to False.
+
+    Returns:
+        ImageSet: Updated iamgeset describing the new outputs
+    """
+    logger.info("Combining subband images into fits cubes")
+
+    output_cube_name = create_image_cube_name(image_prefix=Path(prefix), mode=mode)
+
+    logger.info(f"Combining {len(images)} images. {images=}")
+    freqs = combine_fits(file_list=images, out_cube=output_cube_name)
+    _rotate_cube(output_cube_name)
+
+    # Write out the hdu to preserve the beam table constructed in fitscube
+    logger.info(f"Writing {output_cube_name=}")
+
+    output_freqs_name = output_cube_name.with_suffix(".freqs_Hz.txt")
+    np.savetxt(output_freqs_name, freqs.to("Hz").value)
+
+    if remove_original_images:
+        remove_files_folders(*images)
+
+    return output_cube_name
+
+
+def rename_wsclean_prefix_in_image_set(input_image_set: ImageSet) -> ImageSet:
+    """Given an input image_set, rename the files contained in it to
     remove the `-` separator that wsclean uses and replace it with `.`.
 
     Files will be renamed on disk appropriately.
 
     Args:
-        input_imageset (ImageSet): The collection of output wsclean products
+        input_image_set (ImageSet): The collection of output wsclean products
 
     Returns:
-        ImageSet: The updated imageset after replacing the separator and renaming files
+        ImageSet: The updated image_set after replacing the separator and renaming files
     """
 
-    input_args = options_to_dict(input_options=input_imageset)
+    input_args = options_to_dict(input_options=input_image_set)
 
     check_keys = ("prefix", "image", "residual", "model", "dirty")
 
@@ -790,29 +1008,45 @@ def rename_wsclean_prefix_in_imageset(input_imageset: ImageSet) -> ImageSet:
         else:
             output_args[key] = value
 
-    output_imageset = ImageSet(**output_args)
+    output_image_set = ImageSet(**output_args)
 
-    return output_imageset
+    return output_image_set
+
+
+def _make_pols(pol_str: str) -> tuple[str, ...] | None:
+    """Create a tuple of polarisations from a polarisation string
+
+    Args:
+        pol_str (str): Polarisation string to convert
+
+    Returns:
+        tuple[str, ...] | None: Tuple of polarisations
+    """
+    if any(pol in pol_str.lower() for pol in ("x", "y", "r", "l")):
+        msg = f"Found instrumental polarisation in {pol_str=}. This is not supported."
+        raise NotSupportedError(msg)
+
+    pols: tuple[str, ...] | None = None
+    if len(pol_str) > 1:
+        pols = tuple(p.upper() for p in "".join(pol_str.split(",")))
+    return pols
 
 
 def run_wsclean_imager(
-    wsclean_cmd: WSCleanCommand,
+    wsclean_result: WSCleanResult,
     container: Path,
-    bind_dirs: tuple[Path, ...] | None = None,
-    move_hold_directories: tuple[Path, Path | None] | None = None,
     make_cube_from_subbands: bool = True,
-    image_prefix_str: str | None = None,
-) -> WSCleanCommand:
+) -> ImageSet:
     """Run a provided wsclean command. Optionally will clean up files,
     including the dirty beams, psfs and other assorted things.
 
     An `ImageSet` is constructed that attempts to capture the output wsclean image products. If `image_prefix_str`
     is specified the image set will be created by (ordered by preference):
     #. Adding the `image_prefix_str` to the `move_directory`
-    #. Guessing it from the path of the measurement set from `wsclean_cmd.ms.path`
+    #. Guessing it from the path of the measurement set from `wsclean_result.ms.path`
 
     Args:
-        wsclean_cmd (WSCleanCommand): The command to run, and other properties (cleanup.)
+        wsclean_result (WSCleanResult): The command to run, and other properties (cleanup.)
         container (Path): Path to the container with wsclean available in it
         bind_dirs (Optional[Tuple[Path, ...]], optional): Additional directories to include when binding to the wsclean container. Defaults to None.
         move_hold_directories (Optional[Tuple[Path,Optional[Path]]], optional): The `move_directory` and `hold_directory` passed to the temporary context manager. If None no `hold_then_move_into` manager is used. Defaults to None.
@@ -820,12 +1054,15 @@ def run_wsclean_imager(
         image_prefix_str (Optional[str], optional): The name used to search for wsclean outputs. If None, it is guessed from the name and location of the MS. Defaults to None.
 
     Returns:
-        WSCleanCommand: The executed wsclean command with a populated imageset properter.
+        ImageSet: The executed wsclean output products.
     """
 
-    ms = wsclean_cmd.ms
-    single_channel = wsclean_cmd.options.channels_out == 1
-    wsclean_cleanup = wsclean_cmd.cleanup
+    ms = wsclean_result.ms
+    single_channel = wsclean_result.options.channels_out == 1
+    wsclean_cleanup = wsclean_result.cleanup
+    bind_dirs = wsclean_result.bind_dirs
+    move_hold_directories = wsclean_result.move_hold_directories
+    image_prefix_str = wsclean_result.image_prefix_str
 
     sclient_bind_dirs = [Path(ms.path).parent.absolute()]
     if bind_dirs:
@@ -844,10 +1081,10 @@ def run_wsclean_imager(
             sclient_bind_dirs.append(directory)
             run_singularity_command(
                 image=container,
-                command=wsclean_cmd.cmd,
+                command=wsclean_result.cmd,
                 bind_dirs=sclient_bind_dirs,
                 stream_callback_func=_wsclean_output_callback,
-                ignore_logging_output=wsclean_cmd.options.flint_no_log_wsclean_output,
+                ignore_logging_output=wsclean_result.options.flint_no_log_wsclean_output,
             )
             if wsclean_cleanup:
                 rm_files = wsclean_cleanup_files(
@@ -866,10 +1103,10 @@ def run_wsclean_imager(
     else:
         run_singularity_command(
             image=container,
-            command=wsclean_cmd.cmd,
+            command=wsclean_result.cmd,
             bind_dirs=sclient_bind_dirs,
             stream_callback_func=_wsclean_output_callback,
-            ignore_logging_output=wsclean_cmd.options.flint_no_log_wsclean_output,
+            ignore_logging_output=wsclean_result.options.flint_no_log_wsclean_output,
         )
 
     # prefix should be set at this point
@@ -879,39 +1116,43 @@ def run_wsclean_imager(
         logger.info("Will clean up files created by wsclean. ")
         rm_files = wsclean_cleanup_files(prefix=prefix, single_channel=single_channel)
 
-    imageset = get_wsclean_output_names(
+    pols = _make_pols(pol_str=wsclean_result.options.pol)
+
+    image_set = get_wsclean_output_names(
         prefix=prefix,
-        subbands=wsclean_cmd.options.channels_out,
+        subbands=wsclean_result.options.channels_out,
+        pols=pols,
         verify_exists=True,
         output_types=("image", "residual"),
         check_exists_when_adding=True,
     )
 
-    if wsclean_cmd.options.save_source_list:
+    if wsclean_result.options.save_source_list:
         logger.info("Attaching the wsclean clean components SEDs")
         source_list_path = get_wsclean_output_source_list_path(
             name_path=prefix, pol=None
         )
         assert source_list_path.exists(), f"{source_list_path=} does not exist"
-        imageset = imageset.with_options(source_list=source_list_path)
+        image_set = image_set.with_options(source_list=source_list_path)
 
     if make_cube_from_subbands:
-        imageset = combine_subbands_to_cube(
-            imageset=imageset, remove_original_images=True
+        image_set = combine_image_set_to_cube(
+            image_set=image_set, remove_original_images=True
         )
 
-    imageset = rename_wsclean_prefix_in_imageset(input_imageset=imageset)
+    image_set = rename_wsclean_prefix_in_image_set(input_image_set=image_set)
 
-    logger.info(f"Constructed {imageset=}")
+    logger.info(f"Constructed {image_set=}")
 
-    return wsclean_cmd.with_options(imageset=imageset)
+    return image_set
 
 
 def wsclean_imager(
     ms: Path | MS,
     wsclean_container: Path,
     update_wsclean_options: dict[str, Any] | None = None,
-) -> WSCleanCommand:
+    make_cube_from_subbands: bool = True,
+) -> WSCleanResult:
     """Create and run a wsclean imager command against a measurement set.
 
     Args:
@@ -920,7 +1161,7 @@ def wsclean_imager(
         update_wsclean_options (Optional[Dict[str, Any]], optional): Additional options to update the generated WscleanOptions with. Keys should be attributes of WscleanOptions. Defaults to None.
 
     Returns:
-        WSCleanCommand: _description_
+        WSCleanResult: _description_
     """
 
     # TODO: This should be expanded to support multiple measurement sets
@@ -933,13 +1174,17 @@ def wsclean_imager(
 
     assert ms.column is not None, "A MS column needs to be elected for imaging. "
     wsclean_options = wsclean_options.with_options(data_column=ms.column)
-    wsclean_cmd = create_wsclean_cmd(
+    wsclean_result = create_wsclean_cmd(
         ms=ms,
         wsclean_options=wsclean_options,
+    )
+    image_set = run_wsclean_imager(
+        wsclean_result=wsclean_result,
         container=wsclean_container,
+        make_cube_from_subbands=make_cube_from_subbands,
     )
 
-    return wsclean_cmd
+    return wsclean_result.with_options(image_set=image_set)
 
 
 def get_parser() -> ArgumentParser:
