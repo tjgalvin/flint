@@ -718,7 +718,7 @@ def task_convolve_image(
 
 @task
 def task_linmos_images(
-    images: list[Path],
+    image_list: list[Path],
     container: Path,
     suffix_str: str | None = None,
     holofile: Path | None = None,
@@ -737,14 +737,14 @@ def task_linmos_images(
     # TODO: Need a better filter_str approach. Would probably be better to
     # have literals for the type of product (MFS, cube, model) to be
     # sure of appropriate extraction
-    logger.info(f"Number of images to examine {len(images)}")
+    logger.info(f"Number of images to examine {len(image_list)}")
 
-    logger.info(f"Combining images {images}")
+    logger.info(f"Combining images {image_list}")
 
     from flint.naming import create_name_from_common_fields
 
     out_name = create_name_from_common_fields(
-        in_paths=tuple(images), additional_suffixes=suffix_str
+        in_paths=tuple(image_list), additional_suffixes=suffix_str
     )
     out_dir = out_name.parent
     logger.info(f"Base output image name will be: {out_name}")
@@ -774,7 +774,7 @@ def task_linmos_images(
     )
 
     linmos_result = linmos_images(
-        images=images,
+        images=image_list,
         parset_output_path=Path(output_path),
         linmos_options=linmos_options,
         container=container,
