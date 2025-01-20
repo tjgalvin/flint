@@ -737,6 +737,7 @@ def task_linmos_images(
     # TODO: Need a better filter_str approach. Would probably be better to
     # have literals for the type of product (MFS, cube, model) to be
     # sure of appropriate extraction
+
     logger.info(f"Number of images to examine {len(image_list)}")
 
     logger.info(f"Combining images {image_list}")
@@ -834,7 +835,6 @@ def convolve_then_linmos(
         cutoff=field_options.pb_cutoff,
         field_summary=field_summary,
         trim_linmos_fits=trim_linmos_fits,
-        filter_str=convol_filter,
         remove_original_images=remove_original_images,
         cleanup=cleanup_linmos,
     )  # type: ignore
@@ -987,7 +987,6 @@ def create_convolve_linmos_cubes(
         suffix_str=linmos_suffix_str,
         holofile=field_options.holofile,
         cutoff=field_options.pb_cutoff,
-        filter_str=None,
     )
     return parset
 
