@@ -12,7 +12,7 @@ import subprocess
 from contextlib import contextmanager
 from pathlib import Path
 from socket import gethostname
-from typing import Generator, NamedTuple
+from typing import Any, Generator, NamedTuple
 
 import astropy.units as u
 import numpy as np
@@ -29,6 +29,28 @@ from flint.logging import logger
 # struct should be considered. The the astropy.io.fits.Header might be
 # appropriate to pass around between dask / prefect delayed functions. Something
 # that only opens the FITS file once and places things into common field names.
+
+
+def flatten_items(items: list[Any]) -> list[Any]:
+    """Recursively flatten a collection (list or tuple) of items.
+
+    Args:
+        items (list[Any]): Items to flatten. Can be arbitrarily nested
+
+    Returns:
+        list[Any]: Flattened items
+    """
+    flat_items = []
+
+    def _flatten(nested):
+        for e in nested:
+            if isinstance(e, (list, tuple)):
+                _flatten(e)
+            else:
+                flat_items.append(e)
+
+    _flatten(items)
+    return flat_items
 
 
 def _signal_timelimit_handler(*args):

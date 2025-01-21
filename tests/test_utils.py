@@ -23,6 +23,7 @@ from flint.utils import (
     SlurmInfo,
     copy_directory,
     estimate_skycoord_centre,
+    flatten_items,
     generate_strict_stub_wcs_header,
     generate_stub_wcs_header,
     get_beam_shape,
@@ -35,6 +36,17 @@ from flint.utils import (
     temporarily_move_into,
     timelimit_on_context,
 )
+
+
+def test_flatten_items():
+    """Flatten a list of items recursively"""
+    items = [[1], 2, [[3]], [[4, [5]]]]
+    flat = flatten_items(items=items)
+    expected = [1, 2, 3, 4, 5]
+    assert flat == expected
+
+    items = [1, 2, 3, 4, 5]
+    assert items == flatten_items(items=items)
 
 
 def some_long_function(minimum_time=5):
