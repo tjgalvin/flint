@@ -746,6 +746,9 @@ def task_linmos_images(
     # sure of appropriate extraction
 
     from flint.naming import create_linmos_parset_path
+    from flint.utils import flatten_items
+
+    image_list = flatten_items(items=image_list)
 
     output_path = create_linmos_parset_path(
         input_images=image_list,
