@@ -763,6 +763,54 @@ def create_linmos_names(name_prefix: str) -> LinmosNames:
     )
 
 
+def create_linmos_parset_path(
+    input_images: list[Path] | None = None,
+    parset_output_path: Path | str | None = None,
+    additional_suffixes: str | None = None,
+) -> Path:
+    """Create the path of a ``yandasoft linmos`` parset file.
+
+    If ``parset_output_path`` is provided, this will be used.
+    Otherwise the common fields in the set of input images will
+    be used to generate the file name.
+
+    Args:
+        input_images (list[Path] | None, optional): If provided the common fields of the input images are used as basis of the path. Defaults to None.
+        parset_output_path (Path | str | None, optional): The output path that should be used. Defaults to None.
+        additional_suffixes (str | None, optional): Any additional suffixes to append. Defaults to None.
+
+    Raise:
+        ValueError: Issued if both ``input_images`` and ``parset_output_path`` are not valid
+
+    Returns:
+        Path: The full path of the parset file
+    """
+
+    if isinstance(parset_output_path, (str, Path)):
+        return Path(parset_output_path)
+
+    if input_images is None:
+        raise ValueError(
+            f"{parset_output_path=} and input_images is unset. This is not allowed."
+        )
+
+    # Unless something has been specified, we make it up
+    logger.info(f"Combining images {input_images}")
+    out_name = create_name_from_common_fields(
+        in_paths=tuple(input_images), additional_suffixes=additional_suffixes
+    )
+    out_dir = out_name.parent
+    logger.info(f"Base output image name will be: {out_name}")
+
+    out_file_name = Path(f"{out_name.name}_parset.txt")
+
+    assert out_dir is not None, f"{out_dir=}, which should not happen"
+    output_path = Path(out_dir) / Path(out_file_name)
+    logger.info(f"Parset output path is {parset_output_path}")
+
+    return output_path
+
+
 def get_sbid_from_path(path: Path) -> int:
     """Attempt to extract the SBID of a observation from a path. It is a fairly simple ruleset
     that follows the typical use cases that are actually in practise. There is no mechanism to
@@ -891,51 +939,3 @@ def create_fits_mask_names(
     fits_mask = fits_image.with_suffix(".mask.fits")
 
     return FITSMaskNames(signal_fits=fits_signal, mask_fits=fits_mask)
-
-
-def create_linmos_parset_path(
-    input_images: list[Path] | None = None,
-    parset_output_path: Path | str | None = None,
-    additional_suffixes: str | None = None,
-) -> Path:
-    """Create the path of a ``yandasoft linmos`` parset file.
-
-    If ``parset_output_path`` is provided, this will be used.
-    Otherwise the common fields in the set of input images will
-    be used to generate the file name.
-
-    Args:
-        input_images (list[Path] | None, optional): If provided the common fields of the input images are used as basis of the path. Defaults to None.
-        parset_output_path (Path | str | None, optional): The output path that should be used. Defaults to None.
-        additional_suffixes (str | None, optional): Any additional suffixes to append. Defaults to None.
-
-    Raise:
-        ValueError: Issued if both ``input_images`` and ``parset_output_path`` are not valid
-
-    Returns:
-        Path: The full path of the parset file
-    """
-
-    if isinstance(parset_output_path, (str, Path)):
-        return Path(parset_output_path)
-
-    if input_images is None:
-        raise ValueError(
-            f"{parset_output_path=} and input_images is unset. This is not allowed."
-        )
-
-    # Unless something has been specified, we make it up
-    logger.info(f"Combining images {input_images}")
-    out_name = create_name_from_common_fields(
-        in_paths=tuple(input_images), additional_suffixes=additional_suffixes
-    )
-    out_dir = out_name.parent
-    logger.info(f"Base output image name will be: {out_name}")
-
-    out_file_name = Path(f"{out_name.name}_parset.txt")
-
-    assert out_dir is not None, f"{out_dir=}, which should not happen"
-    output_path = Path(out_dir) / Path(out_file_name)
-    logger.info(f"Parset output path is {parset_output_path}")
-
-    return output_path
