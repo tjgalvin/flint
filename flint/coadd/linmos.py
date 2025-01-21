@@ -34,8 +34,8 @@ class LinmosResult(BaseOptions):
 class LinmosOptions(BaseOptions):
     """Container for options that direct linmos processing"""
 
-    base_output_name: str = "linmos_field"
-    "Name of the output image linmos produces. The weight image will have a similar name. Defaults to 'linmos_field'." ""
+    base_output_name: Path = Path("linmos_field").absolute()
+    "Base name path of the output linmos produces, including parent path. This is provided to form ``LinmosNames``. Defaults to 'linmos_field'." ""
     holofile: Path | None = None
     """Path to a FITS cube produced by the holography processing pipeline. Used by linmos to appropriate primary-beam correct the images. Defaults to None."""
     cutoff: float = 0.001

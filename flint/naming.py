@@ -746,7 +746,7 @@ class LinmosNames(NamedTuple):
 
 
 def create_linmos_names(
-    name_prefix: str, parset_output_path: Path | None = None
+    name_prefix: str | Path, parset_output_path: Path | None = None
 ) -> LinmosNames:
     """This creates the names that would be output but the yandasoft
     linmos task. It returns the names for the linmos and weight maps
@@ -755,7 +755,7 @@ def create_linmos_names(
     these are omitted.
 
     Args:
-        name_prefix (str): The prefix of the filename that will be used to create the linmos and weight file names.
+        name_prefix (str | Path): The prefix of the filename that will be used to create the linmos and weight file names.
 
     Returns:
         LinmosNames: Collection of expected filenames
@@ -797,7 +797,7 @@ def create_linmos_base_path(
     logger.info(f"Base output image name will be: {output_name}")
     assert out_dir is not None, f"{out_dir=}, which should not happen"
 
-    return output_name
+    return output_name.absolute()
 
 
 def get_sbid_from_path(path: Path) -> int:
