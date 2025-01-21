@@ -634,7 +634,7 @@ def linmos_images(
     Args:
         images (Collection[Path]): The images that will be coadded into a single field image.
         parset_output_path (Path): Path of the output linmos parset file.
-        ;inmos_options (LinmosOptions): Options to control the yandasott linmos program and related features.
+        linmos_options (LinmosOptions): Options to control the yandasott linmos program and related features.
         weight_list (str, optional): If not None, this string will be embedded into the yandasoft linmos parset as-is. It should represent the formatted string pointing to weight files, and should be equal length of the input images. If None it is internally generated. Defaults to None.
 
     Returns:

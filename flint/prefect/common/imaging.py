@@ -725,6 +725,22 @@ def task_linmos_images(
     suffix_str: str | None = None,
     parset_output_path: str | None = None,
 ) -> LinmosResult:
+    """Linmos together a set of input images.
+
+    The ``linmos_options.image_output_name`` is updated to be
+    a name based on the commonn unique fields of ``image_list``.
+
+    Args:
+        image_list (list[Path]): Collection of images to coadd
+        container (Path): Path to a yandasoft singularity container
+        linmos_options (LinmosOptions): Collection of linmos options
+        field_summary (FieldSummary | None, optional): Description of the field, used to get the ``pol_axis`` of the field. Defaults to None.
+        suffix_str (str | None, optional): Additional suffix str to add when generating the output file names. Defaults to None.
+        parset_output_path (str | None, optional): The output parameter set that will be generated. Defaults to None.
+
+    Returns:
+        LinmosResult: Collection of linmos items generated
+    """
     # TODO: Need a better filter_str approach. Would probably be better to
     # have literals for the type of product (MFS, cube, model) to be
     # sure of appropriate extraction
