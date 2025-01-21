@@ -721,6 +721,7 @@ def task_linmos_images(
     image_list: list[Path],
     container: Path,
     linmos_options: LinmosOptions,
+    field_summary: FieldSummary | None = None,
     suffix_str: str | None = None,
     parset_output_path: str | None = None,
 ) -> LinmosResult:
@@ -736,7 +737,10 @@ def task_linmos_images(
         additional_suffixes=suffix_str,
     )
 
-    linmos_options = linmos_options.with_options(image_output_name=str(output_path))
+    linmos_options = linmos_options.with_options(
+        image_output_name=str(output_path),
+        pol_axis=field_summary.pol_axis if field_summary else None,
+    )
 
     linmos_result = linmos_images(
         images=image_list,
@@ -791,10 +795,11 @@ def convolve_then_linmos(
         remove_original_images=remove_original_images,
     )
     assert field_options.yandasoft_container is not None
+    # Though pol axis could be obtained from field_summary, at this point
+    # it could be a PrefectFuture. Pass it over to the task.
     linmos_options = LinmosOptions(
         holofile=field_options.holofile,
         cutoff=field_options.pb_cutoff,
-        pol_axis=field_summary.pol_axis if field_summary else None,
         trim_linmos_fits=trim_linmos_fits,
         cleanup=cleanup_linmos,
         remove_original_images=remove_original_images,
@@ -804,6 +809,7 @@ def convolve_then_linmos(
         container=field_options.yandasoft_container,
         suffix_str=linmos_suffix_str,
         linmos_options=linmos_options,
+        field_summary=field_summary,
     )  # type: ignore
 
     return parset
