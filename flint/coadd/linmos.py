@@ -34,7 +34,7 @@ class LinmosResult(BaseOptions):
 class LinmosOptions(BaseOptions):
     """Container for options that direct linmos processing"""
 
-    image_output_name: str = "linmos_field"
+    base_output_name: str = "linmos_field"
     "Name of the output image linmos produces. The weight image will have a similar name. Defaults to 'linmos_field'." ""
     holofile: Path | None = None
     """Path to a FITS cube produced by the holography processing pipeline. Used by linmos to appropriate primary-beam correct the images. Defaults to None."""
@@ -494,7 +494,6 @@ def _file_list_to_string(file_list: Collection[Path]) -> str:
 
 def generate_linmos_parameter_set(
     images: Collection[Path],
-    parset_output_path: Path,
     linmos_names: LinmosNames,
     linmos_options: LinmosOptions,
     weight_list: str | None = None,
@@ -504,7 +503,6 @@ def generate_linmos_parameter_set(
 
     Args:
         images (Collection[Path]): The images that will be coadded into a single field image.
-        parset_output_path (Path): Path of the output linmos parset file.
         linmos_names (LinmosNames): Names of the output image and weights that linmos will produces. The weight image will have a similar name. Defaults to "linmos_field".
         linmos_options (LinmosOptions): Options that are passed through to the yandasoft linmos application.
         weight_list (str, optional): If not None, this string will be embedded into the yandasoft linmos parset as-is. It should represent the formatted string pointing to weight files, and should be equal length of the input images. If None it is internally generated. Defaults to None.
@@ -581,17 +579,17 @@ def generate_linmos_parameter_set(
     )
 
     # Now write the file, me hearty
-    logger.info(f"Writing parset to {parset_output_path!s}.")
+    logger.info(f"Writing parset to {linmos_names.parset_output_path!s}.")
     logger.info(f"{parset}")
     if not linmos_options.overwrite:
         assert not Path(
-            parset_output_path
-        ).exists(), f"The parset {parset_output_path} already exists!"
-    with open(parset_output_path, "w") as parset_file:
+            linmos_names.parset_output_path
+        ).exists(), f"The parset {linmos_names.parset_output_path} already exists!"
+    with open(linmos_names.parset_output_path, "w") as parset_file:
         parset_file.write(parset)
 
     linmos_parset_summary = LinmosParsetSummary(
-        parset_path=parset_output_path,
+        parset_path=linmos_names.parset_output_path,
         weight_text_paths=tuple(map(Path, weight_files))
         if weight_files
         else weight_files,
@@ -624,8 +622,8 @@ def _linmos_cleanup(linmos_parset_summary: LinmosParsetSummary) -> tuple[Path, .
 # TODO: These options are starting to get a little large. Perhaps we should use BaseOptions.
 def linmos_images(
     images: Collection[Path],
-    parset_output_path: Path,
     linmos_options: LinmosOptions,
+    parset_output_path: Path | None = None,
     weight_list: str | None = None,
     container: Path = Path("yandasoft.sif"),
 ) -> LinmosResult:
@@ -633,8 +631,8 @@ def linmos_images(
 
     Args:
         images (Collection[Path]): The images that will be coadded into a single field image.
-        parset_output_path (Path): Path of the output linmos parset file.
         linmos_options (LinmosOptions): Options to control the yandasott linmos program and related features.
+        parset_output_path (Path | None, optional): Path of the output linmos parset file. If None it is derived from common input fields. Defaults to None.
         weight_list (str, optional): If not None, this string will be embedded into the yandasoft linmos parset as-is. It should represent the formatted string pointing to weight files, and should be equal length of the input images. If None it is internally generated. Defaults to None.
 
     Returns:
@@ -644,12 +642,12 @@ def linmos_images(
     assert container.exists(), f"The yandasoft container {container!s} was not found. "
 
     linmos_names: LinmosNames = create_linmos_names(
-        name_prefix=linmos_options.image_output_name
+        name_prefix=linmos_options.base_output_name,
+        parset_output_path=parset_output_path,
     )
 
     linmos_parset_summary = generate_linmos_parameter_set(
         images=images,
-        parset_output_path=parset_output_path,
         linmos_names=linmos_names,
         linmos_options=linmos_options,
         weight_list=weight_list,
@@ -741,10 +739,12 @@ def cli() -> None:
             parser_namespace=args, options_class=LinmosOptions
         )
         if args.yandasoft_container is None:
-            linmos_names = create_linmos_names(name_prefix=args.image_output_name)
+            linmos_names = create_linmos_names(
+                name_prefix=args.image_output_name,
+                parset_output_path=args.parset_output_path,
+            )
             generate_linmos_parameter_set(
                 images=args.images,
-                parset_output_path=args.parset_output_path,
                 linmos_names=linmos_names,
                 linmos_options=linmos_options,
                 weight_list=args.weight_list,

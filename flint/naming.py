@@ -741,9 +741,13 @@ class LinmosNames(NamedTuple):
     """Path to the final fits co-added image"""
     weight_fits: Path
     """Path to the weights fits image created when co-adding images"""
+    parset_output_path: Path
+    """Path to the output parset generated"""
 
 
-def create_linmos_names(name_prefix: str) -> LinmosNames:
+def create_linmos_names(
+    name_prefix: str, parset_output_path: Path | None = None
+) -> LinmosNames:
     """This creates the names that would be output but the yandasoft
     linmos task. It returns the names for the linmos and weight maps
     that linmos would create. These names will have the .fits extension
@@ -756,59 +760,44 @@ def create_linmos_names(name_prefix: str) -> LinmosNames:
     Returns:
         LinmosNames: Collection of expected filenames
     """
+    name_prefix = str(name_prefix) if isinstance(name_prefix, Path) else name_prefix
+
     logger.info(f"Linmos name prefix is: {name_prefix}")
     return LinmosNames(
         image_fits=Path(f"{name_prefix}.linmos.fits"),
         weight_fits=Path(f"{name_prefix}.weight.fits"),
+        parset_output_path=Path(f"{name_prefix}_parset.txt")
+        if parset_output_path is None
+        else parset_output_path,
     )
 
 
-def create_linmos_parset_path(
-    input_images: list[Path] | None = None,
-    parset_output_path: Path | str | None = None,
+def create_linmos_base_path(
+    input_images: list[Path],
     additional_suffixes: str | None = None,
 ) -> Path:
-    """Create the path of a ``yandasoft linmos`` parset file.
+    """Create the base path of a ``yandasoft linmos`` given a set of input images.
 
-    If ``parset_output_path`` is provided, this will be used.
-    Otherwise the common fields in the set of input images will
-    be used to generate the file name.
 
     Args:
         input_images (list[Path] | None, optional): If provided the common fields of the input images are used as basis of the path. Defaults to None.
-        parset_output_path (Path | str | None, optional): The output path that should be used. Defaults to None.
         additional_suffixes (str | None, optional): Any additional suffixes to append. Defaults to None.
 
-    Raise:
-        ValueError: Issued if both ``input_images`` and ``parset_output_path`` are not valid
 
     Returns:
         Path: The full path of the parset file
     """
 
-    if isinstance(parset_output_path, (str, Path)):
-        return Path(parset_output_path)
-
-    if input_images is None:
-        raise ValueError(
-            f"{parset_output_path=} and input_images is unset. This is not allowed."
-        )
-
     # Unless something has been specified, we make it up
     logger.info(f"Combining images {input_images}")
-    out_name = create_name_from_common_fields(
+    output_name = create_name_from_common_fields(
         in_paths=tuple(input_images), additional_suffixes=additional_suffixes
     )
-    out_dir = out_name.parent
-    logger.info(f"Base output image name will be: {out_name}")
-
-    out_file_name = Path(f"{out_name.name}_parset.txt")
-
+    out_dir = output_name.parent
+    logger.info(f"Base output image name will be: {output_name}")
     assert out_dir is not None, f"{out_dir=}, which should not happen"
-    output_path = Path(out_dir) / Path(out_file_name)
-    logger.info(f"Parset output path is {parset_output_path}")
 
-    return output_path
+    return output_name
 
 
 def get_sbid_from_path(path: Path) -> int:

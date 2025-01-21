@@ -745,19 +745,18 @@ def task_linmos_images(
     # have literals for the type of product (MFS, cube, model) to be
     # sure of appropriate extraction
 
-    from flint.naming import create_linmos_parset_path
+    from flint.naming import create_linmos_base_path
     from flint.utils import flatten_items
 
     image_list = flatten_items(items=image_list)
 
-    output_path = create_linmos_parset_path(
+    output_path = create_linmos_base_path(
         input_images=image_list,
-        parset_output_path=parset_output_path,
         additional_suffixes=suffix_str,
     )
 
     linmos_options = linmos_options.with_options(
-        image_output_name=str(output_path),
+        base_output_name=output_path,
         pol_axis=field_summary.pol_axis if field_summary else None,
     )
 
