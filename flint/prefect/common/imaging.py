@@ -60,7 +60,7 @@ from flint.prefect.common.utils import upload_image_as_artifact
 from flint.selfcal.casa import gaincal_applycal_ms
 from flint.source_finding.aegean import AegeanOutputs, run_bane_and_aegean
 from flint.summary import FieldSummary
-from flint.utils import zip_folder
+from flint.utils import flatten_items, zip_folder
 from flint.validation import (
     ValidationTables,
     XMatchTables,
@@ -720,65 +720,23 @@ def task_convolve_image(
 def task_linmos_images(
     image_list: list[Path],
     container: Path,
+    linmos_options: LinmosOptions,
     suffix_str: str | None = None,
-    holofile: Path | None = None,
     parset_output_path: str | None = None,
-    cutoff: float = 0.05,
-    field_summary: FieldSummary | None = None,
-    trim_linmos_fits: bool = True,
-    remove_original_images: bool = False,
-    cleanup: bool = False,
-    stokesi_images: list[Path] | None = None,
-    force_remove_leakage: bool | None = None,
 ) -> LinmosResult:
-    # TODO: Need to flatten images
-    # TODO: Need a better way of getting field names
-
     # TODO: Need a better filter_str approach. Would probably be better to
     # have literals for the type of product (MFS, cube, model) to be
     # sure of appropriate extraction
 
-    logger.info(f"Number of images to examine {len(image_list)}")
+    from flint.naming import create_linmos_parset_path
 
-    # TODO: Need to have a generic flatten helper function
-    if isinstance(image_list[0], (list, tuple)):
-        # This is a just in case. Some silly pirate ignore the types and pass through list of lists
-        logger.info("Image list appears as though it needs to be flattened.")
-        image_list = [img for image in image_list for img in image]  # type: ignore
-
-    logger.info(f"Combining images {image_list}")
-
-    from flint.naming import create_name_from_common_fields
-
-    out_name = create_name_from_common_fields(
-        in_paths=tuple(image_list), additional_suffixes=suffix_str
-    )
-    out_dir = out_name.parent
-    logger.info(f"Base output image name will be: {out_name}")
-
-    out_file_name = (
-        parset_output_path
-        if parset_output_path
-        else Path(f"{out_name.name}_parset.txt")
+    output_path = create_linmos_parset_path(
+        input_images=image_list,
+        parset_output_path=parset_output_path,
+        additional_suffixes=suffix_str,
     )
 
-    assert out_dir is not None, f"{out_dir=}, which should not happen"
-    output_path = Path(out_dir) / Path(out_file_name)
-    logger.info(f"Parset output path is {parset_output_path}")
-
-    pol_axis = field_summary.pol_axis if field_summary else None
-
-    linmos_options = LinmosOptions(
-        holofile=holofile,
-        cutoff=cutoff,
-        pol_axis=pol_axis,
-        trim_linmos_fits=trim_linmos_fits,
-        cleanup=cleanup,
-        image_output_name=str(out_name),
-        stokesi_images=stokesi_images,
-        force_remove_leakage=force_remove_leakage,
-        remove_original_images=remove_original_images,
-    )
+    linmos_options = linmos_options.with_options(image_output_name=str(output_path))
 
     linmos_result = linmos_images(
         images=image_list,
@@ -833,16 +791,19 @@ def convolve_then_linmos(
         remove_original_images=remove_original_images,
     )
     assert field_options.yandasoft_container is not None
-    parset = task_linmos_images.submit(
-        image_list=conv_images,  # type: ignore
-        container=field_options.yandasoft_container,
-        suffix_str=linmos_suffix_str,
+    linmos_options = LinmosOptions(
         holofile=field_options.holofile,
         cutoff=field_options.pb_cutoff,
-        field_summary=field_summary,
+        pol_axis=field_summary.pol_axis if field_summary else None,
         trim_linmos_fits=trim_linmos_fits,
-        remove_original_images=remove_original_images,
         cleanup=cleanup_linmos,
+        remove_original_images=remove_original_images,
+    )
+    parset = task_linmos_images.submit(
+        image_list=flatten_items(items=conv_images),
+        container=field_options.yandasoft_container,
+        suffix_str=linmos_suffix_str,
+        linmos_options=linmos_options,
     )  # type: ignore
 
     return parset
