@@ -259,6 +259,27 @@ def update_beam_resolution_field_in_path(
     updated_mode: ResolutionModes,
     marker: str | None = None,
 ) -> Path:
+    """Transition the resolution indicator in a processed name (either ``optimal`` or ``fixed``)
+    to another state. For example:
+
+    >>> 'SB57516.RACS_0929-81.round4.i.optimal.round4.residual.linmos.fits'
+
+    to
+
+    >>> 'SB57516.RACS_0929-81.round4.i.fixed.round4.residual.linmos.fits'
+
+    See ``get_beam_resolution_str`` for addition information. Supported modes are
+    ``fixed`` and ``optimal``
+
+    Args:
+        path (Path): The path to inspect and update
+        original_mode (ResolutionModes): The original mode
+        updated_mode (ResolutionModes): The mode to move to
+        marker (str | None, optional): The marker to separate the field. Defaults to None.
+
+    Returns:
+        Path: Updated path
+    """
     original_mode_str = get_beam_resolution_str(mode=original_mode, marker=marker)
     updated_mode_str = get_beam_resolution_str(mode=updated_mode, marker=marker)
 
