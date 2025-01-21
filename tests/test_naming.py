@@ -171,6 +171,9 @@ def test_update_beam_resolution_mode_in_path():
         update_beam_resolution_field_in_path(
             path=example, original_mode="fixed", updated_mode="optimal"
         )
+        assert expected == update_beam_resolution_field_in_path(
+            path=example, original_mode="optimal", updated_mode="fixed", marker="!"
+        )
         update_beam_resolution_field_in_path(
             path=Path("JackSparrowCaresNotForBeamResolutions"),
             original_mode="optimal",
@@ -766,18 +769,20 @@ def test_create_linmos_parset_base_path():
     This function tests the generation of the path"""
     examples = get_lots_of_names_2()
 
-    expected = Path("59058/SB59058.RACS_1626-84.round4.i")
+    expected = Path("59058/SB59058.RACS_1626-84.round4.i").absolute()
     assert expected == create_linmos_base_path(input_images=examples)
 
-    expected = Path("59058/SB59058.RACS_1626-84.round4.i.jack.sparrow")
+    expected = Path("59058/SB59058.RACS_1626-84.round4.i.jack.sparrow").absolute()
     assert expected == create_linmos_base_path(
         input_images=examples, additional_suffixes="jack.sparrow"
     )
     new_paths = [Path("/Here/Be/Pirates") / p for p in examples]
-    expected = Path("/Here/Be/Pirates/59058/SB59058.RACS_1626-84.round4.i")
+    expected = Path("/Here/Be/Pirates/59058/SB59058.RACS_1626-84.round4.i").absolute()
     assert expected == create_linmos_base_path(input_images=new_paths)
 
-    expected = Path("/Here/Be/Pirates/59058/SB59058.RACS_1626-84.round4.i.jack.sparrow")
+    expected = Path(
+        "/Here/Be/Pirates/59058/SB59058.RACS_1626-84.round4.i.jack.sparrow"
+    ).absolute()
     assert expected == create_linmos_base_path(
         input_images=new_paths, additional_suffixes="jack.sparrow"
     )

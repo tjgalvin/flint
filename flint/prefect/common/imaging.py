@@ -908,14 +908,14 @@ def create_convol_linmos_images(
 def task_convolve_linmos_to_fixed_shape(
     linmos_result: LinmosResult, field_options: FieldOptions
 ) -> LinmosResult:
-    """Smooth the linm
+    """Smooth the linmos input image to a fixed resolution
 
     Args:
-        linmos_result (LinmosResult): _description_
-        field_options (FieldOptions): _description_
+        linmos_result (LinmosResult): An existing linmos results set representing a created image
+        field_options (FieldOptions): A field options instance with an set fixed beeam shape set
 
     Returns:
-        LinmosResult: _description_
+        LinmosResult: A smoothed version of the input linmos image
     """
     from flint.naming import update_beam_resolution_field_in_path
 
