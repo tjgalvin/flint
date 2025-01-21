@@ -954,12 +954,15 @@ def create_convolve_linmos_cubes(
     )
 
     assert field_options.yandasoft_container is not None
+    linmos_options = LinmosOptions(
+        holofile=field_options.holofile,
+        cutoff=field_options.pb_cutoff,
+    )
     parset = task_linmos_images.submit(
         image_list=convolved_cubes,  # type: ignore
         container=field_options.yandasoft_container,
         suffix_str=linmos_suffix_str,
-        holofile=field_options.holofile,
-        cutoff=field_options.pb_cutoff,
+        linmos_options=linmos_options,
     )
     return parset
 
