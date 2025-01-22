@@ -8,12 +8,13 @@ import warnings
 from argparse import ArgumentParser
 from pathlib import Path
 from shutil import copyfile
-from typing import Collection, List, Literal, NamedTuple, Optional
+from typing import Collection, Literal, NamedTuple
 
 import astropy.units as u
 import numpy as np
 from astropy.io import fits
 from astropy.wcs import FITSFixedWarning
+from prefect import task
 from racs_tools import beamcon_2D, beamcon_3D
 from radio_beam import Beam, Beams
 
@@ -80,8 +81,8 @@ def check_if_cube_fits(fits_file: Path) -> bool:
 
 
 def get_cube_common_beam(
-    cube_paths: Collection[Path], cutoff: Optional[float] = None
-) -> List[BeamShape]:
+    cube_paths: Collection[Path], cutoff: float | None = None
+) -> list[BeamShape]:
     """Given a set of input cube FITS files, compute a common beam
     for each channel.
 
@@ -129,8 +130,8 @@ def get_cube_common_beam(
 
 def convolve_cubes(
     cube_paths: Collection[Path],
-    beam_shapes: List[BeamShape],
-    cutoff: Optional[float] = None,
+    beam_shapes: list[BeamShape],
+    cutoff: float | None = None,
     convol_suffix: str = "conv",
     executor_type: Literal["thread", "process", "mpi"] = "thread",
 ) -> Collection[Path]:
@@ -180,7 +181,7 @@ def convolve_cubes(
 
 
 def get_common_beam(
-    image_paths: Collection[Path], cutoff: Optional[float] = None
+    image_paths: Collection[Path], cutoff: float | None = None
 ) -> BeamShape:
     """Return the minimum beam size required to encompass the beams described
     in the FITS header (e.g. BMAJ,BMIN,BPA) of the input images. This is used
@@ -214,19 +215,26 @@ def get_common_beam(
 def convolve_images(
     image_paths: Collection[Path],
     beam_shape: BeamShape,
-    cutoff: Optional[float] = None,
+    cutoff: float | None = None,
     convol_suffix: str = "conv",
-) -> Collection[Path]:
+    output_paths: list[Path] | None = None,
+) -> list[Path]:
     """Convolve a set of input images to a common resolution as specified
     by the beam_shape. If the major-axis of the native resolution is larger
     than cutoff (in arcseconds) then the racs_tools beamconv_2D task will
     nan it.
+
+    Additionally, some input subject image will simply copied if:
+
+    * the input ``beam_shape`` is not finite, or
+    * the beamshape encoded in the FITS header of the subject image is not defined
 
     Args:
         image_paths (Collection[Path]): Set of image paths to FITS images to convol
         beam_shape (BeamShape): The specification of the desired final resolution
         cutoff (Optional[float], optional): Images whose major-axis is larger than this will be blank. Expected in arcseconds. Defaults to None.
         convol_suffix (str, optional): The suffix added to .fits to indicate smoothed image. Defaults to 'conv'.
+        output_paths (list[Path] | None, optional): The final output file namesfor each input image. If provided this renamed files created using the `convol_suffix`. Defaults to None.
 
     Returns:
         Collection[Path]: Set of paths to the smoothed images
@@ -257,10 +265,18 @@ def convolve_images(
         pa=beam_shape.bpa_deg * u.deg,
     )
 
-    return_conv_image_paths: List[Path] = []
+    return_conv_image_paths: list[Path] = []
 
-    for image_path in image_paths:
-        convol_output_path = Path(
+    if output_paths:
+        assert isinstance(
+            output_paths, type(image_paths)
+        ), "Types for image_paths and output_paths need to be the same"
+        assert (
+            len(output_paths) == len(image_paths)
+        ), f"Mismatch collection lengths of image_paths ({len(image_paths)}) and output_paths ({len(output_paths)})"
+
+    for idx, image_path in enumerate(image_paths):
+        convol_output_path: Path = Path(
             str(image_path).replace(".fits", f".{convol_suffix}.fits")
         )
         header = fits.getheader(image_path)
@@ -268,7 +284,7 @@ def convolve_images(
             logger.info(f"Copying {image_path} to {convol_output_path=} for empty beam")
             copyfile(image_path, convol_output_path)
         else:
-            logger.info(f"Convolving {str(image_path.name)}")
+            logger.info(f"Convolving {image_path.name!s}")
             beamcon_2D.beamcon_2d_on_fits(
                 file=image_path,
                 outdir=None,
@@ -277,9 +293,24 @@ def convolve_images(
                 suffix=convol_suffix,
                 cutoff=cutoff,
             )
+
+        if output_paths:
+            output_path: Path = output_paths[idx]
+            logger.info(f"Renaming generate convolved file to {output_path=}")
+            convol_output_path.rename(output_path)
+            convol_output_path = output_path
+
+            # Pirates trust nothing, especially with the silly logic
+            assert (
+                convol_output_path.exists()
+            ), f"{convol_output_path=} should exist, but doesn't"
+
         return_conv_image_paths.append(convol_output_path)
 
     return return_conv_image_paths
+
+
+task_convolve_images = task(convolve_images)
 
 
 def get_parser() -> ArgumentParser:

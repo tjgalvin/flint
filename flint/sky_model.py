@@ -1,9 +1,10 @@
 #!/usr/bin/env python
+from __future__ import annotations
 
 from argparse import ArgumentParser
 from functools import partial
 from pathlib import Path
-from typing import Dict, List, NamedTuple, Optional, Tuple, Union
+from typing import NamedTuple
 
 import numpy as np
 import yaml
@@ -89,11 +90,11 @@ class SkyModel(NamedTuple):
     """Number of source that are included in the sky-model"""
     apparent: bool = True
     """Whether the sources and model are absolute of apparent fluxes"""
-    hyperdrive_model: Optional[Path] = None
+    hyperdrive_model: Path | None = None
     """Path to the sky-model file created to use with hyperdrive"""
-    calibrate_model: Optional[Path] = None
+    calibrate_model: Path | None = None
     """Path to the sky-model file created to use with calibrate"""
-    ds9_region: Optional[Path] = None
+    ds9_region: Path | None = None
     """Path to the DS9 region file representing the sky-model"""
 
 
@@ -101,7 +102,7 @@ class SkyModel(NamedTuple):
 NORM_COLS = {"flux": "Jy", "maj": "arcsecond", "min": "arcsecond", "pa": "deg"}
 """Normalised column names and their corresponding astropy units. """
 
-KNOWN_CATAS: Dict[str, Catalogue] = KNOWN_REFERENCE_CATALOGUES
+KNOWN_CATAS: dict[str, Catalogue] = KNOWN_REFERENCE_CATALOGUES
 """Known sky-model catalogues that have had some pre-processing operations applied. Discuss with maintainers for access, """
 
 # TODO: Make this a yaml file packaged in data/models
@@ -137,7 +138,7 @@ def get_1934_model(mode: str = "calibrate") -> Path:
     assert (
         model_path.exists()
     ), f"Constructed {model_path} apparently does not exist. Check packaged models. "
-    logger.info(f"Calibrate 1934-638 model path: {str(model_path)}.")
+    logger.info(f"Calibrate 1934-638 model path: {model_path!s}.")
 
     return model_path
 
@@ -249,7 +250,7 @@ def generate_airy_pb(
 
 def generate_pb(
     pb_type: str, freqs: u.Quantity, aperture: u.Quantity, offset: u.Quantity
-) -> Union[GaussianResponse, SincSquaredResponse, AiryResponse]:
+) -> GaussianResponse | SincSquaredResponse | AiryResponse:
     """Generate the primary beam response using a set of physical quantities. Each
     is assumed to be rotationally invariant, so a 1-D slice can be evaluated.
 
@@ -271,7 +272,7 @@ def generate_pb(
     Returns:
         Union[GaussianResponse, SincSquaredResponse, AiryResponse]: Constructed primary beam responses
     """
-    response: Union[GaussianResponse, SincSquaredResponse, AiryResponse, None] = None
+    response: GaussianResponse | SincSquaredResponse | AiryResponse | None = None
     if pb_type.lower() == "gaussian":
         response = generate_gaussian_pb(freqs=freqs, aperture=aperture, offset=offset)
     elif pb_type.lower() == "sincsquared":
@@ -379,7 +380,7 @@ def dir_from_ms(ms_path: Path) -> SkyCoord:
     Returns:
         SkyCoord: Pointing direction on the sky of the measurement set
     """
-    tp = table(f"{str(ms_path)}/FIELD", readonly=True, ack=False)
+    tp = table(f"{ms_path!s}/FIELD", readonly=True, ack=False)
     p_phase = tp.getcol("PHASE_DIR")
     tp.close()
 
@@ -400,7 +401,7 @@ def freqs_from_ms(ms_path: Path) -> np.ndarray:
     Returns:
         np.ndarray: Collection of channel frequencies.
     """
-    tf = table(f"{str(ms_path)}/SPECTRAL_WINDOW", ack=False)
+    tf = table(f"{ms_path!s}/SPECTRAL_WINDOW", ack=False)
     freqs = tf[0]["CHAN_FREQ"]
     tf.close()
     return np.sort(freqs)
@@ -429,11 +430,11 @@ def get_known_catalogue(cata: str) -> Catalogue:
 
 def load_catalogue(
     catalogue_dir: Path,
-    catalogue: Optional[str] = None,
-    ms_pointing: Optional[SkyCoord] = None,
+    catalogue: str | None = None,
+    ms_pointing: SkyCoord | None = None,
     assumed_alpha: float = -0.83,
     assumed_q: float = 0.0,
-) -> Tuple[Catalogue, Table]:
+) -> tuple[Catalogue, Table]:
     """Load in a catalogue table given a name or measurement set declinattion.
 
     Args:
@@ -554,7 +555,7 @@ def preprocess_catalogue(
     return QTable(new_cata_tab)
 
 
-def make_ds9_region(out_path: Path, sources: List[Row]) -> Path:
+def make_ds9_region(out_path: Path, sources: list[Row]) -> Path:
     """Create a DS9 region file of the sky-model derived
 
     Args:
@@ -565,22 +566,22 @@ def make_ds9_region(out_path: Path, sources: List[Row]) -> Path:
         Path: Path to the region file created
     """
     logger.info(
-        f"Creating DS9 region file, writing {len(sources)} regions to {str(out_path)}."
+        f"Creating DS9 region file, writing {len(sources)} regions to {out_path!s}."
     )
-    with open(out_path, "wt") as out_file:
+    with open(out_path, "w") as out_file:
         out_file.write("# DS9 region file\n")
         out_file.write("fk5\n")
 
         for source in sources:
             if source["maj"] < 1.0 * u.arcsecond and source["min"] < 1.0 * u.arcsecond:
                 out_file.write(
-                    "point(%f,%f) # point=circle color=red dash=1\n"
-                    % (source["RA"].value, source["DEC"].value)
+                    "point({:f},{:f}) # point=circle color=red dash=1\n".format(
+                        source["RA"].value, source["DEC"].value
+                    )
                 )
             else:
                 out_file.write(
-                    "ellipse(%f,%f,%f,%f,%f) # color=red dash=1\n"
-                    % (
+                    "ellipse({:f},{:f},{:f},{:f},{:f}) # color=red dash=1\n".format(
                         source["RA"].value,
                         source["DEC"].value,
                         source["maj"].value,
@@ -592,13 +593,13 @@ def make_ds9_region(out_path: Path, sources: List[Row]) -> Path:
     return out_path
 
 
-def make_hyperdrive_model(out_path: Path, sources: List[Tuple[Row, CurvedPL]]) -> Path:
+def make_hyperdrive_model(out_path: Path, sources: list[tuple[Row, CurvedPL]]) -> Path:
     """Writes a Hyperdrive sky-model to a yaml file.
 
     Args:
         out_path (Path): The output path that the sky-model would be written to
         sources (List[Tuple[Row,CurvedPL]]): Collection of sources to write, including the
-        normalied row and the results of fitting to the estimated apparent SED
+        normalized row and the results of fitting to the estimated apparent SED
 
     Returns:
         Path: The path of the file created
@@ -647,7 +648,7 @@ def make_hyperdrive_model(out_path: Path, sources: List[Tuple[Row, CurvedPL]]) -
     return out_path
 
 
-def make_calibrate_model(out_path: Path, sources: List[Tuple[Row, CurvedPL]]) -> Path:
+def make_calibrate_model(out_path: Path, sources: list[tuple[Row, CurvedPL]]) -> Path:
     """Create a sky-model file that is compatible with the AO Calibrate software
 
     Args:
@@ -679,30 +680,26 @@ def make_calibrate_model(out_path: Path, sources: List[Tuple[Row, CurvedPL]]) ->
                 and src_row["min"] < 1.0 * u.arcsecond
             ):
                 out_file.write(
-                    (
-                        f"{src_row['name']},"
-                        f"POINT,"
-                        f"{ra_str},"
-                        f"{dec_str},"
-                        f"{src_cpl.norm},"
-                        f"[{src_cpl.alpha},{src_cpl.q}],"
-                        f"true,{ref_nu},,,\n"
-                    )
+                    f"{src_row['name']},"
+                    f"POINT,"
+                    f"{ra_str},"
+                    f"{dec_str},"
+                    f"{src_cpl.norm},"
+                    f"[{src_cpl.alpha},{src_cpl.q}],"
+                    f"true,{ref_nu},,,\n"
                 )
             else:
                 out_file.write(
-                    (
-                        f"{src_row['name']},"
-                        f"GAUSSIAN,"
-                        f"{ra_str},"
-                        f"{dec_str},"
-                        f"{src_cpl.norm},"
-                        f"[{src_cpl.alpha},{src_cpl.q}],"
-                        f"true,{ref_nu},"
-                        f"{src_row['maj'].to(u.arcsecond).value},"
-                        f"{src_row['maj'].to(u.arcsecond).value},"
-                        f"{src_row['pa'].to(u.deg).value},\n"
-                    )
+                    f"{src_row['name']},"
+                    f"GAUSSIAN,"
+                    f"{ra_str},"
+                    f"{dec_str},"
+                    f"{src_cpl.norm},"
+                    f"[{src_cpl.alpha},{src_cpl.q}],"
+                    f"true,{ref_nu},"
+                    f"{src_row['maj'].to(u.arcsecond).value},"
+                    f"{src_row['maj'].to(u.arcsecond).value},"
+                    f"{src_row['pa'].to(u.deg).value},\n"
                 )
 
     return out_path
@@ -711,7 +708,7 @@ def make_calibrate_model(out_path: Path, sources: List[Tuple[Row, CurvedPL]]) ->
 def create_sky_model(
     ms_path: Path,
     cata_dir: Path = Path("."),
-    cata_name: Optional[str] = None,
+    cata_name: str | None = None,
     assumed_alpha: float = -0.83,
     assumed_q: float = 0.0,
     flux_cutoff: float = 0.02,
@@ -756,7 +753,7 @@ def create_sky_model(
     radial_cutoff = (
         fwhm_scale_cutoff * pb.fwhms[0]
     ).decompose()  # The lowest frequency FWHM is largest
-    logger.info("Radial cutoff = %.3f degrees" % (radial_cutoff.to(u.deg).value))
+    logger.info(f"Radial cutoff = {radial_cutoff.to(u.deg).value:.3f} degrees")
 
     cata_info, cata_tab = load_catalogue(
         catalogue_dir=cata_dir,
@@ -774,13 +771,13 @@ def create_sky_model(
     )
 
     total_flux: u.Jy = 0.0 * u.Jy
-    accepted_rows: List[Tuple[Row, CurvedPL]] = []
+    accepted_rows: list[tuple[Row, CurvedPL]] = []
 
     for i, row in enumerate(cata_tab):
         src_pos = SkyCoord(row["RA"], row["DEC"])
         src_sep = src_pos.separation(direction)
 
-        # Get the primary beam reasponse
+        # Get the primary beam response
         gauss_taper = generate_gaussian_pb(
             freqs=freqs, aperture=12.0 * u.m, offset=src_sep
         )

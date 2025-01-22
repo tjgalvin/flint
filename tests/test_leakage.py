@@ -1,9 +1,11 @@
 """Testing components in the leakage creation steps"""
 
-import pytest
+from __future__ import annotations
+
 from pathlib import Path
 
 import numpy as np
+import pytest
 from astropy.table import Table
 from astropy.wcs import WCS
 
@@ -12,8 +14,8 @@ from flint.leakage import (
     LeakageFilters,
     PixelCoords,
     _get_output_catalogue_path,
-    _load_fits_image,
     _load_component_table,
+    _load_fits_image,
     filter_components,
     get_xy_pixel_coords,
 )

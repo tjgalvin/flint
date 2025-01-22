@@ -19,7 +19,7 @@ from __future__ import annotations
 
 from argparse import ArgumentParser
 from pathlib import Path
-from typing import Any, Collection, Dict, NamedTuple, Optional, Tuple, Union
+from typing import Any, Collection, NamedTuple
 
 import astropy.units as u
 import numpy as np
@@ -97,7 +97,7 @@ class PotatoPeelOptions(NamedTuple):
     https://gitlab.com/Sunmish/potato
     """
 
-    c: Optional[Path] = None
+    c: Path | None = None
     """Path to the potatopeel configuration file"""
     solint: float = 30
     """Solution interval to use when applying gaincal"""
@@ -111,11 +111,11 @@ class PotatoPeelOptions(NamedTuple):
     """Whether a direct model subtraction (without self-cal) should be used ift he source is faint"""
     intermediate_peels: bool = True
     """Creates an image after each calibration and subtraction loop to show iterative improvements of the subject peel source"""
-    T: Union[str, Path] = "peel"
+    T: str | Path = "peel"
     """Where the temporary wsclean files will be written to"""
-    minuvimage: Optional[float] = None
+    minuvimage: float | None = None
     """The minimum uv distance in wavelengths to use for imaging"""
-    minuvpeel: Optional[float] = None
+    minuvpeel: float | None = None
     """The minimum uv distance in wavelengths to use when attempting to self-calibrate"""
 
     def with_options(self, **kwargs) -> PotatoPeelOptions:
@@ -145,7 +145,7 @@ def source_within_image_fov(
     source_coord: SkyCoord,
     beam_coord: SkyCoord,
     image_size: int,
-    pixel_scale: Union[u.Quantity, str],
+    pixel_scale: u.Quantity | str,
 ) -> bool:
     """Evaluate whether a source will be within the field of view
     of an image.
@@ -182,8 +182,8 @@ def find_sources_to_peel(
     field_idx: int = 0,
     maximum_offset: float = 30,
     minimum_apparent_brightness: float = 0.5,
-    override_beam_position_with: Optional[SkyCoord] = None,
-) -> Union[Table, None]:
+    override_beam_position_with: SkyCoord | None = None,
+) -> Table | None:
     """Obtain a set of sources to peel from a reference candidate set. This will
     evaluate whether a source should be peels based on two criteria:
 
@@ -294,10 +294,8 @@ def prepare_ms_for_potato(ms: MS) -> MS:
 
     logger.info(f"The nominated column is: {data_column=}")
     logger.warning(
-        (
-            "Deleting and renaming columns so final column is DATA. "
-            "PotatoPeel only operates on the DATA column. "
-        )
+        "Deleting and renaming columns so final column is DATA. "
+        "PotatoPeel only operates on the DATA column. "
     )
 
     # If the data column already exists and is the nominated column, then we should
@@ -316,7 +314,7 @@ def prepare_ms_for_potato(ms: MS) -> MS:
         colnames = tab.colnames()
         if data_column not in colnames:
             raise ValueError(
-                f"Column {data_column} not found in {str(ms.path)}. Columns found: {colnames}"
+                f"Column {data_column} not found in {ms.path!s}. Columns found: {colnames}"
             )
 
         # In order to rename the data_column to DATA, we need to make sure that
@@ -341,8 +339,8 @@ def prepare_ms_for_potato(ms: MS) -> MS:
 
 
 def _potato_options_to_command(
-    potato_options: Union[PotatoPeelArguments, PotatoConfigOptions, PotatoPeelOptions],
-    skip_keys: Optional[Collection[str]] = None,
+    potato_options: PotatoPeelArguments | PotatoConfigOptions | PotatoPeelOptions,
+    skip_keys: Collection[str] | None = None,
     check_double_keys: bool = False,
 ) -> str:
     """Construct the CLI options that would be provided to
@@ -385,7 +383,7 @@ def _potato_options_to_command(
             sub_options += f"{flag}{key} {value} "
         elif isinstance(value, Path):
             logger.debug("Path")
-            sub_options += f"{flag}{key} {str(value)} "
+            sub_options += f"{flag}{key} {value!s} "
         elif value is None:
             continue
         else:
@@ -418,7 +416,7 @@ def _potato_config_command(
         PotatoconfigCommand: The CLI command that will be executed to create a potato configuration file
     """
 
-    command = "peel_configuration.py " f"{str(config_path)} "
+    command = "peel_configuration.py " f"{config_path!s} "
 
     sub_options = _potato_options_to_command(potato_options=potato_config_options)
     command = command + sub_options
@@ -429,7 +427,7 @@ def _potato_config_command(
 
 def create_run_potato_config(
     potato_container: Path,
-    ms_path: Union[Path, MS],
+    ms_path: Path | MS,
     potato_config_options: PotatoConfigOptions,
 ) -> PotatoConfigCommand:
     """Construct and run a CLI command into the `peel_configuration.py`
@@ -488,7 +486,7 @@ def _potato_peel_command(
 
     command = (
         "hot_potato "
-        f"{str(ms.path.absolute())} "
+        f"{ms.path.absolute()!s} "
         f"{potato_peel_arguments.image_fov:.4f} "
     )
 
@@ -554,13 +552,13 @@ class NormalisedSources(NamedTuple):
     would be provided to potato
     """
 
-    source_ras: Tuple[float]
+    source_ras: tuple[float]
     """The RAs in degrees"""
-    source_decs: Tuple[float]
+    source_decs: tuple[float]
     """The Decs in degrees"""
-    source_fovs: Tuple[float]
+    source_fovs: tuple[float]
     """The size of each source to image in degrees"""
-    source_names: Tuple[str]
+    source_names: tuple[str]
     """The name of each source"""
 
 
@@ -605,9 +603,9 @@ def _print_ms_colnames(ms: MS) -> MS:
 def potato_peel(
     ms: MS,
     potato_container: Path,
-    update_potato_config_options: Optional[Dict[str, Any]] = None,
-    update_potato_peel_options: Optional[Dict[str, Any]] = None,
-    image_options: Optional[WSCleanOptions] = None,
+    update_potato_config_options: dict[str, Any] | None = None,
+    update_potato_peel_options: dict[str, Any] | None = None,
+    image_options: WSCleanOptions | None = None,
 ) -> MS:
     """Peel out sources from a measurement set using PotatoPeel. Candidate sources
     from a known list of sources (see Table 3 or RACS-Mid paper) are considered.

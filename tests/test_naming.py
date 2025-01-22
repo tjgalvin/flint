@@ -1,11 +1,13 @@
 """Some tests related to components around measurement sets."""
 
+from __future__ import annotations
+
 from datetime import datetime
 from pathlib import Path
-from typing import List
 
 import pytest
 
+from flint.exceptions import NamingException
 from flint.ms import MS
 from flint.naming import (
     CASDANameComponents,
@@ -13,11 +15,14 @@ from flint.naming import (
     ProcessedNameComponents,
     RawNameComponents,
     _long_field_name_to_shorthand,
+    _rename_linear_to_stokes,
     add_timestamp_to_path,
     casda_ms_format,
     create_fits_mask_names,
     create_image_cube_name,
     create_imaging_name_prefix,
+    create_linmos_base_path,
+    create_linmos_names,
     create_ms_name,
     create_name_from_common_fields,
     extract_beam_from_name,
@@ -30,6 +35,9 @@ from flint.naming import (
     get_selfcal_ms_name,
     processed_ms_format,
     raw_ms_format,
+    rename_linear_to_stokes,
+    split_images,
+    update_beam_resolution_field_in_path,
 )
 
 
@@ -145,6 +153,32 @@ def test_get_beam_resolution_str():
 
     with pytest.raises(ValueError):
         _ = get_beam_resolution_str("Jack")
+
+
+def test_update_beam_resolution_mode_in_path():
+    """Given a path that has a known beam resolution mode in it, update to another"""
+
+    example = Path("SB57516.RACS_0929-81.round4.i.optimal.round4.residual.linmos.fits")
+    expected = Path("SB57516.RACS_0929-81.round4.i.fixed.round4.residual.linmos.fits")
+
+    assert expected == update_beam_resolution_field_in_path(
+        path=example, original_mode="optimal", updated_mode="fixed"
+    )
+    assert expected == update_beam_resolution_field_in_path(
+        path=example, original_mode="optimal", updated_mode="fixed", marker="."
+    )
+    with pytest.raises(AssertionError):
+        update_beam_resolution_field_in_path(
+            path=example, original_mode="fixed", updated_mode="optimal"
+        )
+        assert expected == update_beam_resolution_field_in_path(
+            path=example, original_mode="optimal", updated_mode="fixed", marker="!"
+        )
+        update_beam_resolution_field_in_path(
+            path=Path("JackSparrowCaresNotForBeamResolutions"),
+            original_mode="optimal",
+            updated_mode="fixed",
+        )
 
 
 def test_casda_ms_format_1934():
@@ -649,7 +683,7 @@ def test_get_beam_from_name():
     )
 
 
-def get_lots_of_names() -> List[Path]:
+def get_lots_of_names() -> list[Path]:
     examples = [
         "59058/SB59058.RACS_1626-84.ch0285-0286.linmos.fits",
         "59058/SB59058.RACS_1626-84.ch0285-0286.linmos.fits",
@@ -689,7 +723,7 @@ def test_create_name_from_common_fields():
         create_name_from_common_fields(in_paths=examples)
 
 
-def get_lots_of_names_2() -> List[Path]:
+def get_lots_of_names_2() -> list[Path]:
     examples = [
         "59058/SB59058.RACS_1626-84.round4.i.ch0285-0286.linmos.fits",
         "59058/SB59058.RACS_1626-84.round4.i.ch0285-0286.linmos.fits",
@@ -728,3 +762,152 @@ def test_create_name_from_common_fields_2():
 
     with pytest.raises(ValueError):
         create_name_from_common_fields(in_paths=examples)
+
+
+def test_create_linmos_parset_base_path():
+    """The yandasoft linmos task writes out a configuration file.
+    This function tests the generation of the path"""
+    examples = get_lots_of_names_2()
+
+    expected = Path("59058/SB59058.RACS_1626-84.round4.i").absolute()
+    assert expected == create_linmos_base_path(input_images=examples)
+
+    expected = Path("59058/SB59058.RACS_1626-84.round4.i.jack.sparrow").absolute()
+    assert expected == create_linmos_base_path(
+        input_images=examples, additional_suffixes="jack.sparrow"
+    )
+    new_paths = [Path("/Here/Be/Pirates") / p for p in examples]
+    expected = Path("/Here/Be/Pirates/59058/SB59058.RACS_1626-84.round4.i").absolute()
+    assert expected == create_linmos_base_path(input_images=new_paths)
+
+    expected = Path(
+        "/Here/Be/Pirates/59058/SB59058.RACS_1626-84.round4.i.jack.sparrow"
+    ).absolute()
+    assert expected == create_linmos_base_path(
+        input_images=new_paths, additional_suffixes="jack.sparrow"
+    )
+
+
+def test_create_linmos_names():
+    """Some logic is around creating names to give to linmos to create the output images, weights and parset"""
+
+    linmos_names = create_linmos_names(
+        name_prefix="/Here/Be/Pirates/59058/SB59058.RACS_1626-84.round4.i"
+    )
+    assert linmos_names.image_fits == Path(
+        "/Here/Be/Pirates/59058/SB59058.RACS_1626-84.round4.i.linmos.fits"
+    )
+    assert linmos_names.weight_fits == Path(
+        "/Here/Be/Pirates/59058/SB59058.RACS_1626-84.round4.i.weight.fits"
+    )
+    assert linmos_names.parset_output_path == Path(
+        "/Here/Be/Pirates/59058/SB59058.RACS_1626-84.round4.i_parset.txt"
+    )
+
+    linmos_names = create_linmos_names(
+        name_prefix=Path("/Here/Be/Pirates/59058/SB59058.RACS_1626-84.round4.i")
+    )
+    assert linmos_names.image_fits == Path(
+        "/Here/Be/Pirates/59058/SB59058.RACS_1626-84.round4.i.linmos.fits"
+    )
+    assert linmos_names.weight_fits == Path(
+        "/Here/Be/Pirates/59058/SB59058.RACS_1626-84.round4.i.weight.fits"
+    )
+    assert linmos_names.parset_output_path == Path(
+        "/Here/Be/Pirates/59058/SB59058.RACS_1626-84.round4.i_parset.txt"
+    )
+
+    linmos_names = create_linmos_names(
+        name_prefix="/Here/Be/Pirates/59058/SB59058.RACS_1626-84.round4.i",
+        parset_output_path=Path("Jack/My/Boi.txt"),
+    )
+    assert linmos_names.image_fits == Path(
+        "/Here/Be/Pirates/59058/SB59058.RACS_1626-84.round4.i.linmos.fits"
+    )
+    assert linmos_names.weight_fits == Path(
+        "/Here/Be/Pirates/59058/SB59058.RACS_1626-84.round4.i.weight.fits"
+    )
+    assert linmos_names.parset_output_path == Path("Jack/My/Boi.txt")
+
+
+def test_rename_linear_to_stokes():
+    linear_names = (
+        "jack.qu.sparrow",
+        "qu.sparrow.jack",
+        ".qu.sparrow.jack",
+        "sparrow.jack.qu",
+    )
+    stokes_q_names = (
+        "jack.q.sparrow",
+        "qu.sparrow.jack",
+        ".q.sparrow.jack",
+        "sparrow.jack.q",
+    )
+    stokes_u_names = (
+        "jack.u.sparrow",
+        "qu.sparrow.jack",
+        ".u.sparrow.jack",
+        "sparrow.jack.u",
+    )
+
+    for stokes, stokes_names in zip(("q", "u"), (stokes_q_names, stokes_u_names)):
+        for linear_name, check_name in zip(linear_names, stokes_names):
+            stokes_name = _rename_linear_to_stokes(linear_name, stokes)
+            assert stokes_name == check_name
+
+    with pytest.raises(NameError):
+        _rename_linear_to_stokes("jack.sparrow", "i")
+        _rename_linear_to_stokes("jack.sparrow", "v")
+        _rename_linear_to_stokes("jack.sparrow", "pearl")
+
+    stokes_path = rename_linear_to_stokes(
+        linear_name=Path("jack.qu.sparrow"), stokes="q"
+    )
+    assert isinstance(stokes_path, Path)
+    stokes_path = rename_linear_to_stokes(linear_name="jack.qu.sparrow", stokes="q")
+    assert isinstance(stokes_path, str)
+
+
+def test_split_images():
+    with pytest.raises(ValueError):
+        split_images(images=[Path("jack.sparrow.i.fits")], by="pol")
+
+    pols = "iquv"
+    images = [Path(f"SB1234.FieldName.beam00.round4.{p}.fits") for p in pols]
+
+    split_dict = split_images(images=images, by="pol")
+
+    assert len(split_dict) == 4
+    assert split_dict.keys() == set(pols)
+    for key, val in split_dict.items():
+        assert len(val) == 1
+        assert val[0] == Path(f"SB1234.FieldName.beam00.round4.{key}.fits")
+
+    images = [
+        Path("SB1234.FieldName.beam00.round4.i.fits"),
+        Path("SB1234.FieldName.beam00.round4.i.MFS.fits"),
+        Path("SB1234.FieldName.beam00.round4.v.fits"),
+    ]
+
+    split_dict = split_images(images=images, by="pol")
+    assert len(split_dict) == 2
+    assert split_dict.keys() == {"i", "v"}
+    assert len(split_dict["i"]) == 2
+    assert len(split_dict["v"]) == 1
+
+    sbids = [
+        "1234",
+        "5678",
+        "9012",
+    ]
+
+    images = [Path(f"SB{sbid}.FieldName.beam00.round4.i.fits") for sbid in sbids]
+    split_dict = split_images(images=images, by="sbid")
+    assert len(split_dict) == 3
+    assert list(split_dict.keys()) == list(sbids)
+    for key, val in split_dict.items():
+        assert len(val) == 1
+        assert val[0] == Path(f"SB{key}.FieldName.beam00.round4.i.fits")
+
+    with pytest.raises(NamingException):
+        split_images(images=images, by="jack")

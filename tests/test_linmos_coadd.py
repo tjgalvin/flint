@@ -3,6 +3,8 @@ At the moment this is not testing the actual application. Just
 some of the helper functions around it.
 """
 
+from __future__ import annotations
+
 from pathlib import Path
 
 import numpy as np
@@ -11,16 +13,48 @@ from astropy.io import fits
 
 from flint.coadd.linmos import (
     BoundingBox,
+    LinmosOptions,
     LinmosParsetSummary,
-    _linmos_cleanup,
     _create_bound_box_plane,
     _get_alpha_linmos_option,
     _get_holography_linmos_options,
     _get_image_weight_plane,
+    _linmos_cleanup,
     create_bound_box,
     generate_weights_list_and_files,
     trim_fits_image,
 )
+from flint.naming import create_linmos_base_path
+
+
+def get_lots_of_names_2() -> list[Path]:
+    examples = [
+        "59058/SB59058.RACS_1626-84.round4.i.ch0285-0286.linmos.fits",
+        "59058/SB59058.RACS_1626-84.round4.i.ch0285-0286.linmos.fits",
+        "59058/SB59058.RACS_1626-84.round4.i.ch0070-0071.linmos.fits",
+        "59058/SB59058.RACS_1626-84.round4.i.ch0142-0143.linmos.fits",
+        "59058/SB59058.RACS_1626-84.round4.i.ch0214-0215.linmos.fits",
+        "59058/SB59058.RACS_1626-84.round4.i.ch0286-0287.linmos.fits",
+        "59058/SB59058.RACS_1626-84.round4.i.ch0071-0072.linmos.fits",
+        "59058/SB59058.RACS_1626-84.round4.i.ch0143-0144.linmos.fits",
+        "59058/SB59058.RACS_1626-84.round4.i.ch0215-0216.linmos.fits",
+        "59058/SB59058.RACS_1626-84.round4.i.ch0287-0288.linmos.fits",
+    ]
+
+    return list(map(Path, examples))
+
+
+def test_create_name_to_linmos_options():
+    """Make sure that the base name created can be passed to an
+    instance of LinmosOptions."""
+    # Seems silly but was burnt before by not testing this incorrect type
+    examples = get_lots_of_names_2()
+    # These are sanity, pirates trust nothing
+    common_names = create_linmos_base_path(input_images=examples)
+    expected_common_name = Path("59058/SB59058.RACS_1626-84.round4.i").absolute()
+
+    assert common_names == expected_common_name
+    _ = LinmosOptions(base_output_name=common_names)
 
 
 def test_get_image_weight_plane():
@@ -138,6 +172,10 @@ def test_linmos_holo_options(tmpdir):
     holofile = Path(tmpdir) / "testholooptions/holo_file.fits"
     holofile.parent.mkdir(parents=True, exist_ok=True)
 
+    ifile = Path(tmpdir) / "blackpearl.fits"
+    ifile.touch()
+    ifile.parent.mkdir(parents=True, exist_ok=True)
+
     with pytest.raises(AssertionError):
         _get_holography_linmos_options(holofile=holofile, pol_axis=None)
 
@@ -148,15 +186,50 @@ def test_linmos_holo_options(tmpdir):
 
     parset = _get_holography_linmos_options(holofile=holofile, pol_axis=None)
     assert "linmos.primarybeam      = ASKAP_PB\n" in parset
-    assert "linmos.removeleakage    = true\n" in parset
-    assert f"linmos.primarybeam.ASKAP_PB.image = {str(holofile.absolute())}\n" in parset
+    assert "linmos.removeleakage    = false\n" in parset
+    assert f"linmos.primarybeam.ASKAP_PB.image = {holofile.absolute()!s}\n" in parset
     assert "linmos.primarybeam.ASKAP_PB.alpha" not in parset
 
     parset = _get_holography_linmos_options(holofile=holofile, pol_axis=np.deg2rad(-45))
     assert "linmos.primarybeam      = ASKAP_PB\n" in parset
-    assert "linmos.removeleakage    = true\n" in parset
-    assert f"linmos.primarybeam.ASKAP_PB.image = {str(holofile.absolute())}\n" in parset
+    assert "linmos.removeleakage    = false\n" in parset
+    assert f"linmos.primarybeam.ASKAP_PB.image = {holofile.absolute()!s}\n" in parset
     assert "linmos.primarybeam.ASKAP_PB.alpha" in parset
+
+    parset = _get_holography_linmos_options(
+        holofile=holofile, remove_leakage=True, pol_axis=np.deg2rad(-45)
+    )
+    assert "linmos.primarybeam      = ASKAP_PB\n" in parset
+    assert "linmos.removeleakage    = true\n" in parset
+    assert f"linmos.primarybeam.ASKAP_PB.image = {holofile.absolute()!s}\n" in parset
+    assert "linmos.primarybeam.ASKAP_PB.alpha" in parset
+
+    parset = _get_holography_linmos_options(
+        holofile=holofile,
+        remove_leakage=True,
+        pol_axis=np.deg2rad(-45),
+        stokesi_images=[
+            ifile,
+        ],
+    )
+    from flint.logging import logger
+
+    logger.info(parset)
+    assert "linmos.primarybeam      = ASKAP_PB\n" in parset
+    assert "linmos.removeleakage    = true\n" in parset
+    assert f"linmos.primarybeam.ASKAP_PB.image = {holofile.absolute()!s}\n" in parset
+    assert "linmos.primarybeam.ASKAP_PB.alpha" in parset
+    assert f"linmos.stokesinames = [{ifile.with_suffix('').as_posix()}]\n" in parset
+
+    with pytest.raises(AssertionError):
+        parset = _get_holography_linmos_options(
+            holofile=holofile,
+            remove_leakage=True,
+            pol_axis=np.deg2rad(-45),
+            stokesi_images=[
+                Path("doesnotexist.fits"),
+            ],
+        )
 
 
 def test_trim_fits(tmp_path):

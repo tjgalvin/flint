@@ -1,9 +1,11 @@
 """Some specific tests around the pydantic base options model
 that we are using to construct a BaseOptions class"""
 
-import pytest
+from __future__ import annotations
+
 from argparse import ArgumentParser
 
+import pytest
 from pydantic import ValidationError
 
 from flint.options import BaseOptions, add_options_to_parser, create_options_from_parser

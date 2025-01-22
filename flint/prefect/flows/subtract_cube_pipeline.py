@@ -7,43 +7,54 @@ frame and have had their fields table updated. That is to say that they have
 already been preprocessed and fixed.
 """
 
+from __future__ import annotations
+
 from pathlib import Path
 from time import sleep
-from typing import Tuple, Optional, Union, List
 
 import numpy as np
 from configargparse import ArgumentParser
 from fitscube.combine_fits import combine_fits
-from prefect import flow, unmapped, task
+from prefect import flow, task, unmapped
 
-from flint.coadd.linmos import LinmosCommand
-from flint.configuration import _load_and_copy_strategy
+from flint.coadd.linmos import LinmosResult
+from flint.configuration import load_and_copy_strategy
 from flint.exceptions import FrequencyMismatchError
-from flint.prefect.clusters import get_dask_runner
 from flint.logging import logger
 from flint.ms import (
     MS,
-    find_mss,
     consistent_ms_frequencies,
+    find_mss,
     get_freqs_from_ms,
     subtract_model_from_data_column,
 )
+from flint.naming import get_sbid_from_path
 from flint.options import (
     AddModelSubtractFieldOptions,
+    BaseOptions,
     SubtractFieldOptions,
     add_options_to_parser,
     create_options_from_parser,
 )
+from flint.prefect.clusters import get_dask_runner
 from flint.prefect.common.imaging import (
+    convolve_then_linmos,
+    task_get_common_beam_from_results,
     task_wsclean_imager,
-    task_get_common_beam,
-    _convolve_linmos,
 )
-from flint.naming import get_sbid_from_path
+
+
+class CrystalBallOptions(BaseOptions):
+    """Options related to running crystal ball"""
+
+    attempt_crystalball: bool = False
+    """Attempt to predict the model visibilities using ``crystalball``"""
+    wsclean_pol_mode: list[str] = ["i"]
+    """The polarisation of the wsclean model that was generated"""
 
 
 def _check_and_verify_options(
-    options: Union[AddModelSubtractFieldOptions, SubtractFieldOptions],
+    options: AddModelSubtractFieldOptions | SubtractFieldOptions,
 ) -> None:
     """Verrify that the options supplied to run the subtract field options make sense"""
     if isinstance(options, SubtractFieldOptions):
@@ -67,10 +78,10 @@ def _check_and_verify_options(
 
 def find_mss_to_image(
     mss_parent_path: Path,
-    expected_ms_count: Optional[int] = None,
+    expected_ms_count: int | None = None,
     data_column: str = "CORRECTED_DATA",
     model_column: str = "MODEL_DATA",
-) -> Tuple[MS, ...]:
+) -> tuple[MS, ...]:
     """Search for MSs to image. See ``flint.ms.find_mss`` for further details.
 
     Args:
@@ -93,10 +104,10 @@ def find_mss_to_image(
 
 
 def find_and_setup_mss(
-    science_path_or_mss: Union[Path, Tuple[MS, ...]],
+    science_path_or_mss: Path | tuple[MS, ...],
     expected_ms_count: int,
     data_column: str,
-) -> Tuple[MS, ...]:
+) -> tuple[MS, ...]:
     """Search for MSs in a directory and, if necessary, perform checks around
     their consistency. If the input data appear to be collection of MSs already
     assume they have already been set and checked for consistency.
@@ -142,8 +153,8 @@ def task_addmodel_to_ms(
     ms: MS,
     addmodel_subtract_options: AddModelSubtractFieldOptions,
 ) -> MS:
-    from flint.imager.wsclean import get_wsclean_output_source_list_path
     from flint.calibrate.aocalibrate import AddModelOptions, add_model
+    from flint.imager.wsclean import get_wsclean_output_source_list_path
 
     logger.info(f"Searching for wsclean source list for {ms.path}")
     for idx, pol in enumerate(addmodel_subtract_options.wsclean_pol_mode):
@@ -174,9 +185,29 @@ def task_addmodel_to_ms(
     return ms.with_options(model_column="MODEL_DATA")
 
 
+def task_crystalball_to_ms(ms: MS, crystalball_options: CrystalBallOptions) -> MS:
+    from prefect_dask import get_dask_client
+
+    from flint.imager.wsclean import get_wsclean_output_source_list_path
+
+    logger.info(f"Searching for wsclean source list for {ms.path}")
+    for idx, pol in enumerate(crystalball_options.wsclean_pol_mode):
+        wsclean_source_list_path = get_wsclean_output_source_list_path(
+            name_path=ms.path, pol=pol
+        )
+        assert (
+            wsclean_source_list_path.exists()
+        ), f"{wsclean_source_list_path=} was requested, but does not exist"
+
+    with get_dask_client():
+        logger.info("Running crystalball in prefect dask client")
+
+    return ms
+
+
 @task
 def task_combine_all_linmos_images(
-    linmos_commands: List[LinmosCommand],
+    linmos_commands: list[LinmosResult],
     remove_original_images: bool = False,
     combine_weights: bool = False,
 ) -> Path:
@@ -197,7 +228,7 @@ def task_combine_all_linmos_images(
 
     logger.info(f"Combining {len(images_to_combine)} FITS files together")
 
-    from flint.naming import create_name_from_common_fields, create_image_cube_name
+    from flint.naming import create_image_cube_name, create_name_from_common_fields
 
     assert len(images_to_combine) > 0, "No images to combine"
 
@@ -225,11 +256,11 @@ def task_combine_all_linmos_images(
 
 @flow
 def flow_addmodel_to_mss(
-    science_path_or_mss: Union[Path, Tuple[MS, ...]],
+    science_path_or_mss: Path | tuple[MS, ...],
     addmodel_subtract_field_options: AddModelSubtractFieldOptions,
     expected_ms: int,
     data_column: str,
-) -> Tuple[MS, ...]:
+) -> tuple[MS, ...]:
     """Separate flow to perform the potentially expensive model prediction
     into MSs"""
     _check_and_verify_options(options=addmodel_subtract_field_options)
@@ -254,7 +285,7 @@ def flow_subtract_cube(
     subtract_field_options: SubtractFieldOptions,
     addmodel_subtract_field_options: AddModelSubtractFieldOptions,
 ) -> None:
-    strategy = _load_and_copy_strategy(
+    strategy = load_and_copy_strategy(
         output_split_science_path=science_path,
         imaging_strategy=subtract_field_options.imaging_strategy,
     )
@@ -319,13 +350,13 @@ def flow_subtract_cube(
             mode="wsclean",
             operation="subtractcube",
         )
-        channel_beam_shape = task_get_common_beam.submit(
-            wsclean_cmds=channel_wsclean_cmds,
+        channel_beam_shape = task_get_common_beam_from_results.submit(
+            wsclean_results=channel_wsclean_cmds,
             cutoff=subtract_field_options.beam_cutoff,
-            filter="image.",
+            filter_str="image.",
         )
-        channel_parset = _convolve_linmos(
-            wsclean_cmds=channel_wsclean_cmds,
+        channel_parset = convolve_then_linmos(
+            wsclean_results=channel_wsclean_cmds,
             beam_shape=channel_beam_shape,
             linmos_suffix_str=f"ch{channel_range[0]:04d}-{channel_range[1]:04d}",
             field_options=subtract_field_options,

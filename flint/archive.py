@@ -1,13 +1,15 @@
 """Operations around preserving files and products from an flint run"""
 
+from __future__ import annotations
+
 import re
+import shlex
 import shutil
 import subprocess
-import shlex
 import tarfile
 from argparse import ArgumentParser
 from pathlib import Path
-from typing import Any, Collection, Dict, List, Tuple
+from typing import Any, Collection
 
 from flint.configuration import get_options_from_strategy
 from flint.exceptions import TarArchiveError
@@ -15,12 +17,13 @@ from flint.logging import logger
 from flint.options import (
     ArchiveOptions,
     add_options_to_parser,
+    create_options_from_parser,
 )
 
 
 def resolve_glob_expressions(
     base_path: Path, file_re_patterns: Collection[str]
-) -> Tuple[Path, ...]:
+) -> tuple[Path, ...]:
     """Collect a set of files given a base directory and a set of glob expressions. Unique
     paths are returned.
 
@@ -33,7 +36,7 @@ def resolve_glob_expressions(
     """
     base_path = Path(base_path)
 
-    resolved_files: List[Path] = []
+    resolved_files: list[Path] = []
 
     logger.info(f"Searching {base_path=}")
 
@@ -69,7 +72,7 @@ def copy_files_into(copy_out_path: Path, files_to_copy: Collection[Path]) -> Pat
 
     copy_out_path.mkdir(parents=True, exist_ok=True)
     total = len(files_to_copy)
-    not_copied: List[Path] = []
+    not_copied: list[Path] = []
 
     logger.info(f"Copying {total} files into {copy_out_path}")
     for count, file in enumerate(files_to_copy):
@@ -110,7 +113,7 @@ def verify_tarball(
     ), f"{tarball} is not a file or does not exist"
     assert tarball.suffix == ".tar", f"{tarball=} appears to not have a .tar extension"
 
-    cmd = f"tar -tvf {str(tarball)}"
+    cmd = f"tar -tvf {tarball!s}"
     logger.info(f"Verifying {tarball=}")
     popen = subprocess.Popen(shlex.split(cmd), stderr=subprocess.PIPE)
     with popen.stderr:  # type: ignore
@@ -152,7 +155,7 @@ def tar_files_into(
     logger.info(f"Opening {tar_out_path}")
     with tarfile.open(tar_out_path, "w") as tar:
         for count, file in enumerate(files_to_tar):
-            logger.info(f"{count+1} of {total}, adding {str(file)}")
+            logger.info(f"{count+1} of {total}, adding {file!s}")
             tar.add(file, arcname=file.name)
 
     logger.info(f"Created {tar_out_path}")
@@ -216,7 +219,7 @@ def copy_sbid_files_archive(
     return copy_out_path
 
 
-def get_archive_options_from_yaml(strategy_yaml_path: Path) -> Dict[str, Any]:
+def get_archive_options_from_yaml(strategy_yaml_path: Path) -> dict[str, Any]:
     """Load the archive options from a specified strategy file
 
     Args:
@@ -226,7 +229,7 @@ def get_archive_options_from_yaml(strategy_yaml_path: Path) -> Dict[str, Any]:
         Dict[str, Any]: Loaded options for ArchiveOptions
     """
     archive_options = get_options_from_strategy(
-        strategy=strategy_yaml_path, mode="archive", round_info="initial"
+        strategy=strategy_yaml_path, mode="archive", round_info=0, operation="selfcal"
     )
 
     logger.info(f"{archive_options=}")
@@ -259,7 +262,7 @@ def get_parser() -> ArgumentParser:
         help="Path to a strategy file with a archive section. Overrides any --file-patterns. ",
     )
     list_parser.add_argument(
-        "--mode",
+        "--list-mode",
         choices=("create", "copy"),
         default="copy",
         help="Which set of RE patterns to present, those for the tarball (create) or those for copy",
@@ -322,27 +325,44 @@ def cli() -> None:
     args = parser.parse_args()
 
     if args.mode == "list":
-        update_options: Dict[str, Any] = (
-            get_archive_options_from_yaml(strategy_yaml_path=args.strategy_yaml_path)
+        archive_options = (
+            ArchiveOptions(
+                **get_archive_options_from_yaml(
+                    strategy_yaml_path=args.strategy_yaml_path
+                )
+            )
             if args.strategy_yaml_path
-            else dict(tar_file_re_patterns=args.file_patterns)
+            else create_options_from_parser(
+                parser_namespace=args, options_class=ArchiveOptions
+            )
         )
-        archive_options = ArchiveOptions(**update_options)
 
         files = resolve_glob_expressions(
             base_path=args.base_path,
             file_re_patterns=(
                 archive_options.tar_file_re_patterns
-                if args.mode == "create"
+                if args.list_mode == "create"
                 else archive_options.copy_file_re_patterns
             ),
         )
         for count, file in enumerate(sorted(files)):
             logger.info(f"{count} of {len(files)}, {file}")
-        logger.info(f"{len(files)} for mode={args.mode}")
+        logger.info(f"{len(files)} for mode={args.list_mode}")
 
     elif args.mode == "create":
-        update_options_create: Dict[str, Any] = (
+        archive_options = (
+            ArchiveOptions(
+                **get_archive_options_from_yaml(
+                    strategy_yaml_path=args.strategy_yaml_path
+                )
+            )
+            if args.strategy_yaml_path
+            else create_options_from_parser(
+                parser_namespace=args, options_class=ArchiveOptions
+            )
+        )
+
+        update_options_create: dict[str, Any] = (
             get_archive_options_from_yaml(strategy_yaml_path=args.strategy_yaml_path)
             if args.strategy_yaml_path
             else dict(tar_file_re_patterhs=args.file_patterns)
@@ -355,13 +375,17 @@ def cli() -> None:
             archive_options=archive_options,
         )
     elif args.mode == "copy":
-        update_options_copy: Dict[str, Any] = (
-            get_archive_options_from_yaml(strategy_yaml_path=args.strategy_yaml_path)
+        archive_options = (
+            ArchiveOptions(
+                **get_archive_options_from_yaml(
+                    strategy_yaml_path=args.strategy_yaml_path
+                )
+            )
             if args.strategy_yaml_path
-            else dict(copy_file_re_patterhs=args.copy_file_patterns)
+            else create_options_from_parser(
+                parser_namespace=args, options_class=ArchiveOptions
+            )
         )
-        archive_options = ArchiveOptions(**update_options_copy)
-
         copy_sbid_files_archive(
             copy_out_path=args.copy_out_path,
             base_path=args.base_path,

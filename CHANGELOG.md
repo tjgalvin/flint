@@ -2,6 +2,25 @@
 
 # dev
 
+- Attempts to clean up the prefect tasks related to convolution and linmos
+  - Added a `LinmosOptions`
+  - Moved some file operations (e.g. deleting files) to the `flint.coadd.linmos`
+    module from the prefect tasks
+  - added some tests and docstrings
+- Changes to how the `--fixed-beam-shape` is used
+  - Previously each fits image was convolved before coadding
+  - Instead convolve the linmos field image
+
+# 0.2.13
+
+- Added a `flint_flow_polarisation_pipeline`, implemented by @AlecThomson
+  - changes to `image_set`
+  - `poetry` to `hatchling`
+  - using `vcs` version scheme
+  - added read the docs integration
+
+# 0.2.9
+
 - Created `subtract_cube_pipeline.py`. Associated changes include:
   - wsclean imaging will delete files while still in temporary storage (for
     instance is a ramdisk is used)
@@ -19,6 +38,11 @@
   - subtract flow will remove files whenever possible (remove original files
     after convolving, removing convolved files after linmos, remove channel
     linmos images after combining into a cube, removing the weight text files)
+- Added a `timelimit_on_context` helper to raise an error after some specified
+  length of time. Looking at you, BANE and issue #186. Arrrr.
+- Added a `BANE` callback handler to attempt to help #186. This includes a
+  `AttemptRerunException` and corresponding code in `run_singularity_command` to
+  retry the failing command.
 
 # 0.2.8
 

@@ -1,12 +1,15 @@
 """Utilities related to running commands in a singularity container"""
 
+from __future__ import annotations
+
 from pathlib import Path
 from subprocess import CalledProcessError
 from time import sleep
-from typing import Callable, Collection, Optional, Union, List
+from typing import Callable, Collection
 
 from spython.main import Client as sclient
 
+from flint.exceptions import AttemptRerunException
 from flint.logging import logger
 from flint.utils import get_job_info, log_job_environment
 
@@ -14,9 +17,10 @@ from flint.utils import get_job_info, log_job_environment
 def run_singularity_command(
     image: Path,
     command: str,
-    bind_dirs: Optional[Union[Path, Collection[Path]]] = None,
-    stream_callback_func: Optional[Callable] = None,
+    bind_dirs: Path | Collection[Path] | None = None,
+    stream_callback_func: Callable | None = None,
     ignore_logging_output: bool = False,
+    max_retries: int = 2,
 ) -> None:
     """Executes a command within the context of a nominated singularity
     container
@@ -27,11 +31,14 @@ def run_singularity_command(
         bind_dirs (Optional[Union[Path,Collection[Path]]], optional): Specifies a Path, or list of Paths, to bind to in the container. Defaults to None.
         stream_callback_func (Optional[Callable], optional): Provide a function that is applied to each line of output text when singularity is running and `stream=True`. IF provide it should accept a single (string) parameter. If None, nothing happens. Defaultds to None.
         ignore_logging_output (bool, optional): If `True` output from the executed singularity command is not logged. Defaults to False.
+        max_reties (int, optional): If a callback handler is specified which raised an `AttemptRerunException`, this signifies how many attempts should be made. Defaults to 2.
 
     Raises:
         FileNotFoundError: Thrown when container image not found
         CalledProcessError: Thrown when the command into the container was not successful
     """
+    if max_retries <= 0:
+        raise ValueError("Too many retries")
 
     if not image.exists():
         raise FileNotFoundError(f"The singularity container {image} was not found. ")
@@ -39,7 +46,7 @@ def run_singularity_command(
     logger.info(f"Running {command} in {image}")
 
     job_info = log_job_environment()
-    bind: Union[None, List[str]] = None
+    bind: None | list[str] = None
     if bind_dirs:
         logger.info("Preparing bind directories")
         if isinstance(bind_dirs, Path):
@@ -75,6 +82,18 @@ def run_singularity_command(
         # Sleep for a few moments. If the command created files (often they do), give the lustre a moment
         # to properly register them. You dirty sea dog.
         sleep(2.0)
+    except AttemptRerunException as e:
+        logger.info("A callback handler has raised an error. Attempting to rerun.")
+        logger.info(f"{e=}")
+        run_singularity_command(
+            image=image,
+            command=command,
+            bind_dirs=bind_dirs,
+            stream_callback_func=stream_callback_func,
+            ignore_logging_output=ignore_logging_output,
+            max_retries=max_retries - 1,
+        )
+
     except CalledProcessError as e:
         logger.error(f"Failed to run command: {command}")
         logger.error(f"Stdout: {e.stdout}")
@@ -104,8 +123,8 @@ def singularity_wrapper(
 
     def wrapper(
         container: Path,
-        bind_dirs: Optional[Union[Path, Collection[Path]]] = None,
-        stream_callback_func: Optional[Callable] = None,
+        bind_dirs: Path | Collection[Path] | None = None,
+        stream_callback_func: Callable | None = None,
         ignore_logging_output: bool = False,
         **kwargs,
     ) -> str:

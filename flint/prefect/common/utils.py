@@ -1,8 +1,10 @@
 """Common prefect related utilities that can be used between flows."""
 
+from __future__ import annotations
+
 import base64
 from pathlib import Path
-from typing import Any, Dict, List, Optional, TypeVar
+from typing import Any, Iterable, TypeVar
 from uuid import UUID
 
 from prefect import task
@@ -10,7 +12,12 @@ from prefect.artifacts import create_markdown_artifact
 
 from flint.archive import copy_sbid_files_archive, create_sbid_tar_archive
 from flint.logging import logger
-from flint.naming import add_timestamp_to_path, get_sbid_from_path
+from flint.naming import (
+    add_timestamp_to_path,
+    get_fits_cube_from_paths,
+    get_sbid_from_path,
+    rename_linear_to_stokes,
+)
 from flint.options import ArchiveOptions
 from flint.summary import (
     create_beam_summary,
@@ -23,9 +30,47 @@ T = TypeVar("T")
 SUPPORTED_IMAGE_TYPES = ("png",)
 
 
-def upload_image_as_artifact(
-    image_path: Path, description: Optional[str] = None
-) -> UUID:
+@task
+def task_getattr(
+    item: object,
+    attribute: str,
+    /,
+) -> Any:
+    """Retrieve an attribute from an input instance of a class or structure.
+
+    Args:
+        item (Any): The item that has the input class or structure
+        attribute (str): The attribute to extract
+
+    Returns:
+        Any: Value of the requested attribute
+    """
+    logger.debug(f"Pulling {attribute=}")
+    return getattr(item, attribute)
+
+
+@task
+def task_sorted(
+    iterable: Iterable[T],
+    /,
+    *,
+    key: Any = None,
+    reverse: bool = False,
+) -> list[T]:
+    return sorted(iterable, key=key, reverse=reverse)
+
+
+@task
+def task_zip_list_of_list(list_of_list: list[list[T]]) -> list[tuple[T, ...]]:
+    return list(zip(*list_of_list))
+
+
+@task
+def task_get_channel_images_from_paths(paths: list[Path]) -> list[Path]:
+    return [path for path in paths if "MFS" not in path.name]
+
+
+def upload_image_as_artifact(image_path: Path, description: str | None = None) -> UUID:
     """Create and submit a markdown artifact tracked by prefect for an
     input image. Currently supporting png formatted images.
 
@@ -62,15 +107,17 @@ def upload_image_as_artifact(
 task_update_field_summary = task(update_field_summary)
 task_create_field_summary = task(create_field_summary)
 task_create_beam_summary = task(create_beam_summary)
+task_get_fits_cube_from_paths = task(get_fits_cube_from_paths)
+task_rename_linear_to_stokes = task(rename_linear_to_stokes)
 
 
 @task
 def task_archive_sbid(
     science_folder_path: Path,
-    archive_path: Optional[Path] = None,
-    copy_path: Optional[Path] = None,
-    max_round: Optional[int] = None,
-    update_archive_options: Optional[Dict[str, Any]] = None,
+    archive_path: Path | None = None,
+    copy_path: Path | None = None,
+    max_round: int | None = None,
+    update_archive_options: dict[str, Any] | None = None,
 ) -> Path:
     """Create a tarball of files, or copy files, from a processing folder.
 
@@ -96,9 +143,10 @@ def task_archive_sbid(
     # TODO: What should this be? Just general new regexs passed through,
     # or is this fine?
     if max_round:
-        updated_file_patterns = tuple(archive_options.tar_file_re_patterns) + (
-            rf".*beam[0-9]+\.round{max_round}-.*-image\.fits",
-            rf".*beam[0-9]+\.round{max_round}\.ms\.(zip|tar)",
+        updated_file_patterns = (
+            *tuple(archive_options.tar_file_re_patterns),
+            f".*beam[0-9]+\\.round{max_round}-.*-image\\.fits",
+            f".*beam[0-9]+\\.round{max_round}\\.ms\\.(zip|tar)",
         )
         archive_options = archive_options.with_options(
             tar_file_re_patterns=updated_file_patterns
@@ -162,7 +210,7 @@ def task_get_attributes(item: Any, attribute: str) -> Any:
 
 
 @task
-def task_flatten(to_flatten: List[List[T]]) -> List[T]:
+def task_flatten(to_flatten: list[list[T]]) -> list[T]:
     """Will flatten a list of lists into a single list. This
     is useful for when a task-descorated function returns a list.
 

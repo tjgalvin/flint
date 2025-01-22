@@ -1,5 +1,7 @@
 """Items related to test functions in the validation stage of flint"""
 
+from __future__ import annotations
+
 from pathlib import Path
 from typing import NamedTuple
 

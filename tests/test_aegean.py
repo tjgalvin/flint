@@ -3,14 +3,37 @@ tools used in flint. BANE is also used to derive signal maps that ultimately
 feed the clean mask creation.
 """
 
+from __future__ import annotations
+
 from pathlib import Path
 
+import pytest
+
+from flint.exceptions import AttemptRerunException
 from flint.source_finding.aegean import (
     AegeanOptions,
     BANEOptions,
+    _bane_output_callback,
     _get_aegean_command,
     _get_bane_command,
 )
+
+
+def test_bane_deadlock_callback():
+    """Noticed that BANE sometimes goes into a 'deadlock' state, and will
+    seemingly always issue an log (from scipy, presumably, arrr)
+    around interpolation not being strictly ascending"""
+
+    lines = (
+        "30146:INFO using 8 cores",
+        "30146:INFO using 7 stripes",
+        "30343:WARNING The points in dimension 0 must be strictly ascending or descending",
+    )
+    _bane_output_callback(line=lines[0])
+    _bane_output_callback(line=lines[1])
+
+    with pytest.raises(AttemptRerunException):
+        _bane_output_callback(line=lines[2])
 
 
 def test_bane_options():

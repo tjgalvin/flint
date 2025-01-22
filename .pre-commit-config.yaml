@@ -50,11 +50,16 @@ repos:
     rev: "v1.13.0"
     hooks:
       - id: mypy
-        files: src|tests
+        files: flint|tests
         args: ["--ignore-missing-imports"]
         additional_dependencies:
           - pytest
           - types-PyYAML
+
+  - repo: https://github.com/crate-ci/typos
+    rev: v1.29.4
+    hooks:
+      - id: typos
 
   - repo: https://github.com/codespell-project/codespell
     rev: "v2.3.0"

@@ -1,8 +1,11 @@
 """Basic tests for utility functions"""
 
+from __future__ import annotations
+
 import math
 import os
 import shutil
+import time
 from pathlib import Path
 from typing import Any
 
@@ -14,11 +17,13 @@ from astropy.io import fits
 from astropy.wcs import WCS
 
 from flint.convol import BeamShape
+from flint.exceptions import TimeLimitException
 from flint.logging import logger
 from flint.utils import (
     SlurmInfo,
     copy_directory,
     estimate_skycoord_centre,
+    flatten_items,
     generate_strict_stub_wcs_header,
     generate_stub_wcs_header,
     get_beam_shape,
@@ -29,7 +34,41 @@ from flint.utils import (
     hold_then_move_into,
     log_job_environment,
     temporarily_move_into,
+    timelimit_on_context,
 )
+
+
+def test_flatten_items():
+    """Flatten a list of items recursively"""
+    items = [[1], 2, [[3]], [[4, [5]]]]
+    flat = flatten_items(items=items)
+    expected = [1, 2, 3, 4, 5]
+    assert flat == expected
+
+    items = [1, 2, 3, 4, 5]
+    assert items == flatten_items(items=items)
+
+
+def some_long_function(minimum_time=5):
+    t1 = time.time()
+    while time.time() - t1 < minimum_time:
+        sum = 0
+        for i in range(1000):
+            sum = sum + 1
+    print(f"Time taken: {time.time() - t1} seconds")
+
+
+def test_timelimit_on_context():
+    """Raise an error should a function take longer than expected to run"""
+    with pytest.raises(TimeLimitException):
+        with timelimit_on_context(timelimit_seconds=1):
+            some_long_function(minimum_time=20)
+
+    with timelimit_on_context(timelimit_seconds=5):
+        some_long_function(minimum_time=1)
+
+    # This should make sure that the signal is not raised after the context left
+    some_long_function(minimum_time=5)
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -496,7 +535,7 @@ def test_package_resource_path_askap_lua():
     assert isinstance(askap_lua, Path)
     assert askap_lua.exists()
 
-    with open(askap_lua, "r") as open_lua:
+    with open(askap_lua) as open_lua:
         line = open_lua.readline()
         assert line == "--[[\n"
 
@@ -510,7 +549,7 @@ def test_package_resource_path_skymodel():
     assert isinstance(askap_model, Path)
     assert askap_model.exists()
 
-    with open(askap_model, "r") as open_model:
+    with open(askap_model) as open_model:
         line = open_model.readline()
         assert (
             line

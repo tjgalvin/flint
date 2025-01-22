@@ -1,22 +1,26 @@
 """This is an interface into the yandasoft linmos task."""
 
+from __future__ import annotations
+
 from argparse import ArgumentParser
 from pathlib import Path
-from typing import Collection, List, NamedTuple, Optional, Tuple, Literal
+from typing import Collection, Literal, NamedTuple
 
 import numpy as np
 from astropy.io import fits
 
 from flint.logging import logger
 from flint.naming import LinmosNames, create_linmos_names, extract_beam_from_name
+from flint.options import BaseOptions, add_options_to_parser, create_options_from_parser
 from flint.sclient import run_singularity_command
+from flint.utils import remove_files_folders
 
 # This is the expected orientation of the third-axis and footprint (remember the footprint
 # can be electronically rotated).
 EXPECTED_HOLOGRAPHY_ROTATION_CONSTANT_RADIANS = -2 * np.pi / 8
 
 
-class LinmosCommand(NamedTuple):
+class LinmosResult(BaseOptions):
     cmd: str
     """The yandasoft linmos task that will be executed"""
     parset: Path
@@ -25,6 +29,31 @@ class LinmosCommand(NamedTuple):
     """Path to the output linmos image created (or will be). """
     weight_fits: Path
     """Path to the output weight image formed through the linmos process"""
+
+
+class LinmosOptions(BaseOptions):
+    """Container for options that direct linmos processing"""
+
+    base_output_name: Path = Path("linmos_field").absolute()
+    "Base name path of the output linmos produces, including parent path. This is provided to form ``LinmosNames``. Defaults to 'linmos_field'." ""
+    holofile: Path | None = None
+    """Path to a FITS cube produced by the holography processing pipeline. Used by linmos to appropriate primary-beam correct the images. Defaults to None."""
+    cutoff: float = 0.001
+    """Pixels whose primary beam attenuation is below this cutoff value are blanked. Defaults to 0.001."""
+    pol_axis: float | None = None
+    """The physical oritentation of the ASKAP third-axis in radians. Defaults to None."""
+    trim_linmos_fits: bool = True
+    """Attempt to trim the output linmos files of as much empty space as possible. Defaults to True."""
+    cleanup: bool = False
+    """Remove files generated throughout linmos, including the text files with the channel weights. Defaults to False."""
+    stokesi_images: list[Path] | None = None
+    """Collection of Stokes-I images used to correct widefield leakage when input images are Stokes Q or U. If None ``linmos`` will attempt to find them. Defaults to None."""
+    force_remove_leakage: bool | None = None
+    """Overwrite the ``removeLeakage`` option to ``linmos``. Defaults to None. """
+    overwrite: bool = False
+    """Overwrite the linmos parset file generated if it exists. Defaults to False."""
+    remove_original_images: bool = False
+    """Delete the images that were coaddede together. Defaults to False."""
 
 
 class BoundingBox(NamedTuple):
@@ -38,7 +67,7 @@ class BoundingBox(NamedTuple):
     """Minimum y pixel"""
     ymax: int
     """Maximum y pixel"""
-    original_shape: Tuple[int, int]
+    original_shape: tuple[int, int]
     """The original shape of the image. If constructed against a cube this is the shape of a single plane."""
 
 
@@ -47,15 +76,15 @@ class LinmosParsetSummary(NamedTuple):
 
     parset_path: Path
     """Path to the parset text file created"""
-    image_paths: Tuple[Path, ...]
+    image_paths: tuple[Path, ...]
     """The set of paths to the fits images that were coadded together"""
-    weight_text_paths: Optional[Tuple[Path, ...]] = None
+    weight_text_paths: tuple[Path, ...] | None = None
     """The set of Paths to the text files with per channel weights used by linmos"""
 
 
 def _create_bound_box_plane(
     image_data: np.ndarray, is_masked: bool = False
-) -> Optional[BoundingBox]:
+) -> BoundingBox | None:
     """Create a bounding box around pixels in a 2D image. If all
     pixels are not valid, then ``None`` is returned.
 
@@ -156,7 +185,7 @@ class TrimImageResult(NamedTuple):
 
 
 def trim_fits_image(
-    image_path: Path, bounding_box: Optional[BoundingBox] = None
+    image_path: Path, bounding_box: BoundingBox | None = None
 ) -> TrimImageResult:
     """Trim the FITS image produces by linmos to remove as many empty pixels around
     the border of the image as possible. This is an inplace operation.
@@ -251,7 +280,7 @@ def _get_image_weight_plane(
 
 def get_image_weight(
     image_path: Path, mode: str = "mad", stride: int = 1, image_slice: int = 0
-) -> List[float]:
+) -> list[float]:
     """Compute an image weight supplied to linmos, which is used for optimally
     weighting overlapping images. Supported modes are 'mad' and 'mtd', which
     simply resolve to their numpy equivalents.
@@ -282,7 +311,7 @@ def get_image_weight(
         f"Computing linmos weight using {mode=}, {image_slice=} for {image_path}. "
     )
 
-    weights: List[float] = []
+    weights: list[float] = []
     with fits.open(image_path, memmap=True) as in_fits:
         image_data = in_fits[image_slice].data  # type: ignore
 
@@ -312,7 +341,7 @@ def get_image_weight(
 
 def generate_weights_list_and_files(
     image_paths: Collection[Path], mode: str = "mad", stride: int = 1
-) -> Tuple[Path, ...]:
+) -> tuple[Path, ...]:
     """Generate the expected linmos weight files, and construct an appropriate
     string that can be embedded into a linmos partset. These weights files will
     appear as:
@@ -367,7 +396,7 @@ def generate_weights_list_and_files(
     return tuple(weight_file_list)
 
 
-def _get_alpha_linmos_option(pol_axis: Optional[float] = None) -> str:
+def _get_alpha_linmos_option(pol_axis: float | None = None) -> str:
     """Compute the appropriate alpha term for linmos that is used to
     describe the differential rotation of the ASKAP third-axis and the
     footprint layout. The typical holography rotation is -45 degs. Internally
@@ -404,7 +433,10 @@ def _get_alpha_linmos_option(pol_axis: Optional[float] = None) -> str:
 
 
 def _get_holography_linmos_options(
-    holofile: Optional[Path] = None, pol_axis: Optional[float] = None
+    holofile: Path | None = None,
+    pol_axis: float | None = None,
+    remove_leakage: bool = False,
+    stokesi_images: Collection[Path] | None = None,
 ) -> str:
     """Construct the appropriate set of linmos options that
     describe the use of the holography cube file to primary
@@ -414,6 +446,7 @@ def _get_holography_linmos_options(
     Args:
         holofile (Optional[Path], optional): Path to the holography cube file to primary beam correct with. Defaults to None.
         pol_axis (Optional[float], optional): The rotation of the third axis as described in an ASAKP MS. Defaults to None.
+        remove_leakage (bool, optional): Add the directive to remove leakage. Defaults to False.
 
     Returns:
         str: Set of linmos options to add to a parset file
@@ -430,56 +463,69 @@ def _get_holography_linmos_options(
 
     parset = (
         f"linmos.primarybeam      = ASKAP_PB\n"
-        f"linmos.primarybeam.ASKAP_PB.image = {str(holofile.absolute())}\n"
-        f"linmos.removeleakage    = true\n"
+        f"linmos.primarybeam.ASKAP_PB.image = {holofile.absolute()!s}\n"
+        f"linmos.removeleakage    = {'true' if remove_leakage else 'false'}\n"
     )
     parset += _get_alpha_linmos_option(pol_axis=pol_axis)
+
+    if stokesi_images is not None:
+        logger.info("Stokes I images provided. Adding to linmos parset.")
+        stokesi_list = _file_list_to_string(stokesi_images)
+        parset += f"linmos.stokesinames = {stokesi_list}\n"
 
     return parset
 
 
+def _file_list_to_string(file_list: Collection[Path]) -> str:
+    img_str: list[str] = list(
+        [str(p).replace(".fits", "") for p in file_list if p.exists()]
+    )
+    logger.info(
+        f"{len(img_str)} unique images from {len(file_list)} input collection. "
+    )
+    img_list: str = "[" + ",".join(img_str) + "]"
+
+    assert (
+        len(set(img_str)) == len(file_list)
+    ), f"Some images were dropped from the linmos image string (found {len(set(img_str))}, expcected {len(file_list)}). Walk the plank. "
+
+    return img_list
+
+
 def generate_linmos_parameter_set(
     images: Collection[Path],
-    parset_output_path: Path,
     linmos_names: LinmosNames,
-    weight_list: Optional[str] = None,
-    holofile: Optional[Path] = None,
-    cutoff: float = 0.001,
-    pol_axis: Optional[float] = None,
-    overwrite: bool = True,
+    linmos_options: LinmosOptions,
+    weight_list: str | None = None,
 ) -> LinmosParsetSummary:
     """Generate a parset file that will be used with the
     yandasoft linmos task.
 
     Args:
         images (Collection[Path]): The images that will be coadded into a single field image.
-        parset_output_path (Path): Path of the output linmos parset file.
         linmos_names (LinmosNames): Names of the output image and weights that linmos will produces. The weight image will have a similar name. Defaults to "linmos_field".
+        linmos_options (LinmosOptions): Options that are passed through to the yandasoft linmos application.
         weight_list (str, optional): If not None, this string will be embedded into the yandasoft linmos parset as-is. It should represent the formatted string pointing to weight files, and should be equal length of the input images. If None it is internally generated. Defaults to None.
-        holofile (Optional[Path], optional): Path to a FITS cube produced by the holography processing pipeline. Used by linmos to appropriate primary-beam correct the images. Defaults to None.
-        cutoff (float, optional): Pixels whose primary beam attenuation is below this cutoff value are blanked. Defaults to 0.001.
-        pol_axis (Optional[float], optional): The physical orientation of the ASKAP third-axis. This is provided (with some assumptions about the orientation of the holography) to correctly rotate the attenuation of the beams when coadding. If None we hope for the best. Defaults to None.
-        overwrite (bool, optional): If True and the parset file already exists, overwrite it. Otherwise a FileExistsError is raised should the parset exist. Defaults to True.
 
     Returns:
         LinmosParsetSummary: Important components around the generated parset file.
     """
-    img_str: List[str] = list(
-        [str(p).replace(".fits", "") for p in images if p.exists()]
-    )
-    logger.info(f"{len(img_str)} unique images from {len(images)} input collection. ")
-    img_list: str = "[" + ",".join(img_str) + "]"
 
-    assert (
-        len(set(img_str)) == len(images)
-    ), "Some images were dropped from the linmos image string. Something is bad, walk the plank. "
+    img_list = _file_list_to_string(images)
+
+    if linmos_options.stokesi_images is not None and len(
+        linmos_options.stokesi_images
+    ) != len(images):
+        raise ValueError(
+            f"Stokes I images provided {len(linmos_options.stokesi_images)} do not match the number of input images {len(images)}"
+        )
 
     # If no weights_list has been provided (and therefore no optimal
     # beam-wise weighting) assume that all beams are of about the same
     # quality. In reality, this should be updated to provide a RMS noise
     # estimate per-pixel of each image.
     weight_str = weight_list
-    weight_files: Optional[Tuple[Path, ...]] = None
+    weight_files: tuple[Path, ...] | None = None
     if weight_str is None:
         weight_files = generate_weights_list_and_files(
             image_paths=images, mode="mad", stride=8
@@ -487,12 +533,7 @@ def generate_linmos_parameter_set(
         assert (
             weight_files is not None
         ), f"{weight_files=}, which should not happen after creating weight files"
-        _weight_str = [
-            str(weight_file)
-            for weight_file in weight_files
-            if Path(weight_file).exists()
-        ]
-        weight_str = "[" + ",".join(_weight_str) + "]"
+        weight_str = _file_list_to_string(weight_files)
 
     beam_order_strs = [str(extract_beam_from_name(str(p.name))) for p in images]
     beam_order_list = "[" + ",".join(beam_order_strs) + "]"
@@ -511,31 +552,44 @@ def generate_linmos_parameter_set(
         f"linmos.beams            = {beam_order_list}\n"
         # f"linmos.beamangle        = {beam_angle_list}\n"
         f"linmos.imagetype        = fits\n"
-        f"linmos.outname          = {str(parent_dir / linmos_names.image_fits.stem)}\n"
-        f"linmos.outweight        = {str(parent_dir / linmos_names.weight_fits.stem)}\n"
+        f"linmos.outname          = {parent_dir / linmos_names.image_fits.stem!s}\n"
+        f"linmos.outweight        = {parent_dir / linmos_names.weight_fits.stem!s}\n"
         f"# For ASKAPsoft>1.3.0\n"
         f"linmos.useweightslog    = true\n"
         f"linmos.weighttype       = Combined\n"
         f"linmos.weightstate      = Inherent\n"
-        f"linmos.cutoff           = {cutoff}\n"
-        f"linmos.finalcutoff           = 0.01\n"
-        "linmos.imageaccess.axis  = 1\n"  # WSClean outputs frequency as second dimension (so 1 in zero indexing)
+        f"linmos.cutoff           = 0\n"  # This `cutoff` is based on weights, not primary beam attenuation
+        f"linmos.finalcutoff           = {linmos_options.cutoff}\n"  # This one though, uses the PB.
     )
     # Construct the holography section of the linmos parset
-    parset += _get_holography_linmos_options(holofile=holofile, pol_axis=pol_axis)
+    remove_leakage = (linmos_options.holofile is not None) and (
+        ".i." not in str(next(iter(images)))
+    )
+    if linmos_options.force_remove_leakage is not None:
+        logger.info(
+            f"Force removing leakage: Setting to {linmos_options.force_remove_leakage}"
+        )
+        remove_leakage = linmos_options.force_remove_leakage
+
+    parset += _get_holography_linmos_options(
+        holofile=linmos_options.holofile,
+        pol_axis=linmos_options.pol_axis,
+        remove_leakage=remove_leakage,
+        stokesi_images=linmos_options.stokesi_images,
+    )
 
     # Now write the file, me hearty
-    logger.info(f"Writing parset to {str(parset_output_path)}.")
+    logger.info(f"Writing parset to {linmos_names.parset_output_path!s}.")
     logger.info(f"{parset}")
-    if not overwrite:
+    if not linmos_options.overwrite:
         assert not Path(
-            parset_output_path
-        ).exists(), f"The parset {parset_output_path} already exists!"
-    with open(parset_output_path, "w") as parset_file:
+            linmos_names.parset_output_path
+        ).exists(), f"The parset {linmos_names.parset_output_path} already exists!"
+    with open(linmos_names.parset_output_path, "w") as parset_file:
         parset_file.write(parset)
 
     linmos_parset_summary = LinmosParsetSummary(
-        parset_path=parset_output_path,
+        parset_path=linmos_names.parset_output_path,
         weight_text_paths=tuple(map(Path, weight_files))
         if weight_files
         else weight_files,
@@ -545,7 +599,7 @@ def generate_linmos_parameter_set(
     return linmos_parset_summary
 
 
-def _linmos_cleanup(linmos_parset_summary: LinmosParsetSummary) -> Tuple[Path, ...]:
+def _linmos_cleanup(linmos_parset_summary: LinmosParsetSummary) -> tuple[Path, ...]:
     """Clean up linmos files if requested.
 
     Args:
@@ -568,62 +622,49 @@ def _linmos_cleanup(linmos_parset_summary: LinmosParsetSummary) -> Tuple[Path, .
 # TODO: These options are starting to get a little large. Perhaps we should use BaseOptions.
 def linmos_images(
     images: Collection[Path],
-    parset_output_path: Path,
-    image_output_name: str = "linmos_field",
-    weight_list: Optional[str] = None,
-    holofile: Optional[Path] = None,
+    linmos_options: LinmosOptions,
+    parset_output_path: Path | None = None,
+    weight_list: str | None = None,
     container: Path = Path("yandasoft.sif"),
-    cutoff: float = 0.001,
-    pol_axis: Optional[float] = None,
-    trim_linmos_fits: bool = True,
-    cleanup: bool = False,
-) -> LinmosCommand:
+) -> LinmosResult:
     """Create a linmos parset file and execute it.
 
     Args:
         images (Collection[Path]): The images that will be coadded into a single field image.
-        parset_output_path (Path): Path of the output linmos parset file.
-        image_output_name (str, optional): Name of the output image linmos produces. The weight image will have a similar name. Defaults to "linmos_field".
+        linmos_options (LinmosOptions): Options to control the yandasott linmos program and related features.
+        parset_output_path (Path | None, optional): Path of the output linmos parset file. If None it is derived from common input fields. Defaults to None.
         weight_list (str, optional): If not None, this string will be embedded into the yandasoft linmos parset as-is. It should represent the formatted string pointing to weight files, and should be equal length of the input images. If None it is internally generated. Defaults to None.
-        holofile (Optional[Path], optional): Path to a FITS cube produced by the holography processing pipeline. Used by linmos to appropriate primary-beam correct the images. Defaults to None.
-        container (Path, optional): Path to the singularity container that has the yandasoft tools. Defaults to Path('yandasoft.sif').
-        cutoff (float, optional): Pixels whose primary beam attenuation is below this cutoff value are blanked. Defaults to 0.001.
-        pol_axis (Optional[float], optional): The physical oritentation of the ASKAP third-axis in radians. Defaults to None.
-        trim_linmos_fits (bool, optional): Attempt to trim the output linmos files of as much empty space as possible. Defaults to True.
-        cleanup (bool, optional): Remove files generated throughout linmos, including the text files with the channel weights. Defaults to False.
 
     Returns:
-        LinmosCommand: The linmos command executed and the associated parset file
+        LinmosResult: The linmos command executed and the associated parset file
     """
 
-    assert (
-        container.exists()
-    ), f"The yandasoft container {str(container)} was not found. "
+    assert container.exists(), f"The yandasoft container {container!s} was not found. "
 
-    linmos_names: LinmosNames = create_linmos_names(name_prefix=image_output_name)
+    linmos_names: LinmosNames = create_linmos_names(
+        name_prefix=linmos_options.base_output_name,
+        parset_output_path=parset_output_path,
+    )
 
     linmos_parset_summary = generate_linmos_parameter_set(
         images=images,
-        parset_output_path=parset_output_path,
         linmos_names=linmos_names,
+        linmos_options=linmos_options,
         weight_list=weight_list,
-        holofile=holofile,
-        cutoff=cutoff,
-        pol_axis=pol_axis,
     )
 
-    linmos_cmd_str = f"linmos -c {str(linmos_parset_summary.parset_path)}"
+    linmos_cmd_str = f"linmos -c {linmos_parset_summary.parset_path!s}"
     bind_dirs = [image.absolute().parent for image in images] + [
         linmos_parset_summary.parset_path.absolute().parent
     ]
-    if holofile:
-        bind_dirs.append(holofile.absolute().parent)
+    if linmos_options.holofile:
+        bind_dirs.append(linmos_options.holofile.absolute().parent)
 
     run_singularity_command(
         image=container, command=linmos_cmd_str, bind_dirs=bind_dirs
     )
 
-    linmos_cmd = LinmosCommand(
+    linmos_result = LinmosResult(
         cmd=linmos_cmd_str,
         parset=linmos_parset_summary.parset_path,
         image_fits=linmos_names.image_fits.absolute(),
@@ -631,17 +672,20 @@ def linmos_images(
     )
 
     # Trim the fits image to remove empty pixels
-    if trim_linmos_fits:
+    if linmos_options.trim_linmos_fits:
         image_trim_results = trim_fits_image(image_path=linmos_names.image_fits)
         trim_fits_image(
             image_path=linmos_names.weight_fits,
             bounding_box=image_trim_results.bounding_box,
         )
 
-    if cleanup:
+    if linmos_options.cleanup:
         _linmos_cleanup(linmos_parset_summary=linmos_parset_summary)
 
-    return linmos_cmd
+    if linmos_options.remove_original_images:
+        remove_files_folders(*images)
+
+    return linmos_result
 
 
 def get_parser() -> ArgumentParser:
@@ -660,34 +704,19 @@ def get_parser() -> ArgumentParser:
         "parset_output_path", type=Path, help="The output path of the linmos parser"
     )
     parset_parser.add_argument(
-        "--image-output-name",
-        type=str,
-        default="linmos_field",
-        help="The base name used to create the output linmos images and weight maps",
-    )
-    parset_parser.add_argument(
         "--weight-list",
         type=Path,
         default=None,
         help="Path a new-line delimited text-file containing the relative weights corresponding to the input images",
     )
     parset_parser.add_argument(
-        "--holofile",
-        type=Path,
-        default=None,
-        help="Path to the holography FITS cube used for primary beam corrections",
-    )
-    parset_parser.add_argument(
-        "--pol-axis",
-        type=float,
-        default=2 * np.pi / 8,
-        help="The rotation in radians of the third-axis of the obseration. Defaults to PI/4",
-    )
-    parset_parser.add_argument(
         "--yandasoft-container",
         type=Path,
         default=None,
         help="Path to the container with yandasoft tools",
+    )
+    parset_parser = add_options_to_parser(
+        parser=parset_parser, options_class=LinmosOptions
     )
 
     trim_parser = subparsers.add_parser(
@@ -706,25 +735,26 @@ def cli() -> None:
     args = parser.parse_args()
 
     if args.mode == "parset":
+        linmos_options = create_options_from_parser(
+            parser_namespace=args, options_class=LinmosOptions
+        )
         if args.yandasoft_container is None:
-            linmos_names = create_linmos_names(name_prefix=args.image_output_name)
+            linmos_names = create_linmos_names(
+                name_prefix=args.image_output_name,
+                parset_output_path=args.parset_output_path,
+            )
             generate_linmos_parameter_set(
                 images=args.images,
-                parset_output_path=args.parset_output_path,
                 linmos_names=linmos_names,
+                linmos_options=linmos_options,
                 weight_list=args.weight_list,
-                holofile=args.holofile,
-                pol_axis=args.pol_axis,
             )
         else:
             linmos_images(
                 images=args.images,
                 parset_output_path=args.parset_output_path,
-                image_output_name=args.image_output_name,
                 weight_list=args.weight_list,
-                holofile=args.holofile,
-                container=args.yandasoft_container,
-                pol_axis=args.pol_axis,
+                linmos_options=linmos_options,
             )
     elif args.mode == "trim":
         images = args.images

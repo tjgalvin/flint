@@ -1,5 +1,7 @@
 """Some tests related to using aoccalibrate related things"""
 
+from __future__ import annotations
+
 import shutil
 from pathlib import Path
 
@@ -17,9 +19,9 @@ from flint.calibrate.aocalibrate import (
     AOSolutions,
     CalibrateOptions,
     FlaggedAOSolution,
+    add_model_options_to_command,
     calibrate_options_to_command,
     flag_aosolutions,
-    add_model_options_to_command,
     plot_solutions,
     select_refant,
 )
@@ -290,14 +292,12 @@ def test_aosols_bandpass_ref_nu_preserve_phase(ao_sols):
     assert np.allclose(y_angle[np.isfinite(y_angle)], 0)
 
     expected = np.array(
-        (
-            [
-                -0.10846614 - 0.01465966j,
-                -0.10776107 - 0.01495074j,
-                -0.10728749 - 0.01611982j,
-                -0.10742277 - 0.01654671j,
-            ]
-        )
+        [
+            -0.10846614 - 0.01465966j,
+            -0.10776107 - 0.01495074j,
+            -0.10728749 - 0.01611982j,
+            -0.10742277 - 0.01654671j,
+        ]
     )
 
     print(expected)

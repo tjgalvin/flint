@@ -1,56 +1,62 @@
-[tool.poetry]
+[build-system]
+requires = ["hatchling", "hatch-vcs"]
+build-backend = "hatchling.build"
+
+
+[project]
 name = "flint"
-version = "0.2.8"
-description = "Pipeline for RACS processing, and profit along the way"
-authors = ["tgalvin <tim.galvin@csiro.au>"]
-license = "MIT"
+authors = [
+    {name="Tim Galvin", email="tim.galvin@csiro.au"}
+]
+description = "Pipeline for ASKAP processing, and profit along the way"
 readme = "README.md"
-include = [
-    {path = 'flint/data/model/1934-638.calibrate.txt'},
-    {path = 'flint/data/source_counts/de_zotti_1p4.txt'},
-    {path = 'flint/data/source_counts/SKADS_1p4GHz.fits'},
-    {path = 'flint/data/aoflagger/ATCA.lua'},
-    {path = 'flint/data/aoflagger/ASKAP.lua'},
-    {path = 'flint/data/tests'},
-    {path = 'flint/data/peel/known_sources.csv'}
+license.file = "LICENSE"
+requires-python = ">=3.11"
+classifiers = [
+    "Development Status :: 1 - Planning",
+    "Intended Audience :: Science/Research",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: BSD License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering",
+    "Typing :: Typed",
+]
+dynamic = ["version"]
+
+dependencies = [
+    "astropy>=6.1.3", # fixing until units change in 6.1.4 addressed in radio-beam
+    "numpy>=2.0.0",
+    "pydantic==2.8.2", # version 2.9.0 caused prefect model validation error
+    "scipy",
+    "spython>=0.3.1",
+    "matplotlib",
+    "prefect>=2.10.0, <3",
+    "prefect-dask>=0.2.4",
+    "dask-jobqueue",
+    "RACS-tools @ git+https://github.com/AlecThomson/RACS-tools.git@8e5d919e9938eda19fc7b8a915f855e8b8e0e514", # allows array of beam shapes in beamcon_3D
+    "aegeantools==2.3.0",
+    "radio-beam>=0.3.4",
+    "reproject",
+    "scikit-image",
+    "pandas",
+    "ConfigArgParse>=1.7",
+    "fitscube>=0.5.0",
+    "astroquery>=0.4.8.dev0",
+    "crystalball @ git+https://github.com/caracal-pipeline/crystalball.git",
 ]
 
-[tool.poetry.dependencies]
-python = "^3.11"
-astropy = "6.1.3" # fixing until units change in 6.1.4 addressed in radio-beam
-numpy = "^1.26.0"
-python-casacore = "3.5.2" # newer version caused MS errors (maybe related to pre-built wheel)
-pydantic = "2.8.2" # version 2.9.0 caused prefect model validation error
-scipy = "*"
-spython = "^0.3.1"
-fixms = ">=0.2.6"
-matplotlib = "*"
-prefect = "^2.10.0"
-prefect-dask = "^0.2.4"
-dask-jobqueue = "*"
-RACS-tools = { git = "https://github.com/AlecThomson/RACS-tools.git@8e5d919e9938eda19fc7b8a915f855e8b8e0e514" } # allows array of beam shapes in beamcon_3D
-aegeantools = "2.3.0"
-radio-beam = "^0.3.4"
-reproject = "*"
-scikit-image = "*"
-pandas = "*"
-ConfigArgParse = "^1.7"
-fitscube = "^0.5.0"
-astroquery = "^0.4.7"
-crystalball = { git = "https://github.com/AlecThomson/crystalball.git@5e8017bc511a657d908bdebd780e8f20d5b7c970" } # Testing of the dask distributed client
+[tool.hatch]
+version.source = "vcs"
+build.hooks.vcs.version-file = "flint/_version.py"
+metadata.allow-direct-references = true
 
 
-[tool.poetry.group.dev.dependencies]
-black = "^23.3.0"
-mypy = "^1.4.1"
-isort = "^5.12.0"
-pre-commit = "*"
-ruff = "^0.1.12"
-pytest = "^7.4.0"
-pytest-cov = "*"
-sphinx = "*"
-
-[tool.poetry.extras]
+[project.optional-dependencies]
 dev = [
     "black",
     "mypy",
@@ -60,14 +66,15 @@ dev = [
     "pytest",
     "pytest-cov",
     "sphinx",
+    "myst-parser",
+    "sphinx-autodoc-typehints",
+    "sphinx-copybutton",
+    "sphinx-autoapi",
+    "furo"
 ]
+casa =["python-casacore==3.5.2", "fixms>=0.2.6"]
 
-
-[build-system]
-requires = ["poetry-core"]
-build-backend = "poetry.core.masonry.api"
-
-[tool.poetry.scripts]
+[project.scripts]
 flint_skymodel = "flint.sky_model:cli"
 flint_aocalibrate = "flint.calibrate.aocalibrate:cli"
 flint_archive = "flint.archive:cli"
@@ -88,6 +95,18 @@ flint_leakage = "flint.leakage:cli"
 flint_flow_bandpass_calibrate = "flint.prefect.flows.bandpass_pipeline:cli"
 flint_flow_continuum_pipeline = "flint.prefect.flows.continuum_pipeline:cli"
 flint_flow_subtract_cube_pipeline = "flint.prefect.flows.subtract_cube_pipeline:cli"
+flint_flow_polarisation_pipeline = "flint.prefect.flows.polarisation_pipeline:cli"
+
+# [tool.mypy]
+# files = ["flint", "tests"]
+# python_version = "3.11"
+# warn_unused_configs = true
+# strict = true
+# enable_error_code = ["ignore-without-code", "redundant-expr", "truthy-bool"]
+# warn_unreachable = true
+# disallow_untyped_defs = false
+# disallow_incomplete_defs = false
+
 
 [[tool.mypy.overrides]]
 module = "astropy.*"
@@ -135,6 +154,32 @@ target-version = "py38"
 # Enable Pyflakes (`F`) and a subset of the pycodestyle (`E`)  codes by default.
 select = ["E4", "E7", "E9", "F"]
 ignore = []
+# Full list of rules from scientific-python-cookiecutter.
+# More can be enabled as needed / wanted.
+extend-select = [
+    # "B",        # flake8-bugbear
+    "I",        # isort
+    # "ARG",      # flake8-unused-arguments
+    # "C4",       # flake8-comprehensions
+    # "EM",       # flake8-errmsg
+    # "ICN",      # flake8-import-conventions
+    # "G",        # flake8-logging-format
+    # "PGH",      # pygrep-hooks
+    # "PIE",      # flake8-pie
+    # "PL",       # pylint
+    # "PT",       # flake8-pytest-style
+    # "PTH",      # flake8-use-pathlib
+    # "RET",      # flake8-return
+    # "RUF",      # Ruff-specific
+    # "SIM",      # flake8-simplify
+    # "T20",      # flake8-print
+    "UP",       # pyupgrade
+    # "YTT",      # flake8-2020
+    # "EXE",      # flake8-executable
+    "NPY",      # NumPy specific rules
+    "PD",       # pandas-vet
+]
+isort.required-imports = ["from __future__ import annotations"]
 
 # Allow fix for all enabled rules (when `--fix`) is provided.
 fixable = ["ALL"]
@@ -155,3 +200,11 @@ skip-magic-trailing-comma = false
 
 # Like Black, automatically detect the appropriate line ending.
 line-ending = "auto"
+
+[tool.typos.files]
+extend-exclude = ["*.fits", "flint/data/**/*", "ignore_words.txt"]
+
+[tool.typos.default.extend-identifiers]
+FIELDs = "FIELDs"
+FoV = "FoV"
+outweight= "outweight"

@@ -1,8 +1,9 @@
 """Procedure to calibrate bandpass observation"""
 
+from __future__ import annotations
+
 from argparse import ArgumentParser
 from pathlib import Path
-from typing import Optional, Union
 
 import numpy as np
 from casacore.tables import table, taql
@@ -10,12 +11,12 @@ from casacore.tables import table, taql
 from flint.calibrate.aocalibrate import AOSolutions, calibrate_apply_ms
 from flint.flagging import flag_ms_aoflagger
 from flint.logging import logger
-from flint.ms import MS, describe_ms, preprocess_askap_ms, get_field_id_for_field
+from flint.ms import MS, describe_ms, get_field_id_for_field, preprocess_askap_ms
 from flint.naming import create_ms_name
 from flint.sky_model import KNOWN_1934_FILES, get_1934_model
 
 
-def plot_solutions(solutions_path: Path, ref_ant: Optional[int] = 0) -> None:
+def plot_solutions(solutions_path: Path, ref_ant: int | None = 0) -> None:
     """Plot solutions for AO-style solutions
 
     Args:
@@ -28,7 +29,7 @@ def plot_solutions(solutions_path: Path, ref_ant: Optional[int] = 0) -> None:
     _ = ao_sols.plot_solutions(ref_ant=ref_ant)
 
 
-def flag_bandpass_offset_pointings(ms: Union[MS, Path]) -> MS:
+def flag_bandpass_offset_pointings(ms: MS | Path) -> MS:
     """The typical bandpass style observation in ASKAP will shift each beam
     so that it is centred on the bandpass-calibration object (here B1934-638).
     During each offset position all beams are recording data still. The trick
@@ -61,7 +62,7 @@ def flag_bandpass_offset_pointings(ms: Union[MS, Path]) -> MS:
     logger.info(f"The B1934-638 field name is {good_field_name}. ")
     logger.info("Will attempt to flag other fields. ")
 
-    with table(f"{str(ms.path)}/FIELD", readonly=True, ack=False) as tab:
+    with table(f"{ms.path!s}/FIELD", readonly=True, ack=False) as tab:
         # The ID is _position_ of the matching row in the table.
         field_names = tab.getcol("NAME")
         field_idx = np.argwhere([fn == good_field_name for fn in field_names])[0]
@@ -73,7 +74,7 @@ def flag_bandpass_offset_pointings(ms: Union[MS, Path]) -> MS:
         field_idx = field_idx[0]
         logger.info(f"{good_field_name} FIELD_ID is {field_idx}")
 
-    with table(f"{str(ms.path)}", readonly=False, ack=False) as tab:
+    with table(f"{ms.path!s}", readonly=False, ack=False) as tab:
         field_idxs = tab.getcol("FIELD_ID")
         field_mask = field_idxs != field_idx
         logger.info(
@@ -92,9 +93,9 @@ def flag_bandpass_offset_pointings(ms: Union[MS, Path]) -> MS:
 
 
 def extract_correct_bandpass_pointing(
-    ms: Union[MS, Path],
+    ms: MS | Path,
     source_name_prefix: str = "B1934-638",
-    ms_out_dir: Optional[Path] = None,
+    ms_out_dir: Path | None = None,
 ) -> MS:
     """The typical bandpass style observation in ASKAP will shift each beam
     so that it is centred on the bandpass-calibration object (here B1934-638).
@@ -134,7 +135,7 @@ def extract_correct_bandpass_pointing(
     ms = MS.cast(ms)
     ms_summary = describe_ms(ms, verbose=False)
 
-    logger.info(f"Checking for unique fields in {str(ms.path)} data table.")
+    logger.info(f"Checking for unique fields in {ms.path!s} data table.")
     with table(str(ms.path)) as tab:
         fields = np.unique(tab.getcol("FIELD_ID"))
         if len(fields) == 1:
@@ -164,7 +165,7 @@ def extract_correct_bandpass_pointing(
         out_path = ms_out_dir / Path(out_name).name
 
     logger.info(f"Will create a MS, writing to {out_path}")
-    with table(f"{str(ms.path)}") as tab:
+    with table(f"{ms.path!s}") as tab:
         field_ms = taql(f"select * from $tab where FIELD_ID=={field_id}")
         field_ms.copy(str(out_path), deep=True)
 
@@ -177,8 +178,8 @@ def calibrate_bandpass(
     mode: str,
     calibrate_container: Path,
     plot: bool = True,
-    aoflagger_container: Optional[Path] = None,
-    ms_out_dir: Optional[Path] = None,
+    aoflagger_container: Path | None = None,
+    ms_out_dir: Path | None = None,
 ) -> MS:
     """Entry point to extract the appropriate field from a bandpass observation,
     run AO-style calibrate, and plot results. In its current form a new measurement
@@ -196,7 +197,7 @@ def calibrate_bandpass(
     Returns:
         MS: The calibrated measurement set with nominated column
     """
-    logger.info(f"Will calibrate {str(ms_path)}, column {data_column}")
+    logger.info(f"Will calibrate {ms_path!s}, column {data_column}")
 
     # TODO: Check to make sure only 1934-638
     model_path: Path = get_1934_model(mode=mode)

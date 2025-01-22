@@ -1,0 +1,111 @@
+version: 0.2
+defaults:
+  wsclean:
+    abs_mem: 100
+    local_rms_window: 65
+    size: 10128
+    local_rms: true
+    force_mask_rounds: 10
+    auto_mask: 3.5
+    auto_threshold: 0.5
+    threshold: null
+    channels_out: 4
+    mgain: 0.7
+    nmiter: 15
+    niter: 750000
+    multiscale: true
+    multiscale_scale_bias: 0.75
+    multiscale_scales:
+      - 0
+      - 15
+      - 25
+      - 50
+      - 75
+      - 100
+      - 250
+      - 400
+    fit_spectral_pol: 2
+    weight: briggs -0.5
+    data_column: CORRECTED_DATA
+    scale: 2.5asec
+    gridder: wgridder
+    nwlayers: null
+    wgridder_accuracy: 0.0001
+    join_channels: true
+    minuv_l: null
+    minuvw_m: null
+    maxw: null
+    no_update_model_required: false
+    no_small_inversion: false
+    beam_fitting_size: 1.25
+    fits_mask: null
+    deconvolution_channels: null
+  gaincal:
+    solint: 60s
+    calmode: p
+    round: 0
+    minsnr: 0.0
+    uvrange: ">200m"
+    selectdata: true
+    gaintype: G
+    nspw: 1
+  masking:
+    base_snr_clip: 4
+    flood_fill: true
+    flood_fill_positive_seed_clip: 4.5
+    flood_fill_positive_flood_clip: 1.5
+    grow_low_snr_island: true
+    grow_low_snr_island_clip: 1.75
+    grow_low_snr_island_size: 768
+  archive:
+    tar_file_re_patterns:
+      - .*MFS.*image\.fits
+      - .*linmos.*
+      - .*weight\.fits
+      - .*yaml
+      - .*\.csv
+      - testing_for_jack.txt
+    copy_file_re_patterns:
+      - .*linmos.*fits
+      - .*weight\.fits
+      - .*png
+      - .*csv
+      - testing_for_sparrow.csv
+
+selfcal:
+  0:
+    wsclean: {}
+  1:
+    wsclean:
+      data_column: "EXAMPLE"
+    gaincal: {}
+    masking:
+      flood_fill_positive_seed_clip: 40
+      flood_fill_positive_flood_clip: 1.5
+  2:
+    wsclean:
+      multiscale: false
+    gaincal: {}
+    masking: {}
+  3:
+    wsclean:
+      data_column: "TheLastRoundIs3"
+    gaincal: {}
+    masking: {}
+
+stokesv:
+  wsclean:
+    pol: V
+    channels_out: 2
+    deconvolution_channels: null
+
+polarisation:
+  total:
+    wsclean:
+      squared_channel_joining: false
+  linear:
+    wsclean:
+      join_polarizations: true
+      squared_channel_joining: true
+  circular:
+    wsclean: {}

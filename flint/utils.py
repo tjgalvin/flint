@@ -2,14 +2,17 @@
 for general usage.
 """
 
+from __future__ import annotations
+
 import datetime
 import os
 import shutil
+import signal
 import subprocess
 from contextlib import contextmanager
 from pathlib import Path
 from socket import gethostname
-from typing import List, NamedTuple, Optional, Tuple, Union, Generator
+from typing import Any, Generator, NamedTuple
 
 import astropy.units as u
 import numpy as np
@@ -18,6 +21,7 @@ from astropy.io import fits
 from astropy.wcs import WCS
 
 from flint.convol import BeamShape
+from flint.exceptions import TimeLimitException
 from flint.logging import logger
 
 # TODO: This Captain is aware that there is a common fits getheader between
@@ -27,10 +31,70 @@ from flint.logging import logger
 # that only opens the FITS file once and places things into common field names.
 
 
+def flatten_items(items: list[Any]) -> list[Any]:
+    """Recursively flatten a collection (list or tuple) of items.
+
+    Args:
+        items (list[Any]): Items to flatten. Can be arbitrarily nested
+
+    Returns:
+        list[Any]: Flattened items
+    """
+    flat_items = []
+
+    def _flatten(nested):
+        for e in nested:
+            if isinstance(e, (list, tuple)):
+                _flatten(e)
+            else:
+                flat_items.append(e)
+
+    _flatten(items)
+    return flat_items
+
+
+def _signal_timelimit_handler(*args):
+    raise TimeLimitException
+
+
+@contextmanager
+def timelimit_on_context(
+    timelimit_seconds: int | float,
+) -> Generator[None, None, None]:
+    """Creates a context manager that will raise ``flint.exceptions.TimelimitException``
+    should the control not leave the ``with`` context within an specified amount of time.
+
+    Notes:
+         This function **can not** be used if the function calling it is not executing
+         in the main thread, such as the case with ``dask``. The underlying ``signal``
+         module relies on being in the main thead, otherwise an ``Exception`` is raised.
+
+    Args:
+        timelimit_seconds (Union[int,float]): The maximum time allowed for the with context to be escaped
+
+    Raises:
+        TimeLimitException: Raised should the maximum timelimit be violated.
+
+    Yields:
+        Generator[None, None, None]: A generating function that returns nothing
+    """
+    signal.signal(signal.SIGALRM, _signal_timelimit_handler)
+    signal.alarm(int(timelimit_seconds))
+    logger.info(f"Setting a timelimit of {timelimit_seconds=}")
+
+    try:
+        yield
+    except TimeLimitException:
+        logger.info(f"Timeout limit of {timelimit_seconds=} reached")
+        raise TimeLimitException
+
+    signal.alarm(0)
+
+
 @contextmanager
 def hold_then_move_into(
     move_directory: Path,
-    hold_directory: Optional[Path],
+    hold_directory: Path | None,
     delete_hold_on_exist: bool = True,
 ) -> Generator[Path, None, None]:
     """Create a temporary directory such that anything within it on the
@@ -80,7 +144,7 @@ def hold_then_move_into(
 
 @contextmanager
 def temporarily_move_into(
-    subject: Path, temporary_directory: Optional[Path] = None
+    subject: Path, temporary_directory: Path | None = None
 ) -> Generator[Path, None, None]:
     """Given a file or folder, temporarily copy it into the path specified
     by `temporary_directory` for the duration of the context manager. Upon
@@ -138,8 +202,8 @@ def temporarily_move_into(
 
 
 def get_environment_variable(
-    variable: Union[str, None], default: Optional[str] = None
-) -> Union[str, None]:
+    variable: str | None, default: str | None = None
+) -> str | None:
     """Get the value of an environment variable if it exists. If it does not
     a None is returned.
 
@@ -164,11 +228,11 @@ def get_environment_variable(
 class SlurmInfo(NamedTuple):
     hostname: str
     """The hostname of the slurm job"""
-    job_id: Optional[str] = None
+    job_id: str | None = None
     """The job ID of the slurm job"""
-    task_id: Optional[str] = None
+    task_id: str | None = None
     """The task ID of the slurm job"""
-    time: Optional[str] = None
+    time: str | None = None
     """The time time the job information was gathered"""
 
 
@@ -187,7 +251,7 @@ def get_slurm_info() -> SlurmInfo:
     return SlurmInfo(hostname=hostname, job_id=job_id, task_id=task_id, time=time)
 
 
-def get_job_info(mode: str = "slurm") -> Union[SlurmInfo]:
+def get_job_info(mode: str = "slurm") -> SlurmInfo:
     """Get the job information for the supplied mode
 
     Args:
@@ -226,7 +290,7 @@ def log_job_environment() -> SlurmInfo:
     return slurm_info
 
 
-def get_beam_shape(fits_path: Path) -> Optional[BeamShape]:
+def get_beam_shape(fits_path: Path) -> BeamShape | None:
     """Construct and return a beam shape from the fields in a FITS image
 
     Args:
@@ -250,7 +314,7 @@ def get_beam_shape(fits_path: Path) -> Optional[BeamShape]:
     return beam_shape
 
 
-def get_pixels_per_beam(fits_path: Path) -> Optional[float]:
+def get_pixels_per_beam(fits_path: Path) -> float | None:
     """Given a image with beam information, return the number of pixels
     per beam. The beam is taken from the FITS header. This is evaluated
     for pixels at the reference pixel position.
@@ -309,8 +373,8 @@ def get_packaged_resource_path(package: str, filename: str) -> Path:
 
 def generate_strict_stub_wcs_header(
     position_at_image_center: SkyCoord,
-    image_shape: Tuple[int, int],
-    pixel_scale: Union[u.Quantity, str],
+    image_shape: tuple[int, int],
+    pixel_scale: u.Quantity | str,
     image_shape_is_center: bool = False,
 ) -> WCS:
     """Create a WCS object using some strict quantities. There
@@ -369,12 +433,12 @@ def generate_strict_stub_wcs_header(
 
 
 def generate_stub_wcs_header(
-    ra: Optional[Union[float, u.Quantity]] = None,
-    dec: Optional[Union[float, u.Quantity]] = None,
-    image_shape: Optional[Tuple[int, int]] = None,
-    pixel_scale: Optional[Union[u.Quantity, str, float]] = None,
+    ra: float | u.Quantity | None = None,
+    dec: float | u.Quantity | None = None,
+    image_shape: tuple[int, int] | None = None,
+    pixel_scale: u.Quantity | str | float | None = None,
     projection: str = "SIN",
-    base_wcs: Optional[Union[Path, WCS]] = None,
+    base_wcs: Path | WCS | None = None,
 ) -> WCS:
     """Create a basic WSC header object that can be used to calculate sky positions
     for an example image.
@@ -497,7 +561,7 @@ def estimate_image_centre(image_path: Path) -> SkyCoord:
 
 
 def zip_folder(
-    in_path: Path, out_zip: Optional[Path] = None, archive_format: str = "tar"
+    in_path: Path, out_zip: Path | None = None, archive_format: str = "tar"
 ) -> Path:
     """Zip a directory and remove the original.
 
@@ -534,9 +598,7 @@ def rsync_copy_directory(target_path: Path, out_path: Path) -> Path:
         Path: The output path of the new directory.
     """
 
-    rsync_cmd = (
-        f"rsync -avh --progress --stats " f"{str(target_path)}/ " f"{str(out_path)}/ "
-    )
+    rsync_cmd = f"rsync -avh --progress --stats " f"{target_path!s}/ " f"{out_path!s}/ "
     logger.info(f"Rsync copying {target_path} to {out_path}.")
     logger.debug(f"Will run {rsync_cmd}")
     rsync_run = subprocess.Popen(rsync_cmd.split(), stdout=subprocess.PIPE)
@@ -588,7 +650,7 @@ def copy_directory(
     return output_directory
 
 
-def remove_files_folders(*paths_to_remove: Path) -> List[Path]:
+def remove_files_folders(*paths_to_remove: Path) -> list[Path]:
     """Will remove a set of paths from the file system. If a Path points
     to a folder, it will be recursively removed. Otherwise it is simply
     unlinked.
@@ -610,7 +672,7 @@ def remove_files_folders(*paths_to_remove: Path) -> List[Path]:
             continue
 
         if file.is_dir():
-            logger.info(f"Removing folder {str(file)}")
+            logger.info(f"Removing folder {file!s}")
             shutil.rmtree(file)
         else:
             logger.info(f"Removing file {file}.")
@@ -637,10 +699,10 @@ def create_directory(directory: Path, parents: bool = True) -> Path:
 
     directory = Path(directory)
 
-    logger.info(f"Creating {str(directory)}")
+    logger.info(f"Creating {directory!s}")
     try:
         directory.mkdir(parents=parents, exist_ok=True)
     except Exception as e:
-        logger.error(f"Failed to create {str(directory)} {e}.")
+        logger.error(f"Failed to create {directory!s} {e}.")
 
     return directory

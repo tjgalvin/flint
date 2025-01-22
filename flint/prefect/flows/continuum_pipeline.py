@@ -5,19 +5,21 @@
 - run aegean source finding
 """
 
+from __future__ import annotations
+
 from pathlib import Path
-from typing import Any, List, Optional, Union
+from typing import Any
 
 from configargparse import ArgumentParser
 from prefect import flow, tags, unmapped
 
 from flint.calibrate.aocalibrate import find_existing_solutions
 from flint.catalogue import verify_reference_catalogues
-from flint.coadd.linmos import LinmosCommand
+from flint.coadd.linmos import LinmosResult
 from flint.configuration import (
-    _load_and_copy_strategy,
     Strategy,
     get_options_from_strategy,
+    load_and_copy_strategy,
 )
 from flint.logging import logger
 from flint.masking import consider_beam_mask_round
@@ -30,15 +32,14 @@ from flint.naming import (
 )
 from flint.options import (
     FieldOptions,
-    dump_field_options_to_yaml,
     add_options_to_parser,
     create_options_from_parser,
+    dump_field_options_to_yaml,
 )
 from flint.prefect.clusters import get_dask_runner
 from flint.prefect.common.imaging import (
-    _create_convol_linmos_images,
-    _create_convolve_linmos_cubes,
-    _validation_items,
+    create_convol_linmos_images,
+    create_convolve_linmos_cubes,
     task_copy_and_preprocess_casda_askap_ms,
     task_create_apply_solutions_cmd,
     task_create_image_mask_model,
@@ -52,6 +53,7 @@ from flint.prefect.common.imaging import (
     task_split_by_field,
     task_wsclean_imager,
     task_zip_ms,
+    validation_items,
 )
 from flint.prefect.common.ms import task_add_model_source_list_to_ms
 from flint.prefect.common.utils import (
@@ -90,7 +92,7 @@ def _check_field_options(field_options: FieldOptions) -> None:
     if field_options.rounds is not None:
         if field_options.rounds >= 1 and field_options.casa_container is None:
             raise ValueError(
-                "CASA Container needs to be set if self-calibraiton is to be performed"
+                "CASA Container needs to be set if self-calibration is to be performed"
             )
     if field_options.coadd_cubes:
         if (
@@ -133,7 +135,7 @@ def _check_create_output_split_science_path(
         )
         raise ValueError("Output science directory already exists. ")
 
-    logger.info(f"Creating {str(output_split_science_path)}")
+    logger.info(f"Creating {output_split_science_path!s}")
     output_split_science_path.mkdir(parents=True)
 
     return output_split_science_path
@@ -144,7 +146,7 @@ def process_science_fields(
     science_path: Path,
     split_path: Path,
     field_options: FieldOptions,
-    bandpass_path: Optional[Path] = None,
+    bandpass_path: Path | None = None,
 ) -> None:
     # Verify no nasty incompatible options
     _check_field_options(field_options=field_options)
@@ -170,9 +172,9 @@ def process_science_fields(
         field_options=field_options,
     )
 
-    archive_wait_for: List[Any] = []
+    archive_wait_for: list[Any] = []
 
-    strategy: Optional[Strategy] = _load_and_copy_strategy(
+    strategy: Strategy | None = load_and_copy_strategy(
         output_split_science_path=output_split_science_path,
         imaging_strategy=field_options.imaging_strategy,
     )
@@ -260,7 +262,7 @@ def process_science_fields(
         # The call into potato peel task has two potential update option keywords.
         # So for the moment we will not use the task decorated version.
         potato_wsclean_init = get_options_from_strategy(
-            strategy=strategy, mode="wsclean", round_info="initial"
+            strategy=strategy, mode="wsclean", round_info=0, operation="selfcal"
         )
         preprocess_science_mss = task_potato_peel.map(
             ms=preprocess_science_mss,
@@ -269,34 +271,35 @@ def process_science_fields(
         )
 
     stokes_v_mss = preprocess_science_mss
-    wsclean_cmds = task_wsclean_imager.map(
+    wsclean_results = task_wsclean_imager.map(
         in_ms=preprocess_science_mss,
         wsclean_container=field_options.wsclean_container,
         strategy=unmapped(strategy),
         mode="wsclean",
-        round_info="initial",
+        round_info=0,
+        operation="selfcal",
     )  # type: ignore
 
-    wsclean_cmds = (
+    wsclean_results = (
         task_add_model_source_list_to_ms.map(
-            wsclean_command=wsclean_cmds,
+            wsclean_command=wsclean_results,
             calibrate_container=field_options.calibrate_container,
         )
         if field_options.update_model_data_with_source_list
-        else wsclean_cmds
+        else wsclean_results
     )
 
     # TODO: This should be waited!
     beam_summaries = task_create_beam_summary.map(
-        ms=preprocess_science_mss, imageset=wsclean_cmds
+        ms=preprocess_science_mss, image_set=wsclean_results
     )
     archive_wait_for.extend(beam_summaries)
-    archive_wait_for.extend(wsclean_cmds)
+    archive_wait_for.extend(wsclean_results)
 
     beam_aegean_outputs = None
     if run_aegean:
         beam_aegean_outputs = task_run_bane_and_aegean.map(
-            image=wsclean_cmds,
+            image=wsclean_results,
             aegean_container=unmapped(field_options.aegean_container),
         )
         beam_summaries = task_update_with_options.map(
@@ -307,12 +310,11 @@ def process_science_fields(
         )
 
     if field_options.yandasoft_container:
-        parsets = _create_convol_linmos_images(
-            wsclean_cmds=wsclean_cmds,
+        parsets = create_convol_linmos_images(
+            wsclean_results=wsclean_results,
             field_options=field_options,
             field_summary=field_summary,
             current_round=None,
-            additional_linmos_suffix_str="i",
         )
         archive_wait_for.extend(parsets)
         parset = parsets[-1]
@@ -329,7 +331,7 @@ def process_science_fields(
             archive_wait_for.append(field_summary)
 
             if run_validation and field_options.reference_catalogue_directory:
-                _validation_items(
+                validation_items(
                     field_summary=field_summary,
                     aegean_outputs=aegean_field_output,
                     reference_catalogue_directory=field_options.reference_catalogue_directory,
@@ -348,7 +350,7 @@ def process_science_fields(
             )
 
             cal_mss = task_gaincal_applycal_ms.map(
-                ms=wsclean_cmds,
+                ms=wsclean_results,
                 selfcal_round=current_round,
                 archive_input_ms=field_options.zip_ms,
                 skip_selfcal=skip_gaincal_current_round,
@@ -358,6 +360,7 @@ def process_science_fields(
                 strategy=unmapped(strategy),
                 mode="gaincal",
                 round_info=current_round,
+                operation="selfcal",
                 wait_for=[
                     field_summary
                 ],  # To make sure field summary is created with unzipped MSs
@@ -381,55 +384,54 @@ def process_science_fields(
                 # TODO: the aegean outputs are only needed should the signal image be needed
                 beam_aegean_outputs = (
                     task_run_bane_and_aegean.map(
-                        image=wsclean_cmds,
+                        image=wsclean_results,
                         aegean_container=unmapped(field_options.aegean_container),
                     )
                     if (current_round >= 2 or not beam_aegean_outputs)
                     else beam_aegean_outputs
                 )
                 fits_beam_masks = task_create_image_mask_model.map(
-                    image=wsclean_cmds,
+                    image=wsclean_results,
                     image_products=beam_aegean_outputs,
                     strategy=unmapped(strategy),
                     mode="masking",
                     round_info=current_round,
+                    operation="selfcal",
                 )  # type: ignore
 
-            wsclean_cmds = task_wsclean_imager.map(
+            wsclean_results = task_wsclean_imager.map(
                 in_ms=cal_mss,
                 wsclean_container=field_options.wsclean_container,
                 fits_mask=fits_beam_masks,
                 strategy=unmapped(strategy),
                 mode="wsclean",
+                operation="selfcal",
                 round_info=current_round,
             )  # type: ignore
-            wsclean_cmds = (
+            wsclean_results = (
                 task_add_model_source_list_to_ms.map(
-                    wsclean_command=wsclean_cmds,
+                    wsclean_command=wsclean_results,
                     calibrate_container=field_options.calibrate_container,
                 )
                 if field_options.update_model_data_with_source_list
-                else wsclean_cmds
+                else wsclean_results
             )
-            archive_wait_for.extend(wsclean_cmds)
+            archive_wait_for.extend(wsclean_results)
 
             # Do source finding on the last round of self-cal'ed images
             if round == field_options.rounds and run_aegean:
                 task_run_bane_and_aegean.map(
-                    image=wsclean_cmds,
+                    image=wsclean_results,
                     aegean_container=unmapped(field_options.aegean_container),
                 )
 
-            parsets_self: Union[None, List[LinmosCommand]] = (
-                None  # Without could be unbound
-            )
+            parsets_self: None | list[LinmosResult] = None  # Without could be unbound
             if field_options.yandasoft_container:
-                parsets_self = _create_convol_linmos_images(
-                    wsclean_cmds=wsclean_cmds,
+                parsets_self = create_convol_linmos_images(
+                    wsclean_results=wsclean_results,
                     field_options=field_options,
                     field_summary=field_summary,
                     current_round=current_round,
-                    additional_linmos_suffix_str="i",
                 )
                 archive_wait_for.extend(parsets_self)
 
@@ -445,7 +447,7 @@ def process_science_fields(
                 )  # type: ignore
                 if run_validation:
                     assert field_options.reference_catalogue_directory, f"Reference catalogue directory should be set when {run_validation=}"
-                    val_results = _validation_items(
+                    val_results = validation_items(
                         field_summary=field_summary,
                         aegean_outputs=aegean_outputs,
                         reference_catalogue_directory=field_options.reference_catalogue_directory,
@@ -454,8 +456,8 @@ def process_science_fields(
 
     if field_options.coadd_cubes:
         with tags("cubes"):
-            cube_parset = _create_convolve_linmos_cubes(
-                wsclean_cmds=wsclean_cmds,  # type: ignore
+            cube_parset = create_convolve_linmos_cubes(
+                wsclean_results=wsclean_results,  # type: ignore
                 field_options=field_options,
                 current_round=(field_options.rounds if field_options.rounds else None),
                 additional_linmos_suffix_str="cube",
@@ -467,32 +469,33 @@ def process_science_fields(
             stokes_v_wsclean_options = get_options_from_strategy(
                 strategy=strategy, mode="wsclean", operation="stokesv"
             )
-            wsclean_cmds = task_wsclean_imager.map(
+            wsclean_results = task_wsclean_imager.map(
                 in_ms=stokes_v_mss,
                 wsclean_container=field_options.wsclean_container,
                 update_wsclean_options=unmapped(stokes_v_wsclean_options),
                 fits_mask=fits_beam_masks,
-                wait_for=wsclean_cmds,  # Ensure that measurement sets are doubled up during imaging
+                wait_for=wsclean_results,  # Ensure that measurement sets are doubled up during imaging
             )  # type: ignore
             if field_options.yandasoft_container:
-                parsets = _create_convol_linmos_images(
-                    wsclean_cmds=wsclean_cmds,
+                parsets = create_convol_linmos_images(
+                    wsclean_results=wsclean_results,
                     field_options=field_options.with_options(linmos_residuals=False),
                     field_summary=field_summary,
                     current_round=(
                         field_options.rounds if field_options.rounds else None
                     ),
-                    additional_linmos_suffix_str="v",
                 )
                 archive_wait_for.extend(parsets)
 
     # zip up the final measurement set, which is not included in the above loop
     if field_options.zip_ms:
-        task_zip_ms.map(in_item=wsclean_cmds, wait_for=archive_wait_for)
+        archive_wait_for = task_zip_ms.map(
+            in_item=wsclean_results, wait_for=archive_wait_for
+        )
 
-    if field_options.sbid_archive_path or field_options.sbid_copy_path and run_aegean:
+    if field_options.sbid_archive_path or field_options.sbid_copy_path:
         update_archive_options = get_options_from_strategy(
-            strategy=strategy, mode="archive"
+            strategy=strategy, mode="archive", round_info=0, operation="selfcal"
         )
         task_archive_sbid.submit(
             science_folder_path=output_split_science_path,
@@ -505,11 +508,11 @@ def process_science_fields(
 
 
 def setup_run_process_science_field(
-    cluster_config: Union[str, Path],
+    cluster_config: str | Path,
     science_path: Path,
     split_path: Path,
     field_options: FieldOptions,
-    bandpass_path: Optional[Path] = None,
+    bandpass_path: Path | None = None,
     skip_bandpass_check: bool = False,
 ) -> None:
     if not skip_bandpass_check and bandpass_path:
