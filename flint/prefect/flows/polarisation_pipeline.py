@@ -27,8 +27,6 @@ from flint.naming import (
     add_timestamp_to_path,
     extract_components_from_name,
     get_sbid_from_path,
-    task_get_channel_images_from_paths,
-    task_rename_linear_to_stokes,
 )
 from flint.options import (
     PolFieldOptions,
@@ -44,7 +42,9 @@ from flint.prefect.common.imaging import (
 )
 from flint.prefect.common.utils import (
     task_create_field_summary,
+    task_get_channel_images_from_paths,
     task_getattr,
+    task_rename_linear_to_stokes,
 )
 
 

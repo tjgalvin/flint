@@ -2,6 +2,17 @@
 
 # dev
 
+- Attempts to clean up the prefect tasks related to convolution and linmos
+  - Added a `LinmosOptions`
+  - Moved some file operations (e.g. deleting files) to the `flint.coadd.linmos`
+    module from the prefect tasks
+  - added some tests and docstrings
+- Changes to how the `--fixed-beam-shape` is used
+  - Previously each fits image was convolved before coadding
+  - Instead convolve the linmos field image
+
+# 0.2.13
+
 - Added a `flint_flow_polarisation_pipeline`, implemented by @AlecThomson
   - changes to `image_set`
   - `poetry` to `hatchling`

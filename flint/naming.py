@@ -7,9 +7,7 @@ from __future__ import annotations
 import re
 from datetime import datetime
 from pathlib import Path
-from typing import Any, NamedTuple, overload
-
-from prefect import task
+from typing import Any, Literal, NamedTuple, overload
 
 from flint.exceptions import NamingException
 from flint.logging import logger
@@ -26,6 +24,9 @@ def _rename_linear_to_stokes(
     stokes_name = re.sub(pattern, f".{stokes}", linear_name_str)
     logger.info(f"Renamed {linear_name_str=} to {stokes_name=}")
     return stokes_name
+
+
+# TODO: Why overload and not TypeVar(Path,str)
 
 
 @overload
@@ -46,14 +47,6 @@ def rename_linear_to_stokes(
     return _rename_linear_to_stokes(linear_name, stokes)
 
 
-task_rename_linear_to_stokes = task(rename_linear_to_stokes)
-
-
-@task
-def task_get_channel_images_from_paths(paths: list[Path]) -> list[Path]:
-    return [path for path in paths if "MFS" not in path.name]
-
-
 def get_fits_cube_from_paths(paths: list[Path]) -> list[Path]:
     """Given a list of files, find the ones that appear to be FITS files
     and contain the ``.cube.`` field indicator. A regular expression searching
@@ -71,8 +64,6 @@ def get_fits_cube_from_paths(paths: list[Path]) -> list[Path]:
 
     return cube_files
 
-
-task_get_fits_cube_from_paths = task(get_fits_cube_from_paths)
 
 LONG_FIELD_TO_SHORTHAND = {"sbid": "SB", "beam": "beam", "ch": "ch", "round": "round"}
 """Name mapping between the longform of ProcessedFieldComponents and shorthands used"""
@@ -229,14 +220,17 @@ def create_imaging_name_prefix(
     return ".".join(names)
 
 
-def get_beam_resolution_str(mode: str, marker: str | None = None) -> str:
+ResolutionModes = Literal["optimal", "fixed"]
+
+
+def get_beam_resolution_str(mode: ResolutionModes, marker: str | None = None) -> str:
     """Map a beam resolution mode to an appropriate suffix. This
     is located her in anticipation of other imaging modes.
 
     Supported modes are: 'optimal', 'fixed', 'raw'
 
     Args:
-        mode (str): The mode of image resolution to use.
+        mode (Literal["fixed","optimal"]): The mode of image resolution to use.
         marker (Optional[str], optional): Append the marker to the end of the returned mode string. If None mode string is returned. Defaults to None.
 
     Raises:
@@ -257,6 +251,45 @@ def get_beam_resolution_str(mode: str, marker: str | None = None) -> str:
     mode_str = supported_modes[mode.lower()]
 
     return mode_str + marker if marker else mode_str
+
+
+def update_beam_resolution_field_in_path(
+    path: Path,
+    original_mode: ResolutionModes,
+    updated_mode: ResolutionModes,
+    marker: str | None = None,
+) -> Path:
+    """Transition the resolution indicator in a processed name (either ``optimal`` or ``fixed``)
+    to another state. For example:
+
+    >>> 'SB57516.RACS_0929-81.round4.i.optimal.round4.residual.linmos.fits'
+
+    to
+
+    >>> 'SB57516.RACS_0929-81.round4.i.fixed.round4.residual.linmos.fits'
+
+    See ``get_beam_resolution_str`` for addition information. Supported modes are
+    ``fixed`` and ``optimal``
+
+    Args:
+        path (Path): The path to inspect and update
+        original_mode (ResolutionModes): The original mode
+        updated_mode (ResolutionModes): The mode to move to
+        marker (str | None, optional): The marker to separate the field. Defaults to None.
+
+    Returns:
+        Path: Updated path
+    """
+    original_mode_str = get_beam_resolution_str(mode=original_mode, marker=marker)
+    updated_mode_str = get_beam_resolution_str(mode=updated_mode, marker=marker)
+
+    assert original_mode_str in str(path), f"{original_mode_str=} not in {path=}"
+    new_path = Path(str(path).replace(original_mode_str, updated_mode_str))
+    logger.info(
+        f"Updated beam resolution mode from {original_mode=} to {updated_mode=}"
+    )
+
+    return new_path
 
 
 def get_selfcal_ms_name(in_ms_path: Path, round: int = 1) -> Path:
@@ -729,9 +762,13 @@ class LinmosNames(NamedTuple):
     """Path to the final fits co-added image"""
     weight_fits: Path
     """Path to the weights fits image created when co-adding images"""
+    parset_output_path: Path
+    """Path to the output parset generated"""
 
 
-def create_linmos_names(name_prefix: str) -> LinmosNames:
+def create_linmos_names(
+    name_prefix: str | Path, parset_output_path: Path | None = None
+) -> LinmosNames:
     """This creates the names that would be output but the yandasoft
     linmos task. It returns the names for the linmos and weight maps
     that linmos would create. These names will have the .fits extension
@@ -739,16 +776,49 @@ def create_linmos_names(name_prefix: str) -> LinmosNames:
     these are omitted.
 
     Args:
-        name_prefix (str): The prefix of the filename that will be used to create the linmos and weight file names.
+        name_prefix (str | Path): The prefix of the filename that will be used to create the linmos and weight file names.
 
     Returns:
         LinmosNames: Collection of expected filenames
     """
+    name_prefix = str(name_prefix) if isinstance(name_prefix, Path) else name_prefix
+
     logger.info(f"Linmos name prefix is: {name_prefix}")
     return LinmosNames(
         image_fits=Path(f"{name_prefix}.linmos.fits"),
         weight_fits=Path(f"{name_prefix}.weight.fits"),
+        parset_output_path=Path(f"{name_prefix}_parset.txt")
+        if parset_output_path is None
+        else parset_output_path,
     )
+
+
+def create_linmos_base_path(
+    input_images: list[Path],
+    additional_suffixes: str | None = None,
+) -> Path:
+    """Create the base path of a ``yandasoft linmos`` given a set of input images.
+
+
+    Args:
+        input_images (list[Path] | None, optional): If provided the common fields of the input images are used as basis of the path. Defaults to None.
+        additional_suffixes (str | None, optional): Any additional suffixes to append. Defaults to None.
+
+
+    Returns:
+        Path: The full path of the parset file
+    """
+
+    # Unless something has been specified, we make it up
+    logger.info(f"Combining images {input_images}")
+    output_name = create_name_from_common_fields(
+        in_paths=tuple(input_images), additional_suffixes=additional_suffixes
+    )
+    out_dir = output_name.parent
+    logger.info(f"Base output image name will be: {output_name}")
+    assert out_dir is not None, f"{out_dir=}, which should not happen"
+
+    return output_name.absolute()
 
 
 def get_sbid_from_path(path: Path) -> int:

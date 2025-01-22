@@ -13,6 +13,7 @@ from astropy.io import fits
 
 from flint.coadd.linmos import (
     BoundingBox,
+    LinmosOptions,
     LinmosParsetSummary,
     _create_bound_box_plane,
     _get_alpha_linmos_option,
@@ -23,6 +24,37 @@ from flint.coadd.linmos import (
     generate_weights_list_and_files,
     trim_fits_image,
 )
+from flint.naming import create_linmos_base_path
+
+
+def get_lots_of_names_2() -> list[Path]:
+    examples = [
+        "59058/SB59058.RACS_1626-84.round4.i.ch0285-0286.linmos.fits",
+        "59058/SB59058.RACS_1626-84.round4.i.ch0285-0286.linmos.fits",
+        "59058/SB59058.RACS_1626-84.round4.i.ch0070-0071.linmos.fits",
+        "59058/SB59058.RACS_1626-84.round4.i.ch0142-0143.linmos.fits",
+        "59058/SB59058.RACS_1626-84.round4.i.ch0214-0215.linmos.fits",
+        "59058/SB59058.RACS_1626-84.round4.i.ch0286-0287.linmos.fits",
+        "59058/SB59058.RACS_1626-84.round4.i.ch0071-0072.linmos.fits",
+        "59058/SB59058.RACS_1626-84.round4.i.ch0143-0144.linmos.fits",
+        "59058/SB59058.RACS_1626-84.round4.i.ch0215-0216.linmos.fits",
+        "59058/SB59058.RACS_1626-84.round4.i.ch0287-0288.linmos.fits",
+    ]
+
+    return list(map(Path, examples))
+
+
+def test_create_name_to_linmos_options():
+    """Make sure that the base name created can be passed to an
+    instance of LinmosOptions."""
+    # Seems silly but was burnt before by not testing this incorrect type
+    examples = get_lots_of_names_2()
+    # These are sanity, pirates trust nothing
+    common_names = create_linmos_base_path(input_images=examples)
+    expected_common_name = Path("59058/SB59058.RACS_1626-84.round4.i").absolute()
+
+    assert common_names == expected_common_name
+    _ = LinmosOptions(base_output_name=common_names)
 
 
 def test_get_image_weight_plane():
