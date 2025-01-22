@@ -2,6 +2,14 @@
 
 # dev
 
+- Attempts to clean up the prefect tasks related to convolution and linmos
+  - Added a `LinmosOptions`
+  - Moved some file operations (e.g. deleting files) to the `flint.coadd.linmos`
+    module from the prefect tasks
+  - added some tests and docstrings
+
+# 0.2.13
+
 - Added a `flint_flow_polarisation_pipeline`, implemented by @AlecThomson
   - changes to `image_set`
   - `poetry` to `hatchling`
