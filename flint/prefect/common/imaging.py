@@ -762,7 +762,6 @@ def task_linmos_images(
 
     linmos_result = linmos_images(
         images=image_list,
-        parset_output_path=Path(output_path),
         linmos_options=linmos_options,
         container=container,
     )

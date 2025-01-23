@@ -395,7 +395,7 @@ def flow_subtract_cube(
             field_options=subtract_field_options,
             convol_mode="image",
             convol_filter="image.",
-            convol_suffix_str="optimal.image",
+            convol_suffix_str="optimal.conv",
             trim_linmos_fits=False,  # This is necessary to ensure all images have same pixel-coordinates
             remove_original_images=True,
             cleanup_linmos=True,
