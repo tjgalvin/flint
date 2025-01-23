@@ -44,12 +44,13 @@ from flint.prefect.common.imaging import (
 )
 
 
+# TODO: The wsclean pol mode conflicts with the addmodel one. Consider opens.
 class CrystalBallOptions(BaseOptions):
     """Options related to running crystal ball"""
 
     attempt_crystalball: bool = False
     """Attempt to predict the model visibilities using ``crystalball``"""
-    wsclean_pol_mode: list[str] = ["i"]
+    crystallball_wsclean_pol_mode: list[str] = ["i"]
     """The polarisation of the wsclean model that was generated"""
 
 
@@ -175,7 +176,7 @@ def task_crystalball_to_ms(ms: MS, crystalball_options: CrystalBallOptions) -> M
 
     from flint.imager.wsclean import get_wsclean_output_source_list_path
 
-    for idx, pol in enumerate(crystalball_options.wsclean_pol_mode):
+    for idx, pol in enumerate(crystalball_options.crystallball_wsclean_pol_mode):
         wsclean_source_list_path = get_wsclean_output_source_list_path(
             name_path=ms.path, pol="I"
         )
