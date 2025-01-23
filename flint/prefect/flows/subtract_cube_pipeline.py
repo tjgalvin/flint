@@ -178,7 +178,7 @@ def task_crystalball_to_ms(ms: MS, crystalball_options: CrystalBallOptions) -> M
 
     for idx, pol in enumerate(crystalball_options.crystallball_wsclean_pol_mode):
         wsclean_source_list_path = get_wsclean_output_source_list_path(
-            name_path=ms.path, pol="I"
+            name_path=ms.path, pol=pol
         )
         assert (
             wsclean_source_list_path.exists()
