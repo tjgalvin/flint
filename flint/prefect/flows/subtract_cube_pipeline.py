@@ -171,7 +171,7 @@ task_subtract_model_from_ms = task(subtract_model_from_data_column)
 
 @task
 def task_crystalball_to_ms(ms: MS, crystalball_options: CrystalBallOptions) -> MS:
-    from crystalball import predict
+    from crystalball.crystalball import predict
     from prefect_dask import get_dask_client
 
     from flint.imager.wsclean import get_wsclean_output_source_list_path
