@@ -185,7 +185,9 @@ def task_crystalball_to_ms(ms: MS, crystalball_options: CrystalBallOptions) -> M
         ), f"{wsclean_source_list_path=} was requested, but does not exist"
 
         with get_dask_client() as client:
-            predict(ms=ms.path, sky_model=str(wsclean_source_list_path), client=client)
+            predict(
+                ms=str(ms.path), sky_model=str(wsclean_source_list_path), client=client
+            )
 
     return ms.with_options(model_column="MODEL_DATA")
 
