@@ -38,7 +38,7 @@ dependencies = [
     "prefect>=2.10.0, <3",
     "prefect-dask>=0.2.4",
     "dask-jobqueue",
-    "RACS-tools @ git+https://github.com/AlecThomson/RACS-tools.git@8e5d919e9938eda19fc7b8a915f855e8b8e0e514", # allows array of beam shapes in beamcon_3D
+    "RACS-tools @ git+https://github.com/tjgalvin/RACS-tools.git@c8a0f6c", # allows array of beam shapes in beamcon_3D
     "aegeantools==2.3.0",
     "radio-beam>=0.3.4",
     "reproject",
@@ -72,7 +72,10 @@ dev = [
     "sphinx-autoapi",
     "furo"
 ]
-casa =["python-casacore==3.5.2", "fixms>=0.2.6"]
+casa =[
+    "python-casacore>=3.6.0",
+    "fixms @ git+https://github.com/tjgalvin/FixMS.git@dcef4e9"
+]
 
 [project.scripts]
 flint_skymodel = "flint.sky_model:cli"

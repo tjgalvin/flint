@@ -54,26 +54,46 @@ class CrystalBallOptions(BaseOptions):
 
 
 def _check_and_verify_options(
-    options: AddModelSubtractFieldOptions | SubtractFieldOptions,
+    subtract_field_options: SubtractFieldOptions | None = None,
+    addmodel_subtract_field_options: AddModelSubtractFieldOptions | None = None,
+    crystalball_subtract_field_options: CrystalBallOptions | None = None,
 ) -> None:
-    """Verrify that the options supplied to run the subtract field options make sense"""
-    if isinstance(options, SubtractFieldOptions):
+    """Verify that the options supplied to run the subtract field options make sense"""
+    if subtract_field_options:
         assert (
-            options.wsclean_container.exists() and options.wsclean_container.is_file()
-        ), f"{options.wsclean_container=} does not exist or is not a file"
+            subtract_field_options.wsclean_container.exists()
+            and subtract_field_options.wsclean_container.is_file()
+        ), f"{subtract_field_options.wsclean_container=} does not exist or is not a file"
         assert (
-            options.yandasoft_container.exists()
-            and options.yandasoft_container.is_file()
-        ), f"{options.yandasoft_container=} does not exist or is not a file"
-    if isinstance(options, AddModelSubtractFieldOptions):
-        if options.attempt_addmodel:
-            assert (
-                options.calibrate_container is not None
-            ), "Calibrate container path is needede for addmodel"
-            assert (
-                options.calibrate_container.exists()
-                and options.calibrate_container.is_file()
-            ), f"Calibrate container {options.calibrate_container} is not a file"
+            subtract_field_options.yandasoft_container.exists()
+            and subtract_field_options.yandasoft_container.is_file()
+        ), f"{subtract_field_options.yandasoft_container=} does not exist or is not a file"
+
+    if (
+        addmodel_subtract_field_options
+        and addmodel_subtract_field_options.attempt_addmodel
+    ):
+        assert (
+            addmodel_subtract_field_options.calibrate_container is not None
+        ), "Calibrate container path is needede for addmodel"
+        assert (
+            addmodel_subtract_field_options.calibrate_container.exists()
+            and addmodel_subtract_field_options.calibrate_container.is_file()
+        ), f"Calibrate container {addmodel_subtract_field_options.calibrate_container} is not a file"
+        assert (
+            addmodel_subtract_field_options.addmodel_cluster_config is not None
+        ), f"{addmodel_subtract_field_options.addmodel_cluster_config=}, which should not happen"
+
+    if addmodel_subtract_field_options and crystalball_subtract_field_options:
+        assert (
+            sum(
+                [
+                    addmodel_subtract_field_options.attempt_addmodel,
+                    crystalball_subtract_field_options.attempt_crystalball,
+                ]
+            )
+            <= 1
+        ), "Both addmodel and crystallball selected. This surely can not be right. "
 
 
 def find_mss_to_image(
@@ -149,6 +169,27 @@ task_subtract_model_from_ms = task(subtract_model_from_data_column)
 
 
 @task
+def task_crystalball_to_ms(ms: MS, crystalball_options: CrystalBallOptions) -> MS:
+    from crystalball import predict
+    from prefect_dask import get_dask_client
+
+    from flint.imager.wsclean import get_wsclean_output_source_list_path
+
+    for idx, pol in enumerate(crystalball_options.wsclean_pol_mode):
+        wsclean_source_list_path = get_wsclean_output_source_list_path(
+            name_path=ms.path, pol="I"
+        )
+        assert (
+            wsclean_source_list_path.exists()
+        ), f"{wsclean_source_list_path=} was requested, but does not exist"
+
+        with get_dask_client() as client:
+            predict(ms=ms.path, sky_model=str(wsclean_source_list_path), client=client)
+
+    return ms.with_options(model_column="MODEL_DATA")
+
+
+@task
 def task_addmodel_to_ms(
     ms: MS,
     addmodel_subtract_options: AddModelSubtractFieldOptions,
@@ -183,26 +224,6 @@ def task_addmodel_to_ms(
         )
 
     return ms.with_options(model_column="MODEL_DATA")
-
-
-def task_crystalball_to_ms(ms: MS, crystalball_options: CrystalBallOptions) -> MS:
-    from prefect_dask import get_dask_client
-
-    from flint.imager.wsclean import get_wsclean_output_source_list_path
-
-    logger.info(f"Searching for wsclean source list for {ms.path}")
-    for idx, pol in enumerate(crystalball_options.wsclean_pol_mode):
-        wsclean_source_list_path = get_wsclean_output_source_list_path(
-            name_path=ms.path, pol=pol
-        )
-        assert (
-            wsclean_source_list_path.exists()
-        ), f"{wsclean_source_list_path=} was requested, but does not exist"
-
-    with get_dask_client():
-        logger.info("Running crystalball in prefect dask client")
-
-    return ms
 
 
 @task
@@ -263,7 +284,9 @@ def flow_addmodel_to_mss(
 ) -> tuple[MS, ...]:
     """Separate flow to perform the potentially expensive model prediction
     into MSs"""
-    _check_and_verify_options(options=addmodel_subtract_field_options)
+    _check_and_verify_options(
+        addmodel_subtract_field_options=addmodel_subtract_field_options
+    )
 
     # Get the MSs that will have their model added to
     science_mss = find_and_setup_mss(
@@ -284,13 +307,17 @@ def flow_subtract_cube(
     science_path: Path,
     subtract_field_options: SubtractFieldOptions,
     addmodel_subtract_field_options: AddModelSubtractFieldOptions,
+    crystalball_subtract_field_options: CrystalBallOptions,
 ) -> None:
     strategy = load_and_copy_strategy(
         output_split_science_path=science_path,
         imaging_strategy=subtract_field_options.imaging_strategy,
     )
-    _check_and_verify_options(options=subtract_field_options)
-    _check_and_verify_options(options=addmodel_subtract_field_options)
+    _check_and_verify_options(
+        subtract_field_options=subtract_field_options,
+        addmodel_subtract_field_options=addmodel_subtract_field_options,
+        crystalball_subtract_field_options=crystalball_subtract_field_options,
+    )
 
     # Find the MSs
     # - optionally untar?
@@ -312,10 +339,6 @@ def flow_subtract_cube(
         )
 
     if addmodel_subtract_field_options.attempt_addmodel:
-        # science_mss = task_addmodel_to_ms.map(
-        #     ms=science_mss,
-        #     addmodel_subtract_options=unmapped(addmodel_subtract_field_options),
-        # )
         assert (
             addmodel_subtract_field_options.addmodel_cluster_config is not None
         ), f"{addmodel_subtract_field_options.addmodel_cluster_config=}, which should not happen"
@@ -330,6 +353,9 @@ def flow_subtract_cube(
             expected_ms=subtract_field_options.expected_ms,
             data_column=subtract_field_options.data_column,
         )
+
+    if crystalball_subtract_field_options.attempt_crystalball:
+        logger.info("Attempting to peer into the crystalball, me'hearty")
 
     if subtract_field_options.attempt_subtract:
         science_mss = task_subtract_model_from_ms.map(
@@ -389,6 +415,7 @@ def setup_run_subtract_flow(
     science_path: Path,
     subtract_field_options: SubtractFieldOptions,
     addmodel_subtract_field_options: AddModelSubtractFieldOptions,
+    crystalball_subtract_field_options: CrystalBallOptions,
     cluster_config: Path,
 ) -> None:
     logger.info(f"Processing {science_path=}")
@@ -402,6 +429,7 @@ def setup_run_subtract_flow(
         science_path=science_path,
         subtract_field_options=subtract_field_options,
         addmodel_subtract_field_options=addmodel_subtract_field_options,
+        crystalball_subtract_field_options=crystalball_subtract_field_options,
     )
 
 
@@ -426,6 +454,7 @@ def get_parser() -> ArgumentParser:
     parser = add_options_to_parser(
         parser=parser, options_class=AddModelSubtractFieldOptions
     )
+    parser = add_options_to_parser(parser=parser, options_class=CrystalBallOptions)
 
     return parser
 
@@ -441,6 +470,10 @@ def cli() -> None:
     addmodel_subtract_field_options = create_options_from_parser(
         parser_namespace=args, options_class=AddModelSubtractFieldOptions
     )
+    crystalball_options = create_options_from_parser(
+        parser_namespace=args, options_class=CrystalBallOptions
+    )
+
     if addmodel_subtract_field_options.addmodel_cluster_config is None:
         addmodel_subtract_field_options.with_options(
             addmodel_cluster_config=args.cluster_config
@@ -450,6 +483,7 @@ def cli() -> None:
         science_path=args.science_path,
         subtract_field_options=subtract_field_options,
         addmodel_subtract_field_options=addmodel_subtract_field_options,
+        crystalball_subtract_field_options=crystalball_options,
         cluster_config=args.cluster_config,
     )
 
