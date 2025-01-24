@@ -73,6 +73,9 @@ LONG_FIELD_TO_SHORTHAND = {
 }
 """Name mapping between the longform of ProcessedFieldComponents and shorthands used"""
 
+# TODO: These tw    o helper functions should be combined into one. There should be
+# a "ProcessedNameComponents" to string type function this is called.
+
 
 def _long_field_name_to_shorthand(long_name: str) -> str:
     """Name mapping between the longform of ProcessedFieldComponents and shorthands used"""
