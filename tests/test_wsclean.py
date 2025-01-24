@@ -166,6 +166,20 @@ def test_rename_wsclean_path():
     out_ex = Path("/a/path/that/is/a/parent/SB39400.RACS_0635-31.beam33.poli.MFS.image")
     assert _rename_wsclean_file(input_path=ex) == out_ex
 
+    # This one makes sure that the second component of ch0234-0345 is not pixked up
+    # as the wsclean added subband indicator
+    ex = Path("/a/path/that/is/a/parent/SB39400.RACS_0635-31.beam33.poli-MFS-image")
+    out_ex = Path("/a/path/that/is/a/parent/SB39400.RACS_0635-31.beam33.poli.MFS.image")
+    assert _rename_wsclean_file(input_path=ex) == out_ex
+
+    ex = Path(
+        "/a/path/that/is/a/parent/SB57516.RACS_0929-81.beam35.round4.i.ch0287-0288-image.fits"
+    )
+    out_ex = Path(
+        "/a/path/that/is/a/parent/SB57516.RACS_0929-81.beam35.round4.i.ch0287-0288.image.fits"
+    )
+    assert _rename_wsclean_file(input_path=ex) == out_ex
+
 
 def test_rename_stokes_v_model():
     """Some model files are not being renamed correctly. Arr"""
