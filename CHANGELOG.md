@@ -10,6 +10,11 @@
 - Changes to how the `--fixed-beam-shape` is used
   - Previously each fits image was convolved before coadding
   - Instead convolve the linmos field image
+  - Have not patched this back into the larger flow
+- Added `crystalball` for model prediction in `subtract_cube_pipeline`
+  - An alternative to the `addmodel` program
+  - Patches into the existing Dask client
+  - Requires version bump to `numpy>=2.0` in `flint` and associated dependencies
 
 # 0.2.13
 
