@@ -175,6 +175,10 @@ def task_crystalball_to_ms(ms: MS, crystalball_options: CrystalBallOptions) -> M
     from prefect_dask import get_dask_client
 
     from flint.imager.wsclean import get_wsclean_output_source_list_path
+    from flint.prefect.helpers import enable_loguru_support
+
+    # crystalball uses loguru. We want to try to attach a handler
+    enable_loguru_support()
 
     for idx, pol in enumerate(crystalball_options.crystallball_wsclean_pol_mode):
         wsclean_source_list_path = get_wsclean_output_source_list_path(
