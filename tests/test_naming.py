@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from pathlib import Path
+from pathlib import Path, PosixPath
 
 import pytest
 
@@ -14,6 +14,7 @@ from flint.naming import (
     FITSMaskNames,
     ProcessedNameComponents,
     RawNameComponents,
+    _format_values_to_field,
     _long_field_name_to_shorthand,
     _rename_linear_to_stokes,
     add_timestamp_to_path,
@@ -49,6 +50,18 @@ def test_longform_to_short_form_field_name():
     assert "round" == _long_field_name_to_shorthand(long_name="round")
     assert "" == _long_field_name_to_shorthand(long_name="stokes")
     assert "" == _long_field_name_to_shorthand(long_name="field")
+    assert "ch" == _long_field_name_to_shorthand(long_name="channel_range")
+
+
+def test_value_to_fieldname_format():
+    """Sometimes special formatters are needed to convert a value to a
+    appropriate field name format"""
+    assert 1234 == _format_values_to_field(long_name="sbid", value=1234)
+    assert "03" == _format_values_to_field(long_name="beam", value="03")
+    assert 4 == _format_values_to_field(long_name="round", value=4)
+    assert "0123-0125" == _format_values_to_field(
+        long_name="channel_range", value=(123, 125)
+    )
 
 
 def test_create_imaging_name_prefix():
@@ -762,6 +775,51 @@ def test_create_name_from_common_fields_2():
 
     with pytest.raises(ValueError):
         create_name_from_common_fields(in_paths=examples)
+
+
+def get_lots_of_names_3():
+    files = [
+        PosixPath(
+            "/scratch3/gal16b/spectral_flow/57516/SB57516.RACS_0929-81.beam00.round4.i.ch0238-0239.image.optimal.conv.fits"
+        ),
+        PosixPath(
+            "/scratch3/gal16b/spectral_flow/57516/SB57516.RACS_0929-81.beam01.round4.i.ch0238-0239.image.optimal.conv.fits"
+        ),
+        PosixPath(
+            "/scratch3/gal16b/spectral_flow/57516/SB57516.RACS_0929-81.beam02.round4.i.ch0238-0239.image.optimal.conv.fits"
+        ),
+        PosixPath(
+            "/scratch3/gal16b/spectral_flow/57516/SB57516.RACS_0929-81.beam03.round4.i.ch0238-0239.image.optimal.conv.fits"
+        ),
+        PosixPath(
+            "/scratch3/gal16b/spectral_flow/57516/SB57516.RACS_0929-81.beam04.round4.i.ch0238-0239.image.optimal.conv.fits"
+        ),
+        PosixPath(
+            "/scratch3/gal16b/spectral_flow/57516/SB57516.RACS_0929-81.beam05.round4.i.ch0238-0239.image.optimal.conv.fits"
+        ),
+        PosixPath(
+            "/scratch3/gal16b/spectral_flow/57516/SB57516.RACS_0929-81.beam06.round4.i.ch0238-0239.image.optimal.conv.fits"
+        ),
+        PosixPath(
+            "/scratch3/gal16b/spectral_flow/57516/SB57516.RACS_0929-81.beam07.round4.i.ch0238-0239.image.optimal.conv.fits"
+        ),
+        PosixPath(
+            "/scratch3/gal16b/spectral_flow/57516/SB57516.RACS_0929-81.beam08.round4.i.ch0238-0239.image.optimal.conv.fits"
+        ),
+    ]
+
+    return files
+
+
+def test_create_name_from_common_fields_3():
+    """Test a strange combination of errors around the common field name"""
+
+    files = get_lots_of_names_3()
+
+    common_name = create_name_from_common_fields(in_paths=files)
+    assert common_name == PosixPath(
+        "/scratch3/gal16b/spectral_flow/57516/SB57516.RACS_0929-81.round4.i.ch0238-0239"
+    )
 
 
 def test_create_linmos_parset_base_path():

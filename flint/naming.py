@@ -65,7 +65,12 @@ def get_fits_cube_from_paths(paths: list[Path]) -> list[Path]:
     return cube_files
 
 
-LONG_FIELD_TO_SHORTHAND = {"sbid": "SB", "beam": "beam", "ch": "ch", "round": "round"}
+LONG_FIELD_TO_SHORTHAND = {
+    "sbid": "SB",
+    "beam": "beam",
+    "channel_range": "ch",
+    "round": "round",
+}
 """Name mapping between the longform of ProcessedFieldComponents and shorthands used"""
 
 
@@ -75,6 +80,12 @@ def _long_field_name_to_shorthand(long_name: str) -> str:
         return LONG_FIELD_TO_SHORTHAND[long_name]
 
     return ""
+
+
+def _format_values_to_field(long_name: str, value: Any) -> Any:
+    if long_name == "channel_range":
+        return f"{value[0]:04}-{value[1]:04d}"
+    return value
 
 
 def create_name_from_common_fields(
@@ -116,12 +127,12 @@ def create_name_from_common_fields(
     keys_to_test = processed_components_dict[0].keys()
     logger.info(f"{keys_to_test=}")
     # One of the worst crimes on the seven seas I have ever done
-    # If a field is None, it was not detected. If a field is not constants
+    # If a field is None, it was not detected. If a field is not constant
     # across all input paths, it is ignored. Should a field be considered
     # common across all input paths, look up its short hand that
     # would otherwise be usede and use it.
     constant_fields = [
-        f"{_long_field_name_to_shorthand(long_name=key)}{processed_components_dict[0][key]}"
+        f"{_long_field_name_to_shorthand(long_name=key)}{_format_values_to_field(long_name=key, value=processed_components_dict[0][key])}"
         for key in keys_to_test
         if len(set([pcd[key] for pcd in processed_components_dict])) == 1
         and processed_components_dict[0][key] is not None
