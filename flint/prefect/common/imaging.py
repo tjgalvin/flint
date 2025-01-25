@@ -773,7 +773,7 @@ def convolve_then_linmos(
     wsclean_results: Collection[WSCleanResult],
     beam_shape: BeamShape,
     field_options: FieldOptions | SubtractFieldOptions,
-    linmos_suffix_str: str,
+    linmos_suffix_str: str | None,
     field_summary: FieldSummary | None = None,
     convol_mode: str = "image",
     convol_filter: str = ".MFS.",

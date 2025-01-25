@@ -395,7 +395,7 @@ def flow_subtract_cube(
         channel_parset = convolve_then_linmos(
             wsclean_results=channel_wsclean_cmds,
             beam_shape=channel_beam_shape,
-            linmos_suffix_str=f"ch{channel_range[0]:04d}-{channel_range[1]:04d}",
+            linmos_suffix_str=None,
             field_options=subtract_field_options,
             convol_mode="image",
             convol_filter="image.",
