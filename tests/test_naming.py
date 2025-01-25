@@ -14,8 +14,6 @@ from flint.naming import (
     FITSMaskNames,
     ProcessedNameComponents,
     RawNameComponents,
-    _format_values_to_field,
-    _long_field_name_to_shorthand,
     _rename_linear_to_stokes,
     add_timestamp_to_path,
     casda_ms_format,
@@ -147,28 +145,6 @@ def test_create_path_from_process_named_components_2():
         processed_name_components=pcn, parent_path=parent
     )
     assert ex == out
-
-
-def test_longform_to_short_form_field_name():
-    """At times we need to convert the long form field name of the
-    PrcessedNameComponents to a short form that is used in filenames"""
-    assert "SB" == _long_field_name_to_shorthand(long_name="sbid")
-    assert "beam" == _long_field_name_to_shorthand(long_name="beam")
-    assert "round" == _long_field_name_to_shorthand(long_name="round")
-    assert "" == _long_field_name_to_shorthand(long_name="stokes")
-    assert "" == _long_field_name_to_shorthand(long_name="field")
-    assert "ch" == _long_field_name_to_shorthand(long_name="channel_range")
-
-
-def test_value_to_fieldname_format():
-    """Sometimes special formatters are needed to convert a value to a
-    appropriate field name format"""
-    assert 1234 == _format_values_to_field(long_name="sbid", value=1234)
-    assert "03" == _format_values_to_field(long_name="beam", value="03")
-    assert 4 == _format_values_to_field(long_name="round", value=4)
-    assert "0123-0125" == _format_values_to_field(
-        long_name="channel_range", value=(123, 125)
-    )
 
 
 def test_create_imaging_name_prefix():

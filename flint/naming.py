@@ -73,23 +73,6 @@ LONG_FIELD_TO_SHORTHAND = {
 }
 """Name mapping between the longform of ProcessedFieldComponents and shorthands used"""
 
-# TODO: These tw    o helper functions should be combined into one. There should be
-# a "ProcessedNameComponents" to string type function this is called.
-
-
-def _long_field_name_to_shorthand(long_name: str) -> str:
-    """Name mapping between the longform of ProcessedFieldComponents and shorthands used"""
-    if long_name in LONG_FIELD_TO_SHORTHAND:
-        return LONG_FIELD_TO_SHORTHAND[long_name]
-
-    return ""
-
-
-def _format_values_to_field(long_name: str, value: Any) -> Any:
-    if long_name == "channel_range":
-        return f"{value[0]:04}-{value[1]:04d}"
-    return value
-
 
 def create_name_from_common_fields(
     in_paths: tuple[Path, ...], additional_suffixes: str | None = None
