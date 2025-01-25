@@ -26,6 +26,7 @@ from flint.naming import (
     create_linmos_names,
     create_ms_name,
     create_name_from_common_fields,
+    create_path_from_processed_name_components,
     extract_beam_from_name,
     extract_components_from_name,
     get_aocalibrate_output_path,
@@ -40,6 +41,112 @@ from flint.naming import (
     split_images,
     update_beam_resolution_field_in_path,
 )
+
+
+def test_create_path_from_process_named_components():
+    """Make sure we can create a name"""
+    components = ProcessedNameComponents(
+        sbid="39400", field="RACS_0000-123", beam="33", spw=None, round="3", pol="i"
+    )
+    assert isinstance(components, ProcessedNameComponents)
+
+    ex = Path("SB39400.RACS_0000-123.beam33.round3.i")
+    parent = Path("Jack/Sparrow/Pirate/King")
+    out1 = create_path_from_processed_name_components(
+        processed_name_components=components
+    )
+    out2 = create_path_from_processed_name_components(
+        processed_name_components=components, parent_path=parent
+    )
+    assert isinstance(out1, Path)
+    assert isinstance(out2, Path)
+    assert ex == out1
+    assert parent / ex == out2
+
+    components = ProcessedNameComponents(
+        sbid="39400", field="RACS_0000-123", beam="33", spw=234, round="3", pol="i"
+    )
+    assert isinstance(components, ProcessedNameComponents)
+
+    ex = Path("SB39400.RACS_0000-123.beam33.spw234.round3.i")
+    parent = Path("Jack/Sparrow/Pirate/King")
+    out1 = create_path_from_processed_name_components(
+        processed_name_components=components
+    )
+    out2 = create_path_from_processed_name_components(
+        processed_name_components=components, parent_path=parent
+    )
+    assert isinstance(out1, Path)
+    assert isinstance(out2, Path)
+    assert ex == out1
+    assert parent / ex == out2
+
+    components = ProcessedNameComponents(
+        sbid="39400",
+        field="RACS_0000-123",
+        beam="33",
+        spw=234,
+        round="3",
+        pol="i",
+        channel_range=(123, 567),
+    )
+    assert isinstance(components, ProcessedNameComponents)
+
+    ex = Path("SB39400.RACS_0000-123.beam33.spw234.round3.i.ch0123-0567")
+    parent = Path("Jack/Sparrow/Pirate/King")
+    out1 = create_path_from_processed_name_components(
+        processed_name_components=components
+    )
+    out2 = create_path_from_processed_name_components(
+        processed_name_components=components, parent_path=parent
+    )
+    assert isinstance(out1, Path)
+    assert isinstance(out2, Path)
+    assert ex == out1
+    assert parent / ex == out2
+
+    components = ProcessedNameComponents(
+        sbid="39400",
+        field="RACS_0000-123",
+        beam="33",
+        spw=234,
+        round="3",
+        pol="i",
+        channel_range=(123, 567444),
+    )
+    assert isinstance(components, ProcessedNameComponents)
+
+    ex = Path("SB39400.RACS_0000-123.beam33.spw234.round3.i.ch0123-567444")
+    parent = Path("Jack/Sparrow/Pirate/King")
+    out1 = create_path_from_processed_name_components(
+        processed_name_components=components
+    )
+    out2 = create_path_from_processed_name_components(
+        processed_name_components=components, parent_path=parent
+    )
+    assert isinstance(out1, Path)
+    assert isinstance(out2, Path)
+    assert ex == out1
+    assert parent / ex == out2
+
+
+def test_create_path_from_process_named_components_2():
+    """Make sure we can create a name. The one makes sure we can go full circle"""
+    parent = Path("Jacccckkkk/Sparrow")
+    ex = parent / Path("SB39400.RACS_0000-123.beam33.spw234.round3.i.ch0123-567444")
+    pcn = processed_ms_format(in_name=ex)
+    out = create_path_from_processed_name_components(
+        processed_name_components=pcn, parent_path=parent
+    )
+    assert ex == out
+
+    parent = Path("Jacccckkkk/Sparrow")
+    ex = parent / Path("SB39400.RACS_0000-123.round3.i.ch0123-0444")
+    pcn = processed_ms_format(in_name=ex)
+    out = create_path_from_processed_name_components(
+        processed_name_components=pcn, parent_path=parent
+    )
+    assert ex == out
 
 
 def test_longform_to_short_form_field_name():

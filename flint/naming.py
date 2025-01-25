@@ -129,28 +129,29 @@ def create_name_from_common_fields(
 
     keys_to_test = processed_components_dict[0].keys()
     logger.info(f"{keys_to_test=}")
-    # One of the worst crimes on the seven seas I have ever done
-    # If a field is None, it was not detected. If a field is not constant
-    # across all input paths, it is ignored. Should a field be considered
-    # common across all input paths, look up its short hand that
-    # would otherwise be usede and use it.
-    constant_fields = [
-        f"{_long_field_name_to_shorthand(long_name=key)}{_format_values_to_field(long_name=key, value=processed_components_dict[0][key])}"
+    # Extract the fields that are constant across all inputs and are not None
+    constant_fields = {
+        key: processed_components_dict[0][key]
         for key in keys_to_test
         if len(set([pcd[key] for pcd in processed_components_dict])) == 1
         and processed_components_dict[0][key] is not None
-    ]
-    logger.info(f"Identified {constant_fields=}")
+    }
 
-    name = ".".join(constant_fields)
+    name_path = create_path_from_processed_name_components(
+        processed_name_components=ProcessedNameComponents(**constant_fields),
+        parent_path=parent,
+    )
+    constant_field_keys = list(constant_fields.keys())
+    logger.info(f"Identified {constant_field_keys=}")
+
     if additional_suffixes:
         additional_suffixes = (
             f".{additional_suffixes}"
             if not additional_suffixes.startswith(".")
             else additional_suffixes
         )
-        name += additional_suffixes
-    return Path(parent) / Path(name)
+        name_path = Path(str(name_path) + additional_suffixes)
+    return Path(name_path)
 
 
 # TODO: Need to assess the mode argument, and define literals that are accepted
@@ -536,6 +537,49 @@ def processed_ms_format(
         pol=groups["pol"],
         channel_range=channel_range,
     )
+
+
+def create_path_from_processed_name_components(
+    processed_name_components: ProcessedNameComponents, parent_path: Path | None = None
+) -> Path:
+    """Given an input ProcessedNameComponents create the corresponding path
+
+    Args:
+        processed_name_components (ProcessedNameComponents): The naming specification to create
+        parent_path (Path | None, optional): The parent directory of the output path. Defaults to None.
+
+    Returns:
+        Path: A directory with following the specification of the input ProcessedNameComponents
+    """
+
+    components = []
+
+    # Operate over each field in order and create the formatted field appropriately
+    if processed_name_components.sbid:
+        components.append(f"SB{processed_name_components.sbid}")
+    if processed_name_components.field:
+        components.append(processed_name_components.field)
+    if processed_name_components.beam:
+        components.append(f"beam{int(processed_name_components.beam):02d}")
+    if processed_name_components.spw:
+        components.append(f"spw{int(processed_name_components.spw):02d}")
+    if processed_name_components.round:
+        components.append(f"round{int(processed_name_components.round)}")
+    if processed_name_components.pol:
+        components.append(f"{processed_name_components.pol}")
+    if processed_name_components.channel_range:
+        components.append(
+            f"ch{processed_name_components.channel_range[0]:04d}-{processed_name_components.channel_range[1]:04d}"
+        )
+
+    # Join then add the parent path
+    name = ".".join(components)
+    out_path = Path(name)
+
+    if parent_path:
+        out_path = Path(parent_path) / out_path
+
+    return out_path
 
 
 def extract_components_from_name(
