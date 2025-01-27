@@ -35,7 +35,7 @@ class LinmosOptions(BaseOptions):
     """Container for options that direct linmos processing"""
 
     base_output_name: Path = Path("linmos_field").absolute()
-    "Base name path of the output linmos produces, including parent path. This is provided to form ``LinmosNames``. Defaults to 'linmos_field'." ""
+    "Base name path of the output linmos produces, including parent path. This is provided to form ``LinmosNames``. Defaults to 'linmos_field'."
     holofile: Path | None = None
     """Path to a FITS cube produced by the holography processing pipeline. Used by linmos to appropriate primary-beam correct the images. Defaults to None."""
     cutoff: float = 0.001
@@ -95,9 +95,9 @@ def _create_bound_box_plane(
     Returns:
         Optional[BoundingBox]: None if no valid pixels, a bounding box with the (xmin,xmax,ymin,ymax) of valid pixels
     """
-    assert (
-        len(image_data.shape) == 2
-    ), f"Only two-dimensional arrays supported, received {image_data.shape}"
+    assert len(image_data.shape) == 2, (
+        f"Only two-dimensional arrays supported, received {image_data.shape}"
+    )
 
     # First convert to a boolean array
     image_valid = image_data if is_masked else np.isfinite(image_data)
@@ -254,9 +254,9 @@ def _get_image_weight_plane(
     """
 
     weight_modes = ("mad", "std")
-    assert (
-        mode in weight_modes
-    ), f"Invalid {mode=} specified. Available modes: {weight_modes}"
+    assert mode in weight_modes, (
+        f"Invalid {mode=} specified. Available modes: {weight_modes}"
+    )
 
     # remove non-finite numbers that would ruin the statistic
     image_data = image_data[np.isfinite(image_data)][::stride]
@@ -315,9 +315,9 @@ def get_image_weight(
     with fits.open(image_path, memmap=True) as in_fits:
         image_data = in_fits[image_slice].data  # type: ignore
 
-        assert (
-            len(image_data.shape) >= 2
-        ), f"{len(image_data.shape)=} is less than two. Is this really an image?"
+        assert len(image_data.shape) >= 2, (
+            f"{len(image_data.shape)=} is less than two. Is this really an image?"
+        )
 
         image_shape = image_data.shape[-2:]
         image_data = (
@@ -326,9 +326,9 @@ def get_image_weight(
             else image_data
         )
 
-        assert (
-            len(image_data.shape) == 3
-        ), f"Expected to have shape (chan, dec, ra), got {image_data.shape}"
+        assert len(image_data.shape) == 3, (
+            f"Expected to have shape (chan, dec, ra), got {image_data.shape}"
+        )
 
         for idx, chan_image_data in enumerate(image_data):
             weight = _get_image_weight_plane(image_data=chan_image_data, stride=stride)
@@ -418,9 +418,9 @@ def _get_alpha_linmos_option(pol_axis: float | None = None) -> str:
     if pol_axis is None:
         return ""
 
-    assert (
-        np.abs(pol_axis) <= 2.0 * np.pi
-    ), f"{pol_axis=}, which is outside +/- 2pi radians and seems unreasonable"
+    assert np.abs(pol_axis) <= 2.0 * np.pi, (
+        f"{pol_axis=}, which is outside +/- 2pi radians and seems unreasonable"
+    )
 
     logger.info(
         f"The constant assumed holography rotation is: {EXPECTED_HOLOGRAPHY_ROTATION_CONSTANT_RADIANS:.4f} radians"
@@ -485,9 +485,9 @@ def _file_list_to_string(file_list: Collection[Path]) -> str:
     )
     img_list: str = "[" + ",".join(img_str) + "]"
 
-    assert (
-        len(set(img_str)) == len(file_list)
-    ), f"Some images were dropped from the linmos image string (found {len(set(img_str))}, expcected {len(file_list)}). Walk the plank. "
+    assert len(set(img_str)) == len(file_list), (
+        f"Some images were dropped from the linmos image string (found {len(set(img_str))}, expcected {len(file_list)}). Walk the plank. "
+    )
 
     return img_list
 
@@ -530,9 +530,9 @@ def generate_linmos_parameter_set(
         weight_files = generate_weights_list_and_files(
             image_paths=images, mode="mad", stride=8
         )
-        assert (
-            weight_files is not None
-        ), f"{weight_files=}, which should not happen after creating weight files"
+        assert weight_files is not None, (
+            f"{weight_files=}, which should not happen after creating weight files"
+        )
         weight_str = _file_list_to_string(weight_files)
 
     beam_order_strs = [str(extract_beam_from_name(str(p.name))) for p in images]
@@ -582,9 +582,9 @@ def generate_linmos_parameter_set(
     logger.info(f"Writing parset to {linmos_names.parset_output_path!s}.")
     logger.info(f"{parset}")
     if not linmos_options.overwrite:
-        assert not Path(
-            linmos_names.parset_output_path
-        ).exists(), f"The parset {linmos_names.parset_output_path} already exists!"
+        assert not Path(linmos_names.parset_output_path).exists(), (
+            f"The parset {linmos_names.parset_output_path} already exists!"
+        )
     with open(linmos_names.parset_output_path, "w") as parset_file:
         parset_file.write(parset)
 

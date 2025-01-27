@@ -19,9 +19,9 @@ def add_model_source_list_to_ms(
     logger.info("Updating MODEL_DATA with source list")
     ms = wsclean_command.ms
 
-    assert (
-        wsclean_command.image_set is not None
-    ), f"{wsclean_command.image_set=}, which is not allowed"
+    assert wsclean_command.image_set is not None, (
+        f"{wsclean_command.image_set=}, which is not allowed"
+    )
 
     source_list_path = wsclean_command.image_set.source_list
     if source_list_path is None:

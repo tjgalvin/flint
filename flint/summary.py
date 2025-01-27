@@ -212,9 +212,9 @@ def add_linmos_fits_image(
     Returns:
         FieldSummary: The updated field summary object with the linmos fits image added
     """
-    assert isinstance(
-        linmos_command, LinmosResult
-    ), f"{linmos_command=} is type {type(linmos_command)}, expected LinmosResult"
+    assert isinstance(linmos_command, LinmosResult), (
+        f"{linmos_command=} is type {type(linmos_command)}, expected LinmosResult"
+    )
 
     image_fits = linmos_command.image_fits
     field_summary = field_summary.with_options(linmos_image=image_fits)

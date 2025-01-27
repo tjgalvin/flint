@@ -127,9 +127,9 @@ def get_selfcal_options_from_yaml(input_yaml: Path | None = None) -> dict:
         Dict: Mapping where the key is the self-calibration round, and values are key-value of updated gaincal options
     """
 
-    assert (
-        input_yaml is None
-    ), "Configuring via a yaml configuration file is not yet support. "
+    assert input_yaml is None, (
+        "Configuring via a yaml configuration file is not yet support. "
+    )
 
     return {
         1: {"solint": "60s", "uvrange": ">235m", "nspw": 1},
@@ -154,9 +154,9 @@ def get_image_options_from_yaml(
         Dict: _description_
     """
 
-    assert (
-        input_yaml is None
-    ), "Configuring via a yaml configuration file is not yet supported. "
+    assert input_yaml is None, (
+        "Configuring via a yaml configuration file is not yet supported. "
+    )
 
     MULTISCALE_SCALES = (0, 15, 30, 40, 50, 60, 70, 120)
     IMAGE_SIZE = 7144
@@ -295,12 +295,12 @@ def get_options_from_strategy(
         strategy = load_strategy_yaml(input_yaml=strategy)
 
     # Some sanity checks
-    assert isinstance(
-        strategy, (Strategy, dict)
-    ), f"Unknown input strategy type {type(strategy)}"
-    assert round_info is None or isinstance(
-        round_info, int
-    ), f"{round_info=} not a known value or type. "
+    assert isinstance(strategy, (Strategy, dict)), (
+        f"Unknown input strategy type {type(strategy)}"
+    )
+    assert round_info is None or isinstance(round_info, int), (
+        f"{round_info=} not a known value or type. "
+    )
     if operation not in KNOWN_OPERATIONS:
         raise ValueError(
             f"{operation=} is not recognised. Known operations are {KNOWN_OPERATIONS}"

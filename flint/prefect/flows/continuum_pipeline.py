@@ -122,9 +122,9 @@ def _check_create_output_split_science_path(
     """
 
     science_folder_name = science_path.name
-    assert str(
-        science_folder_name
-    ).isdigit(), f"We require the parent directory to be the SBID (all digits), got {science_folder_name=}"
+    assert str(science_folder_name).isdigit(), (
+        f"We require the parent directory to be the SBID (all digits), got {science_folder_name=}"
+    )
     output_split_science_path = (
         Path(split_path / science_folder_name).absolute().resolve()
     )
@@ -446,7 +446,9 @@ def process_science_fields(
                     round=current_round,
                 )  # type: ignore
                 if run_validation:
-                    assert field_options.reference_catalogue_directory, f"Reference catalogue directory should be set when {run_validation=}"
+                    assert field_options.reference_catalogue_directory, (
+                        f"Reference catalogue directory should be set when {run_validation=}"
+                    )
                     val_results = validation_items(
                         field_summary=field_summary,
                         aegean_outputs=aegean_outputs,
@@ -516,9 +518,9 @@ def setup_run_process_science_field(
     skip_bandpass_check: bool = False,
 ) -> None:
     if not skip_bandpass_check and bandpass_path:
-        assert (
-            bandpass_path.exists() and bandpass_path.is_dir()
-        ), f"{bandpass_path=} needs to exist and be a directory! "
+        assert bandpass_path.exists() and bandpass_path.is_dir(), (
+            f"{bandpass_path=} needs to exist and be a directory! "
+        )
 
     science_sbid = get_sbid_from_path(path=science_path)
 

@@ -127,9 +127,9 @@ def add_options_to_parser(
         ArgumentParser: Updated argument parser
     """
 
-    assert issubclass(
-        options_class, BaseModel
-    ), f"{options_class=} is not a pydantic BaseModel"
+    assert issubclass(options_class, BaseModel), (
+        f"{options_class=} is not a pydantic BaseModel"
+    )
 
     group = parser.add_argument_group(
         title=f"Inputs for {options_class.__name__}", description=description
