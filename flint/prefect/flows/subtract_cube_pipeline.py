@@ -401,7 +401,7 @@ def flow_subtract_cube(
     for channel, freq_mhz in enumerate(freqs_mhz):
         logger.info(f"Imaging {channel=} {freq_mhz=}")
         channel_range = (channel, channel + 1)
-        channel_wsclean_cmds = task_wsclean_imager.map(
+        channel_wsclean_cmds = task_wsclean_imager.with_options(retries=2).map(
             in_ms=science_mss,
             wsclean_container=subtract_field_options.wsclean_container,
             channel_range=unmapped(channel_range),
