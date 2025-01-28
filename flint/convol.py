@@ -148,7 +148,7 @@ def convolve_cubes(
     assert len(beam_major_list) == len(beam_minor_list) == len(beam_pa_list)
 
     logger.info("Convoling cubes")
-    cube_data_list, _ = beamcon_3D.smooth_fits_cube(
+    cube_data_list, _, _ = beamcon_3D.smooth_fits_cube(
         infiles_list=list(cube_paths),
         dryrun=False,
         cutoff=cutoff,
