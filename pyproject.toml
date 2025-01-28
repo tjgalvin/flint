@@ -31,14 +31,14 @@ dynamic = ["version"]
 dependencies = [
     "astropy>=6.1.3", # fixing until units change in 6.1.4 addressed in radio-beam
     "numpy>=2.0.0",
-    "pydantic==2.8.2", # version 2.9.0 caused prefect model validation error
+    "pydantic",
     "scipy",
     "spython>=0.3.1",
     "matplotlib",
     "prefect>=2.10.0, <3",
     "prefect-dask>=0.2.4",
     "dask-jobqueue",
-    "RACS-tools @ git+https://github.com/tjgalvin/RACS-tools.git@c8a0f6c", # allows array of beam shapes in beamcon_3D
+    "RACS-tools>=4.2.1",
     "aegeantools==2.3.0",
     "radio-beam>=0.3.4",
     "reproject",
@@ -47,7 +47,7 @@ dependencies = [
     "ConfigArgParse>=1.7",
     "fitscube>=0.5.0",
     "astroquery>=0.4.8.dev0",
-    "crystalball @ git+https://github.com/caracal-pipeline/crystalball.git",
+    "crystalball",
 ]
 
 [tool.hatch]
@@ -74,7 +74,7 @@ dev = [
 ]
 casa =[
     "python-casacore>=3.6.0",
-    "fixms @ git+https://github.com/tjgalvin/FixMS.git@dcef4e9"
+    "fixms>=0.4.0"
 ]
 
 [project.scripts]
