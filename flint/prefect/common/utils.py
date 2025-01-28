@@ -87,9 +87,9 @@ def upload_image_as_artifact(image_path: Path, description: str | None = None) -
     """
     image_type = image_path.suffix.replace(".", "")
     assert image_path.exists(), f"{image_path} does not exist"
-    assert (
-        image_type in SUPPORTED_IMAGE_TYPES
-    ), f"{image_path} has type {image_type}, and is not supported. Supported types are {SUPPORTED_IMAGE_TYPES}"
+    assert image_type in SUPPORTED_IMAGE_TYPES, (
+        f"{image_path} has type {image_type}, and is not supported. Supported types are {SUPPORTED_IMAGE_TYPES}"
+    )
 
     with open(image_path, "rb") as open_image:
         logger.info(f"Encoding {image_path} in base64")
@@ -183,9 +183,9 @@ def task_update_with_options(input_object: T, **kwargs) -> T:
     Returns:
         T: The updated object
     """
-    assert "with_options" in dir(
-        input_object
-    ), f"{type(input_object)=} does not have a with_options method"
+    assert "with_options" in dir(input_object), (
+        f"{type(input_object)=} does not have a with_options method"
+    )
     updated_object = input_object.with_options(**kwargs)  # type: ignore
 
     return updated_object

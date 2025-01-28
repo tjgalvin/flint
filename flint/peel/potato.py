@@ -416,7 +416,7 @@ def _potato_config_command(
         PotatoconfigCommand: The CLI command that will be executed to create a potato configuration file
     """
 
-    command = "peel_configuration.py " f"{config_path!s} "
+    command = f"peel_configuration.py {config_path!s} "
 
     sub_options = _potato_options_to_command(potato_options=potato_config_options)
     command = command + sub_options
@@ -485,9 +485,7 @@ def _potato_peel_command(
     """
 
     command = (
-        "hot_potato "
-        f"{ms.path.absolute()!s} "
-        f"{potato_peel_arguments.image_fov:.4f} "
+        f"hot_potato {ms.path.absolute()!s} {potato_peel_arguments.image_fov:.4f} "
     )
 
     for item in [potato_peel_arguments, potato_peel_options]:

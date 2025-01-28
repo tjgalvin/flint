@@ -393,9 +393,9 @@ def load_aosolutions_file(solutions_path: Path) -> AOSolutions:
         AOSolutions: Structure container the deserialized solutions file
     """
 
-    assert (
-        solutions_path.exists() and solutions_path.is_file()
-    ), f"{solutions_path!s} either does not exist or is not a file. "
+    assert solutions_path.exists() and solutions_path.is_file(), (
+        f"{solutions_path!s} either does not exist or is not a file. "
+    )
     logger.info(f"Loading {solutions_path}")
 
     with open(solutions_path) as in_file:
@@ -470,9 +470,9 @@ def find_existing_solutions(
 
     # If not all the treasure could be found. At the moment this function will only
     # work if the bandpass solutions were made using the default values.
-    assert all(
-        [solution_path.exists() for solution_path in solution_paths]
-    ), f"Missing solution file constructed from scanning {bandpass_directory}. Check the directory. "
+    assert all([solution_path.exists() for solution_path in solution_paths]), (
+        f"Missing solution file constructed from scanning {bandpass_directory}. Check the directory. "
+    )
 
     calibrate_cmds = [
         CalibrateCommand(
@@ -556,9 +556,9 @@ def calibrate_options_to_command(
         else:
             unknowns.append((key, value))
 
-    assert (
-        len(unknowns) == 0
-    ), f"Unknown types when generating calibrate command: {unknowns}"
+    assert len(unknowns) == 0, (
+        f"Unknown types when generating calibrate command: {unknowns}"
+    )
 
     cmd += f"{ms_path!s} {solutions_path!s}"
 
@@ -670,9 +670,9 @@ def create_apply_solutions_cmd(
 
     assert ms.path.exists(), f"The measurement set {ms} was not found. "
     assert ms.column is not None, f"{ms} does not have a nominated data_column. "
-    assert (
-        solutions_file.exists()
-    ), f"The solutions file {solutions_file} does not exists. "
+    assert solutions_file.exists(), (
+        f"The solutions file {solutions_file} does not exists. "
+    )
 
     input_column = ms.column
     copy_mode = "-nocopy" if input_column == output_column else "-copy"
@@ -714,9 +714,9 @@ def run_calibrate(calibrate_cmd: CalibrateCommand, container: Path) -> None:
     """
 
     assert container.exists(), f"The calibrate container {container} does not exist. "
-    assert (
-        calibrate_cmd.ms is not None
-    ), "When calibrating the 'ms' field attribute must be defined. "
+    assert calibrate_cmd.ms is not None, (
+        "When calibrating the 'ms' field attribute must be defined. "
+    )
 
     run_singularity_command(
         image=container,
@@ -738,12 +738,12 @@ def run_apply_solutions(apply_solutions_cmd: ApplySolutions, container: Path) ->
         container (Path): Location of the existing solutions file
     """
 
-    assert (
-        container.exists()
-    ), f"The applysolutions container {container} does not exist. "
-    assert (
-        apply_solutions_cmd.ms.path.exists()
-    ), f"The measurement set {apply_solutions_cmd.ms} was not found. "
+    assert container.exists(), (
+        f"The applysolutions container {container} does not exist. "
+    )
+    assert apply_solutions_cmd.ms.path.exists(), (
+        f"The measurement set {apply_solutions_cmd.ms} was not found. "
+    )
 
     run_singularity_command(
         image=container,
@@ -828,9 +828,9 @@ def select_refant(bandpass: np.ndarray) -> int:
         int: The index of the reference antenna that should be used.
     """
 
-    assert (
-        len(bandpass.shape) == 4
-    ), f"Expected a bandpass of shape (times, ant, channels, pol), received {bandpass.shape=}"
+    assert len(bandpass.shape) == 4, (
+        f"Expected a bandpass of shape (times, ant, channels, pol), received {bandpass.shape=}"
+    )
 
     # create the mask of valid solutions
     mask = np.isfinite(bandpass)
@@ -1019,7 +1019,7 @@ def flag_aosolutions(
 
                 flagged = ~np.isfinite(bandpass[time, ant, :, pol])
                 logger.info(
-                    f"{ant=:02d}, pol={pols[pol]}, flagged {np.sum(flagged) / ant_gains.shape[0] * 100.:.2f}%"
+                    f"{ant=:02d}, pol={pols[pol]}, flagged {np.sum(flagged) / ant_gains.shape[0] * 100.0:.2f}%"
                 )
 
     for time in range(solutions.nsol):
@@ -1070,7 +1070,7 @@ def flag_aosolutions(
     total_flagged = np.sum(~np.isfinite(bandpass)) / np.prod(bandpass.shape)
     if total_flagged > 0.8:
         msg = (
-            f"{total_flagged*100.:.2f}% of {(solutions_path)!s} is flagged after running the preflagger. "
+            f"{total_flagged * 100.0:.2f}% of {(solutions_path)!s} is flagged after running the preflagger. "
             "That is over 90%. "
             f"This surely can not be correct. Likely something has gone very wrong. "
         )

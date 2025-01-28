@@ -77,11 +77,11 @@ def copy_files_into(copy_out_path: Path, files_to_copy: Collection[Path]) -> Pat
     logger.info(f"Copying {total} files into {copy_out_path}")
     for count, file in enumerate(files_to_copy):
         if file.is_file():
-            logger.info(f"{count+1} of {total}, copying file {file}")
+            logger.info(f"{count + 1} of {total}, copying file {file}")
             shutil.copy(file, copy_out_path)
         elif file.is_dir():
             # TODO: Add an option to tar folders into the final location
-            logger.info(f"{count+1} of {total}, copying folder {file}")
+            logger.info(f"{count + 1} of {total}, copying folder {file}")
             shutil.copytree(file, copy_out_path / file.name)
         else:
             not_copied.append(file)
@@ -108,9 +108,9 @@ def verify_tarball(
         bool: True if the ``tar``s exit code is 0, False otherwise
     """
     tarball = Path(tarball)  # trust nothing
-    assert (
-        tarball.exists() and tarball.is_file()
-    ), f"{tarball} is not a file or does not exist"
+    assert tarball.exists() and tarball.is_file(), (
+        f"{tarball} is not a file or does not exist"
+    )
     assert tarball.suffix == ".tar", f"{tarball=} appears to not have a .tar extension"
 
     cmd = f"tar -tvf {tarball!s}"
@@ -155,7 +155,7 @@ def tar_files_into(
     logger.info(f"Opening {tar_out_path}")
     with tarfile.open(tar_out_path, "w") as tar:
         for count, file in enumerate(files_to_tar):
-            logger.info(f"{count+1} of {total}, adding {file!s}")
+            logger.info(f"{count + 1} of {total}, adding {file!s}")
             tar.add(file, arcname=file.name)
 
     logger.info(f"Created {tar_out_path}")

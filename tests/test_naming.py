@@ -238,7 +238,7 @@ def test_self_cal_name_wbeams():
     for round in range(1, 5):
         for beam in range(45):
             ms = Path(f"SB12349.RACS_1234+45.beam{beam:02d}.round{round}.ms")
-            e_ms = Path(f"SB12349.RACS_1234+45.beam{beam:02d}.round{round+1}.ms")
+            e_ms = Path(f"SB12349.RACS_1234+45.beam{beam:02d}.round{round + 1}.ms")
             out_ms = get_selfcal_ms_name(in_ms_path=ms, round=round + 1)
             assert out_ms == e_ms
 

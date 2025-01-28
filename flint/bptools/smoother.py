@@ -43,9 +43,9 @@ def divide_bandpass_by_ref_ant_preserve_phase(
     Returns:
         np.ndarray: The normalised bandpass solutions
     """
-    assert (
-        len(complex_gains.shape) == 3
-    ), f"The shape of the input complex gains should be of rank 3 in form (ant, chan, pol). Received {complex_gains.shape}"
+    assert len(complex_gains.shape) == 3, (
+        f"The shape of the input complex gains should be of rank 3 in form (ant, chan, pol). Received {complex_gains.shape}"
+    )
 
     logger.info(
         f"Dividing bandpass gain solutions using reference antenna={ref_ant}, using correct phasor"
@@ -113,9 +113,9 @@ def divide_bandpass_by_ref_ant(complex_gains: np.ndarray, ref_ant: int) -> np.nd
     Returns:
         np.ndarray: The normalised bandpass solutions
     """
-    assert (
-        len(complex_gains.shape) == 3
-    ), f"The shape of the input complex gains should be of rank 3 in form (ant, chan, pol). Received {complex_gains.shape}"
+    assert len(complex_gains.shape) == 3, (
+        f"The shape of the input complex gains should be of rank 3 in form (ant, chan, pol). Received {complex_gains.shape}"
+    )
 
     logger.info(
         f"Dividing bandpass gain solutions using reference antenna={ref_ant} with shifted phasor"
@@ -234,9 +234,9 @@ def smooth_bandpass_complex_gains(
         np.ndarray: Smoothed complex gains
     """
 
-    assert (
-        len(complex_gains.shape) == 3
-    ), f"The shape of the input complex gains should be of rank 3 in form (ant, chan, pol). Received {complex_gains.shape}"
+    assert len(complex_gains.shape) == 3, (
+        f"The shape of the input complex gains should be of rank 3 in form (ant, chan, pol). Received {complex_gains.shape}"
+    )
 
     # Duplicate the original, ya filthy pirate
     smoothed_complex_gains = complex_gains.copy()

@@ -198,9 +198,9 @@ def task_run_bane_and_aegean(
 
         # For the moment, will only source find on an MFS image
         image_paths = [image for image in image_paths if ".MFS." in str(image)]
-        assert (
-            len(image_paths) == 1
-        ), "More than one image found after filter_str for MFS only images. "
+        assert len(image_paths) == 1, (
+            "More than one image found after filter_str for MFS only images. "
+        )
         # Get out the only path in the list.
         image_path = image_paths[0]
     elif isinstance(image, LinmosResult):
@@ -563,9 +563,9 @@ def task_convolve_cube(
     Returns:
         Collection[Path]: Path to the output images that have been convolved.
     """
-    assert (
-        wsclean_result.image_set is not None
-    ), f"{wsclean_result.ms} has no attached image_set."
+    assert wsclean_result.image_set is not None, (
+        f"{wsclean_result.ms} has no attached image_set."
+    )
 
     supported_modes = ("image",)
     logger.info(f"Extracting {mode}")
@@ -582,9 +582,9 @@ def task_convolve_cube(
     # handling this. The pirate in me feels like less is more, so an error will be enough. Keeping
     # things simple and avoiding the problem is probably the better way of dealing with this
     # situation. In time this would mean that we inspect and handle conflicting pipeline options.
-    assert (
-        image_paths is not None
-    ), f"{image_paths=} for {mode=} and {wsclean_result.image_set=}"
+    assert image_paths is not None, (
+        f"{image_paths=} for {mode=} and {wsclean_result.image_set=}"
+    )
 
     logger.info(f"Will convolve {image_paths}")
 
@@ -623,9 +623,9 @@ def convolve_image_set(
     if mode == "image":
         image_paths = list(image_set.image)
     elif mode == "residual":
-        assert (
-            image_set.residual is not None
-        ), f"{image_set.residual=}, which should not happen"
+        assert image_set.residual is not None, (
+            f"{image_set.residual=}, which should not happen"
+        )
         image_paths = list(image_set.residual)
     else:
         raise ValueError(f"{mode=} is not supported. Known modes are {supported_modes}")
@@ -702,9 +702,9 @@ def task_convolve_image(
         Collection[Path]: Path to the output images that have been convolved.
     """
     image_set = wsclean_result.image_set
-    assert isinstance(
-        image_set, ImageSet
-    ), f"{image_set=}, but should be ImageSet instance"
+    assert isinstance(image_set, ImageSet), (
+        f"{image_set=}, but should be ImageSet instance"
+    )
     return convolve_image_set(
         image_set=image_set,
         beam_shape=beam_shape,
@@ -925,9 +925,9 @@ def task_convolve_linmos_to_fixed_shape(
         path=image_to_smooth, original_mode="optimal", updated_mode="fixed", marker="."
     )
 
-    assert (
-        field_options.fixed_beam_shape
-    ), f"{field_options.fixed_beam_shape=}, which is not allowed"
+    assert field_options.fixed_beam_shape, (
+        f"{field_options.fixed_beam_shape=}, which is not allowed"
+    )
     beam_shape = BeamShape(
         bmaj_arcsec=field_options.fixed_beam_shape[0],
         bmin_arcsec=field_options.fixed_beam_shape[1],
@@ -943,9 +943,9 @@ def task_convolve_linmos_to_fixed_shape(
         convol_suffix="conv_to_rename",
         output_paths=[output_image_path],
     )
-    assert (
-        len(smoothed_linmos_paths) == len(images_to_smooth) == 1
-    ), f"Need matching path lengths between {images_to_smooth=} and {smoothed_linmos_paths=}"
+    assert len(smoothed_linmos_paths) == len(images_to_smooth) == 1, (
+        f"Need matching path lengths between {images_to_smooth=} and {smoothed_linmos_paths=}"
+    )
 
     return linmos_result.with_options(image_fits=output_image_path)
 
@@ -1061,9 +1061,9 @@ def task_extract_beam_mask_image(
         FITSMaskNames: Clean mask for a image
     """
     # All images made by wsclean will have the same WCS
-    assert (
-        wsclean_result.image_set is not None
-    ), f"{wsclean_result.image_set=}, which should not happen"
+    assert wsclean_result.image_set is not None, (
+        f"{wsclean_result.image_set=}, which should not happen"
+    )
     beam_image = next(iter(wsclean_result.image_set.image))
     beam_mask_names = extract_beam_mask_from_mosaic(
         fits_beam_image_path=beam_image, fits_mosaic_mask_names=linmos_mask_names

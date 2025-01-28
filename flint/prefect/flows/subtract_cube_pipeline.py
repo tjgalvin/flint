@@ -67,9 +67,9 @@ def _check_and_verify_options(
         ), f"{options.yandasoft_container=} does not exist or is not a file"
     if isinstance(options, AddModelSubtractFieldOptions):
         if options.attempt_addmodel:
-            assert (
-                options.calibrate_container is not None
-            ), "Calibrate container path is needede for addmodel"
+            assert options.calibrate_container is not None, (
+                "Calibrate container path is needede for addmodel"
+            )
             assert (
                 options.calibrate_container.exists()
                 and options.calibrate_container.is_file()
@@ -161,9 +161,9 @@ def task_addmodel_to_ms(
         wsclean_source_list_path = get_wsclean_output_source_list_path(
             name_path=ms.path, pol=pol
         )
-        assert (
-            wsclean_source_list_path.exists()
-        ), f"{wsclean_source_list_path=} was requested, but does not exist"
+        assert wsclean_source_list_path.exists(), (
+            f"{wsclean_source_list_path=} was requested, but does not exist"
+        )
 
         # This should attempt to add model of different polarisations together.
         # But to this point it is a future proof and is not tested.
@@ -173,9 +173,9 @@ def task_addmodel_to_ms(
             mode="c" if idx == 0 else "a",
             datacolumn="MODEL_DATA",
         )
-        assert (
-            addmodel_subtract_options.calibrate_container is not None
-        ), f"{addmodel_subtract_options.calibrate_container=}, which should not happen"
+        assert addmodel_subtract_options.calibrate_container is not None, (
+            f"{addmodel_subtract_options.calibrate_container=}, which should not happen"
+        )
         add_model(
             add_model_options=addmodel_options,
             container=addmodel_subtract_options.calibrate_container,
@@ -195,9 +195,9 @@ def task_crystalball_to_ms(ms: MS, crystalball_options: CrystalBallOptions) -> M
         wsclean_source_list_path = get_wsclean_output_source_list_path(
             name_path=ms.path, pol=pol
         )
-        assert (
-            wsclean_source_list_path.exists()
-        ), f"{wsclean_source_list_path=} was requested, but does not exist"
+        assert wsclean_source_list_path.exists(), (
+            f"{wsclean_source_list_path=} was requested, but does not exist"
+        )
 
     with get_dask_client():
         logger.info("Running crystalball in prefect dask client")
@@ -247,9 +247,9 @@ def task_combine_all_linmos_images(
         logger.info(f"Removing original {len(images_to_combine)} images")
         for image in images_to_combine:
             logger.info(f"Removing {image=}")
-            assert (
-                isinstance(image, Path) and image.exists()
-            ), f"{image=} does not exist, but it should"
+            assert isinstance(image, Path) and image.exists(), (
+                f"{image=} does not exist, but it should"
+            )
             image.unlink()
     return Path(output_cube_path)
 
@@ -316,9 +316,9 @@ def flow_subtract_cube(
         #     ms=science_mss,
         #     addmodel_subtract_options=unmapped(addmodel_subtract_field_options),
         # )
-        assert (
-            addmodel_subtract_field_options.addmodel_cluster_config is not None
-        ), f"{addmodel_subtract_field_options.addmodel_cluster_config=}, which should not happen"
+        assert addmodel_subtract_field_options.addmodel_cluster_config is not None, (
+            f"{addmodel_subtract_field_options.addmodel_cluster_config=}, which should not happen"
+        )
         addmodel_dask_runner = get_dask_runner(
             cluster=addmodel_subtract_field_options.addmodel_cluster_config
         )

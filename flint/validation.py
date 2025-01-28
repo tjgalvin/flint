@@ -1098,7 +1098,7 @@ def plot_field_info(
             f"- Integration time  : {field_summary.integration_time * u.second:latex_inline}",  # type: ignore
             f"- Hour angle range  : {hour_angles.min().to_string(precision=2, format='latex_inline')} - {hour_angles.max().to_string(precision=2, format='latex_inline')}",  # type: ignore
             f"- Elevation range   : {elevations.min().to_string(precision=2, format='latex_inline')} - {elevations.max().to_string(precision=2, format='latex_inline')}",  # type: ignore
-            f"- Median rms uJy    : {rms_info.median*1e6:.1f}",
+            f"- Median rms uJy    : {rms_info.median * 1e6:.1f}",
             f"- Components        : {len(askap_table)}",
             f"- Processing date   : {Time.now().fits}",
             f"- Pol. axis         : {pol_axis_str}",
@@ -1252,9 +1252,9 @@ def _make_beam_psf_row(beam_summary: BeamSummary) -> PSFTableRow:
     vis_total = beam_summary.ms_summary.flagged + beam_summary.ms_summary.unflagged
     vis_flagged = beam_summary.ms_summary.flagged
 
-    assert (
-        beam_summary.image_set is not None
-    ), f"{beam_summary.image_set=}, which should not happen"
+    assert beam_summary.image_set is not None, (
+        f"{beam_summary.image_set=}, which should not happen"
+    )
     image_file = list(beam_summary.image_set.image)[-1]
     with fits.open(image_file) as image:
         bmaj = image[0].header["BMAJ"]  # type: ignore
@@ -1285,9 +1285,9 @@ def make_psf_table(field_summary: FieldSummary, output_path: Path) -> Path:
     # Columns are:
     # BEAM_NUM,BEAM_TIME,RA_DEG,DEC_DEG,GAL_LONG,GAL_LAT,PSF_MAJOR,PSF_MINOR,PSF_ANGLE,VIS_TOTAL,VIS_FLAGGED
 
-    assert (
-        field_summary.beam_summaries is not None
-    ), f"{field_summary.beam_summaries=}, which should not happen"
+    assert field_summary.beam_summaries is not None, (
+        f"{field_summary.beam_summaries=}, which should not happen"
+    )
 
     psf_table_rows = [
         _make_beam_psf_row(beam_summary=beam_summary)
