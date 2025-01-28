@@ -52,6 +52,10 @@ class CrystalBallOptions(BaseOptions):
     """Attempt to predict the model visibilities using ``crystalball``"""
     crystallball_wsclean_pol_mode: list[str] = ["i"]
     """The polarisation of the wsclean model that was generated"""
+    row_chunks: int = 0
+    "Number of rows of input MS that are processed in a single chunk. If 0 it will be set automatically. Default is 0."
+    model_chunks: int = 0
+    "Number of sky model components that are processed in a single chunk. If 0 it will be set automatically. Default is 0."
 
 
 def _check_and_verify_options(
@@ -171,6 +175,20 @@ task_subtract_model_from_ms = task(subtract_model_from_data_column)
 
 @task
 def task_crystalball_to_ms(ms: MS, crystalball_options: CrystalBallOptions) -> MS:
+    """Predict model visibilities into a measurement set using a previously constructed
+    blackboard sky model. See ``wsclean -save-source-list`. This used the ``crystalball``
+    python package, which under the hood taps into the same dask task runner running
+    this flow.
+
+    Visibilities are predicted into the MS's ``MODEL_DATA`` column.
+
+    Args:
+        ms (MS): The measurement set where model visibilities will be predicted into.
+        crystalball_options (CrystalBallOptions): Options around the crystal ball operation
+
+    Returns:
+        MS: An updated MS with the model column set
+    """
     from crystalball.crystalball import predict
     from prefect_dask import get_dask_client
 
@@ -190,7 +208,11 @@ def task_crystalball_to_ms(ms: MS, crystalball_options: CrystalBallOptions) -> M
 
         with get_dask_client() as client:
             predict(
-                ms=str(ms.path), sky_model=str(wsclean_source_list_path), client=client
+                ms=str(ms.path),
+                sky_model=str(wsclean_source_list_path),
+                client=client,
+                row_chunks=crystalball_options.row_chunks,
+                model_chunks=crystalball_options.model_chunks,
             )
 
     return ms.with_options(model_column="MODEL_DATA")
