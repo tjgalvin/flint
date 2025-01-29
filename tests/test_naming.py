@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from pathlib import Path
+from pathlib import Path, PosixPath
 
 import pytest
 
@@ -14,7 +14,6 @@ from flint.naming import (
     FITSMaskNames,
     ProcessedNameComponents,
     RawNameComponents,
-    _long_field_name_to_shorthand,
     _rename_linear_to_stokes,
     add_timestamp_to_path,
     casda_ms_format,
@@ -25,6 +24,7 @@ from flint.naming import (
     create_linmos_names,
     create_ms_name,
     create_name_from_common_fields,
+    create_path_from_processed_name_components,
     extract_beam_from_name,
     extract_components_from_name,
     get_aocalibrate_output_path,
@@ -41,14 +41,110 @@ from flint.naming import (
 )
 
 
-def test_longform_to_short_form_field_name():
-    """At times we need to convert the long form field name of the
-    PrcessedNameComponents to a short form that is used in filenames"""
-    assert "SB" == _long_field_name_to_shorthand(long_name="sbid")
-    assert "beam" == _long_field_name_to_shorthand(long_name="beam")
-    assert "round" == _long_field_name_to_shorthand(long_name="round")
-    assert "" == _long_field_name_to_shorthand(long_name="stokes")
-    assert "" == _long_field_name_to_shorthand(long_name="field")
+def test_create_path_from_process_named_components():
+    """Make sure we can create a name"""
+    components = ProcessedNameComponents(
+        sbid="39400", field="RACS_0000-123", beam="33", spw=None, round="3", pol="i"
+    )
+    assert isinstance(components, ProcessedNameComponents)
+
+    ex = Path("SB39400.RACS_0000-123.beam33.round3.i")
+    parent = Path("Jack/Sparrow/Pirate/King")
+    out1 = create_path_from_processed_name_components(
+        processed_name_components=components
+    )
+    out2 = create_path_from_processed_name_components(
+        processed_name_components=components, parent_path=parent
+    )
+    assert isinstance(out1, Path)
+    assert isinstance(out2, Path)
+    assert ex == out1
+    assert parent / ex == out2
+
+    components = ProcessedNameComponents(
+        sbid="39400", field="RACS_0000-123", beam="33", spw=234, round="3", pol="i"
+    )
+    assert isinstance(components, ProcessedNameComponents)
+
+    ex = Path("SB39400.RACS_0000-123.beam33.spw234.round3.i")
+    parent = Path("Jack/Sparrow/Pirate/King")
+    out1 = create_path_from_processed_name_components(
+        processed_name_components=components
+    )
+    out2 = create_path_from_processed_name_components(
+        processed_name_components=components, parent_path=parent
+    )
+    assert isinstance(out1, Path)
+    assert isinstance(out2, Path)
+    assert ex == out1
+    assert parent / ex == out2
+
+    components = ProcessedNameComponents(
+        sbid="39400",
+        field="RACS_0000-123",
+        beam="33",
+        spw=234,
+        round="3",
+        pol="i",
+        channel_range=(123, 567),
+    )
+    assert isinstance(components, ProcessedNameComponents)
+
+    ex = Path("SB39400.RACS_0000-123.beam33.spw234.round3.i.ch0123-0567")
+    parent = Path("Jack/Sparrow/Pirate/King")
+    out1 = create_path_from_processed_name_components(
+        processed_name_components=components
+    )
+    out2 = create_path_from_processed_name_components(
+        processed_name_components=components, parent_path=parent
+    )
+    assert isinstance(out1, Path)
+    assert isinstance(out2, Path)
+    assert ex == out1
+    assert parent / ex == out2
+
+    components = ProcessedNameComponents(
+        sbid="39400",
+        field="RACS_0000-123",
+        beam="33",
+        spw=234,
+        round="3",
+        pol="i",
+        channel_range=(123, 567444),
+    )
+    assert isinstance(components, ProcessedNameComponents)
+
+    ex = Path("SB39400.RACS_0000-123.beam33.spw234.round3.i.ch0123-567444")
+    parent = Path("Jack/Sparrow/Pirate/King")
+    out1 = create_path_from_processed_name_components(
+        processed_name_components=components
+    )
+    out2 = create_path_from_processed_name_components(
+        processed_name_components=components, parent_path=parent
+    )
+    assert isinstance(out1, Path)
+    assert isinstance(out2, Path)
+    assert ex == out1
+    assert parent / ex == out2
+
+
+def test_create_path_from_process_named_components_2():
+    """Make sure we can create a name. The one makes sure we can go full circle"""
+    parent = Path("Jacccckkkk/Sparrow")
+    ex = parent / Path("SB39400.RACS_0000-123.beam33.spw234.round3.i.ch0123-567444")
+    pcn = processed_ms_format(in_name=ex)
+    out = create_path_from_processed_name_components(
+        processed_name_components=pcn, parent_path=parent
+    )
+    assert ex == out
+
+    parent = Path("Jacccckkkk/Sparrow")
+    ex = parent / Path("SB39400.RACS_0000-123.round3.i.ch0123-0444")
+    pcn = processed_ms_format(in_name=ex)
+    out = create_path_from_processed_name_components(
+        processed_name_components=pcn, parent_path=parent
+    )
+    assert ex == out
 
 
 def test_create_imaging_name_prefix():
@@ -762,6 +858,51 @@ def test_create_name_from_common_fields_2():
 
     with pytest.raises(ValueError):
         create_name_from_common_fields(in_paths=examples)
+
+
+def get_lots_of_names_3():
+    files = [
+        PosixPath(
+            "/scratch3/gal16b/spectral_flow/57516/SB57516.RACS_0929-81.beam00.round4.i.ch0238-0239.image.optimal.conv.fits"
+        ),
+        PosixPath(
+            "/scratch3/gal16b/spectral_flow/57516/SB57516.RACS_0929-81.beam01.round4.i.ch0238-0239.image.optimal.conv.fits"
+        ),
+        PosixPath(
+            "/scratch3/gal16b/spectral_flow/57516/SB57516.RACS_0929-81.beam02.round4.i.ch0238-0239.image.optimal.conv.fits"
+        ),
+        PosixPath(
+            "/scratch3/gal16b/spectral_flow/57516/SB57516.RACS_0929-81.beam03.round4.i.ch0238-0239.image.optimal.conv.fits"
+        ),
+        PosixPath(
+            "/scratch3/gal16b/spectral_flow/57516/SB57516.RACS_0929-81.beam04.round4.i.ch0238-0239.image.optimal.conv.fits"
+        ),
+        PosixPath(
+            "/scratch3/gal16b/spectral_flow/57516/SB57516.RACS_0929-81.beam05.round4.i.ch0238-0239.image.optimal.conv.fits"
+        ),
+        PosixPath(
+            "/scratch3/gal16b/spectral_flow/57516/SB57516.RACS_0929-81.beam06.round4.i.ch0238-0239.image.optimal.conv.fits"
+        ),
+        PosixPath(
+            "/scratch3/gal16b/spectral_flow/57516/SB57516.RACS_0929-81.beam07.round4.i.ch0238-0239.image.optimal.conv.fits"
+        ),
+        PosixPath(
+            "/scratch3/gal16b/spectral_flow/57516/SB57516.RACS_0929-81.beam08.round4.i.ch0238-0239.image.optimal.conv.fits"
+        ),
+    ]
+
+    return files
+
+
+def test_create_name_from_common_fields_3():
+    """Test a strange combination of errors around the common field name"""
+
+    files = get_lots_of_names_3()
+
+    common_name = create_name_from_common_fields(in_paths=files)
+    assert common_name == PosixPath(
+        "/scratch3/gal16b/spectral_flow/57516/SB57516.RACS_0929-81.round4.i.ch0238-0239"
+    )
 
 
 def test_create_linmos_parset_base_path():

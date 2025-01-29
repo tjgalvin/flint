@@ -393,10 +393,15 @@ def _rename_wsclean_title(name_str: str) -> str:
         name_str,
     )
 
-    search_re = r"(-(i|q|u|v|xx|xy|yx|yy))?(-(MFS|[0-9]{4}))?(-t[0-9]{5})?-(image|dirty|model|residual|psf)"
+    # Note the negative look back - the (?<!...) bit. This is to make
+    # sure that the ch0000-0001 field is not captured. For example:
+    # SB57516.RACS_0929-81.beam35.round4.i.ch0287-0288-image.fits
+    # would be inadvertently picked up and replaced. The [0-9]{4}
+    # we are testing for are the channel indicator when --channel-out is used
+    search_re = r"(-(i|q|u|v|xx|xy|yx|yy))?(-(MFS|(<!ch[0-9]{4}-[0-9]{4})[0-9]{4}))?(-t[0-9]{5})?-(image|dirty|model|residual|psf)"
     match_re = re.compile(search_re)
 
-    logger.info(f"Searching {name_str=} for wsclean added components")
+    logger.info(f"Searching {name_str=} for wsclean added filename components")
     result = match_re.search(str(name_str))
 
     if result is None:

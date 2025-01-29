@@ -31,6 +31,7 @@ def image_fits() -> Path:
 
 @pytest.fixture
 def cube_fits(tmpdir) -> Path:
+    """Extract some example cubes"""
     tmp_dir = Path(tmpdir)
     cube_dir = Path(tmp_dir / "cubes")
     cube_dir.mkdir(parents=True, exist_ok=True)
@@ -70,7 +71,11 @@ def test_get_cube_common_beam_and_convol_cubes(cube_fits) -> None:
     assert all([isinstance(b, BeamShape) for b in beam_list])
 
 
-# This can cause thread locks in testing/ Test works
+# This can cause thread locks in testing/ Test works. Test passes but
+# produces something like the below when pytest wraps up
+# =============== 257 passed, 14075 warnings in 526.16s (0:08:46) ================
+# Fatal Python error: _enter_buffered_busy: could not acquire lock for <_io.BufferedWriter name='<stderr>'> at interpreter shutdown, possibly due to daemon threads
+# Python
 # def test_beam_list_convol(cube_fits):
 #     # These come from the beam_list above
 #     bmaj_arcsec = [
@@ -196,7 +201,6 @@ def test_get_cube_common_beam_and_convol_cubes(cube_fits) -> None:
 #     fits_files = list(cube_fits.glob("*sub.fits"))
 #     assert len(fits_files) == 10
 #     # This appears to make pytest lock up
-#     from flint.convol import convolve_cubes
 
 #     cube_paths = convolve_cubes(
 #         cube_paths=fits_files,
