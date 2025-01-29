@@ -174,9 +174,9 @@ def temporarily_move_into(
         yield subject
     else:
         temporary_directory.mkdir(parents=True, exist_ok=True)
-        assert (
-            temporary_directory.is_dir()
-        ), f"{temporary_directory=} exists and is not a folder"
+        assert temporary_directory.is_dir(), (
+            f"{temporary_directory=} exists and is not a folder"
+        )
 
         output_item = temporary_directory / subject.name
         assert not output_item.exists(), f"{output_item=} already exists! "
@@ -458,9 +458,9 @@ def generate_stub_wcs_header(
         WCS: The representative WCS objects
     """
     # Trust nothing
-    assert (
-        len(projection) == 3
-    ), f"Projection should be three characters, received {projection}"
+    assert len(projection) == 3, (
+        f"Projection should be three characters, received {projection}"
+    )
 
     # Handle all the pixels you rotten seadog
     if pixel_scale is not None:
@@ -470,9 +470,9 @@ def generate_stub_wcs_header(
             pixel_scale = pixel_scale * u.arcsec
 
         # Trust nothing even more
-        assert isinstance(
-            pixel_scale, u.Quantity
-        ), f"pixel_scale is not an quantity, instead {type(pixel_scale)}"
+        assert isinstance(pixel_scale, u.Quantity), (
+            f"pixel_scale is not an quantity, instead {type(pixel_scale)}"
+        )
         pixel_scale = np.abs(pixel_scale.to(u.rad).value)
 
         pixel_scale = np.array([-pixel_scale, pixel_scale])
@@ -488,9 +488,9 @@ def generate_stub_wcs_header(
         if isinstance(base_wcs, Path):
             base_wcs = WCS(fits.getheader(base_wcs)).celestial
 
-        assert isinstance(
-            base_wcs, WCS
-        ), f"Expecting base_wcs to be a WCS object by now, instead is {type(base_wcs)}"
+        assert isinstance(base_wcs, WCS), (
+            f"Expecting base_wcs to be a WCS object by now, instead is {type(base_wcs)}"
+        )
 
         if image_shape is None:
             image_shape = base_wcs._naxis
@@ -598,7 +598,7 @@ def rsync_copy_directory(target_path: Path, out_path: Path) -> Path:
         Path: The output path of the new directory.
     """
 
-    rsync_cmd = f"rsync -avh --progress --stats " f"{target_path!s}/ " f"{out_path!s}/ "
+    rsync_cmd = f"rsync -avh --progress --stats {target_path!s}/ {out_path!s}/ "
     logger.info(f"Rsync copying {target_path} to {out_path}.")
     logger.debug(f"Will run {rsync_cmd}")
     rsync_run = subprocess.Popen(rsync_cmd.split(), stdout=subprocess.PIPE)
@@ -631,9 +631,9 @@ def copy_directory(
     input_directory = Path(input_directory)
     output_directory = Path(output_directory)
 
-    assert (
-        input_directory.exists() and input_directory.is_dir()
-    ), f"Currently only supports copying directories, {input_directory=} is a file or does not exist. "
+    assert input_directory.exists() and input_directory.is_dir(), (
+        f"Currently only supports copying directories, {input_directory=} is a file or does not exist. "
+    )
 
     logger.info(f"Copying {input_directory} to {output_directory}.")
 

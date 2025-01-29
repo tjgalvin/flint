@@ -68,26 +68,32 @@ def _check_and_verify_options(
         assert (
             subtract_field_options.wsclean_container.exists()
             and subtract_field_options.wsclean_container.is_file()
-        ), f"{subtract_field_options.wsclean_container=} does not exist or is not a file"
+        ), (
+            f"{subtract_field_options.wsclean_container=} does not exist or is not a file"
+        )
         assert (
             subtract_field_options.yandasoft_container.exists()
             and subtract_field_options.yandasoft_container.is_file()
-        ), f"{subtract_field_options.yandasoft_container=} does not exist or is not a file"
+        ), (
+            f"{subtract_field_options.yandasoft_container=} does not exist or is not a file"
+        )
 
     if (
         addmodel_subtract_field_options
         and addmodel_subtract_field_options.attempt_addmodel
     ):
-        assert (
-            addmodel_subtract_field_options.calibrate_container is not None
-        ), "Calibrate container path is needede for addmodel"
+        assert addmodel_subtract_field_options.calibrate_container is not None, (
+            "Calibrate container path is needede for addmodel"
+        )
         assert (
             addmodel_subtract_field_options.calibrate_container.exists()
             and addmodel_subtract_field_options.calibrate_container.is_file()
-        ), f"Calibrate container {addmodel_subtract_field_options.calibrate_container} is not a file"
-        assert (
-            addmodel_subtract_field_options.addmodel_cluster_config is not None
-        ), f"{addmodel_subtract_field_options.addmodel_cluster_config=}, which should not happen"
+        ), (
+            f"Calibrate container {addmodel_subtract_field_options.calibrate_container} is not a file"
+        )
+        assert addmodel_subtract_field_options.addmodel_cluster_config is not None, (
+            f"{addmodel_subtract_field_options.addmodel_cluster_config=}, which should not happen"
+        )
 
     if addmodel_subtract_field_options and crystalball_subtract_field_options:
         assert (
@@ -202,9 +208,9 @@ def task_crystalball_to_ms(ms: MS, crystalball_options: CrystalBallOptions) -> M
         wsclean_source_list_path = get_wsclean_output_source_list_path(
             name_path=ms.path, pol=pol
         )
-        assert (
-            wsclean_source_list_path.exists()
-        ), f"{wsclean_source_list_path=} was requested, but does not exist"
+        assert wsclean_source_list_path.exists(), (
+            f"{wsclean_source_list_path=} was requested, but does not exist"
+        )
 
         with get_dask_client() as client:
             predict(
@@ -231,9 +237,9 @@ def task_addmodel_to_ms(
         wsclean_source_list_path = get_wsclean_output_source_list_path(
             name_path=ms.path, pol=pol
         )
-        assert (
-            wsclean_source_list_path.exists()
-        ), f"{wsclean_source_list_path=} was requested, but does not exist"
+        assert wsclean_source_list_path.exists(), (
+            f"{wsclean_source_list_path=} was requested, but does not exist"
+        )
 
         # This should attempt to add model of different polarisations together.
         # But to this point it is a future proof and is not tested.
@@ -243,9 +249,9 @@ def task_addmodel_to_ms(
             mode="c" if idx == 0 else "a",
             datacolumn="MODEL_DATA",
         )
-        assert (
-            addmodel_subtract_options.calibrate_container is not None
-        ), f"{addmodel_subtract_options.calibrate_container=}, which should not happen"
+        assert addmodel_subtract_options.calibrate_container is not None, (
+            f"{addmodel_subtract_options.calibrate_container=}, which should not happen"
+        )
         add_model(
             add_model_options=addmodel_options,
             container=addmodel_subtract_options.calibrate_container,
@@ -297,9 +303,9 @@ def task_combine_all_linmos_images(
         logger.info(f"Removing original {len(images_to_combine)} images")
         for image in images_to_combine:
             logger.info(f"Removing {image=}")
-            assert (
-                isinstance(image, Path) and image.exists()
-            ), f"{image=} does not exist, but it should"
+            assert isinstance(image, Path) and image.exists(), (
+                f"{image=} does not exist, but it should"
+            )
             image.unlink()
     return Path(output_cube_path)
 
@@ -368,9 +374,9 @@ def flow_subtract_cube(
         )
 
     if addmodel_subtract_field_options.attempt_addmodel:
-        assert (
-            addmodel_subtract_field_options.addmodel_cluster_config is not None
-        ), f"{addmodel_subtract_field_options.addmodel_cluster_config=}, which should not happen"
+        assert addmodel_subtract_field_options.addmodel_cluster_config is not None, (
+            f"{addmodel_subtract_field_options.addmodel_cluster_config=}, which should not happen"
+        )
         addmodel_dask_runner = get_dask_runner(
             cluster=addmodel_subtract_field_options.addmodel_cluster_config
         )

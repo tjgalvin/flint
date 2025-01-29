@@ -57,7 +57,7 @@ class AegeanOutputs(NamedTuple):
 def _get_bane_command(image: Path, cores: int, bane_options: BANEOptions) -> str:
     """Create the BANE command to run"""
     # The stripes is purposely set lower than the cores due to an outstanding bane bug that can cause a deadlock.
-    bane_command_str = f"BANE {image!s} --cores {cores} --stripes {cores-1} "
+    bane_command_str = f"BANE {image!s} --cores {cores} --stripes {cores - 1} "
     if bane_options.grid_size:
         bane_command_str += (
             f"--grid {bane_options.grid_size[0]} {bane_options.grid_size[1]} "

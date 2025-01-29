@@ -308,14 +308,14 @@ def get_selfcal_ms_name(in_ms_path: Path, round: int = 1) -> Path:
         logger.info("Detected a previous round of self-calibration. ")
         span = res.span()
         name_str = str(in_ms_path.name)
-        name = f"{name_str[:span[0]]}.round{round}.ms"
+        name = f"{name_str[: span[0]]}.round{round}.ms"
     else:
         name = f"{in_ms_path.stem!s}.round{round}.ms"
     out_ms_path = in_ms_path.parent / name
 
-    assert (
-        in_ms_path != out_ms_path
-    ), f"{in_ms_path=} and {out_ms_path=} match. Something went wrong when creating new self-cal name. "
+    assert in_ms_path != out_ms_path, (
+        f"{in_ms_path=} and {out_ms_path=} match. Something went wrong when creating new self-cal name. "
+    )
 
     return out_ms_path
 
