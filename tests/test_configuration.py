@@ -4,7 +4,6 @@ import filecmp
 from pathlib import Path
 
 import pytest
-from click import MissingParameter
 
 from flint.configuration import (
     Strategy,
@@ -16,7 +15,6 @@ from flint.configuration import (
     get_selfcal_options_from_yaml,
     load_strategy_yaml,
     verify_configuration,
-    wrapper_options_from_strategy,
     write_strategy_to_yaml,
 )
 from flint.utils import get_packaged_resource_path
@@ -281,74 +279,6 @@ def test_get_mask_options_from_path(package_strategy_path):
             continue
 
         assert masking[k] == masking2[k]
-
-
-@wrapper_options_from_strategy(update_options_keyword="update_options")
-def return_values(val, update_options=None):
-    "example doc string"
-    return val, update_options
-
-
-def test_wrapper_function_val(package_strategy_path):
-    """See if the wrapper to get strategy options from a file works nicely"""
-
-    # These asserts make sure that the  properties of the wrappede function are
-    # carried forward to the returned function
-    assert return_values.__name__ == "return_values"
-    assert return_values.__doc__ == "example doc string"
-    in_val = "ThisIsJack"
-    val, update_options = return_values(val=in_val, strategy=package_strategy_path)
-    assert val == in_val
-
-    # This makes sure that we can override the lookup from the strategy file
-    # by explicitly passing through the update_options keyword
-    val, update_options = return_values(
-        val=in_val, update_options="ignoring", strategy=package_strategy_path
-    )
-    assert val == in_val
-    assert update_options == "ignoring"
-
-    val, update_options = return_values(
-        val=in_val,
-        strategy=Path(package_strategy_path),
-        mode="masking",
-        round_info=0,
-    )
-
-    assert val == in_val
-    assert isinstance(update_options, dict)
-    assert update_options["flood_fill_positive_seed_clip"] == 4.5
-
-
-@wrapper_options_from_strategy(update_options_keyword="update_options")
-def print_return_values(update_options):
-    "example doc string"
-    return "Jack", update_options
-
-
-def test_wrapper_function(package_strategy_path):
-    """See if the wrapper to get strategy options from a file works nicely"""
-
-    # These asserts make sure that the  properties of the wrappede function are
-    # carried forward to the returned function
-    assert print_return_values.__name__ == "print_return_values"
-    assert print_return_values.__doc__ == "example doc string"
-    val, update_options = print_return_values(strategy=package_strategy_path)
-    assert val == "Jack"
-
-    val, update_options = print_return_values(
-        strategy=Path(package_strategy_path), mode="masking", round_info=0
-    )
-
-    assert val == "Jack"
-    assert isinstance(update_options, dict)
-    assert update_options["flood_fill_positive_seed_clip"] == 4.5
-
-    with pytest.raises(MissingParameter):
-
-        @wrapper_options_from_strategy(update_options_keyword="JackNotHere")
-        def no_workie():
-            return 1
 
 
 def test_get_modes(package_strategy):
