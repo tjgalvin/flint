@@ -361,7 +361,7 @@ def process_science_fields(
                 rename_ms=field_options.rename_ms,
                 archive_cal_table=True,
                 casa_container=field_options.casa_container,
-                update_gaincal_options=unmapped(
+                update_gain_cal_options=unmapped(
                     get_options_from_strategy(
                         strategy=strategy,
                         mode="gaincal",
