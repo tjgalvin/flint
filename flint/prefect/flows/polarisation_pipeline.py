@@ -3,7 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from configargparse import ArgumentParser
-from prefect import flow, tags
+from prefect import flow, tags, unmapped
 from prefect.futures import PrefectFuture
 
 from flint.coadd.linmos import LinmosResult
@@ -110,11 +110,13 @@ def process_science_fields_pol(
                         in_ms=science_ms,
                         wsclean_container=pol_field_options.wsclean_container,
                         make_cube_from_subbands=False,  # We will do this later
-                        update_wsclean_options=get_options_from_strategy(
-                            strategy=strategy,
-                            operation="polarisation",
-                            mode="wsclean",
-                            polarisation=polarisation,
+                        update_wsclean_options=unmapped(
+                            get_options_from_strategy(
+                                strategy=strategy,
+                                operation="polarisation",
+                                mode="wsclean",
+                                polarisation=polarisation,
+                            )
                         ),
                     )
                 )

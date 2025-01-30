@@ -274,11 +274,13 @@ def process_science_fields(
     wsclean_results = task_wsclean_imager.map(
         in_ms=preprocess_science_mss,
         wsclean_container=field_options.wsclean_container,
-        update_wsclean_options=get_options_from_strategy(
-            strategy=strategy,
-            mode="wsclean",
-            round_info=0,
-            operation="selfcal",
+        update_wsclean_options=unmapped(
+            get_options_from_strategy(
+                strategy=strategy,
+                mode="wsclean",
+                round_info=0,
+                operation="selfcal",
+            )
         ),
     )  # type: ignore
 
@@ -359,11 +361,13 @@ def process_science_fields(
                 rename_ms=field_options.rename_ms,
                 archive_cal_table=True,
                 casa_container=field_options.casa_container,
-                update_gaincal_options=get_options_from_strategy(
-                    strategy=strategy,
-                    mode="gaincal",
-                    round_info=current_round,
-                    operation="selfcal",
+                update_gaincal_options=unmapped(
+                    get_options_from_strategy(
+                        strategy=strategy,
+                        mode="gaincal",
+                        round_info=current_round,
+                        operation="selfcal",
+                    )
                 ),
                 wait_for=[
                     field_summary
@@ -397,11 +401,13 @@ def process_science_fields(
                 fits_beam_masks = task_create_image_mask_model.map(
                     image=wsclean_results,
                     image_products=beam_aegean_outputs,
-                    update_masking_options=get_options_from_strategy(
-                        strategy=strategy,
-                        mode="masking",
-                        round_info=current_round,
-                        operation="selfcal",
+                    update_masking_options=unmapped(
+                        get_options_from_strategy(
+                            strategy=strategy,
+                            mode="masking",
+                            round_info=current_round,
+                            operation="selfcal",
+                        )
                     ),
                 )  # type: ignore
 
@@ -409,11 +415,13 @@ def process_science_fields(
                 in_ms=cal_mss,
                 wsclean_container=field_options.wsclean_container,
                 fits_mask=fits_beam_masks,
-                update_wsclean_options=get_options_from_strategy(
-                    strategy=strategy,
-                    mode="wsclean",
-                    operation="selfcal",
-                    round_info=current_round,
+                update_wsclean_options=unmapped(
+                    get_options_from_strategy(
+                        strategy=strategy,
+                        mode="wsclean",
+                        operation="selfcal",
+                        round_info=current_round,
+                    )
                 ),
             )
             wsclean_results = (

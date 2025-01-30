@@ -411,10 +411,12 @@ def flow_subtract_cube(
             in_ms=science_mss,
             wsclean_container=subtract_field_options.wsclean_container,
             channel_range=unmapped(channel_range),
-            update_wsclean_options=get_options_from_strategy(
-                strategy=strategy,
-                mode="wsclean",
-                operation="subtractcube",
+            update_wsclean_options=unmapped(
+                get_options_from_strategy(
+                    strategy=strategy,
+                    mode="wsclean",
+                    operation="subtractcube",
+                )
             ),
         )
         channel_beam_shape = task_get_common_beam_from_results.submit(
