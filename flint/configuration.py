@@ -6,14 +6,12 @@ throughout the pipeline.
 
 from __future__ import annotations
 
-import inspect
 import shutil
 from argparse import ArgumentParser
 from pathlib import Path
-from typing import Any, Callable, ParamSpec, TypeVar
+from typing import Any
 
 import yaml
-from click import MissingParameter
 
 from flint.imager.wsclean import WSCleanOptions
 from flint.logging import logger
@@ -357,82 +355,6 @@ def get_options_from_strategy(
         options.update(update_options)
 
     return options
-
-
-P = ParamSpec("P")
-T = TypeVar("T")
-
-
-def wrapper_options_from_strategy(update_options_keyword: str):
-    """Decorator intended to allow options to be pulled from the
-    strategy file when function is called. See ``get_options_from_strategy``
-    for options that this function enables.
-
-    ``update_options_keyword`` specifies the name of the
-    keyword argument that the options extracted from the strategy
-    file will be passed to.
-
-    Should `strategy` ne set to ``None`` then the function
-    will be called without any options being extracted.
-
-    Args:
-        update_options_keyword (str): The keyword option to update from the wrapped function
-    """
-
-    def _wrapper(fn: Callable[P, T]) -> Callable[P, T]:
-        """Decorator intended to allow options to be pulled from the
-        strategy file when function is called. See ``get_options_from_strategy``
-        for options that this function enables.
-
-        Args:
-            fn (Callable): The callable function that will be assigned the additional keywords
-
-        Returns:
-            Callable: The updated function
-        """
-        signature = inspect.signature(fn)
-        if update_options_keyword not in signature.parameters:
-            raise MissingParameter(
-                f"{update_options_keyword=} not in {signature.parameters} of {fn.__name__}"
-            )
-
-        # Don't use functools.wraps. It does something to the expected args/kwargs that makes
-        # prefect confuxed, wherein it throws an error saying the strategy, mode, round options
-        # are not part of the wrapped fn's function signature.
-        def wrapper(
-            strategy: Strategy | None | Path = None,
-            operation: str = "selfcal",
-            mode: str = "wsclean",
-            round_info: int | None = None,
-            max_round_override: bool = True,
-            polarisation: str | None = None,
-            *args: P.args,
-            **kwargs: P.kwargs,
-        ) -> T:
-            if update_options_keyword in kwargs:
-                logger.info(
-                    f"{update_options_keyword} explicitly passed to {fn.__name__}. Ignoring attempts to load strategy file. "
-                )
-            elif strategy:
-                update_options = get_options_from_strategy(
-                    strategy=strategy,
-                    mode=mode,
-                    round_info=round_info,
-                    max_round_override=max_round_override,
-                    operation=operation,
-                    polarisation=polarisation,
-                )
-                logger.info(f"Adding extracted options to {update_options_keyword}")
-                kwargs[update_options_keyword] = update_options
-
-            return fn(*args, **kwargs)
-
-        # Keep the function name and docs correct
-        wrapper.__name__ = fn.__name__
-        wrapper.__doc__ = fn.__doc__
-        return wrapper  # type: ignore
-
-    return _wrapper
 
 
 def verify_configuration(input_strategy: Strategy, raise_on_error: bool = True) -> bool:
