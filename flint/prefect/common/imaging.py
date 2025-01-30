@@ -7,11 +7,11 @@ imaging flows.
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any, Collection, Literal, TypeVar
+from typing import Any, Collection, Literal, ParamSpec, TypeVar
 
 import numpy as np
 import pandas as pd
-from prefect import task, unmapped
+from prefect import Task, task, unmapped
 from prefect.artifacts import create_table_artifact
 
 from flint.calibrate.aocalibrate import (
@@ -68,13 +68,18 @@ from flint.validation import (
     create_validation_tables,
 )
 
+P = ParamSpec("P")
+R = TypeVar("R")
+
 # These are simple task wrapped functions and require no other modification
-task_copy_and_preprocess_casda_askap_ms = task(copy_and_preprocess_casda_askap_ms)
-task_preprocess_askap_ms = task(preprocess_askap_ms)
-task_split_by_field = task(split_by_field)
-task_select_solution_for_ms = task(select_aosolution_for_ms)
-task_create_apply_solutions_cmd = task(create_apply_solutions_cmd)
-task_rename_column_in_ms = task(rename_column_in_ms)
+task_copy_and_preprocess_casda_askap_ms: Task[P, R] = task(
+    copy_and_preprocess_casda_askap_ms
+)
+task_preprocess_askap_ms: Task[P, R] = task(preprocess_askap_ms)
+task_split_by_field: Task[P, R] = task(split_by_field)
+task_select_solution_for_ms: Task[P, R] = task(select_aosolution_for_ms)
+task_create_apply_solutions_cmd: Task[P, R] = task(create_apply_solutions_cmd)
+task_rename_column_in_ms: Task[P, R] = task(rename_column_in_ms)
 
 # Tasks below are extracting componented from earlier stages, or are
 # otherwise doing something important
@@ -406,7 +411,7 @@ def get_common_beam_from_images(
     return beam_shape
 
 
-task_get_common_beam_from_images = task(get_common_beam_from_images)
+task_get_common_beam_from_images: Task[P, R] = task(get_common_beam_from_images)
 
 
 def get_common_beam_from_image_set(
@@ -434,7 +439,7 @@ def get_common_beam_from_image_set(
     )
 
 
-task_get_common_beam_from_image_set = task(get_common_beam_from_image_set)
+task_get_common_beam_from_image_set: Task[P, R] = task(get_common_beam_from_image_set)
 
 
 def get_common_beam_from_image_sets(
@@ -465,7 +470,7 @@ def get_common_beam_from_image_sets(
     )
 
 
-task_get_common_beam_from_image_sets = task(get_common_beam_from_image_sets)
+task_get_common_beam_from_image_sets: Task[P, R] = task(get_common_beam_from_image_sets)
 
 
 def get_common_beam_from_results(
@@ -504,7 +509,7 @@ def get_common_beam_from_results(
     )
 
 
-task_get_common_beam_from_results = task(get_common_beam_from_results)
+task_get_common_beam_from_results: Task[P, R] = task(get_common_beam_from_results)
 
 
 @task
@@ -675,7 +680,7 @@ def convolve_image_set(
     return convolved_images
 
 
-task_convolve_image_set = task(convolve_image_set)
+task_convolve_image_set: Task[P, R] = task(convolve_image_set)
 
 
 @task
