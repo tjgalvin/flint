@@ -3,12 +3,16 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import ParamSpec, TypeVar
 
-from prefect import task
+from prefect import Task, task
 
 from flint.calibrate.aocalibrate import AddModelOptions, add_model
 from flint.imager.wsclean import WSCleanResult
 from flint.logging import logger
+
+P = ParamSpec("P")
+R = TypeVar("R")
 
 
 # TODO: This can be a dispatcher type function should
@@ -48,4 +52,4 @@ def add_model_source_list_to_ms(
     return wsclean_command
 
 
-task_add_model_source_list_to_ms = task(add_model_source_list_to_ms)
+task_add_model_source_list_to_ms: Task[P, R] = task(add_model_source_list_to_ms)
