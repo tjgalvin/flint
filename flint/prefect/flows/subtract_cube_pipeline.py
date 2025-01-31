@@ -18,7 +18,7 @@ from fitscube.combine_fits import combine_fits
 from prefect import flow, task, unmapped
 
 from flint.coadd.linmos import LinmosResult
-from flint.configuration import load_and_copy_strategy
+from flint.configuration import get_options_from_strategy, load_and_copy_strategy
 from flint.exceptions import FrequencyMismatchError
 from flint.logging import logger
 from flint.ms import (
@@ -411,9 +411,13 @@ def flow_subtract_cube(
             in_ms=science_mss,
             wsclean_container=subtract_field_options.wsclean_container,
             channel_range=unmapped(channel_range),
-            strategy=unmapped(strategy),
-            mode="wsclean",
-            operation="subtractcube",
+            update_wsclean_options=unmapped(
+                get_options_from_strategy(
+                    strategy=strategy,
+                    mode="wsclean",
+                    operation="subtractcube",
+                )
+            ),
         )
         channel_beam_shape = task_get_common_beam_from_results.submit(
             wsclean_results=channel_wsclean_cmds,

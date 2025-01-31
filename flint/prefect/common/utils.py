@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Any, Iterable, ParamSpec, TypeVar
 from uuid import UUID
 
-from prefect import Task, task
+from prefect import task
 from prefect.artifacts import create_markdown_artifact
 
 from flint.archive import copy_sbid_files_archive, create_sbid_tar_archive
@@ -106,11 +106,11 @@ def upload_image_as_artifact(image_path: Path, description: str | None = None) -
     return image_uuid  # type: ignore
 
 
-task_update_field_summary: Task[P, R] = task(update_field_summary)
-task_create_field_summary: Task[P, R] = task(create_field_summary)
-task_create_beam_summary: Task[P, R] = task(create_beam_summary)
-task_get_fits_cube_from_paths: Task[P, R] = task(get_fits_cube_from_paths)
-task_rename_linear_to_stokes: Task[P, R] = task(rename_linear_to_stokes)
+task_update_field_summary = task(update_field_summary)
+task_create_field_summary = task(create_field_summary)
+task_create_beam_summary = task(create_beam_summary)
+task_get_fits_cube_from_paths = task(get_fits_cube_from_paths)
+task_rename_linear_to_stokes = task(rename_linear_to_stokes)
 
 
 @task

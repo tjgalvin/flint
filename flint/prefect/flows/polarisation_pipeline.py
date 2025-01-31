@@ -3,12 +3,13 @@ from __future__ import annotations
 from pathlib import Path
 
 from configargparse import ArgumentParser
-from prefect import flow, tags
+from prefect import flow, tags, unmapped
 from prefect.futures import PrefectFuture
 
 from flint.coadd.linmos import LinmosResult
 from flint.configuration import (
     POLARISATION_MAPPING,
+    get_options_from_strategy,
     load_and_copy_strategy,
 )
 from flint.convol import task_convolve_images
@@ -108,11 +109,15 @@ def process_science_fields_pol(
                     task_wsclean_imager.submit(
                         in_ms=science_ms,
                         wsclean_container=pol_field_options.wsclean_container,
-                        strategy=strategy,
-                        operation="polarisation",
-                        mode="wsclean",
-                        polarisation=polarisation,
                         make_cube_from_subbands=False,  # We will do this later
+                        update_wsclean_options=unmapped(
+                            get_options_from_strategy(
+                                strategy=strategy,
+                                operation="polarisation",
+                                mode="wsclean",
+                                polarisation=polarisation,
+                            )
+                        ),
                     )
                 )
                 _image_set: PrefectFuture[ImageSet] = task_getattr.submit(
