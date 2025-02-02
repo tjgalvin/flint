@@ -15,6 +15,7 @@
   - An alternative to the `addmodel` program
   - Patches into the existing Dask client
   - Requires version bump to `numpy>=2.0` in `flint` and associated dependencies
+- Removed the `wrapper_get_options_from_strategy`
 
 # 0.2.13
 

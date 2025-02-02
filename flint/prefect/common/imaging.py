@@ -21,7 +21,6 @@ from flint.calibrate.aocalibrate import (
     select_aosolution_for_ms,
 )
 from flint.coadd.linmos import LinmosOptions, LinmosResult, linmos_images
-from flint.configuration import wrapper_options_from_strategy
 from flint.convol import (
     BeamShape,
     convolve_cubes,
@@ -242,7 +241,6 @@ def task_zip_ms(in_item: WSCleanResult) -> Path:
 
 
 @task
-@wrapper_options_from_strategy(update_options_keyword="update_gain_cal_options")
 def task_gaincal_applycal_ms(
     ms: MS | WSCleanResult,
     selfcal_round: int,
@@ -293,7 +291,6 @@ def task_gaincal_applycal_ms(
 
 
 @task
-@wrapper_options_from_strategy(update_options_keyword="update_wsclean_options")
 def task_wsclean_imager(
     in_ms: ApplySolutions | MS,
     wsclean_container: Path,
@@ -990,7 +987,6 @@ def create_convolve_linmos_cubes(
 
 
 @task
-@wrapper_options_from_strategy(update_options_keyword="update_masking_options")
 def task_create_image_mask_model(
     image: LinmosResult | ImageSet | WSCleanResult,
     image_products: AegeanOutputs,

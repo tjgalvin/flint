@@ -274,10 +274,14 @@ def process_science_fields(
     wsclean_results = task_wsclean_imager.map(
         in_ms=preprocess_science_mss,
         wsclean_container=field_options.wsclean_container,
-        strategy=unmapped(strategy),
-        mode="wsclean",
-        round_info=0,
-        operation="selfcal",
+        update_wsclean_options=unmapped(
+            get_options_from_strategy(
+                strategy=strategy,
+                mode="wsclean",
+                round_info=0,
+                operation="selfcal",
+            )
+        ),
     )  # type: ignore
 
     wsclean_results = (
@@ -357,10 +361,14 @@ def process_science_fields(
                 rename_ms=field_options.rename_ms,
                 archive_cal_table=True,
                 casa_container=field_options.casa_container,
-                strategy=unmapped(strategy),
-                mode="gaincal",
-                round_info=current_round,
-                operation="selfcal",
+                update_gain_cal_options=unmapped(
+                    get_options_from_strategy(
+                        strategy=strategy,
+                        mode="gaincal",
+                        round_info=current_round,
+                        operation="selfcal",
+                    )
+                ),
                 wait_for=[
                     field_summary
                 ],  # To make sure field summary is created with unzipped MSs
@@ -393,21 +401,29 @@ def process_science_fields(
                 fits_beam_masks = task_create_image_mask_model.map(
                     image=wsclean_results,
                     image_products=beam_aegean_outputs,
-                    strategy=unmapped(strategy),
-                    mode="masking",
-                    round_info=current_round,
-                    operation="selfcal",
+                    update_masking_options=unmapped(
+                        get_options_from_strategy(
+                            strategy=strategy,
+                            mode="masking",
+                            round_info=current_round,
+                            operation="selfcal",
+                        )
+                    ),
                 )  # type: ignore
 
             wsclean_results = task_wsclean_imager.map(
                 in_ms=cal_mss,
                 wsclean_container=field_options.wsclean_container,
                 fits_mask=fits_beam_masks,
-                strategy=unmapped(strategy),
-                mode="wsclean",
-                operation="selfcal",
-                round_info=current_round,
-            )  # type: ignore
+                update_wsclean_options=unmapped(
+                    get_options_from_strategy(
+                        strategy=strategy,
+                        mode="wsclean",
+                        operation="selfcal",
+                        round_info=current_round,
+                    )
+                ),
+            )
             wsclean_results = (
                 task_add_model_source_list_to_ms.map(
                     wsclean_command=wsclean_results,
