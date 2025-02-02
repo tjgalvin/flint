@@ -96,11 +96,11 @@ class WSCleanOptions(BaseOptions):
     """Image size, only a single dimension is required. Note that this means images will be squares. """
     local_rms: bool = True
     """Whether a local rms map is computed"""
-    force_mask_rounds: int = 10
+    force_mask_rounds: int | None = 10
     """Round of force masked derivation"""
-    auto_mask: float = 3.5
+    auto_mask: float | None = 3.5
     """How deep the construct clean mask is during each cycle"""
-    auto_threshold: float = 0.5
+    auto_threshold: float | None = 0.5
     """How deep to clean once initial clean threshold reached"""
     threshold: float | None = None
     """Threshold in Jy to stop cleaning"""
