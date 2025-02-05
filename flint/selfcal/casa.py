@@ -8,7 +8,7 @@ from __future__ import annotations
 from argparse import ArgumentParser
 from pathlib import Path
 from shutil import copytree
-from typing import Any, NamedTuple
+from typing import Any
 
 from casacore.tables import table
 
@@ -17,11 +17,13 @@ from flint.flagging import nan_zero_extreme_flag_ms
 from flint.logging import logger
 from flint.ms import MS, rename_ms_and_columns_for_selfcal
 from flint.naming import get_selfcal_ms_name
+from flint.options import BaseOptions
 from flint.sclient import singularity_wrapper
+from flint.selfcal.utils import get_channel_ranges_given_nspws_for_ms
 from flint.utils import remove_files_folders, rsync_copy_directory, zip_folder
 
 
-class GainCalOptions(NamedTuple):
+class GainCalOptions(BaseOptions):
     """Options provided to the casatasks gaincal function. Most options correspond to those in gaincal."""
 
     solint: str = "60s"
@@ -39,16 +41,10 @@ class GainCalOptions(NamedTuple):
     gaintype: str = "G"
     """The gain type that would be solved for. """
     nspw: int = 1
-    """The number of spectral windows to use during the self-calibration routine. If 1, no changes
-    are made to the measurement set. If more than 1, then the measurement will be reformed to form
-    a new measurement set conforming to the number of spws set. This process can be fragile as the
-    casa tasks sometimes do not like the configure, so ye warned."""
-
-    def with_options(self, **kwargs) -> GainCalOptions:
-        _dict = self._asdict()
-        _dict.update(**kwargs)
-
-        return GainCalOptions(**_dict)
+    """The number of spectral windows to use during the self-calibration routine. This
+    will be used to craft an appropriate ``select_spw=`` interval range. If larger
+    than one, ``gaincal`` will be carried out against each interval and results will
+    be appended to a common solutions file. """
 
 
 def args_to_casa_task_string(task: str, **kwargs) -> str:
@@ -377,36 +373,27 @@ def gaincal_applycal_ms(
         logger.warning(f"Removing {cal_table!s}")
         remove_files_folders(cal_table)
 
-    # This is used for when a frequency dependent self-calibration solution is requested.
-    # Apparently in the casa way of life the gaincal task (used below) automatically does
-    # this when it detects multiple spectral windows in the measurement set. By default,
-    # the typical ASKAP MS has a single one. When nspw > 1, a combination of mstransorm+cvel
-    # is used to add multiple spws, gaincal, applycal, cvel back to a single spw. Why a
-    # single spw? Some tasks just work better with it - and this pirate likes a simple life
-    # on the seven seas. Also have no feeling of what the yandasoft suite prefers.
-    if gain_cal_options.nspw > 1:
-        cal_path = create_spws_in_ms(
-            ms_path=cal_ms.path,
-            casa_container=casa_container,
-            nspw=gain_cal_options.nspw,
-        )
-        # At the time of writing the output path returned above should always
-        # be the same as the ms_path=, however me be a ye paranoid pirate who
-        # trusts no one of the high seas
-        cal_ms = cal_ms.with_options(path=cal_path)
-
-    gaincal(
-        container=casa_container,
-        bind_dirs=(cal_ms.path.parent, cal_table.parent),
-        vis=str(cal_ms.path),
-        caltable=str(cal_table),
-        solint=gain_cal_options.solint,
-        gaintype=gain_cal_options.gaintype,
-        minsnr=gain_cal_options.minsnr,
-        calmode=gain_cal_options.calmode,
-        selectdata=gain_cal_options.selectdata,
-        uvrange=gain_cal_options.uvrange,
+    channel_ranges = get_channel_ranges_given_nspws_for_ms(
+        ms=cal_ms, nspw=gain_cal_options.nspw
     )
+    for idx, channel_range in enumerate(channel_ranges):
+        channel_select_str = f"*:{channel_range[0]}~{channel_range[1]}"
+        logger.info(f"Calibrating {idx + 1} of {len(channel_ranges)}, {channel_range=}")
+
+        gaincal(
+            container=casa_container,
+            bind_dirs=(cal_ms.path.parent, cal_table.parent),
+            vis=str(cal_ms.path),
+            caltable=str(cal_table),
+            spw=channel_select_str,
+            solint=gain_cal_options.solint,
+            gaintype=gain_cal_options.gaintype,
+            minsnr=gain_cal_options.minsnr,
+            calmode=gain_cal_options.calmode,
+            selectdata=gain_cal_options.selectdata,
+            uvrange=gain_cal_options.uvrange,
+            append=idx > 1,
+        )
 
     if not cal_table.exists():
         logger.critical(
@@ -425,18 +412,6 @@ def gaincal_applycal_ms(
         vis=str(cal_ms.path),
         gaintable=str(cal_table),
     )
-
-    # This is used for when a frequency dependent self-calibration solution is requested
-    # It is often useful (mandatory!) to have a single spw for some tasks - both of the casa
-    # and everyone else variety.
-    if gain_cal_options.nspw > 1:
-        # putting it all back to a single spw
-        cal_ms_path = merge_spws_in_ms(
-            casa_container=casa_container, ms_path=cal_ms.path
-        )
-        # At the time of writing merge_spws_in_ms returns the ms_path=,
-        # but this pirate trusts no one.
-        cal_ms = cal_ms.with_options(path=cal_ms_path)
 
     if archive_cal_table:
         zip_folder(in_path=cal_table)

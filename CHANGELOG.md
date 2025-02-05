@@ -16,6 +16,8 @@
   - Patches into the existing Dask client
   - Requires version bump to `numpy>=2.0` in `flint` and associated dependencies
 - Removed the `wrapper_get_options_from_strategy`
+- Avoid reforming the MS when self-calibrating with CASA
+  - using an appropriate `spw=` str and `append=True` in `gaincal`.
 
 # 0.2.13
 
