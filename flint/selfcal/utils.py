@@ -4,6 +4,56 @@ across different packages.
 
 from __future__ import annotations
 
+from math import ceil
+from pathlib import Path
+
+from flint.logging import logger
+from flint.ms import MS, get_freqs_from_ms
+
+
+def get_channel_ranges_given_nspws(
+    num_channels: int, nspws: int
+) -> tuple[tuple[int, int], ...]:
+    """Given the number of channels construct the start and end channel indices
+    for the specified number of spectral windows. The interval step size will be ceiled
+    should the the ``num_channels / nspw`` not be whole. In this case the last
+    interval will be smaller than the others.
+
+    Args:
+        num_channels (int): The number of channels spanning some band
+        nspws (int): The number of segments across the band
+
+    Returns:
+        tuple[tuple[int,int]]: The start and end channel index spanning the number of channels.
+    """
+
+    step = ceil(num_channels / nspws)
+    starts = list(range(0, num_channels, step))
+    ends = [min(start + step - 1, num_channels - 1) for start in starts]
+
+    return tuple(zip(starts, ends))
+
+
+def get_channel_ranges_given_nspws_for_ms(
+    ms: MS | Path, nspw: int
+) -> tuple[tuple[int, int], ...]:
+    """Construct channel range intervals for the channels in a measurement set
+    given a desired number of spectral windows
+
+    Args:
+        ms (MS | Path): The measurement set to construct channel ranges for
+        nspw (int): Number of channel intervals to construct
+
+    Returns:
+        tuple[tuple[int,int], ...]: The collection of start and end channel intervals. The length will be ``nspw``
+    """
+    ms = MS.cast(ms=ms)
+
+    logger.info(f"Considering {ms.path}, obtaining channel ranges for {nspw=}")
+    freqs = get_freqs_from_ms(ms=ms)
+
+    return get_channel_ranges_given_nspws(num_channels=len(freqs), nspws=nspw)
+
 
 def consider_skip_selfcal_on_round(
     current_round: int, skip_selfcal_on_rounds: int | list[int] | None
