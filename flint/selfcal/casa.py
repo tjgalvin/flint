@@ -392,7 +392,8 @@ def gaincal_applycal_ms(
             calmode=gain_cal_options.calmode,
             selectdata=gain_cal_options.selectdata,
             uvrange=gain_cal_options.uvrange,
-            append=idx > 1,
+            append=idx
+            > 0,  # add these solutions to the existing table. Table only exists after first channel range
         )
 
     if not cal_table.exists():
