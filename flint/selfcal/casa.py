@@ -126,10 +126,10 @@ def gaincal(**kwargs) -> str:
     Returns:
         str: The command to execute
     """
-    applycal_str = args_to_casa_task_string(task="gaincal", **kwargs)
-    logger.info(f"{applycal_str=}")
+    gaincal_str = args_to_casa_task_string(task="gaincal", **kwargs)
+    logger.info(f"{gaincal_str=}")
 
-    return applycal_str
+    return gaincal_str
 
 
 def copy_and_clean_ms_casagain(
