@@ -7,12 +7,31 @@ from pathlib import Path
 
 import pytest
 
+from flint.ms import MS
 from flint.selfcal.utils import (
     consider_skip_selfcal_on_round,
+    create_and_check_caltable_path,
     get_channel_ranges_given_nspws,
     get_channel_ranges_given_nspws_for_ms,
 )
 from flint.utils import get_packaged_resource_path
+
+
+def test_create_solution_path():
+    """Create the path to a solutions file, including appropriate handling of a channel range"""
+
+    ms_path = Path("/jack/has/a/measurement_set.ms")
+    cal_table = create_and_check_caltable_path(ms=MS.cast(ms_path))
+
+    assert isinstance(cal_table, Path)
+    assert cal_table == Path("/jack/has/a/measurement_set.caltable")
+
+    cal_table = create_and_check_caltable_path(
+        ms=MS.cast(ms_path), channel_range=(0, 143)
+    )
+
+    assert isinstance(cal_table, Path)
+    assert cal_table == Path("/jack/has/a/measurement_set.caltable.ch0000-0143")
 
 
 @pytest.fixture

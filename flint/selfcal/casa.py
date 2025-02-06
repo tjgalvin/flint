@@ -19,7 +19,10 @@ from flint.ms import MS, rename_ms_and_columns_for_selfcal
 from flint.naming import get_selfcal_ms_name
 from flint.options import BaseOptions
 from flint.sclient import singularity_wrapper
-from flint.selfcal.utils import get_channel_ranges_given_nspws_for_ms
+from flint.selfcal.utils import (
+    create_and_check_caltable_path,
+    get_channel_ranges_given_nspws_for_ms,
+)
 from flint.utils import remove_files_folders, rsync_copy_directory, zip_folder
 
 
@@ -311,37 +314,6 @@ def merge_spws_in_ms(casa_container: Path, ms_path: Path) -> Path:
 
     # Look above - we have renamed the cvel measurement set Captain
     return ms_path
-
-
-def create_and_check_caltable_path(
-    ms: MS, channel_range: tuple[int, int] | None = None, remove_if_exists: bool = False
-) -> Path:
-    """Create the output name path for the gaincal solutions table.
-
-    If the table already exists it will be removed.
-
-    Args:
-        cal_ms (MS): A description of the measurement set
-        channel_range (tuple[int,int] | None, optional): Channel start and end, which will be appended. Defaults to None.
-        remove_if_exists (bool, optional): If ``True`` and the table exists, remove it. Defaults to False.
-
-    Returns:
-        Path: Output path of the solutions table
-    """
-
-    cal_suffix = ".caltable"
-    if channel_range:
-        cal_suffix += f".ch{channel_range[0]:04d}-{channel_range[1]:04d}"
-    cal_table_name = ms.path.with_suffix(cal_suffix)
-
-    cal_table = ms.path.absolute().parent / cal_table_name
-    logger.info(f"Will create calibration table {cal_table}.")
-
-    if remove_if_exists and cal_table.exists():
-        logger.warning(f"Removing {cal_table!s}")
-        remove_files_folders(cal_table)
-
-    return cal_table
 
 
 def gaincal_applycal_ms(
