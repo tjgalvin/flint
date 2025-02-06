@@ -60,6 +60,10 @@ def args_to_casa_task_string(task: str, **kwargs) -> str:
     """
     command = []
     for k, v in kwargs.items():
+        # convert to a tuple if a list
+        if isinstance(v, list):
+            v = (f"'{_v!s}'" for _v in v)
+
         if isinstance(v, (str, Path)):
             arg = rf"{k}='{v!s}'"
         else:
