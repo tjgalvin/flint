@@ -755,7 +755,7 @@ def preprocess_askap_ms(
 
     logger.info("Applying rotation matrix to correlations. ")
     logger.info(
-        f"Rotating visibilities for {ms.path} with data_column={instrument_column} amd corrected_data_column={data_column}"
+        f"Rotating visibilities for {ms.path} with data_column={instrument_column} and corrected_data_column={data_column}"
     )
     fix_ms_corrs(
         ms=ms.path,
@@ -822,7 +822,7 @@ def copy_and_preprocess_casda_askap_ms(
 
     logger.info("Applying rotation matrix to correlations. ")
     logger.info(
-        f"Rotating visibilities for {ms.path} with data_column={instrument_column} amd corrected_data_column={data_column}"
+        f"Rotating visibilities for {ms.path} with data_column={instrument_column} and corrected_data_column={data_column}"
     )
     fix_ms_corrs(
         ms=ms.path,
