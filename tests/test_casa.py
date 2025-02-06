@@ -39,3 +39,20 @@ def test_args_to_casa_task_str():
 
     expected = "casa -c mstransform(regridms=True,nspw=1,mode='channel',nchan=-1)"
     assert transform == expected
+
+
+def test_args_to_casa_task_str_arg_list():
+    """Same as above but should an argument be a list of paths (for example) needs help"""
+
+    paths = [
+        Path("/jack/dataset1.ms"),
+        Path("/jack/dataset2.ms"),
+    ]
+    applycal = args_to_casa_task_string(
+        task="applycal",
+        vis=Path("/some/other/ship/visibility.ms"),
+        gaintable=paths,
+    )
+
+    expected = "casa -c applycal(vis='/some/other/ship/visibility.ms',gaintable=('/jack/dataset1.ms','/jack/dataset2.ms'))"
+    assert expected == applycal
