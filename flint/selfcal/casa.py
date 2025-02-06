@@ -372,54 +372,46 @@ def gaincal_applycal_ms(
         logger.info(f"{skip_selfcal=}, not calibrating the MS. ")
         return cal_ms
 
-    cal_tables = []
     channel_ranges = get_channel_ranges_given_nspws_for_ms(
         ms=cal_ms, nspw=gain_cal_options.nspw
     )
-    for idx, channel_range in enumerate(channel_ranges):
-        cal_table = create_and_check_caltable_path(
-            ms=cal_ms, channel_range=channel_range
+    spw_str = ",".join(
+        f"0:{channel_range[0]}~{channel_range[1]}" for channel_range in channel_ranges
+    )
+    cal_table = create_and_check_caltable_path(ms=cal_ms)
+
+    gaincal(
+        container=casa_container,
+        bind_dirs=(cal_ms.path.parent, cal_table.parent),
+        vis=str(cal_ms.path),
+        caltable=str(cal_table),
+        spw=spw_str,
+        solint=gain_cal_options.solint,
+        gaintype=gain_cal_options.gaintype,
+        minsnr=gain_cal_options.minsnr,
+        calmode=gain_cal_options.calmode,
+        selectdata=gain_cal_options.selectdata,
+        uvrange=gain_cal_options.uvrange,
+    )
+
+    if not cal_table.exists():
+        logger.critical(
+            "The calibration table was not created. Likely gaincal failed. "
         )
-
-        channel_select_str = f"0:{channel_range[0]}~{channel_range[1]}"
-        logger.info(f"Calibrating {idx + 1} of {len(channel_ranges)}, {channel_range=}")
-
-        gaincal(
-            container=casa_container,
-            bind_dirs=(cal_ms.path.parent, cal_table.parent),
-            vis=str(cal_ms.path),
-            caltable=str(cal_table),
-            spw=channel_select_str,
-            solint=gain_cal_options.solint,
-            gaintype=gain_cal_options.gaintype,
-            minsnr=gain_cal_options.minsnr,
-            calmode=gain_cal_options.calmode,
-            selectdata=gain_cal_options.selectdata,
-            uvrange=gain_cal_options.uvrange,
-        )
-
-        if not cal_table.exists():
-            logger.critical(
-                "The calibration table was not created. Likely gaincal failed. "
-            )
-            if raise_error_on_fail:
-                raise GainCalError(f"Gaincal failed for {cal_ms.path}")
-            else:
-                return ms
-
-        logger.info(f"Solutions have been solved, stored in {cal_table} ")
-        cal_tables.append(cal_table)
+        if raise_error_on_fail:
+            raise GainCalError(f"Gaincal failed for {cal_ms.path}")
+        else:
+            return ms
 
     applycal(
         container=casa_container,
-        bind_dirs=(cal_ms.path.parent, cal_tables[0].parent),
+        bind_dirs=(cal_ms.path.parent, cal_table.parent),
         vis=str(cal_ms.path),
-        gaintable=[str(_cal_table) for _cal_table in cal_tables],
+        gaintable=str(cal_table),
     )
 
     if archive_cal_table:
-        for _cal_table in cal_tables:
-            zip_folder(in_path=_cal_table)
+        zip_folder(in_path=cal_table)
 
     flag_versions_table = cal_ms.path.with_suffix(".ms.flagversions")
     if flag_versions_table.exists():
