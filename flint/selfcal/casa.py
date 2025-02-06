@@ -443,7 +443,8 @@ def gaincal_applycal_ms(
     )
 
     if archive_cal_table:
-        zip_folder(in_path=cal_table)
+        for _cal_table in cal_tables:
+            zip_folder(in_path=_cal_table)
 
     flag_versions_table = cal_ms.path.with_suffix(".ms.flagversions")
     if flag_versions_table.exists():
