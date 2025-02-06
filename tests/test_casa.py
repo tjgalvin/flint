@@ -22,7 +22,7 @@ def test_create_solution_path():
     )
 
     assert isinstance(cal_table, Path)
-    assert cal_table == Path("/jack/has/a/measurement_set.caltable.0-143")
+    assert cal_table == Path("/jack/has/a/measurement_set.caltable.ch0000-0143")
 
 
 def test_args_to_casa_task_str():

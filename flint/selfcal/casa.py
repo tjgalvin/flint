@@ -331,7 +331,7 @@ def create_and_check_caltable_path(
 
     cal_suffix = ".caltable"
     if channel_range:
-        cal_suffix += f".{channel_range[0]}-{channel_range[1]}"
+        cal_suffix += f".ch{channel_range[0]:04d}-{channel_range[1]:04d}"
     cal_table_name = ms.path.with_suffix(cal_suffix)
 
     cal_table = ms.path.absolute().parent / cal_table_name
