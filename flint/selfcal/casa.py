@@ -310,6 +310,37 @@ def merge_spws_in_ms(casa_container: Path, ms_path: Path) -> Path:
     return ms_path
 
 
+def create_and_check_caltable_path(
+    ms: MS, channel_range: tuple[int, int] | None = None, remove_if_exists: bool = False
+) -> Path:
+    """Create the output name path for the gaincal solutions table.
+
+    If the table already exists it will be removed.
+
+    Args:
+        cal_ms (MS): A description of the measurement set
+        channel_range (tuple[int,int] | None, optional): Channel start and end, which will be appended. Defaults to None.
+        remove_if_exists (bool, optional): If ``True`` and the table exists, remove it. Defaults to False.
+
+    Returns:
+        Path: Output path of the solutions table
+    """
+
+    cal_suffix = ".caltable"
+    if channel_range:
+        cal_suffix += f".{channel_range[0]}-{channel_range[1]}"
+    cal_table_name = ms.path.with_suffix(cal_suffix)
+
+    cal_table = ms.path.absolute().parent / cal_table_name
+    logger.info(f"Will create calibration table {cal_table}.")
+
+    if remove_if_exists and cal_table.exists():
+        logger.warning(f"Removing {cal_table!s}")
+        remove_files_folders(cal_table)
+
+    return cal_table
+
+
 def gaincal_applycal_ms(
     ms: MS,
     casa_container: Path,
@@ -366,18 +397,16 @@ def gaincal_applycal_ms(
         logger.info(f"{skip_selfcal=}, not calibrating the MS. ")
         return cal_ms
 
-    cal_table = cal_ms.path.absolute().parent / cal_ms.path.with_suffix(".caltable")
-    logger.info(f"Will create calibration table {cal_table}.")
-
-    if cal_table.exists():
-        logger.warning(f"Removing {cal_table!s}")
-        remove_files_folders(cal_table)
-
+    cal_tables = []
     channel_ranges = get_channel_ranges_given_nspws_for_ms(
         ms=cal_ms, nspw=gain_cal_options.nspw
     )
     for idx, channel_range in enumerate(channel_ranges):
-        channel_select_str = f"*:{channel_range[0]}~{channel_range[1]}"
+        cal_table = create_and_check_caltable_path(
+            ms=cal_ms, channel_range=channel_range
+        )
+
+        channel_select_str = f"0:{channel_range[0]}~{channel_range[1]}"
         logger.info(f"Calibrating {idx + 1} of {len(channel_ranges)}, {channel_range=}")
 
         gaincal(
@@ -392,26 +421,25 @@ def gaincal_applycal_ms(
             calmode=gain_cal_options.calmode,
             selectdata=gain_cal_options.selectdata,
             uvrange=gain_cal_options.uvrange,
-            append=idx
-            > 0,  # add these solutions to the existing table. Table only exists after first channel range
         )
 
-    if not cal_table.exists():
-        logger.critical(
-            "The calibration table was not created. Likely gaincal failed. "
-        )
-        if raise_error_on_fail:
-            raise GainCalError(f"Gaincal failed for {cal_ms.path}")
-        else:
-            return ms
+        if not cal_table.exists():
+            logger.critical(
+                "The calibration table was not created. Likely gaincal failed. "
+            )
+            if raise_error_on_fail:
+                raise GainCalError(f"Gaincal failed for {cal_ms.path}")
+            else:
+                return ms
 
-    logger.info("Solutions have been solved. Applying them. ")
+        logger.info(f"Solutions have been solved, stored in {cal_table} ")
+        cal_tables.append(cal_table)
 
     applycal(
         container=casa_container,
-        bind_dirs=(cal_ms.path.parent, cal_table.parent),
+        bind_dirs=(cal_ms.path.parent, cal_tables[0].parent),
         vis=str(cal_ms.path),
-        gaintable=str(cal_table),
+        gaintable=[str(_cal_table) for _cal_table in cal_tables],
     )
 
     if archive_cal_table:
