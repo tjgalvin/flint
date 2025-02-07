@@ -409,7 +409,10 @@ def gaincal_applycal_ms(
         spw_and_cal_tables.append((spw_str, cal_table))
 
     # Now apply each
-    for spw_str, cal_table in spw_and_cal_tables:
+    for idx, (spw_str, cal_table) in enumerate(spw_and_cal_tables):
+        logger.info(
+            f"{idx + 1} of {len(spw_and_cal_tables)}, applying solutions for {spw_str}"
+        )
         applycal(
             container=casa_container,
             bind_dirs=(cal_ms.path.parent, cal_table.parent),
