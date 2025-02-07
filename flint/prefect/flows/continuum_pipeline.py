@@ -318,7 +318,7 @@ def process_science_fields(
             wsclean_results=wsclean_results,
             field_options=field_options,
             field_summary=field_summary,
-            current_round=None,
+            additional_linmos_suffix_str="noselfcal",  # indicate in output linmos name no selfcal
         )
         archive_wait_for.extend(parsets)
         parset = parsets[-1]
@@ -447,7 +447,6 @@ def process_science_fields(
                     wsclean_results=wsclean_results,
                     field_options=field_options,
                     field_summary=field_summary,
-                    current_round=None,  # round indicator should be a processed field in image path
                 )
                 archive_wait_for.extend(parsets_self)
 
@@ -499,9 +498,6 @@ def process_science_fields(
                     wsclean_results=wsclean_results,
                     field_options=field_options.with_options(linmos_residuals=False),
                     field_summary=field_summary,
-                    current_round=(
-                        field_options.rounds if field_options.rounds else None
-                    ),
                 )
                 archive_wait_for.extend(parsets)
 

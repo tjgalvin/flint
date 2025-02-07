@@ -838,7 +838,6 @@ def create_convol_linmos_images(
     wsclean_results: Collection[WSCleanResult],
     field_options: FieldOptions,
     field_summary: FieldSummary | None = None,
-    current_round: int | None = None,
     additional_linmos_suffix_str: str | None = None,
 ) -> list[LinmosResult]:
     """Derive the appropriate set of beam shapes and then produce corresponding
@@ -848,7 +847,6 @@ def create_convol_linmos_images(
         wsclean_results (Collection[WSCleanResult]): Set of wsclean commands that have been executed
         field_options (FieldOptions): Set of field imaging options, containing details of the beam/s
         field_summary (Optional[FieldSummary], optional): Summary of the MSs, importantly containing their third-axis rotation. Defaults to None.
-        current_round (Optional[int], optional): Which self-cal imaging round. If None 'noselfcal'. Defaults to None.
         additional_linmos_suffix_str (Optional[str], optional): An additional string added to the end of the auto-generated linmos base name. Defaults to None.
 
     Returns:
@@ -856,16 +854,13 @@ def create_convol_linmos_images(
     """
     parsets: list[LinmosResult] = []
 
-    # Come up with the linmos suffix to add to output file
-    suffixes = [f"round{current_round}" if current_round is not None else "noselfcal"]
+    beam_str: str = get_beam_resolution_str(mode="optimal")
+    linmos_suffixes: list[str] = [beam_str]
     if additional_linmos_suffix_str:
-        suffixes.insert(0, additional_linmos_suffix_str)
+        linmos_suffixes.insert(0, additional_linmos_suffix_str)
 
-    main_linmos_suffix_str = ".".join(suffixes)
-
-    beam_str = get_beam_resolution_str(mode="optimal")
-
-    linmos_suffix_str = f"{beam_str}.{main_linmos_suffix_str}"
+    # set up the expected name formats
+    linmos_suffix_str = ".".join(linmos_suffixes)
     convol_suffix_str = f"{beam_str}.conv"
 
     beam_shape = task_get_common_beam_from_results.submit(
