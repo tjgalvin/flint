@@ -492,7 +492,7 @@ def process_science_fields(
                 update_wsclean_options=unmapped(stokes_v_wsclean_options),
                 fits_mask=fits_beam_masks,
                 wait_for=wsclean_results,  # Ensure that measurement sets are doubled up during imaging
-            )  # type: ignore
+            )
             if field_options.yandasoft_container:
                 parsets = create_convol_linmos_images(
                     wsclean_results=wsclean_results,
@@ -518,7 +518,7 @@ def process_science_fields(
             max_round=field_options.rounds if field_options.rounds else None,
             update_archive_options=update_archive_options,
             wait_for=archive_wait_for,
-        )  # type: ignore
+        )
 
 
 def setup_run_process_science_field(
