@@ -839,6 +839,8 @@ def create_linmos_base_path(
     additional_suffixes: str | None = None,
 ) -> Path:
     """Create the base path of a ``yandasoft linmos`` given a set of input images.
+    The default operation is to form the name from the common processed name fields
+    amount all of the input images.
 
 
     Args:

@@ -447,7 +447,7 @@ def process_science_fields(
                     wsclean_results=wsclean_results,
                     field_options=field_options,
                     field_summary=field_summary,
-                    current_round=current_round,
+                    current_round=None,  # round indicator should be a processed field in image path
                 )
                 archive_wait_for.extend(parsets_self)
 
