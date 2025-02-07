@@ -372,6 +372,7 @@ def gaincal_applycal_ms(
         logger.info(f"{skip_selfcal=}, not calibrating the MS. ")
         return cal_ms
 
+    # First, we collect the solutions for each of the requested SPW
     spw_and_cal_tables = []
     channel_ranges = get_channel_ranges_given_nspws_for_ms(
         ms=cal_ms, nspw=gain_cal_options.nspw
@@ -408,7 +409,10 @@ def gaincal_applycal_ms(
 
         spw_and_cal_tables.append((spw_str, cal_table))
 
-    # Now apply each
+    # Now apply each of the solutions to the corresponding SPW.
+    # Relying on the spw= channel selection to only be updating
+    # the visibilities in the existing CORRECTED_DATA column,
+    # not overwriting the entire column
     for idx, (spw_str, cal_table) in enumerate(spw_and_cal_tables):
         logger.info(
             f"{idx + 1} of {len(spw_and_cal_tables)}, applying solutions for {spw_str}"
