@@ -8,10 +8,22 @@ from time import sleep
 from typing import Callable, Collection
 
 from spython.main import Client as sclient
+from spython.main.pull import pull as spull
 
 from flint.exceptions import AttemptRerunException
 from flint.logging import logger
 from flint.utils import get_job_info, log_job_environment
+
+
+def pull_container(container_directory: Path, uri: str, filename: str) -> Path:
+    logger.info(f"Attempting to pull {uri=} into {container_directory=}")
+
+    container_path: Path = Path(
+        spull(image=uri, pull_folder=str(container_directory), name=filename)
+    )
+    assert container_path.exists(), f"{container_path=} does not exist, but should"
+
+    return container_path
 
 
 def run_singularity_command(
