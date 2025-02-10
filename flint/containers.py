@@ -69,10 +69,8 @@ def log_known_containers() -> None:
     """Log the known containers"""
 
     for idx, (known_name, known_container) in enumerate(KNOWN_CONTAINER_LOOKUP.items()):
-        logger.info(
-            f"{idx + 1} of {len(LIST_OF_KNOWN_CONTAINERS)} containers) {known_name}"
-        )
-        logger.info("Details: ")
+        logger.info(f"Container {idx + 1} of {len(LIST_OF_KNOWN_CONTAINERS)}")
+        logger.info(f"\tName: {known_container.name}")
         logger.info(f"\tFilename: {known_container.filename}")
         logger.info(f"\tURL: {known_container.url}")
         logger.info(f"\tDescription: {known_container.description}")
