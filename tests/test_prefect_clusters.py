@@ -35,6 +35,11 @@ def test_get_dask_task_runner():
     dask_task_runner = get_dask_runner(cluster="example_slurm")
     assert isinstance(dask_task_runner, DaskTaskRunner)
 
+    dask_task_runner = get_dask_runner(
+        cluster="example_slurm", extra_cluster_kwargs={"name": "jack-be-testing"}
+    )
+    assert isinstance(dask_task_runner, DaskTaskRunner)
+
 
 def test_example_cluster_condif(tmpdir):
     """Load in a passable cluster configuration."""
