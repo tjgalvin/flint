@@ -70,7 +70,7 @@ KNOWN_CONTAINER_LOOKUP: dict[str, FlintContainer] = {
 def log_known_containers() -> None:
     """Log the known containers"""
 
-    for idx, (known_name, known_container) in enumerate(KNOWN_CONTAINER_LOOKUP.items()):
+    for idx, known_container in enumerate(LIST_OF_KNOWN_CONTAINERS):
         logger.info(f"Container {idx + 1} of {len(LIST_OF_KNOWN_CONTAINERS)}")
         logger.info(f"\tName: {known_container.name}")
         logger.info(f"\tFilename: {known_container.filename}")
