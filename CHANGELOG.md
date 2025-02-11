@@ -16,6 +16,11 @@
   - Patches into the existing Dask client
   - Requires version bump to `numpy>=2.0` in `flint` and associated dependencies
 - Removed the `wrapper_get_options_from_strategy`
+- Added `flint_containers` which aims to:
+  - Track known containers that are required throughout flint
+  - Download (with `singularity-python`) containers that are tracked
+  - The beginnings of a `get_known_container` type interface so that containers
+    may not need to be referenced via cli all the time
 
 # 0.2.13
 
