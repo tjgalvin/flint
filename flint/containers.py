@@ -68,7 +68,7 @@ KNOWN_CONTAINER_LOOKUP: dict[str, FlintContainer] = {
 
 
 def log_known_containers() -> None:
-    """Log the known containers"""
+    """Log the known containers. This simply prints the set of known containers."""
 
     for idx, known_container in enumerate(LIST_OF_KNOWN_CONTAINERS):
         logger.info(f"Container {idx + 1} of {len(LIST_OF_KNOWN_CONTAINERS)}")
@@ -78,7 +78,76 @@ def log_known_containers() -> None:
         logger.info(f"  Description: {known_container.description}")
 
 
+def get_known_container_path(container_directory: Path | str, name: str) -> Path:
+    """Return the path to a ``flint`` known container. These are containers that
+    are downloaded through the ``download_known_containers`` function.
+
+    Args:
+        container_directory (Path | str): Path to directory containing downloaded containers
+        name (str): Name of the container. Note that this is not the filename.
+
+    Raises:
+        ValueError: Raised when the name is not known
+
+    Returns:
+        Path: Path to the requested
+    """
+
+    container_directory = Path(container_directory)
+
+    known_container = KNOWN_CONTAINER_LOOKUP.get(name, None)
+
+    if known_container is None:
+        raise ValueError(
+            f"{name=} is not known. See {list(KNOWN_CONTAINER_LOOKUP.keys())}"
+        )
+
+    known_container_path = container_directory / known_container.filename
+    assert known_container_path.exists(), (
+        f"{known_container_path=} of {name=} does not exist"
+    )
+
+    return known_container_path
+
+
+def verify_known_containers(container_directory: Path | str) -> bool:
+    """Inspect the provided ``container_directory`` to examine that the set of
+    containers that are expected to exist are present.
+
+    Args:
+        container_directory (Path | str): Directory to search that should have containers
+
+    Returns:
+        bool: True is all containers are available. False otherwise.
+    """
+
+    logger.info(f"Checking {container_directory=} for known containers")
+    container_valid = {}
+    for known_container in LIST_OF_KNOWN_CONTAINERS:
+        try:
+            _ = get_known_container_path(
+                container_directory=container_directory, name=known_container.name
+            )
+            valid = True
+        except (ValueError, AssertionError):
+            valid = False
+        logger.info(
+            f"Container {known_container.name} is {'valid' if valid else 'not valid'}"
+        )
+        container_valid[known_container.name] = False
+
+    return all(container_valid.items())
+
+
 def download_known_containers(container_directory: Path | str) -> tuple[Path, ...]:
+    """Download known containers for use throughout flint.
+
+    Args:
+        container_directory (Path | str): Output directory to store containers. Will be created if necessary.
+
+    Returns:
+        tuple[Path, ...]: Paths to all containers downloaded
+    """
     container_directory = Path(container_directory)
 
     if not container_directory.exists():
@@ -134,6 +203,14 @@ def get_parser() -> ArgumentParser:
         "container_directory", type=Path, help="Location to download containers to"
     )
 
+    verify_parser = subparsers.add_parser(
+        name="verify", help="Pull each of the known containers"
+    )
+
+    verify_parser.add_argument(
+        "container_directory", type=Path, help="Location to download containers to"
+    )
+
     return parser
 
 
@@ -146,6 +223,8 @@ def cli() -> None:
         log_known_containers()
     elif args.mode == "download":
         download_known_containers(container_directory=args.container_directory)
+    elif args.mode == "verify":
+        verify_known_containers(container_directory=args.container_directory)
     else:
         logger.info(f"Unknown directive: {args.mode}")
 

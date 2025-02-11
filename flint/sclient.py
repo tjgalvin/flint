@@ -15,6 +15,16 @@ from flint.utils import get_job_info, log_job_environment
 
 
 def pull_container(container_directory: Path, uri: str, filename: str) -> Path:
+    """Download a singularity container from an appropriate ``uri``.
+
+    Args:
+        container_directory (Path): Where to store the output container
+        uri (str): The reference to the container to pull, e.g. docker://profile/container:tag
+        filename (str): The output name of the container
+
+    Returns:
+        Path: Location of the new container
+    """
     logger.info(f"Attempting to pull {uri=} into {container_directory=}")
 
     container_path, output = sclient.pull(
