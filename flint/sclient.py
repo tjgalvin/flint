@@ -21,7 +21,8 @@ def pull_container(container_directory: Path, uri: str, filename: str) -> Path:
         image=uri, pull_folder=str(container_directory), name=filename, stream=True
     )
     for line in output:
-        logger.info(line)
+        # Remove the trailing new line character
+        logger.info(line.rstrip())
 
     container_path = Path(container_path)
 
