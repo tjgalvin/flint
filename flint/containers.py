@@ -81,6 +81,10 @@ def log_known_containers() -> None:
 def download_known_containers(container_directory: Path | str) -> tuple[Path, ...]:
     container_directory = Path(container_directory)
 
+    if not container_directory.exists():
+        logger.info(f"Creating {container_directory=}")
+        container_directory.mkdir(parents=True)
+
     containers_downloaded = []
     for idx, known_catalogue in enumerate(LIST_OF_KNOWN_CONTAINERS):
         logger.info(f"{idx + 1} of {len(LIST_OF_KNOWN_CONTAINERS)}")
@@ -139,7 +143,7 @@ def cli() -> None:
     if args.mode == "list":
         log_known_containers()
     elif args.mode == "download":
-        download_known_containers(container_directory=args.containers_directory)
+        download_known_containers(container_directory=args.container_directory)
     else:
         logger.info(f"Unknown directive: {args.mode}")
 
