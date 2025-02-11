@@ -86,10 +86,12 @@ def download_known_containers(container_directory: Path | str) -> tuple[Path, ..
         container_directory.mkdir(parents=True)
 
     containers_downloaded = []
-    for idx, known_catalogue in enumerate(LIST_OF_KNOWN_CONTAINERS):
-        logger.info(f"{idx + 1} of {len(LIST_OF_KNOWN_CONTAINERS)}")
+    for idx, known_container in enumerate(LIST_OF_KNOWN_CONTAINERS):
+        logger.info(
+            f"Downloading {idx + 1} of {len(LIST_OF_KNOWN_CONTAINERS)}, container {known_container.name}"
+        )
 
-        expected_output_path = container_directory / known_catalogue.filename
+        expected_output_path = container_directory / known_container.filename
 
         if expected_output_path.exists():
             logger.info(f"{expected_output_path=} already exists. Skipping.")
@@ -97,8 +99,8 @@ def download_known_containers(container_directory: Path | str) -> tuple[Path, ..
 
         _container_path = pull_container(
             container_directory=container_directory,
-            uri=known_catalogue.uri,
-            filename=known_catalogue.filename,
+            uri=known_container.uri,
+            filename=known_container.filename,
         )
         if not expected_output_path.exists():
             logger.error(

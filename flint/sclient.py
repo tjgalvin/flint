@@ -17,15 +17,11 @@ from flint.utils import get_job_info, log_job_environment
 def pull_container(container_directory: Path, uri: str, filename: str) -> Path:
     logger.info(f"Attempting to pull {uri=} into {container_directory=}")
 
-    container_path, output = sclient.pull(
-        image=uri, pull_folder=str(container_directory), name=filename, stream=True
+    container_path = sclient.pull(
+        image=uri, pull_folder=str(container_directory), name=filename
     )
 
-    # Streaming the output
-    for line in output:
-        logger.info(line)
-
-    container_path = Path(container_path)
+    container_path = Path(container_directory) / Path(container_path)
 
     assert container_path.exists(), f"{container_path=} does not exist, but should"
 
