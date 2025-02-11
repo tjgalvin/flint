@@ -138,6 +138,10 @@ def cli() -> None:
 
     if args.mode == "list":
         log_known_containers()
+    elif args.mode == "download":
+        download_known_containers(container_directory=args.containers_directory)
+    else:
+        logger.info(f"Unknown directive: {args.mode}")
 
 
 if __name__ == "__main__":
