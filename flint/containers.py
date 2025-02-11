@@ -51,7 +51,7 @@ aoflagger_contaer = FlintContainer(
 aegean_contaer = FlintContainer(
     name="aegean",
     filename="flint-containers_aegean.sif",
-    uri="docker://ßßalecthomson/flint-containers:aegean",
+    uri="docker://alecthomson/flint-containers:aegean",
     description="Container with aegean, used to source find",
 )
 
@@ -72,10 +72,10 @@ def log_known_containers() -> None:
 
     for idx, known_container in enumerate(LIST_OF_KNOWN_CONTAINERS):
         logger.info(f"Container {idx + 1} of {len(LIST_OF_KNOWN_CONTAINERS)}")
-        logger.info(f"\tName: {known_container.name}")
-        logger.info(f"\tFilename: {known_container.filename}")
-        logger.info(f"\tURL: {known_container.url}")
-        logger.info(f"\tDescription: {known_container.description}")
+        logger.info(f"  Name: {known_container.name}")
+        logger.info(f"  Filename: {known_container.filename}")
+        logger.info(f"  URL: {known_container.uri}")
+        logger.info(f"  Description: {known_container.description}")
 
 
 def download_known_containers(container_directory: Path | str) -> tuple[Path, ...]:
