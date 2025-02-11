@@ -131,12 +131,13 @@ def verify_known_containers(container_directory: Path | str) -> bool:
             valid = True
         except (ValueError, AssertionError):
             valid = False
+
         logger.info(
             f"Container {known_container.name} is {'valid' if valid else 'not valid'}"
         )
-        container_valid[known_container.name] = False
+        container_valid[known_container.name] = valid
 
-    return all(container_valid.items())
+    return all(container_valid.values())
 
 
 def download_known_containers(container_directory: Path | str) -> tuple[Path, ...]:
@@ -178,7 +179,7 @@ def download_known_containers(container_directory: Path | str) -> tuple[Path, ..
 
         containers_downloaded.append(expected_output_path)
 
-    logger.info(f"Downloaded {len(containers_downloaded)}")
+    logger.info(f"Downloaded {len(containers_downloaded)} new containers")
     return tuple(containers_downloaded)
 
 
