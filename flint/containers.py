@@ -18,41 +18,47 @@ class FlintContainer(BaseOptions):
     """Name of the container"""
     uri: str
     """URL of the container that can be used to pull with apptainer, e.g. docker://alecthomson/aoflagger:latest"""
-    filename: str
-    """The expected filename of the container. This will be appended to the container directory path."""
+    file_name: str
+    """The expected file name of the container. This will be appended to the container directory path."""
     description: str | None = None
     """Short description on the purpose of the container"""
 
 
 calibrate_container = FlintContainer(
     name="calibrate",
-    filename="flint-containers_calibrate.sif",
+    file_name="flint-containers_calibrate.sif",
     uri="docker://alecthomson/flint-containers:calibrate",
     description="Contains AO calibrate and addmodel",
 )
 wsclean_container = FlintContainer(
     name="wsclean",
-    filename="flint-containers_wsclean.sif",
+    file_name="flint-containers_wsclean.sif",
     uri="docker://alecthomson/flint-containers:wsclean",
     description="Container with the wsclean deconvolution software",
 )
 askapsoft_contaer = FlintContainer(
     name="askapsoft",
-    filename="flint-containers_askapsoft.sif",
+    file_name="flint-containers_askapsoft.sif",
     uri="docker://alecthomson/flint-containers:askapsoft",
     description="Container with askapsoft (also known as yandasoft)",
 )
 aoflagger_contaer = FlintContainer(
     name="aoflagger",
-    filename="flint-containers_aoflagger.sif",
+    file_name="flint-containers_aoflagger.sif",
     uri="docker://alecthomson/flint-containers:aoflagger",
     description="Container with aoflagger, used to autonomously flag measurement sets",
 )
 aegean_contaer = FlintContainer(
     name="aegean",
-    filename="flint-containers_aegean.sif",
+    file_name="flint-containers_aegean.sif",
     uri="docker://alecthomson/flint-containers:aegean",
     description="Container with aegean, used to source find",
+)
+potato_container = FlintContainer(
+    name="potato",
+    file_name="flint-container_potato.sif",
+    uri="docker://alecthomson/flint-containers:potato",
+    description="Peel out that terrible annoying source",
 )
 
 LIST_OF_KNOWN_CONTAINERS = (
@@ -61,6 +67,7 @@ LIST_OF_KNOWN_CONTAINERS = (
     askapsoft_contaer,
     aoflagger_contaer,
     aegean_contaer,
+    potato_container,
 )
 KNOWN_CONTAINER_LOOKUP: dict[str, FlintContainer] = {
     v.name: v for v in LIST_OF_KNOWN_CONTAINERS
@@ -73,7 +80,7 @@ def log_known_containers() -> None:
     for idx, known_container in enumerate(LIST_OF_KNOWN_CONTAINERS):
         logger.info(f"Container {idx + 1} of {len(LIST_OF_KNOWN_CONTAINERS)}")
         logger.info(f"  Name: {known_container.name}")
-        logger.info(f"  Filename: {known_container.filename}")
+        logger.info(f"  File name: {known_container.file_name}")
         logger.info(f"  URL: {known_container.uri}")
         logger.info(f"  Description: {known_container.description}")
 
@@ -84,7 +91,7 @@ def get_known_container_path(container_directory: Path | str, name: str) -> Path
 
     Args:
         container_directory (Path | str): Path to directory containing downloaded containers
-        name (str): Name of the container. Note that this is not the filename.
+        name (str): Name of the container. Note that this is not the file name.
 
     Raises:
         ValueError: Raised when the name is not known
@@ -102,7 +109,7 @@ def get_known_container_path(container_directory: Path | str, name: str) -> Path
             f"{name=} is not known. See {list(KNOWN_CONTAINER_LOOKUP.keys())}"
         )
 
-    known_container_path = container_directory / known_container.filename
+    known_container_path = container_directory / known_container.file_name
     assert known_container_path.exists(), (
         f"{known_container_path=} of {name=} does not exist"
     )
@@ -161,7 +168,7 @@ def download_known_containers(container_directory: Path | str) -> tuple[Path, ..
             f"Downloading {idx + 1} of {len(LIST_OF_KNOWN_CONTAINERS)}, container {known_container.name}"
         )
 
-        expected_output_path = container_directory / known_container.filename
+        expected_output_path = container_directory / known_container.file_name
 
         if expected_output_path.exists():
             logger.info(f"{expected_output_path=} already exists. Skipping.")
@@ -170,7 +177,7 @@ def download_known_containers(container_directory: Path | str) -> tuple[Path, ..
         _container_path = pull_container(
             container_directory=container_directory,
             uri=known_container.uri,
-            filename=known_container.filename,
+            file_name=known_container.file_name,
         )
         if not expected_output_path.exists():
             logger.error(

@@ -24,7 +24,7 @@ def test_verify_known_containers(tmpdir):
     assert not verify_known_containers(container_directory=container_directory)
 
     for cata in LIST_OF_KNOWN_CONTAINERS:
-        cata_path = container_directory / cata.filename
+        cata_path = container_directory / cata.file_name
         cata_path.touch()
 
     assert verify_known_containers(container_directory=container_directory)
