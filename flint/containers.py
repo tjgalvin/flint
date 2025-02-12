@@ -19,7 +19,7 @@ class FlintContainer(BaseOptions):
     uri: str
     """URL of the container that can be used to pull with apptainer, e.g. docker://alecthomson/aoflagger:latest"""
     file_name: str
-    """The expected filename of the container. This will be appended to the container directory path."""
+    """The expected file name of the container. This will be appended to the container directory path."""
     description: str | None = None
     """Short description on the purpose of the container"""
 
@@ -80,7 +80,7 @@ def log_known_containers() -> None:
     for idx, known_container in enumerate(LIST_OF_KNOWN_CONTAINERS):
         logger.info(f"Container {idx + 1} of {len(LIST_OF_KNOWN_CONTAINERS)}")
         logger.info(f"  Name: {known_container.name}")
-        logger.info(f"  Filename: {known_container.file_name}")
+        logger.info(f"  File name: {known_container.file_name}")
         logger.info(f"  URL: {known_container.uri}")
         logger.info(f"  Description: {known_container.description}")
 
@@ -91,7 +91,7 @@ def get_known_container_path(container_directory: Path | str, name: str) -> Path
 
     Args:
         container_directory (Path | str): Path to directory containing downloaded containers
-        name (str): Name of the container. Note that this is not the filename.
+        name (str): Name of the container. Note that this is not the file name.
 
     Raises:
         ValueError: Raised when the name is not known
@@ -168,7 +168,7 @@ def download_known_containers(container_directory: Path | str) -> tuple[Path, ..
             f"Downloading {idx + 1} of {len(LIST_OF_KNOWN_CONTAINERS)}, container {known_container.name}"
         )
 
-        expected_output_path = container_directory / known_container.filename
+        expected_output_path = container_directory / known_container.file_name
 
         if expected_output_path.exists():
             logger.info(f"{expected_output_path=} already exists. Skipping.")
@@ -177,7 +177,7 @@ def download_known_containers(container_directory: Path | str) -> tuple[Path, ..
         _container_path = pull_container(
             container_directory=container_directory,
             uri=known_container.uri,
-            filename=known_container.filename,
+            file_name=known_container.file_name,
         )
         if not expected_output_path.exists():
             logger.error(
